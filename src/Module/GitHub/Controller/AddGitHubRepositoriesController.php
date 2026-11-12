@@ -34,14 +34,14 @@ class AddGitHubRepositoriesController extends AppController
 
     public function __invoke(Project $project, Request $request): Response
     {
-        $picker = $this->redirectToRoute('app_github_repositories_picker', ['id' => (string) $project->id]);
+        $tab = $this->redirectToRoute('app_project_repositories_settings', ['id' => (string) $project->id]);
         $data = new PickRepositoriesRequest();
         $form = $this->createForm(PickRepositoriesFormType::class, $data)->handleRequest($request);
         $picks = $data->picks();
         if (!$form->isSubmitted() || !$form->isValid() || [] === $picks) {
             $this->addFlash('error', $this->translator->trans('github.picker.flash.nothing_ticked'));
 
-            return $picker;
+            return $tab;
         }
 
         try {
@@ -55,7 +55,7 @@ class AddGitHubRepositoriesController extends AppController
                 $this->addFlash('error', $this->translator->trans($translationKey));
             }
 
-            return $picker;
+            return $tab;
         }
 
         if ([] !== $added->added) {

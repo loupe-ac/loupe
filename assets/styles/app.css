@@ -5277,30 +5277,45 @@
     .lp-picker-repo__state {
         @apply shrink-0 text-xs text-fg-dim;
     }
+    /* Refresh list reloads the page through Turbo, which sets aria-busy on the form until the page comes back. */
+    .lp-picker-refresh[aria-busy='true'] [type='submit'] {
+        @apply cursor-wait opacity-70;
+    }
+    .lp-picker-refresh[aria-busy='true'] .lp-picker-refresh__icon {
+        @apply motion-safe:animate-spin;
+    }
 
     /* The Repositories section: a row for each repository, then its check list. */
     .lp-repository-list {
         @apply flex flex-col gap-6;
     }
     .lp-repository {
-        @apply flex flex-col gap-3;
+        @apply flex flex-col;
     }
-    .lp-repository-fold {
-        @apply px-4;
+    /* The row is the button that opens and closes the checks. The remove
+       action sits beside it, outside the button. */
+    .lp-repository__toggle {
+        @apply flex min-w-0 grow cursor-pointer flex-wrap items-center gap-x-3 gap-y-2 rounded-sm text-left focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent-ink;
     }
-    .lp-repository-fold__summary {
-        @apply flex cursor-pointer list-none items-center gap-2 text-sm font-semibold text-ink;
+    /* On a phone the tag and the chip drop under the name, so the name keeps its line. */
+    .lp-repository__toggle > .lp-identity-row__text {
+        @apply grow basis-20;
     }
-    .lp-repository-fold__summary::-webkit-details-marker {
-        @apply hidden;
+    .lp-repository__toggle > .lp-status-chip {
+        @apply shrink-0 whitespace-nowrap;
     }
-    .lp-repository-fold__chevron {
-        @apply shrink-0 text-fg-mute transition-transform;
+    .lp-repository__chevron {
+        @apply shrink-0 text-fg-mute transition-transform duration-100;
     }
-    details[open]
-        > .lp-repository-fold__summary
-        > .lp-repository-fold__chevron {
+    .lp-repository__toggle[aria-expanded='true'] > .lp-repository__chevron {
         @apply rotate-90;
+    }
+    /* The disclosure controller slides the checks in and out, and adds .open while they show. */
+    .lp-repository-fold {
+        @apply hidden overflow-hidden px-4;
+    }
+    .lp-repository-fold.open {
+        @apply block;
     }
     .lp-repository-check {
         @apply flex flex-col gap-2 pt-3;

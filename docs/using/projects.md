@@ -115,8 +115,11 @@ The section says when GitHub suspends the installation or when someone uninstall
 #### Add repositories
 
 Select Add repositories on the Repositories tab or on the Connections tab. GitHub asks you to sign in, which is one click when you already authorized Loupe.
-The picker then lists the repositories of every installation of the Loupe App that your own GitHub account can reach. It groups them by GitHub account and has a search box.
+GitHub then sends you back to the Repositories tab, which shows the picker below the list. The picker lists the repositories of every installation of the Loupe App that your own GitHub user can see. It groups them by GitHub account and has a search box.
 Tick the repositories to add, then select Add N repositories. Nothing is ticked at first, and the picker only adds. Remove a repository on the Repositories tab.
+
+The picker shows what GitHub shows your GitHub user, and that can differ from what the project holds. When the project holds an installation that your GitHub user cannot see, the picker names its account: "Installed on acme, but your GitHub user cannot see it." Only a GitHub user with access to that installation can pick its repositories.
+When GitHub shows your user no installation at all, the picker says so and offers Install on another account.
 
 A repository in the list has one of three states:
 
@@ -127,16 +130,14 @@ A repository in the list has one of three states:
 When Loupe adds the repositories, it asks GitHub again whether you still reach each one. When another project took a repository first, or someone removed it from the App on GitHub, Loupe adds the others and names the repository it could not add.
 The picker lists at most 1,000 repositories of one installation. A longer list shows "Showing the first 1,000 repositories of acme". Choose selected repositories on GitHub to narrow the access, and the other repositories show up.
 
-Loupe keeps your GitHub sign-in in your session, encrypted, for 30 minutes at most. It removes the sign-in when you add repositories, when you cancel, and on the first request after 30 minutes. After that, the picker asks you to sign in again.
+Loupe keeps your GitHub sign-in in your session, encrypted, for 30 minutes at most. It removes the sign-in when you add repositories, when you cancel, when GitHub does not answer, and on the first request after 30 minutes. The tab then shows the Add repositories button again.
 
-If a repository is missing from the list, select Adjust access on GitHub. It opens the page of the installation on GitHub. When the operator turned on "Redirect on update" on the App, GitHub sends you back to the picker after the change. Otherwise return to the picker and select Refresh list.
-Select Install on another account to install the App on a GitHub account that has no installation yet. When GitHub sends you back and the new installation offers exactly one repository that no project holds, Loupe adds it at once and says "Connected acme/api. Add more from Repositories." With more than one, the picker opens.
+If a repository is missing from the list, select Adjust access on GitHub. It opens the page of the installation on GitHub. When the operator turned on "Redirect on update" on the App, GitHub sends you back to the Repositories tab after the change. Otherwise return to the tab and select Refresh list.
+Select Install on another account to install the App on a GitHub account that has no installation yet. When GitHub sends you back and the new installation offers exactly one repository that no project holds, Loupe adds it at once and says "Connected acme/api. Add more from Repositories." With more than one, the picker opens on the Repositories tab.
 
 #### Repositories you have not picked
 
-When the App reaches a repository through an installation of this project and no project holds it, the Repositories tab says so above the list: "1 more repository is shared with Loupe and is not in this project." The note links to Add repositories. Loupe asks GitHub for this list and keeps the answer for 10 minutes, so a repository you just shared can take that long to count. When GitHub does not answer, the note does not show.
-
-`loupe init` shows the same state for the repository of your folder: "Shared with Loupe, not in this project." Its link opens the picker with that repository ticked. It needs [CLI 2.6.0](../reference/cli.md#loupe-init) and a server that has the lookup route.
+`loupe init` says "Shared with Loupe, not in this project." for the repository of your folder when the App reaches it and no project holds it. Its link signs you in to GitHub and opens the picker with that repository ticked. It needs [CLI 2.6.0](../reference/cli.md#loupe-init) and a server that has the lookup route.
 
 #### No access
 
@@ -156,8 +157,8 @@ Waiting for the first delivery means Loupe has not received anything from the re
 Working shows the time of the last delivery.
 Quiet means no delivery arrived for 30 days. A quiet repository can be a repository with no activity, or a connection that stopped working on GitHub.
 
-Each repository also shows the name of the workflow of the project, such as Lifecycle workflow.
-Below it, Loupe lists what the workflow suggests for the repository, with one line for each finding.
+Each repository also shows the name of the workflow of the project, such as Lifecycle workflow, and whether the repository fits it: OK or Not OK.
+Select the row to open or close what the workflow suggests for the repository, with one line for each finding. A row with a blocking gap or a failed read starts open.
 A line is Blocking, Warning or Fits. A line says what Loupe read, such as the required checks or the merge method.
 Loupe reads the settings with the permissions that the GitHub App has. It never changes a setting on GitHub.
 Loupe reads again when you open the tab, unless the last read is less than 5 minutes old. While a read runs, the row says Checking…

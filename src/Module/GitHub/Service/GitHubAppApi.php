@@ -145,39 +145,6 @@ final class GitHubAppApi
     }
 
     /**
-     * Every repository the installation reaches, read with the installation token.
-     *
-     * @throws GitHubAppApiFailed
-     */
-    public function installationRepositories(int $installationId): GitHubRepositoryList
-    {
-        $repositories = [];
-        $complete = true;
-        for ($page = 1; $page <= self::MAX_PAGES; ++$page) {
-            $body = $this->get($installationId, '/installation/repositories', ['per_page' => self::PAGE_SIZE, 'page' => $page]);
-            $items = $body['repositories'] ?? null;
-            if (!\is_array($items)) {
-                throw new GitHubAppApiFailed('malformed_body');
-            }
-
-            foreach ($items as $item) {
-                $id = \is_array($item) ? ($item['id'] ?? null) : null;
-                $fullName = \is_array($item) ? ($item['full_name'] ?? null) : null;
-                if (\is_int($id) && \is_string($fullName) && '' !== $fullName) {
-                    $repositories[] = new GitHubRepositoryRef($id, $fullName);
-                }
-            }
-
-            if (\count($items) < self::PAGE_SIZE) {
-                return new GitHubRepositoryList($repositories, true);
-            }
-            $complete = false;
-        }
-
-        return new GitHubRepositoryList($repositories, $complete);
-    }
-
-    /**
      * The installation that reaches the repository, with the repository itself, or null when the App reaches none.
      * The call needs the App's JWT, and GitHub answers 404 for a repository the App does not reach.
      *

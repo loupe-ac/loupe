@@ -13,7 +13,7 @@ use Symfony\Component\DependencyInjection\Attribute\When;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
-/** Signs the picker in with a preview token, then shows the picker. It exists in dev only. */
+/** Signs the picker in with a preview token, then shows the Repositories settings page with the picker. It exists in dev only. */
 #[Route(
     '/dev/github-picker/{id:project}/{scenario}',
     name: 'dev_github_picker',
@@ -35,6 +35,6 @@ final class PreviewGitHubPickerController extends AppController
             'listing' === $scenario ? DevGitHubPickerClient::TOKEN_LISTING : DevGitHubPickerClient::TOKEN_NONE,
         ));
 
-        return $this->redirectToRoute('app_github_repositories_picker', ['id' => (string) $project->id]);
+        return $this->redirectToRoute('app_project_repositories_settings', ['id' => (string) $project->id]);
     }
 }

@@ -20,11 +20,18 @@ final readonly class ShowGitHubRepositoryPickerHandler
     ) {
     }
 
-    /** @throws DomainErrors with the field `token` when the owner must sign in again */
-    public function __invoke(ShowGitHubRepositoryPickerCommand $command): GitHubRepositoryPickerView
+    /**
+     * @return ?GitHubRepositoryPickerView null when the owner has no live sign-in for this project
+     *
+     * @throws DomainErrors with the sign-in removed, when GitHub fails
+     */
+    public function __invoke(ShowGitHubRepositoryPickerCommand $command): ?GitHubRepositoryPickerView
     {
         $projectId = (string) $command->project->id;
-        $token = $this->installSession->token($projectId) ?? throw new DomainErrors(['token' => 'github.picker.flash.expired']);
+        $token = $this->installSession->token($projectId);
+        if (null === $token) {
+            return null;
+        }
 
         try {
             return $this->listing->list($command->project, $token, $this->installSession->pending()?->repository);

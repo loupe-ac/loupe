@@ -1,42 +1,41 @@
 {% if visible %}
 {% do mercure_subscribe(topic) %}
+{% set offerAdd = appConfigured and picker is null %}
 <twig:Ds:Panel as="section" id="repositories" data-testid="github-repositories" data-controller="repository-checks-live" data-repository-checks-live-stopped-value="{{ 'github.repositories.live_stopped'|trans }}">
-    <twig:Ds:SectionHeading>
-        {{ 'github.repositories.title'|trans }}
-        <twig:block name="actions">
-            {% if appConfigured and rows is not empty %}
-            <twig:Ds:Button variant="primary" size="sm" href="{{ path('app_github_repositories_start', {id: project.id}) }}" data-turbo="false" data-turbo-prefetch="false" data-testid="forge-repositories-add">
-                <twig:ux:icon name="lucide:plus" />{{ 'github.picker.add'|trans }}
-            </twig:Ds:Button>
-            {% endif %}
-        </twig:block>
-    </twig:Ds:SectionHeading>
+    <twig:Ds:SectionHeading>{{ 'github.repositories.title'|trans }}</twig:Ds:SectionHeading>
     <p class="lp-live-stopped" role="status" data-repository-checks-live-target="status" data-testid="forge-repositories-live-stopped"></p>
+
+    {% if pickerFailure is not null %}
+    <twig:Ds:Flash severity="warning" data-testid="github-picker-failed">{{ pickerFailure|trans }}</twig:Ds:Flash>
+    {% endif %}
 
     {% if not connectionsAvailable %}
     <p class="lp-connect-hint" data-testid="forge-connections-disabled">{{ 'github.repositories.disabled'|trans }}</p>
     {% elseif rows is empty %}
-    {% include '@GitHub/components/_repositories_empty.html.twig' with {project: project, appConfigured: appConfigured} only %}
+    {% include '@GitHub/components/_repositories_empty.html.twig' with {project: project, appConfigured: appConfigured, offerAdd: offerAdd} only %}
     {% else %}
     <div data-repository-checks-live-target="populated">
         <p class="lp-connect-hint">{{ 'github.repositories.purpose'|trans }}</p>
-        {% if freeCount > 0 or not freeComplete %}
-        <div class="lp-settings-panel" data-testid="forge-repositories-unpicked">
-            <p class="lp-connect-hint">{{ (freeComplete ? 'github.repositories.unpicked' : 'github.repositories.unpicked_partial')|trans({'%count%': freeCount}) }}</p>
-            <twig:Ds:FormActions>
-                <twig:Ds:Button variant="ghost" size="sm" href="{{ path('app_github_repositories_start', {id: project.id}) }}" data-turbo="false" data-turbo-prefetch="false">{{ 'github.picker.add'|trans }}</twig:Ds:Button>
-            </twig:Ds:FormActions>
-        </div>
-        {% endif %}
         <div class="lp-repository-list">
             {% for row in rows %}
             {% include '@GitHub/components/_repository_row.html.twig' with {row: row, project: project} only %}
             {% endfor %}
         </div>
+        {% if offerAdd %}
+        <twig:Ds:FormActions>
+            <twig:Ds:Button variant="primary" size="sm" href="{{ path('app_github_repositories_start', {id: project.id}) }}" data-turbo="false" data-turbo-prefetch="false" data-testid="forge-repositories-add">
+                <twig:ux:icon name="lucide:plus" />{{ 'github.picker.add'|trans }}
+            </twig:Ds:Button>
+        </twig:Ds:FormActions>
+        {% endif %}
     </div>
     <template data-repository-checks-live-target="empty">
-        {% include '@GitHub/components/_repositories_empty.html.twig' with {project: project, appConfigured: appConfigured} only %}
+        {% include '@GitHub/components/_repositories_empty.html.twig' with {project: project, appConfigured: appConfigured, offerAdd: offerAdd} only %}
     </template>
+    {% endif %}
+
+    {% if picker is not null and pickForm is not null %}
+    {% include '@GitHub/components/_repository_picker.html.twig' with {project: project, picker: picker, form: pickForm} only %}
     {% endif %}
 </twig:Ds:Panel>
 {% endif %}

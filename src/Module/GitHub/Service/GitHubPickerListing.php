@@ -6,7 +6,9 @@ namespace App\Module\GitHub\Service;
 
 use App\Module\Forge\Entity\ForgeRepository;
 use App\Module\Forge\Repository\ForgeRepositoryRepository;
+use App\Module\GitHub\Entity\GitHubInstallation;
 use App\Module\GitHub\GitHubDelivery;
+use App\Module\GitHub\Repository\GitHubInstallationRepository;
 use App\Module\GitHub\View\GitHubPickerAccount;
 use App\Module\GitHub\View\GitHubPickerRepository;
 use App\Module\GitHub\View\GitHubPickerState;
@@ -18,7 +20,8 @@ use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
 /**
  * Lists what the owner's own GitHub token reaches, and how each repository
  * stands for the project. Only an installation row holds a repository, so a
- * hook row of this project leaves the repository free to take over.
+ * hook row of this project leaves the repository free to take over. It also
+ * names the installations of the project that the token does not list.
  */
 final readonly class GitHubPickerListing
 {
@@ -27,6 +30,7 @@ final readonly class GitHubPickerListing
         private ForgeRepositoryRepository $forgeRepositories,
         private AuthorizationCheckerInterface $authorization,
         private GitHubAppConfiguration $configuration,
+        private GitHubInstallationRepository $gitHubInstallations,
     ) {
     }
 
@@ -76,7 +80,14 @@ final readonly class GitHubPickerListing
             $accounts[] = new GitHubPickerAccount($installation, $repositories, $list->complete, $this->adjustUrl($installation));
         }
 
-        return new GitHubRepositoryPickerView($project, $accounts, null !== $tick && !$found ? $tick : null);
+        $listed = array_map(static fn (GitHubUserInstallation $installation): int => $installation->id, $installations);
+        $hidden = array_values(array_filter(
+            $this->gitHubInstallations->findByProject($project),
+            static fn (GitHubInstallation $installation): bool => null === $installation->removedAt && !\in_array($installation->installationId, $listed, true),
+        ));
+        usort($hidden, static fn (GitHubInstallation $a, GitHubInstallation $b): int => strcasecmp($a->accountLogin, $b->accountLogin) ?: $a->installationId <=> $b->installationId);
+
+        return new GitHubRepositoryPickerView($project, $accounts, null !== $tick && !$found ? $tick : null, $hidden);
     }
 
     private function adjustUrl(GitHubUserInstallation $installation): ?string

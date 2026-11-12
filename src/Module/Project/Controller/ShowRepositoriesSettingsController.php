@@ -21,6 +21,10 @@ final class ShowRepositoriesSettingsController extends AppController
 {
     public function __invoke(Project $project): Response
     {
-        return $this->render('@Project/show_repositories_settings.html.twig', ['project' => $project]);
+        $response = $this->render('@Project/show_repositories_settings.html.twig', ['project' => $project]);
+        // The page can list what the owner's own GitHub user reaches.
+        $response->headers->set('Cache-Control', 'no-store');
+
+        return $response;
     }
 }

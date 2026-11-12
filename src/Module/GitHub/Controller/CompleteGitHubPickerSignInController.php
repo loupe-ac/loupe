@@ -93,6 +93,6 @@ class CompleteGitHubPickerSignInController extends AppController
             return $tab;
         }
 
-        return $this->redirectToRoute('app_github_repositories_picker', ['id' => $pending->projectId]);
+        return $this->redirectToRoute('app_project_repositories_settings', ['id' => $pending->projectId]);
     }
 }

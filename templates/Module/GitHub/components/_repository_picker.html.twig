@@ -1,39 +1,27 @@
-{% extends '@Project/_settings_layout.html.twig' %}
-
-{% block title %}{{ 'github.picker.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
-
-{% block topbar_crumbs %}
-    <twig:Ds:Breadcrumbs :items="[
-        {label: 'nav.link.project_settings'|trans, url: path('app_project_edit', {id: project.id})},
-        {label: 'project.edit.nav.repositories'|trans, url: path('app_project_repositories_settings', {id: project.id})},
-        {label: 'github.picker.page.title'|trans},
-    ]" />
-{% endblock %}
-
-{% block settings_section 'repositories' %}
-
-{% block settings_content %}
-<twig:Ds:Panel as="section" id="github-picker" class="lp-picker" data-testid="github-picker"
+{#- The picker of the Repositories section, while the owner holds a live GitHub sign-in. Props: project (Project), picker (GitHubRepositoryPickerView), form (FormView). -#}
+<section id="github-picker" class="lp-picker" data-testid="github-picker"
     data-controller="repository-picker"
     data-repository-picker-none-value="{{ 'github.picker.submit.none'|trans }}"
     data-repository-picker-one-value="{{ 'github.picker.submit.one'|trans }}"
     data-repository-picker-many-value="{{ 'github.picker.submit.many'|trans }}">
-    <twig:Ds:SectionHeading :description="'github.picker.description'|trans">{{ 'github.picker.title'|trans }}</twig:Ds:SectionHeading>
+    <twig:Ds:SectionHeading :level="3" :description="'github.picker.description'|trans">{{ 'github.picker.title'|trans }}</twig:Ds:SectionHeading>
 
     {% if picker.missingRepository is not null %}
     <twig:Ds:Flash severity="info" data-testid="github-picker-missing">{{ 'github.picker.missing'|trans({'%repository%': picker.missingRepository}) }}</twig:Ds:Flash>
     {% endif %}
 
-    {% if picker.accounts is empty %}
+    {% if picker.accounts is empty and picker.hiddenInstallations is empty %}
     <twig:Ds:EmptyState icon="lucide:git-pull-request" :title="'github.picker.none.title'|trans" :body="'github.picker.none.body'|trans" compact data-testid="github-picker-none" />
-    {% else %}
+    {% endif %}
+
+    {% if picker.accounts is not empty %}
     <twig:Ds:Input type="search" :aria-label="'github.picker.search.label'|trans" :placeholder="'github.picker.search.placeholder'|trans" data-repository-picker-target="search" data-action="input->repository-picker#filter" data-testid="github-picker-search" autocomplete="off" />
 
     {{ form_start(form, {attr: {id: 'github-picker-form', class: 'lp-picker-form'}}) }}
         {% for account in picker.accounts %}
         <section class="lp-picker-account" data-repository-picker-target="account" data-github-installation="{{ account.installation.id }}">
             <div class="lp-picker-account__head">
-                <h3 class="lp-picker-account__name" data-testid="github-picker-account">{{ account.installation.accountLogin }}</h3>
+                <h4 class="lp-picker-account__name" data-testid="github-picker-account">{{ account.installation.accountLogin }}</h4>
                 {% if account.adjustUrl is not null %}
                 <a class="lp-workshop-text-link" href="{{ account.adjustUrl }}" rel="noopener" data-turbo="false" data-turbo-prefetch="false" data-testid="github-picker-adjust">{{ 'github.picker.adjust'|trans }}</a>
                 {% endif %}
@@ -70,10 +58,21 @@
     {{ form_end(form) }}
     {% endif %}
 
+    {% for installation in picker.hiddenInstallations %}
+    <section class="lp-picker-account" data-testid="github-picker-hidden" data-github-installation="{{ installation.installationId }}">
+        <div class="lp-picker-account__head">
+            <h4 class="lp-picker-account__name">{{ installation.accountLogin }}</h4>
+        </div>
+        <p class="lp-connect-hint">{{ 'github.picker.hidden'|trans({'%account%': installation.accountLogin}) }}</p>
+    </section>
+    {% endfor %}
+
     <twig:Ds:FormActions align="between" class="lp-picker-actions">
-        <twig:Ds:Button variant="ghost" size="sm" href="{{ path('app_github_repositories_picker', {id: project.id}) }}" data-turbo-prefetch="false" data-testid="github-picker-refresh">
-            <twig:ux:icon name="lucide:refresh-cw" />{{ 'github.picker.refresh'|trans }}
-        </twig:Ds:Button>
+        <form method="get" action="{{ path('app_project_repositories_settings', {id: project.id}) }}" class="lp-picker-refresh" data-testid="github-picker-refresh">
+            <twig:Ds:Button variant="ghost" size="sm" type="submit">
+                <twig:ux:icon name="lucide:refresh-cw" class="lp-picker-refresh__icon" />{{ 'github.picker.refresh'|trans }}
+            </twig:Ds:Button>
+        </form>
         <twig:Ds:Button variant="ghost" size="sm" href="{{ path('app_github_app_install', {id: project.id}) }}" data-turbo="false" data-turbo-prefetch="false" data-testid="github-picker-install">
             <twig:ux:icon name="lucide:external-link" />{{ 'github.picker.install'|trans }}
         </twig:Ds:Button>
@@ -84,5 +83,4 @@
         <twig:Ds:Button variant="primary" type="submit" form="github-picker-form" disabled data-repository-picker-target="submit" data-testid="github-picker-submit">{{ 'github.picker.submit.none'|trans }}</twig:Ds:Button>
         {% endif %}
     </twig:Ds:FormActions>
-</twig:Ds:Panel>
-{% endblock %}
+</section>

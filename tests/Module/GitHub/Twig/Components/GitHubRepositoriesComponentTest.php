@@ -103,8 +103,17 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
         self::assertCount(1, $paused);
         self::assertSame('New work is paused.', trim($paused->filter('.lp-flash__title')->text()));
         self::assertStringContainsString('workflow. Running work finishes.', $paused->text());
-        self::assertSame('Not OK', trim($crawler->filter('[data-testid="forge-repository-summary"] .lp-status-chip')->text()));
-        self::assertCount(1, $crawler->filter('details[data-testid="forge-repository-fold"][open]'));
+        $toggle = $crawler->filter('[data-forge-repository] button[data-testid="forge-repository-toggle"]');
+        self::assertCount(1, $toggle);
+        self::assertSame('Not OK', trim($toggle->filter('.lp-status-chip')->text()));
+        self::assertStringContainsString('acme/app', $toggle->text(), 'The repository row itself opens and closes the checks.');
+        self::assertSame('true', $toggle->attr('aria-expanded'));
+        $fold = $crawler->filter('#'.$toggle->attr('aria-controls'));
+        self::assertSame('forge-repository-fold', $fold->attr('data-testid'));
+        self::assertStringContainsString(' open', ' '.$fold->attr('class'));
+        self::assertCount(0, $toggle->filter('button button, a, dialog, form'), 'The remove action stays outside the toggle.');
+        self::assertCount(1, $crawler->filter('[data-forge-repository] > .lp-identity-row > [data-controller="modal"] dialog'));
+        self::assertCount(1, $crawler->filter('[data-forge-repository][data-controller="disclosure"] button[data-action="click->disclosure#toggle"][data-disclosure-target="trigger"]'));
     }
 
     public function test_a_row_that_fits_has_no_guide_and_keeps_the_check_again_button(): void
@@ -127,6 +136,9 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
         self::assertStringContainsString('Loupe checks every hour. Check again after a change on GitHub to see it now.', $row);
         self::assertStringNotContainsString('pause', $row);
         self::assertCount(0, $crawler->filter('[data-testid="forge-repository-paused"]'));
+        $toggle = $crawler->filter('[data-testid="forge-repository-toggle"]');
+        self::assertSame('false', $toggle->attr('aria-expanded'), 'A row that fits starts closed.');
+        self::assertStringNotContainsString(' open', ' '.$crawler->filter('#'.$toggle->attr('aria-controls'))->attr('class'));
     }
 
     public function test_a_row_with_only_a_warning_gap_does_not_mention_a_pause(): void
@@ -275,10 +287,15 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
         $client->loginUser($owner);
         $crawler = $this->repositoriesPage($client, $project);
 
-        $add = $crawler->filter('#repositories .lp-section-heading a[data-testid="forge-repositories-add"]');
+        $add = $crawler->filter('#repositories [data-repository-checks-live-target="populated"] a[data-testid="forge-repositories-add"]');
         self::assertCount(1, $add);
         self::assertSame('/projects/'.$project->id.'/github/install', $add->attr('href'));
         self::assertSame('false', $add->attr('data-turbo-prefetch'));
+        $links = '#repositories a[href="/projects/'.$project->id.'/github/install"]';
+        self::assertCount(1, $crawler->filter('#repositories template a[href="/projects/'.$project->id.'/github/install"]'), 'The empty state for the last removal keeps its own button.');
+        self::assertCount(2, $crawler->filter($links), 'One Add repositories button on the page, and no notice about shared repositories.');
+        self::assertCount(0, $crawler->filter('[data-testid="forge-repositories-unpicked"]'));
+        self::assertCount(0, $crawler->filter('[data-testid="github-picker"]'));
     }
 
     public function test_the_empty_state_without_the_app_invites_to_connect_a_repository_on_connections(): void
