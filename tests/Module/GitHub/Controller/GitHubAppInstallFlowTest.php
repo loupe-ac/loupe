@@ -186,6 +186,23 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         self::assertMatchesRegularExpression('/^[a-f0-9]{32,}$/', $this->startInstall($project));
     }
 
+    public function test_installing_on_another_account_keeps_the_init_session_of_the_picker(): void
+    {
+        $this->repositories[self::INSTALLATION_ID] = [['id' => 101, 'full_name' => 'acme/api']];
+        $owner = $this->signedUpUser('another-account');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+        $init = $this->markWait($project);
+
+        $this->client->loginUser($owner);
+        $this->startSignIn($project, init: $init);
+        $state = $this->startInstall($project);
+        $authorize = $this->setUpInstallation($state);
+        $this->client->request(Request::METHOD_GET, '/github/app/callback?'.http_build_query(['code' => 'the-code', 'state' => $authorize['state']]));
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/github/init-handoff?repository=acme/api&init='.$init);
+    }
+
     public function test_the_setup_url_without_a_pending_session_goes_to_the_projects(): void
     {
         $this->client->loginUser($this->signedUpUser('nopending'));
