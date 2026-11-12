@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Inbox\Service;
 
+use App\Module\Bridge\Contract\InitRuns;
 use App\Module\Forge\Entity\ForgeRepository;
 use App\Module\Forge\Entity\ForgeRepositoryCheck;
 use App\Module\Forge\Entity\ForgeRepositorySource;
 use App\Module\Forge\Event\ForgeRepositoryCheckChanged;
+use App\Module\Forge\Repository\ForgeRepositoryRepository;
+use App\Module\Forge\Service\InitPullRequestReaders;
+use App\Module\Forge\Service\MergeApprovals;
 use App\Module\Inbox\Command\AnswerInboxItemCommand;
 use App\Module\Inbox\Command\AnswerInboxItemHandler;
 use App\Module\Inbox\Entity\InboxAskOrigin;
@@ -20,15 +24,25 @@ use App\Module\Inbox\Install\InboxInstallFlags;
 use App\Module\Inbox\Messenger\NotifyInboxOwner;
 use App\Module\Inbox\Messenger\NotifyInboxOwnerKind;
 use App\Module\Inbox\Messenger\OpenMergeApprovalPullRequest;
+use App\Module\Inbox\Repository\InboxItemRepository;
 use App\Module\Inbox\Repository\InboxMergeApprovalQuestionRepository;
+use App\Module\Inbox\Service\InboxAvailability;
+use App\Module\Inbox\Service\InboxChangedPublisher;
+use App\Module\Inbox\Service\InboxItemCloser;
+use App\Module\Inbox\Service\InboxSearchIndexer;
+use App\Module\Inbox\Service\MergeApprovalQuestionReconciler;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Forge\FakeInitPullRequestReader;
 use App\Tests\Module\Inbox\InitRunHolds;
 use App\Tests\Module\Inbox\QueuedPushes;
 use App\Tests\Module\Workflow\Service\WorkflowSettingsTestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Psr\Clock\ClockInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Contracts\Service\ResetInterface;
+use Symfony\Contracts\Translation\TranslatorInterface;
 use Ubermuda\FeatureFlagsBundle\Reader\FeatureFlagReaderInterface;
 use Ubermuda\FeatureFlagsBundle\Repository\FeatureFlagRepository;
 
@@ -314,6 +328,51 @@ final class MergeApprovalQuestionReconcilerTest extends WorkflowSettingsTestCase
         self::assertSame(['acme/app'], $reader->asked);
     }
 
+    public function test_a_hold_that_ends_before_the_lock_still_reads_the_init_pull_request(): void
+    {
+        $this->installed('acme/app', FakeInitPullRequestReader::FORGE);
+        $reader = $this->initReader();
+        $reader->answers = ['acme/app' => true];
+
+        $runs = new class([true]) implements InitRuns {
+            /** @param list<bool> $reads */
+            public function __construct(
+                private array $reads,
+            ) {
+            }
+
+            #[\Override]
+            public function isOpen(Uuid $projectId): bool
+            {
+                return array_shift($this->reads) ?? false;
+            }
+        };
+        $reconciler = new MergeApprovalQuestionReconciler(
+            $this->em(),
+            $this->service(ForgeRepositoryRepository::class),
+            $this->service(MergeApprovals::class),
+            $runs,
+            $this->service(InitPullRequestReaders::class),
+            $this->service(InboxMergeApprovalQuestionRepository::class),
+            $this->service(InboxItemRepository::class),
+            $this->service(InboxItemCloser::class),
+            $this->service(InboxSearchIndexer::class),
+            $this->service(InboxChangedPublisher::class),
+            $this->service(InboxAvailability::class),
+            $this->service(TranslatorInterface::class),
+            $this->service(ClockInterface::class),
+            $this->service(MessageBusInterface::class),
+            'en',
+        );
+
+        $reconciler->reconcile($this->em()->find(Project::class, $this->project->requireId()) ?? throw new \LogicException('No project.'));
+        $this->em()->clear();
+
+        self::assertSame([], $this->questions());
+        self::assertSame(['acme/app'], $reader->asked);
+        self::assertSame([], $this->queuedPushes());
+    }
+
     public function test_a_failed_init_pull_request_read_asks_the_question(): void
     {
         $this->installed('acme/app', FakeInitPullRequestReader::FORGE);
@@ -321,6 +380,21 @@ final class MergeApprovalQuestionReconcilerTest extends WorkflowSettingsTestCase
         $this->deliver();
 
         self::assertCount(1, $this->questions());
+    }
+
+    /**
+     * @template T of object
+     *
+     * @param class-string<T> $id
+     *
+     * @return T
+     */
+    private function service(string $id): object
+    {
+        $service = self::getContainer()->get($id);
+        self::assertInstanceOf($id, $service);
+
+        return $service;
     }
 
     private function initReader(): FakeInitPullRequestReader

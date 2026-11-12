@@ -614,6 +614,21 @@ final class RunRepositoryCheckHandlerTest extends KernelTestCase
         self::assertCount(1, $this->queuedChecks());
     }
 
+    public function test_an_init_check_with_no_stored_items_queues_itself_again_when_the_suggestions_changed(): void
+    {
+        $repository = $this->repository();
+        $ended = DispatchedEvents::of(self::getContainer(), ForgeRepositoryCheckEnded::class);
+
+        $suggestions = new FakeRepositorySuggestions();
+        $suggestions->afterNextRead = static function () use ($suggestions): void {
+            $suggestions->suggestions = [self::blockingSuggestion()];
+        };
+        ($this->handlerWithoutSuggestions($suggestions))(new RunRepositoryCheckCommand($repository, CheckTrigger::InitEnded));
+
+        self::assertSame([], $ended->events());
+        self::assertCount(1, $this->queuedChecks());
+    }
+
     /** @return list<Envelope> */
     private function queuedChecks(): array
     {

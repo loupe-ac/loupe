@@ -64,12 +64,34 @@ final readonly class MergeApprovalQuestionReconciler
     public function reconcile(Project $project): void
     {
         // A cheap read to skip the forge call. The hold that counts is the one read under the lock.
-        $answeredByInitPullRequest = $this->initRuns->isOpen($project->requireId()) || !$this->inbox->isEnabled() ? [] : $this->answeredByInitPullRequest($project);
+        $heldBefore = $this->initRuns->isOpen($project->requireId());
+        $answeredByInitPullRequest = $heldBefore || !$this->inbox->isEnabled() ? [] : $this->answeredByInitPullRequest($project);
 
-        $changed = $this->em->wrapInTransaction(function () use ($project, $answeredByInitPullRequest): bool {
+        $changed = $this->reconcileUnderLock($project, $answeredByInitPullRequest, $heldBefore);
+        if (null === $changed) {
+            // The run closed after the cheap read, which skipped the forge. Read it now, outside the lock.
+            $changed = $this->reconcileUnderLock($project, $this->answeredByInitPullRequest($project), false);
+        }
+
+        if ($changed) {
+            $this->inboxChanged->changed($project);
+        }
+    }
+
+    /**
+     * @param array<string, true> $answeredByInitPullRequest
+     *
+     * @return bool|null null when the hold ended after the caller skipped the forge read, so nothing changed
+     */
+    private function reconcileUnderLock(Project $project, array $answeredByInitPullRequest, bool $heldBefore): ?bool
+    {
+        return $this->em->wrapInTransaction(function () use ($project, $answeredByInitPullRequest, $heldBefore): ?bool {
             $this->em->lock($project, LockMode::PESSIMISTIC_WRITE);
             // Read under the lock of the init launch, so a launch that commits first is seen.
             $held = $this->initRuns->isOpen($project->requireId());
+            if ($heldBefore && !$held && $this->inbox->isEnabled()) {
+                return null;
+            }
 
             $now = self::whole($this->clock->now());
             $open = [];
@@ -126,10 +148,6 @@ final readonly class MergeApprovalQuestionReconciler
 
             return $changed;
         });
-
-        if ($changed) {
-            $this->inboxChanged->changed($project);
-        }
     }
 
     /**

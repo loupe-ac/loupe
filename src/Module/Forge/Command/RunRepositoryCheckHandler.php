@@ -160,13 +160,14 @@ final readonly class RunRepositoryCheckHandler
     private function clearStaleItems(RunRepositoryCheckCommand $command): bool
     {
         $check = $this->forgeRepositoryChecks->findOneOfRepository($command->repository);
+        $projectId = $command->repository->project->id ?? throw new \LogicException('A persisted project has an id.');
         if (null === $check || [] === $check->items) {
-            return true;
+            // A template can gain a suggestion after the cached read, and then this check has not seen it.
+            return [] === $this->suggestions->forProjectFresh($projectId);
         }
 
         $ticket = $this->forgeRepositoryChecks->takeReadTicket($command->repository);
         $repositoryId = $command->repository->id ?? throw new \LogicException('A persisted repository has an id.');
-        $projectId = $command->repository->project->id ?? throw new \LogicException('A persisted project has an id.');
         $cleared = $this->summaries->change($command->repository->project, function (RepositoryChange $change) use ($check, $repositoryId, $projectId, $ticket): bool {
             if ([] !== $this->suggestions->forProjectFresh($projectId)) {
                 return false;
