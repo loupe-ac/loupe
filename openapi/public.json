@@ -6351,7 +6351,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/WorkerRunCommandResponse"
+                                    "$ref": "#/components/schemas/WorkerRunCommandResult"
                                 }
                             }
                         }
@@ -7021,7 +7021,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/OwnerBridgeListResponse"
+                                    "$ref": "#/components/schemas/BridgeList"
                                 }
                             }
                         }
@@ -8009,7 +8009,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ProjectBridgeListResponse"
+                                    "$ref": "#/components/schemas/ProjectBridgeList"
                                 }
                             }
                         }
@@ -8258,7 +8258,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/WorkerRunHostSampleListResponse"
+                                    "$ref": "#/components/schemas/WorkerRunHostSampleList"
                                 }
                             }
                         }
@@ -8507,7 +8507,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/WorkerRunToolCallListResponse"
+                                    "$ref": "#/components/schemas/WorkerRunToolCallList"
                                 }
                             }
                         }
@@ -8855,7 +8855,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/WorkerRunListResponse"
+                                    "$ref": "#/components/schemas/WorkerRunList"
                                 }
                             }
                         }
@@ -9398,7 +9398,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/WorkerRunCommandResponse"
+                                    "$ref": "#/components/schemas/WorkerRunCommandResult"
                                 }
                             }
                         }
@@ -9581,7 +9581,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/ResumeWorkerRunsRequest"
+                                "$ref": "#/components/schemas/WorkerRunResumeBatch"
                             }
                         }
                     }
@@ -9603,7 +9603,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ResumeWorkerRunsResponse"
+                                    "$ref": "#/components/schemas/WorkerRunResumeBatchResult"
                                 }
                             }
                         }
@@ -10340,7 +10340,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/WorkerRunShowResponse"
+                                    "$ref": "#/components/schemas/WorkerRunShow"
                                 }
                             }
                         }
@@ -10513,7 +10513,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/StopWorkerRunRequest"
+                                "$ref": "#/components/schemas/WorkerRunStop"
                             }
                         }
                     }
@@ -10535,7 +10535,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/StopWorkerRunResponse"
+                                    "$ref": "#/components/schemas/WorkerRunStopResult"
                                 }
                             }
                         }
@@ -24083,6 +24083,1117 @@
                 },
                 "type": "object"
             },
+            "WorkerRunRow": {
+                "required": [
+                    "runId",
+                    "runKey",
+                    "kind",
+                    "subjectType",
+                    "subjectId",
+                    "cardNumber",
+                    "workRequestId",
+                    "workKind",
+                    "ruleId",
+                    "state",
+                    "sessionId",
+                    "startedAt",
+                    "endedAt",
+                    "exitCode",
+                    "bridgeId",
+                    "harness",
+                    "account",
+                    "harnessSessionId",
+                    "harnessVersion",
+                    "cliVersion",
+                    "skillVersion",
+                    "pendingCommand",
+                    "reason",
+                    "usage",
+                    "model",
+                    "experiment",
+                    "variant",
+                    "metrics"
+                ],
+                "properties": {
+                    "runId": {
+                        "description": "The id of the run.",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "runKey": {
+                        "description": "The id the bridge gave the run, or null.",
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "kind": {
+                        "description": "Worker for a run of an agent, interactive for a session that a person opened, and command for a command with no agent and so no session.",
+                        "type": "string",
+                        "enum": [
+                            "worker",
+                            "interactive",
+                            "command"
+                        ]
+                    },
+                    "subjectType": {
+                        "description": "What the run is about, such as card.",
+                        "type": "string"
+                    },
+                    "subjectId": {
+                        "description": "The id of the subject. For a card, the card id.",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "cardNumber": {
+                        "description": "The number of the card, or null when the subject is no card.",
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "workRequestId": {
+                        "description": "The work request that the run ran, or null.",
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "workKind": {
+                        "description": "The kind of that work request, such as implement or fix, or the name of an interactive session.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "ruleId": {
+                        "description": "The id of the workflow rule that opened the request, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "state": {
+                        "description": "The state of the run, such as running, failed, gave-up, timed-out or lost.",
+                        "type": "string"
+                    },
+                    "sessionId": {
+                        "description": "The Loupe session of the worker, or null.",
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "startedAt": {
+                        "description": "When the run started, or null.",
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "endedAt": {
+                        "description": "When the run ended, or null while it is open.",
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "exitCode": {
+                        "description": "The exit code, or null.",
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "bridgeId": {
+                        "description": "The bridge that ran the run, or null.",
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "harness": {
+                        "description": "The harness that ran the run, such as claude-code or codex, or null until the bridge reports it.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "account": {
+                        "description": "The named harness account, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "harnessSessionId": {
+                        "description": "The id the harness gave the session, such as a Codex thread id, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "harnessVersion": {
+                        "description": "The version of the harness, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "cliVersion": {
+                        "description": "The version of the CLI that ran the run, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "skillVersion": {
+                        "description": "The version of the skill package, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "pendingCommand": {
+                        "description": "The command that waits for the bridge, or null.",
+                        "required": [
+                            "commandId",
+                            "kind",
+                            "state"
+                        ],
+                        "properties": {
+                            "commandId": {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            "kind": {
+                                "type": "string",
+                                "enum": [
+                                    "resume-run",
+                                    "stop-run",
+                                    "rerun-command",
+                                    "collect-session-usage",
+                                    "try-now"
+                                ]
+                            },
+                            "state": {
+                                "type": "string",
+                                "enum": [
+                                    "pending"
+                                ]
+                            }
+                        },
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "reason": {
+                        "description": "The failure reason, or else the last line of the output, cut to 300 characters, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "usage": {
+                        "description": "The tokens of each model the run used. Empty when the bridge sent no usage. `costUsd` is a decimal string in US dollars, or null when the model has no price.",
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "model",
+                                "source",
+                                "inputTokens",
+                                "outputTokens",
+                                "cacheReadTokens",
+                                "cacheWriteTokens",
+                                "costUsd"
+                            ],
+                            "properties": {
+                                "model": {
+                                    "type": "string"
+                                },
+                                "source": {
+                                    "type": "string",
+                                    "enum": [
+                                        "reported",
+                                        "estimated"
+                                    ]
+                                },
+                                "inputTokens": {
+                                    "type": "integer"
+                                },
+                                "outputTokens": {
+                                    "type": "integer"
+                                },
+                                "cacheReadTokens": {
+                                    "type": "integer"
+                                },
+                                "cacheWriteTokens": {
+                                    "type": "integer"
+                                },
+                                "costUsd": {
+                                    "type": "string",
+                                    "nullable": true
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "model": {
+                        "description": "The model the bridge reported, or else the model with the highest cost, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "experiment": {
+                        "description": "The experiment of the rule that ran the worker, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "variant": {
+                        "description": "The variant of that experiment, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "metrics": {
+                        "description": "The sums and the timing of the run, or null when the run has no metrics row. A figure is null when it is unknown. `costUsd` is a number in US dollars. The `concurrentRuns` and host figures are null while the run has no end, or when the bridge sent no sample.",
+                        "type": "object",
+                        "nullable": true,
+                        "additionalProperties": true
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRun": {
+                "required": [
+                    "continuesRunId",
+                    "receivedAt",
+                    "failureReason",
+                    "output",
+                    "stateChanges",
+                    "buckets",
+                    "harnessEvents"
+                ],
+                "type": "object",
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/WorkerRunRow"
+                    },
+                    {
+                        "properties": {
+                            "continuesRunId": {
+                                "description": "The run that this run resumes, or null.",
+                                "type": "string",
+                                "format": "uuid",
+                                "nullable": true
+                            },
+                            "receivedAt": {
+                                "description": "When the first report of the run arrived.",
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "failureReason": {
+                                "description": "The failure reason the bridge gave, or null.",
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "output": {
+                                "description": "The whole output the bridge reported.",
+                                "type": "string"
+                            },
+                            "stateChanges": {
+                                "description": "Each state the run reached, oldest first.",
+                                "type": "array",
+                                "items": {
+                                    "required": [
+                                        "state",
+                                        "at"
+                                    ],
+                                    "properties": {
+                                        "state": {
+                                            "type": "string"
+                                        },
+                                        "at": {
+                                            "type": "string",
+                                            "format": "date-time"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            },
+                            "buckets": {
+                                "description": "The time buckets of the run, largest first, or null for a run with no tool calls. `mainMs` is the time of the main session, `withSubagentsMs` the time of every session, and `calls` every call, subagents included. A figure is null on a row that no recompute has filled.",
+                                "type": "array",
+                                "items": {
+                                    "required": [
+                                        "bucket",
+                                        "mainMs",
+                                        "withSubagentsMs",
+                                        "calls"
+                                    ],
+                                    "properties": {
+                                        "bucket": {
+                                            "type": "string"
+                                        },
+                                        "mainMs": {
+                                            "type": "integer"
+                                        },
+                                        "withSubagentsMs": {
+                                            "type": "integer",
+                                            "nullable": true
+                                        },
+                                        "calls": {
+                                            "type": "integer",
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                },
+                                "nullable": true
+                            },
+                            "harnessEvents": {
+                                "description": "Each kind of harness event with its count, subagents included, or null when the bridge reported none.",
+                                "type": "object",
+                                "nullable": true,
+                                "additionalProperties": {
+                                    "type": "integer"
+                                }
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "WorkerRunList": {
+                "required": [
+                    "items",
+                    "next"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/WorkerRunRow"
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRunBridgeCommand": {
+                "required": [
+                    "commandId",
+                    "runId",
+                    "kind",
+                    "state",
+                    "reason",
+                    "requestedAt",
+                    "expiresAt",
+                    "settledAt"
+                ],
+                "properties": {
+                    "commandId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "runId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": [
+                            "resume-run",
+                            "stop-run",
+                            "rerun-command",
+                            "collect-session-usage",
+                            "try-now"
+                        ]
+                    },
+                    "state": {
+                        "type": "string",
+                        "enum": [
+                            "pending",
+                            "done",
+                            "refused",
+                            "expired",
+                            "cancelled"
+                        ]
+                    },
+                    "reason": {
+                        "description": "The reason the requester gave, until the bridge settles the command with a reason of its own.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "requestedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "settledAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRunShow": {
+                "required": [
+                    "run",
+                    "series",
+                    "commands"
+                ],
+                "properties": {
+                    "run": {
+                        "$ref": "#/components/schemas/WorkerRun"
+                    },
+                    "series": {
+                        "description": "Every run of the series of the run, oldest first, the run included. A series starts with one run, and each resume starts a new run that continues it.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/WorkerRunRow"
+                        }
+                    },
+                    "commands": {
+                        "description": "Every command that a person, an agent or a key sent to the bridge for a run of the series, oldest first.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/WorkerRunBridgeCommand"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRunToolCall": {
+                "required": [
+                    "seq",
+                    "tool",
+                    "kind",
+                    "startedAt",
+                    "durationMs",
+                    "isError",
+                    "inSubagent",
+                    "backgroundId",
+                    "waitsOn",
+                    "signatures",
+                    "fullText"
+                ],
+                "properties": {
+                    "seq": {
+                        "description": "The place of the call in the run, from 1.",
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "tool": {
+                        "description": "The tool, such as Bash, Read or Agent.",
+                        "type": "string"
+                    },
+                    "kind": {
+                        "description": "Shell for a shell command, subagent for a call that starts a sub-agent, tool for any other call, or null from an older bridge.",
+                        "type": "string",
+                        "nullable": true,
+                        "enum": [
+                            "shell",
+                            "subagent",
+                            "tool"
+                        ]
+                    },
+                    "startedAt": {
+                        "description": "When the call started, with milliseconds.",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "durationMs": {
+                        "description": "How long the call took. Null when the stream holds no result of the call.",
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "isError": {
+                        "description": "Whether the call failed. Null when the stream holds no result of the call.",
+                        "type": "boolean",
+                        "nullable": true
+                    },
+                    "inSubagent": {
+                        "description": "True when a subagent made the call.",
+                        "type": "boolean"
+                    },
+                    "backgroundId": {
+                        "description": "The id of the background task that the call started, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "waitsOn": {
+                        "description": "The background id of an earlier call that this call reads, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "signatures": {
+                        "description": "The program and its subcommand for each shell command, such as git status, or the tool name for any other tool.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "fullText": {
+                        "description": "The full text of the call. Null unless the project collects the full text of the calls.",
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRunToolCallList": {
+                "required": [
+                    "items",
+                    "next"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/WorkerRunToolCall"
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRunHostSample": {
+                "required": [
+                    "sampledAt",
+                    "cpuPct",
+                    "meanCpuPct",
+                    "memUsed",
+                    "memTotal",
+                    "swapUsed",
+                    "batteryPct",
+                    "onAc"
+                ],
+                "properties": {
+                    "sampledAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "cpuPct": {
+                        "description": "The use of each core, in percent.",
+                        "type": "array",
+                        "items": {
+                            "type": "number"
+                        }
+                    },
+                    "meanCpuPct": {
+                        "description": "The mean of cpuPct, rounded to one decimal, or null when cpuPct is empty.",
+                        "type": "number",
+                        "format": "float",
+                        "nullable": true
+                    },
+                    "memUsed": {
+                        "description": "Memory in use, in bytes.",
+                        "type": "integer"
+                    },
+                    "memTotal": {
+                        "description": "Memory in total, in bytes.",
+                        "type": "integer"
+                    },
+                    "swapUsed": {
+                        "description": "Swap in use, in bytes.",
+                        "type": "integer"
+                    },
+                    "batteryPct": {
+                        "description": "The battery level in percent, or null on a machine with no battery.",
+                        "type": "number",
+                        "format": "float",
+                        "nullable": true
+                    },
+                    "onAc": {
+                        "description": "Whether the machine runs on mains power, or null when it does not say.",
+                        "type": "boolean",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRunHostSampleList": {
+                "required": [
+                    "items",
+                    "next",
+                    "note"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/WorkerRunHostSample"
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    },
+                    "note": {
+                        "description": "Why the list is empty when the run has no bridge or no start, and null otherwise.",
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRunStop": {
+                "properties": {
+                    "reason": {
+                        "description": "Why the run must stop, which a person reads on the run. At most 1000 characters. A body may leave it out.",
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 1000
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRunStopResult": {
+                "required": [
+                    "outcome",
+                    "commandId"
+                ],
+                "properties": {
+                    "outcome": {
+                        "description": "`stopped` when the run asked its bridge to stop it. `closed` when the run is an interactive session: Loupe marks it closed, and the terminal of the person stays open, because no bridge holds it.",
+                        "type": "string",
+                        "enum": [
+                            "stopped",
+                            "closed"
+                        ]
+                    },
+                    "commandId": {
+                        "description": "The id of the command that waits for the bridge, or null for a closed session.",
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRunCommandResult": {
+                "required": [
+                    "commandId"
+                ],
+                "properties": {
+                    "commandId": {
+                        "description": "The id of the command that waits for the bridge, or the id of the command that was withdrawn.",
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRunResumeBatch": {
+                "required": [
+                    "runIds"
+                ],
+                "properties": {
+                    "runIds": {
+                        "description": "The ids of the runs to resume, from 1 to 50. The route treats each run on its own and in order.",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "maxItems": 50,
+                        "minItems": 1
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRunResumeBatchResult": {
+                "required": [
+                    "results"
+                ],
+                "properties": {
+                    "results": {
+                        "description": "One row per run id. `resumed` carries `commandId`. `refused` carries `code` and `message`. The codes are not-found (no run of this project has this id), no-bridge, unknown-bridge, bridge-outdated, pending, not-controllable, no-session, not-resumable and card-held. `error` says that an unexpected failure hit that run and its outcome is unknown. The route then stops, and each later row is `not-attempted`.",
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "runId",
+                                "outcome"
+                            ],
+                            "properties": {
+                                "runId": {
+                                    "type": "string"
+                                },
+                                "outcome": {
+                                    "type": "string",
+                                    "enum": [
+                                        "resumed",
+                                        "refused",
+                                        "error",
+                                        "not-attempted"
+                                    ]
+                                },
+                                "commandId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "code": {
+                                    "type": "string"
+                                },
+                                "message": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "ProjectBridge": {
+                "required": [
+                    "bridgeId",
+                    "name",
+                    "requestedName",
+                    "gitIdentity",
+                    "liveness",
+                    "quietCause",
+                    "lastSeenAt",
+                    "cliVersion",
+                    "pauseRequested",
+                    "pausedReported",
+                    "takesCommands",
+                    "takesReruns",
+                    "acceptsEntries",
+                    "commandEntries",
+                    "workerPools",
+                    "workerPoolsReportedAt",
+                    "accounts",
+                    "accountsReportedAt",
+                    "skills",
+                    "openRuns",
+                    "refusedRequests"
+                ],
+                "properties": {
+                    "bridgeId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "name": {
+                        "description": "The name the bridge holds, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "requestedName": {
+                        "description": "The name its last heartbeat asked for, or null. A requestedName with a null name means another bridge of the owner already holds that name.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "gitIdentity": {
+                        "description": "The git identity of the bridge for this project, or null when it reported none. `pushLogin` is the GitHub login the pushes use, or empty when it is unknown.",
+                        "required": [
+                            "mode",
+                            "commitName",
+                            "pushLogin",
+                            "githubUserId"
+                        ],
+                        "properties": {
+                            "mode": {
+                                "type": "string",
+                                "enum": [
+                                    "agent_account",
+                                    "app_token",
+                                    "machine"
+                                ]
+                            },
+                            "commitName": {
+                                "type": "string"
+                            },
+                            "pushLogin": {
+                                "type": "string"
+                            },
+                            "githubUserId": {
+                                "type": "integer",
+                                "nullable": true
+                            }
+                        },
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "liveness": {
+                        "description": "Live while the bridge sends its heartbeat, and quiet when it missed several.",
+                        "type": "string",
+                        "enum": [
+                            "live",
+                            "quiet"
+                        ]
+                    },
+                    "quietCause": {
+                        "description": "Null for a live bridge. login-expired when a quiet bridge lost the login that can no longer refresh, and unknown for any other quiet bridge.",
+                        "type": "string",
+                        "nullable": true,
+                        "enum": [
+                            "login-expired",
+                            "unknown"
+                        ]
+                    },
+                    "lastSeenAt": {
+                        "description": "The time of its last heartbeat.",
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "cliVersion": {
+                        "description": "The CLI version the bridge reported.",
+                        "type": "string"
+                    },
+                    "pauseRequested": {
+                        "description": "True when a person asked the bridge to start no new work.",
+                        "type": "boolean"
+                    },
+                    "pausedReported": {
+                        "description": "Whether the bridge reported that it is paused, or null when it reported nothing.",
+                        "type": "boolean",
+                        "nullable": true
+                    },
+                    "takesCommands": {
+                        "description": "False for an older bridge, which cannot resume or stop a run.",
+                        "type": "boolean"
+                    },
+                    "takesReruns": {
+                        "description": "False for a bridge that cannot run a failed command run again.",
+                        "type": "boolean"
+                    },
+                    "acceptsEntries": {
+                        "description": "True when the bridge adds a proposed command entry to its rule file after the owner confirms.",
+                        "type": "boolean"
+                    },
+                    "commandEntries": {
+                        "description": "Each command entry the bridge can run, as its last heartbeat reported them: `name`, `description`, `params`, `run` and `timeout`. Null when it reported none.",
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": true
+                        },
+                        "nullable": true
+                    },
+                    "workerPools": {
+                        "description": "Each worker pool of the bridge, with `name`, `size`, `inUse` and `queued`, as its last heartbeat reported them. Null when it reported none.",
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": true
+                        },
+                        "nullable": true
+                    },
+                    "workerPoolsReportedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "accounts": {
+                        "description": "Each account the bridge checked, with `name`, `harness`, `state`, `reason`, `used`, `projectFailure` and `otherFailedProjects`. `projectFailure` is the reason the account fails for this project, and `otherFailedProjects` counts the other projects it fails for, without naming them. Null when the bridge reported none.",
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": true
+                        },
+                        "nullable": true
+                    },
+                    "accountsReportedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "skills": {
+                        "description": "Each skill package the bridge installed, with `package`, `version`, `state` and `reason`. Null when the bridge reported none.",
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": true
+                        },
+                        "nullable": true
+                    },
+                    "openRuns": {
+                        "description": "The queued, resumed, preparing, running and stopping runs of this project on the bridge.",
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "runId",
+                                "subjectType",
+                                "subjectId",
+                                "cardNumber",
+                                "workKind",
+                                "state"
+                            ],
+                            "properties": {
+                                "runId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "subjectType": {
+                                    "type": "string"
+                                },
+                                "subjectId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "cardNumber": {
+                                    "type": "integer",
+                                    "nullable": true
+                                },
+                                "workKind": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
+                                "state": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "refusedRequests": {
+                        "description": "The open work requests of this project that the server refused to the bridge. The server refuses a claim when the account it names, or the lack of one, does not match the account that runs the work kind.",
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "workRequestId",
+                                "subjectType",
+                                "subjectId",
+                                "kind",
+                                "account"
+                            ],
+                            "properties": {
+                                "workRequestId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "subjectType": {
+                                    "type": "string"
+                                },
+                                "subjectId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "kind": {
+                                    "type": "string"
+                                },
+                                "account": {
+                                    "type": "string",
+                                    "nullable": true
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "ProjectBridgeList": {
+                "required": [
+                    "items",
+                    "next"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ProjectBridge"
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "Bridge": {
+                "required": [
+                    "bridgeId",
+                    "name",
+                    "requestedName",
+                    "liveness",
+                    "quietCause",
+                    "lastSeenAt",
+                    "cliVersion",
+                    "pauseRequested",
+                    "pausedReported",
+                    "takesCommands",
+                    "takesReruns",
+                    "projectIds"
+                ],
+                "properties": {
+                    "bridgeId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "name": {
+                        "description": "The name the bridge holds, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "requestedName": {
+                        "description": "The name its last heartbeat asked for, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "liveness": {
+                        "type": "string",
+                        "enum": [
+                            "live",
+                            "quiet"
+                        ]
+                    },
+                    "quietCause": {
+                        "type": "string",
+                        "nullable": true,
+                        "enum": [
+                            "login-expired",
+                            "unknown"
+                        ]
+                    },
+                    "lastSeenAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "cliVersion": {
+                        "description": "The CLI version the bridge reported.",
+                        "type": "string"
+                    },
+                    "pauseRequested": {
+                        "description": "True when a person asked the bridge to start no new work.",
+                        "type": "boolean"
+                    },
+                    "pausedReported": {
+                        "type": "boolean",
+                        "nullable": true
+                    },
+                    "takesCommands": {
+                        "description": "False for an older bridge, which cannot resume or stop a run.",
+                        "type": "boolean"
+                    },
+                    "takesReruns": {
+                        "description": "False for a bridge that cannot run a failed command run again.",
+                        "type": "boolean"
+                    },
+                    "projectIds": {
+                        "description": "The ids of the projects that the bridge serves. A credential bound to one project sees that project alone.",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "BridgeList": {
+                "required": [
+                    "items",
+                    "next"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Bridge"
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
             "MetricListEntry": {
                 "required": [
                     "key",
@@ -26751,1114 +27862,6 @@
                         "description": "The CLI versions this server works with, as a caret range.",
                         "type": "string",
                         "example": "^2.0"
-                    }
-                },
-                "type": "object"
-            },
-            "ResumeWorkerRunsRequest": {
-                "required": [
-                    "runIds"
-                ],
-                "properties": {
-                    "runIds": {
-                        "description": "The ids of the runs to resume, from 1 to 50. The route treats each run on its own and in order.",
-                        "type": "array",
-                        "items": {
-                            "type": "string",
-                            "format": "uuid"
-                        },
-                        "maxItems": 50,
-                        "minItems": 1
-                    }
-                },
-                "type": "object"
-            },
-            "StopWorkerRunRequest": {
-                "properties": {
-                    "reason": {
-                        "description": "Why the run must stop, which a person reads on the run. At most 1000 characters. A body may leave it out.",
-                        "type": "string",
-                        "nullable": true,
-                        "maxLength": 1000
-                    }
-                },
-                "type": "object"
-            },
-            "WorkerRunCommandResponse": {
-                "required": [
-                    "commandId"
-                ],
-                "properties": {
-                    "commandId": {
-                        "description": "The id of the command that waits for the bridge, or the id of the command that was withdrawn.",
-                        "type": "string",
-                        "format": "uuid"
-                    }
-                },
-                "type": "object"
-            },
-            "OwnerBridgeResponse": {
-                "required": [
-                    "bridgeId",
-                    "name",
-                    "requestedName",
-                    "liveness",
-                    "quietCause",
-                    "lastSeenAt",
-                    "cliVersion",
-                    "pauseRequested",
-                    "pausedReported",
-                    "takesCommands",
-                    "takesReruns",
-                    "projectIds"
-                ],
-                "properties": {
-                    "bridgeId": {
-                        "type": "string",
-                        "format": "uuid"
-                    },
-                    "name": {
-                        "description": "The name the bridge holds, or null.",
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "requestedName": {
-                        "description": "The name its last heartbeat asked for, or null.",
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "liveness": {
-                        "type": "string",
-                        "enum": [
-                            "live",
-                            "quiet"
-                        ]
-                    },
-                    "quietCause": {
-                        "type": "string",
-                        "nullable": true,
-                        "enum": [
-                            "login-expired",
-                            "unknown"
-                        ]
-                    },
-                    "lastSeenAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "nullable": true
-                    },
-                    "cliVersion": {
-                        "description": "The CLI version the bridge reported.",
-                        "type": "string"
-                    },
-                    "pauseRequested": {
-                        "description": "True when a person asked the bridge to start no new work.",
-                        "type": "boolean"
-                    },
-                    "pausedReported": {
-                        "type": "boolean",
-                        "nullable": true
-                    },
-                    "takesCommands": {
-                        "description": "False for an older bridge, which cannot resume or stop a run.",
-                        "type": "boolean"
-                    },
-                    "takesReruns": {
-                        "description": "False for a bridge that cannot run a failed command run again.",
-                        "type": "boolean"
-                    },
-                    "projectIds": {
-                        "description": "The ids of the projects that the bridge serves. A credential bound to one project sees that project alone.",
-                        "type": "array",
-                        "items": {
-                            "type": "string",
-                            "format": "uuid"
-                        }
-                    }
-                },
-                "type": "object"
-            },
-            "OwnerBridgeListResponse": {
-                "required": [
-                    "items",
-                    "next"
-                ],
-                "properties": {
-                    "items": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/components/schemas/OwnerBridgeResponse"
-                        }
-                    },
-                    "next": {
-                        "description": "The URL of the next page, or null on the last page.",
-                        "type": "string",
-                        "format": "uri",
-                        "nullable": true
-                    }
-                },
-                "type": "object"
-            },
-            "ProjectBridgeResponse": {
-                "required": [
-                    "bridgeId",
-                    "name",
-                    "requestedName",
-                    "gitIdentity",
-                    "liveness",
-                    "quietCause",
-                    "lastSeenAt",
-                    "cliVersion",
-                    "pauseRequested",
-                    "pausedReported",
-                    "takesCommands",
-                    "takesReruns",
-                    "acceptsEntries",
-                    "commandEntries",
-                    "workerPools",
-                    "workerPoolsReportedAt",
-                    "accounts",
-                    "accountsReportedAt",
-                    "skills",
-                    "openRuns",
-                    "refusedRequests"
-                ],
-                "properties": {
-                    "bridgeId": {
-                        "type": "string",
-                        "format": "uuid"
-                    },
-                    "name": {
-                        "description": "The name the bridge holds, or null.",
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "requestedName": {
-                        "description": "The name its last heartbeat asked for, or null. A requestedName with a null name means another bridge of the owner already holds that name.",
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "gitIdentity": {
-                        "description": "The git identity of the bridge for this project, or null when it reported none. `pushLogin` is the GitHub login the pushes use, or empty when it is unknown.",
-                        "required": [
-                            "mode",
-                            "commitName",
-                            "pushLogin",
-                            "githubUserId"
-                        ],
-                        "properties": {
-                            "mode": {
-                                "type": "string",
-                                "enum": [
-                                    "agent_account",
-                                    "app_token",
-                                    "machine"
-                                ]
-                            },
-                            "commitName": {
-                                "type": "string"
-                            },
-                            "pushLogin": {
-                                "type": "string"
-                            },
-                            "githubUserId": {
-                                "type": "integer",
-                                "nullable": true
-                            }
-                        },
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "liveness": {
-                        "description": "Live while the bridge sends its heartbeat, and quiet when it missed several.",
-                        "type": "string",
-                        "enum": [
-                            "live",
-                            "quiet"
-                        ]
-                    },
-                    "quietCause": {
-                        "description": "Null for a live bridge. login-expired when a quiet bridge lost the login that can no longer refresh, and unknown for any other quiet bridge.",
-                        "type": "string",
-                        "nullable": true,
-                        "enum": [
-                            "login-expired",
-                            "unknown"
-                        ]
-                    },
-                    "lastSeenAt": {
-                        "description": "The time of its last heartbeat.",
-                        "type": "string",
-                        "format": "date-time",
-                        "nullable": true
-                    },
-                    "cliVersion": {
-                        "description": "The CLI version the bridge reported.",
-                        "type": "string"
-                    },
-                    "pauseRequested": {
-                        "description": "True when a person asked the bridge to start no new work.",
-                        "type": "boolean"
-                    },
-                    "pausedReported": {
-                        "description": "Whether the bridge reported that it is paused, or null when it reported nothing.",
-                        "type": "boolean",
-                        "nullable": true
-                    },
-                    "takesCommands": {
-                        "description": "False for an older bridge, which cannot resume or stop a run.",
-                        "type": "boolean"
-                    },
-                    "takesReruns": {
-                        "description": "False for a bridge that cannot run a failed command run again.",
-                        "type": "boolean"
-                    },
-                    "acceptsEntries": {
-                        "description": "True when the bridge adds a proposed command entry to its rule file after the owner confirms.",
-                        "type": "boolean"
-                    },
-                    "commandEntries": {
-                        "description": "Each command entry the bridge can run, as its last heartbeat reported them: `name`, `description`, `params`, `run` and `timeout`. Null when it reported none.",
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "additionalProperties": true
-                        },
-                        "nullable": true
-                    },
-                    "workerPools": {
-                        "description": "Each worker pool of the bridge, with `name`, `size`, `inUse` and `queued`, as its last heartbeat reported them. Null when it reported none.",
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "additionalProperties": true
-                        },
-                        "nullable": true
-                    },
-                    "workerPoolsReportedAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "nullable": true
-                    },
-                    "accounts": {
-                        "description": "Each account the bridge checked, with `name`, `harness`, `state`, `reason`, `used`, `projectFailure` and `otherFailedProjects`. `projectFailure` is the reason the account fails for this project, and `otherFailedProjects` counts the other projects it fails for, without naming them. Null when the bridge reported none.",
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "additionalProperties": true
-                        },
-                        "nullable": true
-                    },
-                    "accountsReportedAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "nullable": true
-                    },
-                    "skills": {
-                        "description": "Each skill package the bridge installed, with `package`, `version`, `state` and `reason`. Null when the bridge reported none.",
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "additionalProperties": true
-                        },
-                        "nullable": true
-                    },
-                    "openRuns": {
-                        "description": "The queued, resumed, preparing, running and stopping runs of this project on the bridge.",
-                        "type": "array",
-                        "items": {
-                            "required": [
-                                "runId",
-                                "subjectType",
-                                "subjectId",
-                                "cardNumber",
-                                "workKind",
-                                "state"
-                            ],
-                            "properties": {
-                                "runId": {
-                                    "type": "string",
-                                    "format": "uuid"
-                                },
-                                "subjectType": {
-                                    "type": "string"
-                                },
-                                "subjectId": {
-                                    "type": "string",
-                                    "format": "uuid"
-                                },
-                                "cardNumber": {
-                                    "type": "integer",
-                                    "nullable": true
-                                },
-                                "workKind": {
-                                    "type": "string",
-                                    "nullable": true
-                                },
-                                "state": {
-                                    "type": "string"
-                                }
-                            },
-                            "type": "object"
-                        }
-                    },
-                    "refusedRequests": {
-                        "description": "The open work requests of this project that the server refused to the bridge. The server refuses a claim when the account it names, or the lack of one, does not match the account that runs the work kind.",
-                        "type": "array",
-                        "items": {
-                            "required": [
-                                "workRequestId",
-                                "subjectType",
-                                "subjectId",
-                                "kind",
-                                "account"
-                            ],
-                            "properties": {
-                                "workRequestId": {
-                                    "type": "string",
-                                    "format": "uuid"
-                                },
-                                "subjectType": {
-                                    "type": "string"
-                                },
-                                "subjectId": {
-                                    "type": "string",
-                                    "format": "uuid"
-                                },
-                                "kind": {
-                                    "type": "string"
-                                },
-                                "account": {
-                                    "type": "string",
-                                    "nullable": true
-                                }
-                            },
-                            "type": "object"
-                        }
-                    }
-                },
-                "type": "object"
-            },
-            "ProjectBridgeListResponse": {
-                "required": [
-                    "items",
-                    "next"
-                ],
-                "properties": {
-                    "items": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/components/schemas/ProjectBridgeResponse"
-                        }
-                    },
-                    "next": {
-                        "description": "The URL of the next page, or null on the last page.",
-                        "type": "string",
-                        "format": "uri",
-                        "nullable": true
-                    }
-                },
-                "type": "object"
-            },
-            "WorkerRunHostSampleResponse": {
-                "required": [
-                    "sampledAt",
-                    "cpuPct",
-                    "meanCpuPct",
-                    "memUsed",
-                    "memTotal",
-                    "swapUsed",
-                    "batteryPct",
-                    "onAc"
-                ],
-                "properties": {
-                    "sampledAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "cpuPct": {
-                        "description": "The use of each core, in percent.",
-                        "type": "array",
-                        "items": {
-                            "type": "number"
-                        }
-                    },
-                    "meanCpuPct": {
-                        "description": "The mean of cpuPct, rounded to one decimal, or null when cpuPct is empty.",
-                        "type": "number",
-                        "format": "float",
-                        "nullable": true
-                    },
-                    "memUsed": {
-                        "description": "Memory in use, in bytes.",
-                        "type": "integer"
-                    },
-                    "memTotal": {
-                        "description": "Memory in total, in bytes.",
-                        "type": "integer"
-                    },
-                    "swapUsed": {
-                        "description": "Swap in use, in bytes.",
-                        "type": "integer"
-                    },
-                    "batteryPct": {
-                        "description": "The battery level in percent, or null on a machine with no battery.",
-                        "type": "number",
-                        "format": "float",
-                        "nullable": true
-                    },
-                    "onAc": {
-                        "description": "Whether the machine runs on mains power, or null when it does not say.",
-                        "type": "boolean",
-                        "nullable": true
-                    }
-                },
-                "type": "object"
-            },
-            "WorkerRunHostSampleListResponse": {
-                "required": [
-                    "items",
-                    "next",
-                    "note"
-                ],
-                "properties": {
-                    "items": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/components/schemas/WorkerRunHostSampleResponse"
-                        }
-                    },
-                    "next": {
-                        "description": "The URL of the next page, or null on the last page.",
-                        "type": "string",
-                        "format": "uri",
-                        "nullable": true
-                    },
-                    "note": {
-                        "description": "Why the list is empty when the run has no bridge or no start, and null otherwise.",
-                        "type": "string",
-                        "nullable": true
-                    }
-                },
-                "type": "object"
-            },
-            "WorkerRunToolCallResponse": {
-                "required": [
-                    "seq",
-                    "tool",
-                    "kind",
-                    "startedAt",
-                    "durationMs",
-                    "isError",
-                    "inSubagent",
-                    "backgroundId",
-                    "waitsOn",
-                    "signatures",
-                    "fullText"
-                ],
-                "properties": {
-                    "seq": {
-                        "description": "The place of the call in the run, from 1.",
-                        "type": "integer",
-                        "minimum": 1
-                    },
-                    "tool": {
-                        "description": "The tool, such as Bash, Read or Agent.",
-                        "type": "string"
-                    },
-                    "kind": {
-                        "description": "Shell for a shell command, subagent for a call that starts a sub-agent, tool for any other call, or null from an older bridge.",
-                        "type": "string",
-                        "nullable": true,
-                        "enum": [
-                            "shell",
-                            "subagent",
-                            "tool"
-                        ]
-                    },
-                    "startedAt": {
-                        "description": "When the call started, with milliseconds.",
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "durationMs": {
-                        "description": "How long the call took. Null when the stream holds no result of the call.",
-                        "type": "integer",
-                        "nullable": true
-                    },
-                    "isError": {
-                        "description": "Whether the call failed. Null when the stream holds no result of the call.",
-                        "type": "boolean",
-                        "nullable": true
-                    },
-                    "inSubagent": {
-                        "description": "True when a subagent made the call.",
-                        "type": "boolean"
-                    },
-                    "backgroundId": {
-                        "description": "The id of the background task that the call started, or null.",
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "waitsOn": {
-                        "description": "The background id of an earlier call that this call reads, or null.",
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "signatures": {
-                        "description": "The program and its subcommand for each shell command, such as git status, or the tool name for any other tool.",
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        }
-                    },
-                    "fullText": {
-                        "description": "The full text of the call. Null unless the project collects the full text of the calls.",
-                        "type": "string",
-                        "nullable": true
-                    }
-                },
-                "type": "object"
-            },
-            "WorkerRunToolCallListResponse": {
-                "required": [
-                    "items",
-                    "next"
-                ],
-                "properties": {
-                    "items": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/components/schemas/WorkerRunToolCallResponse"
-                        }
-                    },
-                    "next": {
-                        "description": "The URL of the next page, or null on the last page.",
-                        "type": "string",
-                        "format": "uri",
-                        "nullable": true
-                    }
-                },
-                "type": "object"
-            },
-            "WorkerRunResponse": {
-                "required": [
-                    "runId",
-                    "runKey",
-                    "kind",
-                    "subjectType",
-                    "subjectId",
-                    "cardNumber",
-                    "workRequestId",
-                    "workKind",
-                    "ruleId",
-                    "state",
-                    "sessionId",
-                    "startedAt",
-                    "endedAt",
-                    "exitCode",
-                    "bridgeId",
-                    "harness",
-                    "account",
-                    "harnessSessionId",
-                    "harnessVersion",
-                    "cliVersion",
-                    "skillVersion",
-                    "pendingCommand",
-                    "reason",
-                    "usage",
-                    "model",
-                    "experiment",
-                    "variant",
-                    "metrics"
-                ],
-                "properties": {
-                    "runId": {
-                        "description": "The id of the run.",
-                        "type": "string",
-                        "format": "uuid"
-                    },
-                    "runKey": {
-                        "description": "The id the bridge gave the run, or null.",
-                        "type": "string",
-                        "format": "uuid",
-                        "nullable": true
-                    },
-                    "kind": {
-                        "description": "Worker for a run of an agent, interactive for a session that a person opened, and command for a command with no agent and so no session.",
-                        "type": "string",
-                        "enum": [
-                            "worker",
-                            "interactive",
-                            "command"
-                        ]
-                    },
-                    "subjectType": {
-                        "description": "What the run is about, such as card.",
-                        "type": "string"
-                    },
-                    "subjectId": {
-                        "description": "The id of the subject. For a card, the card id.",
-                        "type": "string",
-                        "format": "uuid"
-                    },
-                    "cardNumber": {
-                        "description": "The number of the card, or null when the subject is no card.",
-                        "type": "integer",
-                        "nullable": true
-                    },
-                    "workRequestId": {
-                        "description": "The work request that the run ran, or null.",
-                        "type": "string",
-                        "format": "uuid",
-                        "nullable": true
-                    },
-                    "workKind": {
-                        "description": "The kind of that work request, such as implement or fix, or the name of an interactive session.",
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "ruleId": {
-                        "description": "The id of the workflow rule that opened the request, or null.",
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "state": {
-                        "description": "The state of the run, such as running, failed, gave-up, timed-out or lost.",
-                        "type": "string"
-                    },
-                    "sessionId": {
-                        "description": "The Loupe session of the worker, or null.",
-                        "type": "string",
-                        "format": "uuid",
-                        "nullable": true
-                    },
-                    "startedAt": {
-                        "description": "When the run started, or null.",
-                        "type": "string",
-                        "format": "date-time",
-                        "nullable": true
-                    },
-                    "endedAt": {
-                        "description": "When the run ended, or null while it is open.",
-                        "type": "string",
-                        "format": "date-time",
-                        "nullable": true
-                    },
-                    "exitCode": {
-                        "description": "The exit code, or null.",
-                        "type": "integer",
-                        "nullable": true
-                    },
-                    "bridgeId": {
-                        "description": "The bridge that ran the run, or null.",
-                        "type": "string",
-                        "format": "uuid",
-                        "nullable": true
-                    },
-                    "harness": {
-                        "description": "The harness that ran the run, such as claude-code or codex, or null until the bridge reports it.",
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "account": {
-                        "description": "The named harness account, or null.",
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "harnessSessionId": {
-                        "description": "The id the harness gave the session, such as a Codex thread id, or null.",
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "harnessVersion": {
-                        "description": "The version of the harness, or null.",
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "cliVersion": {
-                        "description": "The version of the CLI that ran the run, or null.",
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "skillVersion": {
-                        "description": "The version of the skill package, or null.",
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "pendingCommand": {
-                        "description": "The command that waits for the bridge, or null.",
-                        "required": [
-                            "commandId",
-                            "kind",
-                            "state"
-                        ],
-                        "properties": {
-                            "commandId": {
-                                "type": "string",
-                                "format": "uuid"
-                            },
-                            "kind": {
-                                "type": "string",
-                                "enum": [
-                                    "resume-run",
-                                    "stop-run",
-                                    "rerun-command",
-                                    "collect-session-usage",
-                                    "try-now"
-                                ]
-                            },
-                            "state": {
-                                "type": "string",
-                                "enum": [
-                                    "pending"
-                                ]
-                            }
-                        },
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "reason": {
-                        "description": "The failure reason, or else the last line of the output, cut to 300 characters, or null.",
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "usage": {
-                        "description": "The tokens of each model the run used. Empty when the bridge sent no usage. `costUsd` is a decimal string in US dollars, or null when the model has no price.",
-                        "type": "array",
-                        "items": {
-                            "required": [
-                                "model",
-                                "source",
-                                "inputTokens",
-                                "outputTokens",
-                                "cacheReadTokens",
-                                "cacheWriteTokens",
-                                "costUsd"
-                            ],
-                            "properties": {
-                                "model": {
-                                    "type": "string"
-                                },
-                                "source": {
-                                    "type": "string",
-                                    "enum": [
-                                        "reported",
-                                        "estimated"
-                                    ]
-                                },
-                                "inputTokens": {
-                                    "type": "integer"
-                                },
-                                "outputTokens": {
-                                    "type": "integer"
-                                },
-                                "cacheReadTokens": {
-                                    "type": "integer"
-                                },
-                                "cacheWriteTokens": {
-                                    "type": "integer"
-                                },
-                                "costUsd": {
-                                    "type": "string",
-                                    "nullable": true
-                                }
-                            },
-                            "type": "object"
-                        }
-                    },
-                    "model": {
-                        "description": "The model the bridge reported, or else the model with the highest cost, or null.",
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "experiment": {
-                        "description": "The experiment of the rule that ran the worker, or null.",
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "variant": {
-                        "description": "The variant of that experiment, or null.",
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "metrics": {
-                        "description": "The sums and the timing of the run, or null when the run has no metrics row. A figure is null when it is unknown. `costUsd` is a number in US dollars. The `concurrentRuns` and host figures are null while the run has no end, or when the bridge sent no sample.",
-                        "type": "object",
-                        "nullable": true,
-                        "additionalProperties": true
-                    }
-                },
-                "type": "object"
-            },
-            "WorkerRunListResponse": {
-                "required": [
-                    "items",
-                    "next"
-                ],
-                "properties": {
-                    "items": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/components/schemas/WorkerRunResponse"
-                        }
-                    },
-                    "next": {
-                        "description": "The URL of the next page, or null on the last page.",
-                        "type": "string",
-                        "format": "uri",
-                        "nullable": true
-                    }
-                },
-                "type": "object"
-            },
-            "ResumeWorkerRunsResponse": {
-                "required": [
-                    "results"
-                ],
-                "properties": {
-                    "results": {
-                        "description": "One row per run id. `resumed` carries `commandId`. `refused` carries `code` and `message`. The codes are not-found (no run of this project has this id), no-bridge, unknown-bridge, bridge-outdated, pending, not-controllable, no-session, not-resumable and card-held. `error` says that an unexpected failure hit that run and its outcome is unknown. The route then stops, and each later row is `not-attempted`.",
-                        "type": "array",
-                        "items": {
-                            "required": [
-                                "runId",
-                                "outcome"
-                            ],
-                            "properties": {
-                                "runId": {
-                                    "type": "string"
-                                },
-                                "outcome": {
-                                    "type": "string",
-                                    "enum": [
-                                        "resumed",
-                                        "refused",
-                                        "error",
-                                        "not-attempted"
-                                    ]
-                                },
-                                "commandId": {
-                                    "type": "string",
-                                    "format": "uuid"
-                                },
-                                "code": {
-                                    "type": "string"
-                                },
-                                "message": {
-                                    "type": "string"
-                                }
-                            },
-                            "type": "object"
-                        }
-                    }
-                },
-                "type": "object"
-            },
-            "WorkerRunDetailResponse": {
-                "required": [
-                    "continuesRunId",
-                    "receivedAt",
-                    "failureReason",
-                    "output",
-                    "stateChanges",
-                    "buckets",
-                    "harnessEvents"
-                ],
-                "properties": {
-                    "continuesRunId": {
-                        "description": "The run that this run resumes, or null.",
-                        "type": "string",
-                        "format": "uuid",
-                        "nullable": true
-                    },
-                    "receivedAt": {
-                        "description": "When the first report of the run arrived.",
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "failureReason": {
-                        "description": "The failure reason the bridge gave, or null.",
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "output": {
-                        "description": "The whole output the bridge reported.",
-                        "type": "string"
-                    },
-                    "stateChanges": {
-                        "description": "Each state the run reached, oldest first.",
-                        "type": "array",
-                        "items": {
-                            "required": [
-                                "state",
-                                "at"
-                            ],
-                            "properties": {
-                                "state": {
-                                    "type": "string"
-                                },
-                                "at": {
-                                    "type": "string",
-                                    "format": "date-time"
-                                }
-                            },
-                            "type": "object"
-                        }
-                    },
-                    "buckets": {
-                        "description": "The time buckets of the run, largest first, or null for a run with no tool calls. `mainMs` is the time of the main session, `withSubagentsMs` the time of every session, and `calls` every call, subagents included. A figure is null on a row that no recompute has filled.",
-                        "type": "array",
-                        "items": {
-                            "required": [
-                                "bucket",
-                                "mainMs",
-                                "withSubagentsMs",
-                                "calls"
-                            ],
-                            "properties": {
-                                "bucket": {
-                                    "type": "string"
-                                },
-                                "mainMs": {
-                                    "type": "integer"
-                                },
-                                "withSubagentsMs": {
-                                    "type": "integer",
-                                    "nullable": true
-                                },
-                                "calls": {
-                                    "type": "integer",
-                                    "nullable": true
-                                }
-                            },
-                            "type": "object"
-                        },
-                        "nullable": true
-                    },
-                    "harnessEvents": {
-                        "description": "Each kind of harness event with its count, subagents included, or null when the bridge reported none.",
-                        "type": "object",
-                        "nullable": true,
-                        "additionalProperties": {
-                            "type": "integer"
-                        }
-                    }
-                },
-                "type": "object",
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/WorkerRunResponse"
-                    }
-                ]
-            },
-            "BridgeCommandResponse": {
-                "required": [
-                    "commandId",
-                    "runId",
-                    "kind",
-                    "state",
-                    "reason",
-                    "requestedAt",
-                    "expiresAt",
-                    "settledAt"
-                ],
-                "properties": {
-                    "commandId": {
-                        "type": "string",
-                        "format": "uuid"
-                    },
-                    "runId": {
-                        "type": "string",
-                        "format": "uuid"
-                    },
-                    "kind": {
-                        "type": "string",
-                        "enum": [
-                            "resume-run",
-                            "stop-run",
-                            "rerun-command",
-                            "collect-session-usage",
-                            "try-now"
-                        ]
-                    },
-                    "state": {
-                        "type": "string",
-                        "enum": [
-                            "pending",
-                            "done",
-                            "refused",
-                            "expired",
-                            "cancelled"
-                        ]
-                    },
-                    "reason": {
-                        "description": "The reason the requester gave, until the bridge settles the command with a reason of its own.",
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "requestedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "expiresAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "settledAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "nullable": true
-                    }
-                },
-                "type": "object"
-            },
-            "WorkerRunShowResponse": {
-                "required": [
-                    "run",
-                    "series",
-                    "commands"
-                ],
-                "properties": {
-                    "run": {
-                        "$ref": "#/components/schemas/WorkerRunDetailResponse"
-                    },
-                    "series": {
-                        "description": "Every run of the series of the run, oldest first, the run included. A series starts with one run, and each resume starts a new run that continues it.",
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/components/schemas/WorkerRunResponse"
-                        }
-                    },
-                    "commands": {
-                        "description": "Every command that a person, an agent or a key sent to the bridge for a run of the series, oldest first.",
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/components/schemas/BridgeCommandResponse"
-                        }
-                    }
-                },
-                "type": "object"
-            },
-            "StopWorkerRunResponse": {
-                "required": [
-                    "outcome",
-                    "commandId"
-                ],
-                "properties": {
-                    "outcome": {
-                        "description": "`stopped` when the run asked its bridge to stop it. `closed` when the run is an interactive session: Loupe marks it closed, and the terminal of the person stays open, because no bridge holds it.",
-                        "type": "string",
-                        "enum": [
-                            "stopped",
-                            "closed"
-                        ]
-                    },
-                    "commandId": {
-                        "description": "The id of the command that waits for the bridge, or null for a closed session.",
-                        "type": "string",
-                        "format": "uuid",
-                        "nullable": true
                     }
                 },
                 "type": "object"
