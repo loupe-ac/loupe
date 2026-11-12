@@ -9782,6 +9782,7 @@ workflow:
             <trans-unit id="github.repositories.check.heading_unnamed"><source>github.repositories.check.heading_unnamed</source><target>What the workflow suggests</target></trans-unit>
             <trans-unit id="github.repositories.check.summary.ok"><source>github.repositories.check.summary.ok</source><target>OK</target></trans-unit>
             <trans-unit id="github.repositories.check.summary.not_ok"><source>github.repositories.check.summary.not_ok</source><target>Not OK</target></trans-unit>
+            <trans-unit id="github.repositories.check.unchecked"><source>github.repositories.check.unchecked</source><target>Not checked yet. Loupe has not read this repository's workflow rules.</target></trans-unit>
             <trans-unit id="github.repositories.check.summary.pending"><source>github.repositories.check.summary.pending</source><target>Not checked yet</target></trans-unit>
             <trans-unit id="github.repositories.check.checked"><source>github.repositories.check.checked</source><target>Checked</target></trans-unit>
             <trans-unit id="github.repositories.check.checking"><source>github.repositories.check.checking</source><target>Checking…</target></trans-unit>

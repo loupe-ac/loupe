@@ -484,6 +484,8 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
         self::assertSame(CheckTrigger::PageOpen, $queued[0]->trigger);
         self::assertCount(1, $crawler->filter('[data-forge-repository] [data-repository-checking]'));
         self::assertSame('Checking…', trim($crawler->filter('[data-testid="forge-repository-checking"]')->text()));
+        self::assertStringContainsString('Not checked yet', $crawler->filter('[data-testid="forge-repository-unchecked"]')->text());
+        self::assertCount(0, $crawler->filter('.lp-repository-check__title'));
     }
 
     public function test_a_page_reopened_within_five_minutes_dispatches_nothing_and_shows_no_checking(): void

@@ -5287,10 +5287,10 @@
 
     /* The Repositories section: a row for each repository, then its check list. */
     .lp-repository-list {
-        @apply flex flex-col gap-6;
+        @apply flex flex-col gap-3;
     }
     .lp-repository {
-        @apply flex flex-col;
+        @apply flex flex-col rounded-xl bg-surface-3 px-4.5 py-4;
     }
     /* The row is the button that opens and closes the checks. The remove
        action sits beside it, outside the button. */

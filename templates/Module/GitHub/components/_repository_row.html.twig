@@ -42,7 +42,7 @@
         {{ identity }}
         {% endif %}
         {% if repository.accessLostAt %}
-        <twig:Ds:Tag tone="amber" data-testid="forge-repository-no-access">{{ 'github.repositories.no_access.label'|trans }}</twig:Ds:Tag>
+        <twig:Ds:Tag tone="red" data-testid="forge-repository-no-access">{{ 'github.repositories.no_access.label'|trans }}</twig:Ds:Tag>
         {% if row.fixAccessUrl is not null %}
         <twig:Ds:Button variant="on-card" size="sm" href="{{ row.fixAccessUrl }}" target="_blank" rel="noopener noreferrer" data-testid="forge-repository-fix-access">{{ 'github.repositories.no_access.fix'|trans }}</twig:Ds:Button>
         {% endif %}
@@ -69,13 +69,17 @@
     {% set checkAgainUrl = path('app_github_repository_check', {id: project.id, repositoryId: repository.id}) %}
     <div class="lp-repository-fold{{ open ? ' open' }}" id="{{ checksId }}" data-disclosure-target="content" data-testid="forge-repository-fold">
     <div class="lp-repository-check" data-testid="forge-repository-check">
-        <h3 class="lp-repository-check__title">
-            {%- if row.workflowLabelKey -%}
-                {{ 'github.repositories.check.heading'|trans({'%workflow%': row.workflowLabelKey|trans}) }}
-            {%- else -%}
-                {{ 'github.repositories.check.heading_unnamed'|trans }}
-            {%- endif -%}
-        </h3>
+        {% if check is null %}
+        <p class="lp-repository-check__detail" data-testid="forge-repository-unchecked">{{ 'github.repositories.check.unchecked'|trans }}</p>
+        {% else %}
+            <h3 class="lp-repository-check__title">
+                {%- if row.workflowLabelKey -%}
+                    {{ 'github.repositories.check.heading'|trans({'%workflow%': row.workflowLabelKey|trans}) }}
+                {%- else -%}
+                    {{ 'github.repositories.check.heading_unnamed'|trans }}
+                {%- endif -%}
+            </h3>
+        {% endif %}
         {% if row.blocks %}
         <twig:Ds:Flash severity="error" :title="'github.repositories.check.paused.title'|trans" data-testid="forge-repository-paused">
             {%- if row.workflowLabelKey -%}
