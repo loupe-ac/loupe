@@ -636,6 +636,8 @@ Renaming a series keeps every document in place. A name another series already
 holds is refused rather than merged, because two series carry two independent
 numberings.
 
+A script lists the tags and the series, and renames a series, through the public API or the CLI: `loupe tag list`, `loupe series list` and `loupe series rename`. See the [API reference](../reference/api/index.md#experiments-tags-and-series).
+
 ## Highlights
 
 Highlights tint the passages a reviewer should read first. They carry no body

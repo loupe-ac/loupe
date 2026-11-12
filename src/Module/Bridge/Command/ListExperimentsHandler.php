@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Bridge\Command;
 
 use App\Module\Bridge\Experiment\ExperimentArchiveState;
+use App\Module\Bridge\Experiment\ExperimentListPosition;
 use App\Module\Bridge\Experiment\ExperimentSummary;
 use App\Module\Bridge\Repository\ExperimentArchiveRepository;
 use App\Module\Bridge\Repository\ExperimentPinRepository;
@@ -51,6 +52,29 @@ final readonly class ListExperimentsHandler
         }
         usort($experiments, static fn (ExperimentSummary $a, ExperimentSummary $b): int => [null === $a->lastRunAt, $b->lastRunAt, $a->name] <=> [null === $b->lastRunAt, $a->lastRunAt, $b->name]);
 
-        return new ListExperimentsView($experiments, $archivedCount);
+        $hasMore = false;
+        if (null !== $command->after) {
+            $after = $command->after;
+            $experiments = array_values(array_filter($experiments, static fn (ExperimentSummary $summary): bool => self::follows($summary, $after)));
+        }
+        if (null !== $command->limit && \count($experiments) > $command->limit) {
+            $hasMore = true;
+            $experiments = \array_slice($experiments, 0, $command->limit);
+        }
+
+        return new ListExperimentsView($experiments, $archivedCount, $hasMore);
+    }
+
+    /** True when the experiment comes after the position in the order of the list. */
+    private static function follows(ExperimentSummary $summary, ExperimentListPosition $after): bool
+    {
+        if (null === $after->lastRunAt) {
+            return null === $summary->lastRunAt && $summary->name > $after->name;
+        }
+        if (null === $summary->lastRunAt) {
+            return true;
+        }
+
+        return [$after->lastRunAt, $summary->name] > [$summary->lastRunAt, $after->name];
     }
 }

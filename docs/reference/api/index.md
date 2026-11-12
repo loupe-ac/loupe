@@ -5,7 +5,7 @@ description: "The public HTTP API of Loupe at /api/v1: sign-in, requests, lists,
 
 The public API lets a script, a CI job or another tool read and change what you
 can read and change in Loupe. It covers projects, columns, cards, documents,
-reviews, feedback, artifacts, inbox items and the cards of an experiment. The API is in **beta**.
+reviews, feedback, artifacts, inbox items, experiments, tags and series. The API is in **beta**.
 
 The API operations section of this site lists each operation. Each instance also
 serves the same description as an OpenAPI 3.0 file at `GET /api/v1/openapi.json`.
@@ -477,6 +477,40 @@ names none.
 value. `null` clears `defaultModel` or `defaultEffort`, so the instance default
 applies. A list in `subcommandPrograms` replaces the stored list, and an empty
 list clears it. A value that the settings refuse answers `422`.
+
+## Experiments, tags and series
+
+These routes read and curate what a project holds apart from its cards and
+documents. Every list takes `limit` and `cursor`, as [Lists](#lists) says.
+
+1. `GET /api/v1/projects/{project}/experiments` lists the experiments that the
+   runs and the pins name, the latest run first. The experiments with no run
+   come last. `archived=true` lists only the archived experiments, and the
+   default lists only the others. A row holds `name`, `cards`, `lastRunAt` and
+   `archived`.
+2. `GET /api/v1/projects/{project}/experiments/{experiment}` reads the
+   comparison that the Comparison tab shows: the `headline`, the `variants` and
+   the `metrics`. The cards stay on `.../experiments/{experiment}/cards`. A money
+   value is in US dollars, a duration of a built-in metric in milliseconds, and a
+   duration of a metric from the workflow template in hours.
+3. `PATCH /api/v1/projects/{project}/experiments/{experiment}` takes
+   `{"archived": true}` or `{"archived": false}`. Archiving hides the experiment
+   from the main list. It changes no pin and no variant. A run that Loupe
+   records after the archive brings the experiment back. The answer is the row of
+   the experiment. An unknown name answers `404` with `experiment_not_found`.
+4. `GET /api/v1/projects/{project}/tags` lists the tags by name with the number
+   of documents that carry each one. A tag that no document carries stays in the
+   list with a count of `0`.
+5. `GET /api/v1/projects/{project}/series` lists the series by name, ignoring
+   case. A row holds `name`, `documentCount` and `highestOrdinal`, the highest
+   position in use.
+6. `PATCH /api/v1/projects/{project}/series/{series}` takes `{"name": "..."}`
+   and renames the series. `{series}` is the current name, URL-encoded and matched
+   ignoring case. Every document keeps its position. A name that another series
+   holds answers `409` with `series_name_taken`.
+
+A name in a path is the name as the runs or the documents write it. Encode a
+`/` in a series name as `%2F`.
 
 ## Who made a change
 

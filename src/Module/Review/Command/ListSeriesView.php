@@ -16,6 +16,8 @@ final readonly class ListSeriesView
     /** @param list<SeriesCount> $series */
     public function __construct(
         public array $series,
+        /** True when a walk by position has series after the last series of this view. */
+        public bool $hasMore = false,
     ) {
     }
 }

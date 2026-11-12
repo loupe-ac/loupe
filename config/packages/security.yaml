@@ -141,6 +141,9 @@ security:
         - { path: '^/api/v1/projects/[^/]+/documents(/[^/]+(/(publish|review|versions(/[^/]+)?|comments/[^/]+(/replies)?|decisions/[^/]+|verdicts(/[^/]+)?))?)?$', roles: ROLE_API_PUBLIC }
         - { path: '^/api/v1/projects/[^/]+/discovery$', roles: ROLE_API_PUBLIC }
         - { path: '^/api/v1/projects/[^/]+/experiments/[^/]+/cards(/[1-9][0-9]{0,8}/exclusion)?$', roles: ROLE_API_PUBLIC }
+        - { path: '^/api/v1/projects/[^/]+/experiments(/[^/]+)?$', roles: ROLE_API_PUBLIC }
+        - { path: '^/api/v1/projects/[^/]+/tags$', roles: ROLE_API_PUBLIC }
+        - { path: '^/api/v1/projects/[^/]+/series(/.+)?$', roles: ROLE_API_PUBLIC }
         - { path: '^/api/v1/projects/[^/]+/graphs(/[^/]+(/restore)?)?$', roles: ROLE_API_PUBLIC }
         - { path: '^/api/v1/projects/[^/]+/bucket-rules(/[^/]+)?$', roles: ROLE_API_PUBLIC }
         - { path: '^/api/v1/projects/[^/]+/analytics/settings$', roles: ROLE_API_PUBLIC }
