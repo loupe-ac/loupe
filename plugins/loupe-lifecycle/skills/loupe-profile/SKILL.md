@@ -85,23 +85,37 @@ Next: install the Loupe GitHub App, then fix problem 1.
 
 1. After the last answer, show every change the owner approved, in one numbered list. Give the file, the old text, the new text and how it reaches the remote, such as a branch and a pull request.
 2. Ask one question: apply these changes, yes or no. The owner can also name the entries to drop.
-3. Select and sync the `loupe/init` branch first, as items 1 to 4 and 8 of the next section say. Then apply the confirmed entries only, on that branch. Put every change that reaches the remote in the init pull request. Then tell the owner to run `loupe bridge reload` when the rule file changed.
+3. Select the `loupe/init` branch first, as "Select the branch" in the next section says. Then apply the confirmed entries only, on that branch. Put every change that reaches the remote in the init pull request. Then tell the owner to run `loupe bridge reload` when the rule file changed.
 4. When no answer adds a change, skip the confirmation.
 
 ## The init pull request
 
-Follow this section when at least one change is confirmed. `<default>` is the default branch of the repository. Never drop a confirmed change that no pull request carries yet. Items 1 to 4 and 8 select and sync the branch. Run them before you apply any confirmed edit, because a checkout, a reset or a rebase can fail on a dirty tree or discard edits. Item 5 starts at the commit.
+Follow this section when at least one change is confirmed. `<default>` is the default branch of the repository. Never drop a confirmed change that no pull request carries yet. A commit counts as carried when the open init pull request holds it, or when a merged or closed init pull request held it.
 
-1. Run `git fetch origin`. Read the open init pull request with `gh pr list --head loupe/init --state open`.
-2. With an open one, check out `loupe/init`, and bring it up to the remote branch with `git merge --ff-only origin/loupe/init`. Local commits that the remote lacks stay. When the merge fails because the histories diverge, print `The branch loupe/init differs from the open pull request. Resolve it, then run loupe init again.` Skip the push and the pull request. Then add the new commits.
-3. With none, read the newest pull request of the branch: `gh pr list --head loupe/init --state all --limit 1 --json state,headRefOid`. Switch to `loupe/init`, and create it from `origin/<default>` when no local branch exists. Reset it to `origin/<default>`, and force-push it after the commit, in two cases only. First case: `origin/loupe/init` does not exist, and no local `loupe/init` branch holds a commit that `origin/<default>` lacks (`git rev-list origin/<default>..loupe/init` prints nothing, or the branch does not exist). Second case: the head of `origin/loupe/init` is the `headRefOid` of that merged or closed pull request, and the local branch holds no commit beyond it (`git rev-list origin/loupe/init..loupe/init` prints nothing).
-4. In every other case the branch holds confirmed changes that no pull request carries, for example after a run with no `gh`, a failed push or a failed `gh pr create`. Never reset a local `loupe/init` branch that holds such commits. Check out `loupe/init`, rebase it onto `origin/<default>`, then apply the edits and add the new commits. On a rebase conflict, abort the rebase and leave the branch as it is. Print `The branch loupe/init holds changes that conflict with <default>. Resolve them, then run loupe init again.` Skip the push and the pull request.
-5. Commit, then push. Run `gh pr create` for a new pull request, or `gh pr edit` on the open one. The title is `Set up Loupe`. The body opens with `loupe init made these changes, as you confirmed in the terminal:`, then a numbered list of every change on the branch, each with its file, the change and the reason. Rewrite the whole body on each run, and choose its last line again:
+### Select the branch
+
+Do these steps before you apply any confirmed edit. A switch, a merge or a rebase can fail on a dirty tree or discard edits. The steps cover every state of the remote branch and the local branch in one path.
+
+1. Run `git fetch --prune origin`, so a deleted remote branch leaves no stale ref. Note the head of `origin/loupe/init` as `<old>` when the remote branch exists.
+2. When `gh` works, read the open init pull request with `gh pr list --head loupe/init --state open`. When none is open, read the newest one with `gh pr list --head loupe/init --state all --limit 1 --json state,headRefOid`. Its `headRefOid` is the done commit. Without `gh`, you know no open pull request and no done commit.
+3. Bring every existing commit onto one local `loupe/init` branch:
+   1. When both branches exist, check out `loupe/init` and run `git rebase origin/loupe/init`. Local commits that the remote lacks stay on top. The rebase skips a local commit that the remote already holds, such as a copy that an earlier run rebased and failed to push.
+   2. When only `origin/loupe/init` exists, run `git switch -c loupe/init origin/loupe/init`.
+   3. When only the local branch exists, check it out.
+   4. When no branch exists, run `git switch -c loupe/init origin/<default>`, and skip step 4.
+4. Move the commits that no pull request carries onto `origin/<default>`. Skip this step in two cases. First case: an init pull request is open, because its commits stay as they are. Second case: `gh` does not work and `origin/loupe/init` exists, because a run without `gh` never force-pushes. Otherwise, choose the cut. The cut is the done commit when `git merge-base --is-ancestor <done> loupe/init` succeeds, and `origin/<default>` in all other cases. Run `git rebase --onto origin/<default> <cut> loupe/init`. This drops the commits that a merged or closed pull request held, and keeps every other commit.
+5. When the rebase of step 3.1 conflicts, run `git rebase --abort`. Then use the stop rule with `The branch loupe/init differs from origin/loupe/init. Resolve it, then run loupe init again.` When the rebase of step 4 conflicts, run `git rebase --abort`. Then use the stop rule with `The branch loupe/init holds changes that conflict with <default>. Resolve them, then run loupe init again.`
+
+The stop rule: print the message. Apply the confirmed edits on `loupe/init` as it is, and commit them. Skip the push, the pull request and the merge question. The next run reuses the commits.
+
+### Open the pull request
+
+1. Commit. Push with `git push origin loupe/init`. Use `git push --force-with-lease=loupe/init:<old> origin loupe/init` in one case only: step 4 ran, `<old>` exists, and `<old>` is not an ancestor of `loupe/init`. Run `gh pr create` for a new pull request, or `gh pr edit` on the open one. The title is `Set up Loupe`. The body opens with `loupe init made these changes, as you confirmed in the terminal:`, then a numbered list of every change on the branch, each with its file, the change and the reason. Rewrite the whole body on each run, and choose its last line again:
    1. When the pull request holds the merge setting, end with `The merge setting counts once this pull request merges. Until then, a person approves each merge. Edit `.loupe.yaml` to change the merge setting.`
-   2. When it holds no merge setting, for example after the owner skipped the App install, end with `Merge this pull request to apply these changes.` Make no claim about the merge setting. When `gh pr create` fails, print the error and the link of item 8. The branch keeps the commits, and the next run reuses them (item 4).
-6. Ask `Merge the init pull request now? [Y/n]` and show the link of the pull request. The default is yes.
-7. On yes, run `gh pr merge` with the first method that the repository allows, in the order squash, merge, rebase. Read the allowed methods with `gh api repos/<owner>/<repo>`. When GitHub refuses, print `GitHub refused the merge: <reason>. Merge it on GitHub when the checks pass.` and the link. Do not retry and do not enable auto-merge.
-8. Without `gh`, never reset or force-push `loupe/init`. Pick the case, and run it before you apply any edit. When `origin/loupe/init` exists, check out `loupe/init`, run `git merge --ff-only origin/loupe/init` as item 2 says, apply the edits, and add the new commits on top of it. When only a local `loupe/init` branch exists, check out `loupe/init` and rebase it onto `origin/<default>` as item 4 says, then apply the edits and add the new commits. When no `loupe/init` branch exists anywhere, create it with `git switch -c loupe/init origin/<default>`. Push the branch, print `https://github.com/<owner>/<repo>/pull/new/loupe/init`, and skip the merge question.
+   2. When it holds no merge setting, for example after the owner skipped the App install, end with `Merge this pull request to apply these changes.` Make no claim about the merge setting. When `gh pr create` fails, print the error and the link of item 4. The branch keeps the commits, and the next run reuses them.
+2. Ask `Merge the init pull request now? [Y/n]` and show the link of the pull request. The default is yes.
+3. On yes, run `gh pr merge` with the first method that the repository allows, in the order squash, merge, rebase. Read the allowed methods with `gh api repos/<owner>/<repo>`. When GitHub refuses, print `GitHub refused the merge: <reason>. Merge it on GitHub when the checks pass.` and the link. Do not retry and do not enable auto-merge.
+4. Without `gh`, never force-push `loupe/init`. Push the branch, print `https://github.com/<owner>/<repo>/pull/new/loupe/init`, and skip the merge question.
 
 The merge setting counts once the init pull request merges. Until then, Loupe does not ask the merge question again.
 
