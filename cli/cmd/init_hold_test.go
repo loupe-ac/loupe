@@ -432,6 +432,62 @@ func TestInitRunSerializesRenewalAndClear(t *testing.T) {
 	}
 }
 
+type orderHoldClient struct {
+	mu      sync.Mutex
+	events  []string
+	entered chan struct{}
+	release chan struct{}
+	once    sync.Once
+}
+
+func (o *orderHoldClient) ReportInteractiveLaunch(_ context.Context, _, _ string, r api.InteractiveLaunchReport) (bool, error) {
+	if r.AwaitingInstall != nil && *r.AwaitingInstall {
+		o.once.Do(func() { close(o.entered) })
+		<-o.release
+	}
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	o.events = append(o.events, "put")
+
+	return true, nil
+}
+
+func (o *orderHoldClient) CloseInteractiveSession(context.Context, string) (int, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	o.events = append(o.events, "close")
+
+	return 1, nil
+}
+
+func TestInitRunCloseWaitsForARenewalInFlight(t *testing.T) {
+	useBridgeID(t, holdBridgeID, nil)
+	o := &orderHoldClient{entered: make(chan struct{}), release: make(chan struct{})}
+	run := startInitRun(context.Background(), &bytes.Buffer{}, o, "proj-1")
+	run.mu.Lock()
+	run.waiting = true
+	run.mu.Unlock()
+	go run.renew()
+	<-o.entered
+
+	closed := make(chan struct{})
+	go func() { run.Close(); close(closed) }()
+	select {
+	case <-closed:
+		t.Fatal("close went out while a renewal was in flight")
+	case <-time.After(100 * time.Millisecond):
+	}
+	close(o.release)
+	<-closed
+	run.renew()
+
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if got := o.events[len(o.events)-1]; got != "close" {
+		t.Fatalf("a PUT followed the close: %v", o.events)
+	}
+}
+
 func TestWaitForInstallStopsWhenPollingFailsAfterTheInstall(t *testing.T) {
 	oldPoll, oldRules := installPollEvery, rulesReadWait
 	installPollEvery, rulesReadWait = 5*time.Millisecond, 40*time.Millisecond

@@ -188,6 +188,11 @@ func (r *initRun) renew() {
 	r.sendMu.Lock()
 	defer r.sendMu.Unlock()
 	r.mu.Lock()
+	if r.finished {
+		r.mu.Unlock()
+
+		return
+	}
 	var awaiting *bool
 	if r.waiting {
 		t := true
@@ -221,6 +226,11 @@ func (r *initRun) setWaiting(ctx context.Context, on bool) bool {
 	r.sendMu.Lock()
 	defer r.sendMu.Unlock()
 	r.mu.Lock()
+	if r.finished {
+		r.mu.Unlock()
+
+		return false
+	}
 	r.waiting = on
 	r.mu.Unlock()
 	_, err := r.send(ctx, &on)
@@ -245,6 +255,11 @@ func (r *initRun) closeRun() {
 	}
 	r.finished = true
 	r.mu.Unlock()
+
+	// A PUT in flight ends before the close goes out, and a later one sees
+	// finished and sends nothing.
+	r.sendMu.Lock()
+	r.sendMu.Unlock() //nolint:staticcheck
 
 	r.stopOnce.Do(func() { close(r.stop) })
 	if r.notify != nil {
