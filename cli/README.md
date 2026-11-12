@@ -587,7 +587,7 @@ ones you create later.
 
 ## Commands for the public API
 
-The `project`, `column`, `card`, `experiment`, `tag`, `series`, `feedback`, `document`, `artifact`, `inbox`, `graph`, `bucket-rule` and `analytics-settings` groups
+The `project`, `column`, `card`, `experiment`, `tag`, `series`, `feedback`, `document`, `artifact`, `inbox`, `graph`, `bucket-rule`, `analytics-settings`, `run` and `bridges` groups
 call the public API, one command for each operation. They are in beta. A test
 fails when an operation has no command. `docs/reference/cli.md` "Commands for
 the public API" holds the full reference: sign-in, project choice, output
@@ -611,12 +611,16 @@ loupe graph list --removed
 loupe graph update <graph id> --position 0 --width full
 loupe bucket-rule create --pattern 'mcp__loupe__*' --bucket tools
 loupe analytics-settings update --default-effort high
+loupe run list --state failed --state timed-out
+loupe run resume-batch --run-ids 0199a1b2-0000-7000-8000-000000000001,0199a1b2-0000-7000-8000-000000000002
 LOUPE_API_KEY=loupe_key_... LOUPE_PROJECT=acme loupe card list
 ```
 
 The `experiment` group (`cards`, `exclude`, `include`) needs CLI 2.1.0. The commands `experiment list`, `experiment get`, `experiment update`, `tag list`, `series list` and `series rename` need a CLI release after 2.6.0.
 
 `loupe github repository status <owner/name>` prints how a GitHub repository stands for the project: `in-project`, `free`, `other-project` or `not-shared`. Only the owner of the project may ask. It needs CLI 2.6.0 and a server that has the route.
+
+The `run` and `bridges` groups need a CLI release after `cli/v2.6.0`. `loupe run resume` resumes one run, and `loupe run resume-batch` resumes up to 50.
 
 The `graph`, `bucket-rule` and `analytics-settings` groups need a CLI release after `cli/v2.6.0`. A graph
 formula format is `--formula-format`, because `--format` picks the output format.
