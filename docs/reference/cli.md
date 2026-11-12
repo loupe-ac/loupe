@@ -298,7 +298,9 @@ names the ways to choose. It never guesses.
 | `loupe project` | `list`, `get`, `create`, `update`, and `link` from above |
 | `loupe column` | `list`, `get`, `create`, `update`, `delete`, `reorder` |
 | `loupe card` | `list`, `get`, `history`, `create`, `update`, `reorder`, `hold`, `release`, `pause-release` |
-| `loupe experiment` | `cards`, `exclude`, `include` |
+| `loupe experiment` | `list`, `get`, `update`, `cards`, `exclude`, `include` |
+| `loupe tag` | `list` |
+| `loupe series` | `list`, `rename` |
 | `loupe metric` | `list`, `query` |
 | `loupe analysis` | `list`, `get` |
 | `loupe feedback` | `list`, `get`, `address` |
@@ -321,6 +323,7 @@ their variant, pull request URLs and left-out reasons. `loupe experiment exclude
 `loupe experiment include <experiment> <number>` puts it back. These commands
 need CLI 2.1.0 or later and a server that has the experiment routes.
 
+`loupe experiment list` lists the experiments of a project, and `--archived` lists the archived ones. `loupe experiment get <experiment>` reads the comparison of one experiment. `loupe experiment update <experiment> --archived` archives it, and `--archived=false` brings it back. `loupe tag list` lists the tags with their document counts. `loupe series list` lists the series, and `loupe series rename <series> --name "..."` renames one. These commands need a CLI release after 2.6.0 and a server that has the routes.
 `loupe metric list` lists the metrics of the project. `loupe metric query --unit run --metric cost --statistic sum` reads one metric over time, and `--rows` with `--formula` reads a formula. `--formula-format` sets how a formula result reads. `loupe analysis list` and `loupe analysis get <analysis>` read the analyses with their proposals. These commands need CLI 2.7.0 or later and a server that has the metric and analysis routes. The query has its own limit of 30 requests a minute.
 
 `loupe github repository status <owner/name> --project <slug>` tells whether the Loupe GitHub App reaches a repository and whether the project holds it. The answer is `in-project`, `free`, `other-project` or `not-shared`. Only the project owner may ask. The command needs CLI 2.6.0 or later and a server that has the lookup route.

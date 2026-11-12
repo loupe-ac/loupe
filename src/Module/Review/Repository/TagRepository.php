@@ -102,7 +102,43 @@ class TagRepository extends ServiceEntityRepository
      */
     public function findByProjectWithDocumentCounts(Project $project): array
     {
-        $tags = $this->findByProject($project);
+        return $this->withDocumentCounts($project, $this->findByProject($project));
+    }
+
+    /**
+     * One keyset page of the vocabulary by name, with the document counts.
+     *
+     * @param int $limit the most rows to return, so a caller asks for one more than its page to learn whether a next page exists
+     *
+     * @return list<array{tag: Tag, documentCount: int}>
+     */
+    public function pageByProjectWithDocumentCounts(Project $project, ?string $afterName, int $limit): array
+    {
+        $query = $this->createQueryBuilder('t')
+            ->andWhere('t.project = :project')
+            ->setParameter('project', $project)
+            ->orderBy('t.name', 'ASC')
+            ->setMaxResults($limit);
+        if (null !== $afterName) {
+            $query->andWhere('t.name > :after')->setParameter('after', $afterName);
+        }
+
+        /** @var list<Tag> $tags */
+        $tags = $query->getQuery()->getResult();
+
+        return $this->withDocumentCounts($project, $tags);
+    }
+
+    /**
+     * @param list<Tag> $tags
+     *
+     * @return list<array{tag: Tag, documentCount: int}>
+     */
+    private function withDocumentCounts(Project $project, array $tags): array
+    {
+        if ([] === $tags) {
+            return [];
+        }
 
         // Counted in a second query rather than a left join off the tag, because
         // the join table has no inverse side to join from — and grouped by name
@@ -115,9 +151,10 @@ class TagRepository extends ServiceEntityRepository
                 // row across projects, and a miscount would read as a real one.
                 'SELECT t.name AS name, COUNT(d.id) AS documentCount'
                 .' FROM '.Document::class.' d JOIN d.tags t'
-                .' WHERE t.project = :project AND d.project = :project GROUP BY t.name',
+                .' WHERE t.project = :project AND d.project = :project AND t.name IN (:names) GROUP BY t.name',
             )
             ->setParameter('project', $project)
+            ->setParameter('names', array_map(static fn (Tag $tag): string => $tag->name, $tags))
             ->getArrayResult();
 
         $counts = array_column($rows, 'documentCount', 'name');

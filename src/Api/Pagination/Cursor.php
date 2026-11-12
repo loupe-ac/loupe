@@ -53,6 +53,50 @@ final readonly class Cursor
     }
 
     /**
+     * The cursor that resumes after a row of a list that sorts on the time of a last run, then on a name. A row with no run holds the sort value `none`.
+     *
+     * @param array<string, scalar|null> $filters
+     */
+    public static function afterLastRunName(string $sort, ?\DateTimeImmutable $lastRunAt, string $name, array $filters = []): self
+    {
+        return new self($sort, null === $lastRunAt ? self::NO_RUN : $lastRunAt->format(self::TIME_FORMAT), $name, $filters);
+    }
+
+    /**
+     * The cursor that resumes after a row of a list that sorts on a name.
+     *
+     * @param array<string, scalar|null> $filters
+     */
+    public static function afterName(string $sort, string $name, array $filters = []): self
+    {
+        return new self($sort, $name, '', $filters);
+    }
+
+    /**
+     * @return array{?\DateTimeImmutable, string} the time of the last run, null for a row with no run, and the name of the last row of the previous page
+     *
+     * @throws ApiProblemException `invalid_cursor` for a position that does not parse
+     */
+    public function lastRunNamePosition(): array
+    {
+        $at = null;
+        if (self::NO_RUN !== $this->sortValue) {
+            $at = \DateTimeImmutable::createFromFormat(self::TIME_FORMAT, $this->sortValue);
+            if (false === $at) {
+                throw ApiProblemException::invalidCursor('The cursor is broken. Start the list again without it.');
+            }
+        }
+
+        return [$at, $this->id];
+    }
+
+    /** The name of the last row of the previous page of a list that sorts on a name. */
+    public function namePosition(): string
+    {
+        return $this->sortValue;
+    }
+
+    /**
      * @return array{?\DateTimeImmutable, Uuid} the time of the last run, null for a row with no run, and the id of the last row of the previous page
      *
      * @throws ApiProblemException `invalid_cursor` for a position that does not parse

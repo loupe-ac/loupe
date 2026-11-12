@@ -15,6 +15,12 @@ final readonly class ListTagsHandler
 
     public function __invoke(ListTagsCommand $command): ListTagsView
     {
-        return new ListTagsView($this->tags->findByProjectWithDocumentCounts($command->project));
+        if (null === $command->limit) {
+            return new ListTagsView($this->tags->findByProjectWithDocumentCounts($command->project));
+        }
+
+        $rows = $this->tags->pageByProjectWithDocumentCounts($command->project, $command->afterName, $command->limit + 1);
+
+        return new ListTagsView(\array_slice($rows, 0, $command->limit), \count($rows) > $command->limit);
     }
 }

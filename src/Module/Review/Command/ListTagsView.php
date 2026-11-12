@@ -16,6 +16,8 @@ final readonly class ListTagsView
     /** @param list<TagCount> $tags */
     public function __construct(
         public array $tags,
+        /** True when a walk by position has tags after the last tag of this view. */
+        public bool $hasMore = false,
     ) {
     }
 }

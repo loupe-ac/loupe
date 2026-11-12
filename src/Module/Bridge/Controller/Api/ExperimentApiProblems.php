@@ -25,7 +25,7 @@ final readonly class ExperimentApiProblems
     public function from(DomainErrors $errors): ApiProblemException|DomainErrors
     {
         return match (array_first($errors->errors)) {
-            'bridge.experiments.exclusion.error.unknown_experiment' => $this->experimentNotFound(),
+            'bridge.experiments.exclusion.error.unknown_experiment', 'bridge.experiments.archive.error.unknown' => $this->experimentNotFound(),
             'bridge.experiments.exclusion.error.card_not_in_experiment' => $this->cardNotInExperiment(),
             default => $errors,
         };

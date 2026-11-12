@@ -251,6 +251,15 @@ when@dev: &generator
                 - { alias: ExperimentCardRow, type: App\Module\Bridge\Controller\Api\ExperimentCardRowResponse }
                 - { alias: ExperimentCardList, type: App\Module\Bridge\Controller\Api\ExperimentCardListResponse }
                 - { alias: ExperimentCardExclude, type: App\Module\Bridge\Controller\Api\ExcludeExperimentCardRequest }
+                - { alias: ExperimentRow, type: App\Module\Bridge\Controller\Api\ExperimentSummaryRowResponse }
+                - { alias: ExperimentList, type: App\Module\Bridge\Controller\Api\ExperimentSummaryListResponse }
+                - { alias: Experiment, type: App\Module\Bridge\Controller\Api\ExperimentResponse }
+                - { alias: ExperimentUpdate, type: App\Module\Bridge\Controller\Api\UpdateExperimentRequest }
+                - { alias: TagRow, type: App\Module\Review\Controller\Api\TagRowResponse }
+                - { alias: TagList, type: App\Module\Review\Controller\Api\TagListResponse }
+                - { alias: SeriesRow, type: App\Module\Review\Controller\Api\SeriesRowResponse }
+                - { alias: SeriesList, type: App\Module\Review\Controller\Api\SeriesListResponse }
+                - { alias: SeriesRename, type: App\Module\Review\Controller\Api\RenameSeriesRequest }
                 - { alias: MetricListEntry, type: App\Module\Bridge\Controller\Api\MetricListEntryResponse }
                 - { alias: MetricList, type: App\Module\Bridge\Controller\Api\MetricListResponse }
                 - { alias: MetricQueryResult, type: App\Module\Bridge\Controller\Api\MetricQueryResponse }
