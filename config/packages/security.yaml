@@ -144,6 +144,9 @@ security:
         - { path: '^/api/v1/projects/[^/]+/experiments(/[^/]+)?$', roles: ROLE_API_PUBLIC }
         - { path: '^/api/v1/projects/[^/]+/tags$', roles: ROLE_API_PUBLIC }
         - { path: '^/api/v1/projects/[^/]+/series(/.+)?$', roles: ROLE_API_PUBLIC }
+        - { path: '^/api/v1/projects/[^/]+/graphs(/[^/]+(/restore)?)?$', roles: ROLE_API_PUBLIC }
+        - { path: '^/api/v1/projects/[^/]+/bucket-rules(/[^/]+)?$', roles: ROLE_API_PUBLIC }
+        - { path: '^/api/v1/projects/[^/]+/analytics/settings$', roles: ROLE_API_PUBLIC }
         # Deny-by-default for the rest of /api: every API-token user also carries
         # ROLE_USER, so without this a new /api/<endpoint> falls through to the ^/
         # catch-all and authorizes ANY scoped token. Add new scope rules ABOVE this

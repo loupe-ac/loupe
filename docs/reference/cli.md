@@ -305,6 +305,9 @@ names the ways to choose. It never guesses.
 | `loupe document` | `list`, `get`, `review`, `create`, `update`, `publish`, `revise`, `verdict`, `verdict-withdraw`, `decision-answer`, `decision-clear`, `reply`, `address`, and `version list` and `version get` |
 | `loupe artifact` | `list`, `get`, `update`, `create`, `version create`, `read` |
 | `loupe inbox` | `create`, `get` |
+| `loupe graph` | `list`, `get`, `create`, `update`, `delete`, `restore` |
+| `loupe bucket-rule` | `list`, `create`, `update`, `delete` |
+| `loupe analytics-settings` | `get`, `update` |
 | `loupe github` | `repository status` |
 
 `loupe card list` filters by the state of a card with `--state` and
@@ -350,6 +353,17 @@ with an API key, and the owner sees one open item for repeated failures.
 The [API reference](api/index.md#inbox-items) gives the rules. The commands
 need a CLI release after `cli/v2.0.2`, and a server with the inbox routes and
 the inbox flag on.
+
+`loupe graph` manages the saved graphs of the Dashboard, `loupe bucket-rule`
+manages the time bucket rules, and `loupe analytics-settings` reads and changes
+the analytics settings. `loupe graph list --removed` lists the graphs that a
+restore can bring back. `loupe graph update <graph> --position 0 --width full`
+changes several fields in one transaction. `--settings` and `--rows` take JSON,
+and the formula format is `--formula-format`, because `--format` picks the
+output format. `loupe bucket-rule update <rule> --position 0` moves a rule.
+`loupe bucket-rule delete` asks first, and `--yes` skips the question. The
+[API reference](api/index.md#saved-graphs) gives the rules. The commands need a
+CLI release after `cli/v2.6.0`.
 
 The verbs are the words of the MCP tools, so `document_revise` is
 `loupe document revise`. A flag is the API parameter in kebab-case:

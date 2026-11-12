@@ -406,6 +406,78 @@ the name of the key. The inbox shows the name of the key as the sender. The
 name stays when the key is removed later. An item from a signed-in CLI has
 `origin: "agent"` and no key.
 
+## Saved graphs
+
+A saved graph is a tile on the Dashboard of the owner. The routes sit under
+`/api/v1/projects/{project}/graphs`. They draw no chart. Read the data of a
+graph with the metric query.
+
+1. `GET .../graphs` lists the graphs in the order the Dashboard draws them. A
+   graph answers its `id`, `name`, `position`, `width`, `showLegend`,
+   `settings` and `formula`. `position` counts from 0 among the graphs on the
+   Dashboard. `broken` names the part that the project no longer has, such as a
+   bucket that no rule names. `removed=true` lists the graphs that were removed
+   less than a day ago and that a restore can bring back. They answer
+   `position: null` and an `undoUntil` time. The list takes `limit` and
+   `cursor`, and walks in order of position, then id.
+2. `POST .../graphs` saves a graph as the last tile and answers `201` with the
+   graph and a `Location` header. Send `settings.unit` and either
+   `settings.metric` with `settings.statistic`, or a formula with `rows`,
+   `formula` and `format`. The other settings default as the
+   `graph_save` MCP tool says. The Dashboard holds a limited number of
+   graphs. A full Dashboard answers `409` `dashboard_full`.
+3. `GET .../graphs/{graph}` reads one graph. A removed graph, a graph of
+   another project and a missing graph answer `404` `graph_not_found`.
+4. `PATCH .../graphs/{graph}` changes `name`, `settings`, `rows`, `formula`,
+   `format`, `width`, `showLegend` or `position` in one transaction. A
+   field you leave out keeps its value. `position` is the place to take among
+   the graphs on the Dashboard, counted from 0. A place past the last puts the
+   graph last. The settings you send join the settings the graph keeps, and the
+   whole set must hold together. A setting that the metric or the range cannot
+   take answers `422` with the values that are valid. A formula graph keeps
+   its first row as `settings.metric` and `settings.statistic`. Send `rows` to
+   change the rows, or `clearFormula: true` to go back to one metric.
+5. `DELETE .../graphs/{graph}` removes the graph at once, with no confirmation
+   step, and answers `200` with `undoUntil`.
+6. `POST .../graphs/{graph}/restore` brings a removed graph back to its place.
+   It answers `409` `restore_expired` after the day, and `409`
+   `dashboard_full` when the Dashboard has no room. A graph that is already on
+   the Dashboard stays as it is.
+
+## Bucket rules
+
+A time bucket rule sorts the tool calls of a run into a bucket. A tool call
+takes the bucket of the first rule whose pattern matches it. A project holds at
+most 50 rules.
+
+1. `GET /api/v1/projects/{project}/bucket-rules` lists the rules in the order
+   they apply. A rule answers `id`, `position`, `pattern` and `bucket`. The list
+   takes `limit` and `cursor`.
+2. `POST .../bucket-rules` adds a rule at the end and answers `201` with a
+   `Location` header. `pattern` is a glob of at most 120 characters. `bucket`
+   is 1 to 64 characters: lower case letters, digits, underscore and hyphen. A
+   project with 50 rules answers `409` `bucket_rule_limit_reached`.
+3. `PATCH .../bucket-rules/{rule}` moves the rule to `position`, counted from
+   0. The other rules keep their order.
+4. `DELETE .../bucket-rules/{rule}` deletes the rule and answers `200` with the
+   `deleted` id.
+
+A change to the rules computes the bucket times of the project again. A rule of
+another project answers `404` `bucket_rule_not_found`.
+
+## Analytics settings
+
+`GET /api/v1/projects/{project}/analytics/settings` reads the analytics
+settings. `defaultModel` and `defaultEffort` are the values the project sets,
+or `null`. `model` and `effort` are the values a new analysis takes when it
+names none.
+
+`PATCH` on the same path changes `defaultModel`, `defaultEffort`,
+`collectFullText` or `subcommandPrograms`. A field you leave out keeps its
+value. `null` clears `defaultModel` or `defaultEffort`, so the instance default
+applies. A list in `subcommandPrograms` replaces the stored list, and an empty
+list clears it. A value that the settings refuse answers `422`.
+
 ## Experiments, tags and series
 
 These routes read and curate what a project holds apart from its cards and

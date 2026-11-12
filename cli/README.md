@@ -587,7 +587,7 @@ ones you create later.
 
 ## Commands for the public API
 
-The `project`, `column`, `card`, `experiment`, `tag`, `series`, `feedback`, `document`, `artifact` and `inbox` groups
+The `project`, `column`, `card`, `experiment`, `tag`, `series`, `feedback`, `document`, `artifact`, `inbox`, `graph`, `bucket-rule` and `analytics-settings` groups
 call the public API, one command for each operation. They are in beta. A test
 fails when an operation has no command. `docs/reference/cli.md` "Commands for
 the public API" holds the full reference: sign-in, project choice, output
@@ -607,12 +607,19 @@ loupe experiment list --archived
 loupe series rename "Rust Atomics" --name "Atomics in Rust"
 loupe document revise <id> --body-file draft.md --description "Answered the review"
 loupe inbox create --kind notice --title "The weekly run failed" --dedupe-key weekly-ci
+loupe graph list --removed
+loupe graph update <graph id> --position 0 --width full
+loupe bucket-rule create --pattern 'mcp__loupe__*' --bucket tools
+loupe analytics-settings update --default-effort high
 LOUPE_API_KEY=loupe_key_... LOUPE_PROJECT=acme loupe card list
 ```
 
 The `experiment` group (`cards`, `exclude`, `include`) needs CLI 2.1.0. The commands `experiment list`, `experiment get`, `experiment update`, `tag list`, `series list` and `series rename` need a CLI release after 2.6.0.
 
 `loupe github repository status <owner/name>` prints how a GitHub repository stands for the project: `in-project`, `free`, `other-project` or `not-shared`. Only the owner of the project may ask. It needs CLI 2.6.0 and a server that has the route.
+
+The `graph`, `bucket-rule` and `analytics-settings` groups need a CLI release after `cli/v2.6.0`. A graph
+formula format is `--formula-format`, because `--format` picks the output format.
 
 `loupe card reorder` and the `--position`, `--before-card` and `--after-card` flags of
 `loupe card update` need a CLI release after `cli/v2.5.6`.

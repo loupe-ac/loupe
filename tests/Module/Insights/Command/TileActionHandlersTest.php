@@ -8,12 +8,8 @@ use App\Module\Insights\Command\MoveSavedGraphCommand;
 use App\Module\Insights\Command\MoveSavedGraphHandler;
 use App\Module\Insights\Command\RemoveSavedGraphCommand;
 use App\Module\Insights\Command\RemoveSavedGraphHandler;
-use App\Module\Insights\Command\RenameSavedGraphCommand;
-use App\Module\Insights\Command\RenameSavedGraphHandler;
-use App\Module\Insights\Command\ResizeSavedGraphCommand;
-use App\Module\Insights\Command\ResizeSavedGraphHandler;
-use App\Module\Insights\Command\SetLegendSavedGraphCommand;
-use App\Module\Insights\Command\SetLegendSavedGraphHandler;
+use App\Module\Insights\Command\UpdateSavedGraphFieldsCommand;
+use App\Module\Insights\Command\UpdateSavedGraphFieldsHandler;
 use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\Entity\SavedGraphWidth;
 use App\Module\Insights\Repository\InsightsSavedGraphRepository;
@@ -36,7 +32,7 @@ final class TileActionHandlersTest extends KernelTestCase
         $project = $this->scenarioProject('tile-rename');
         $graph = $this->seedSavedGraph($project, 'Old', 0);
 
-        $this->service(RenameSavedGraphHandler::class)(new RenameSavedGraphCommand($graph, '  '.str_repeat('é', 130).'  '));
+        $this->service(UpdateSavedGraphFieldsHandler::class)(new UpdateSavedGraphFieldsCommand($project, (string) $graph->id, name: '  '.str_repeat('é', 130).'  '));
 
         $this->em()->clear();
         self::assertSame(120, mb_strlen($this->stored($graph)->name));
@@ -47,8 +43,8 @@ final class TileActionHandlersTest extends KernelTestCase
         $project = $this->scenarioProject('tile-resize');
         $graph = $this->seedSavedGraph($project, 'Tests', 3);
 
-        $this->service(ResizeSavedGraphHandler::class)(new ResizeSavedGraphCommand($graph, SavedGraphWidth::Full));
-        $this->service(SetLegendSavedGraphHandler::class)(new SetLegendSavedGraphCommand($graph, false));
+        $this->service(UpdateSavedGraphFieldsHandler::class)(new UpdateSavedGraphFieldsCommand($project, (string) $graph->id, width: SavedGraphWidth::Full));
+        $this->service(UpdateSavedGraphFieldsHandler::class)(new UpdateSavedGraphFieldsCommand($project, (string) $graph->id, showLegend: false));
 
         $this->em()->clear();
         $stored = $this->stored($graph);
@@ -64,9 +60,10 @@ final class TileActionHandlersTest extends KernelTestCase
         $graph = $this->seedSavedGraph($project, 'Gone', 0, new \DateTimeImmutable('2026-10-01 10:00:00'));
 
         foreach ([
-            fn () => $this->service(RenameSavedGraphHandler::class)(new RenameSavedGraphCommand($graph, 'Back')),
-            fn () => $this->service(ResizeSavedGraphHandler::class)(new ResizeSavedGraphCommand($graph, SavedGraphWidth::Full)),
-            fn () => $this->service(SetLegendSavedGraphHandler::class)(new SetLegendSavedGraphCommand($graph, false)),
+            fn () => $this->service(UpdateSavedGraphFieldsHandler::class)(new UpdateSavedGraphFieldsCommand($project, (string) $graph->id, name: 'Back')),
+            fn () => $this->service(UpdateSavedGraphFieldsHandler::class)(new UpdateSavedGraphFieldsCommand($project, (string) $graph->id, width: SavedGraphWidth::Full)),
+            fn () => $this->service(UpdateSavedGraphFieldsHandler::class)(new UpdateSavedGraphFieldsCommand($project, (string) $graph->id, showLegend: false)),
+            fn () => $this->service(UpdateSavedGraphFieldsHandler::class)(new UpdateSavedGraphFieldsCommand($project, (string) $graph->id, position: 0)),
             fn () => $this->service(MoveSavedGraphHandler::class)(new MoveSavedGraphCommand($graph, 1)),
             fn () => $this->service(RemoveSavedGraphHandler::class)(new RemoveSavedGraphCommand($graph)),
         ] as $action) {
