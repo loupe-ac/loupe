@@ -12,11 +12,10 @@ use App\Module\Inbox\Command\RunInboxActionHandler;
 use App\Module\Inbox\Entity\InboxActionKind;
 use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
-use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Form\RunInboxActionRequest;
 use App\Module\Inbox\Install\InboxInstallFlags;
 use App\Module\Inbox\Service\ItemActions;
-use App\Module\Inbox\View\RunCommandView;
+use App\Module\Inbox\Service\RunCommandConfirmation;
 use App\Security\McpBoundProjectVoter;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;
@@ -54,7 +53,7 @@ final readonly class InboxActionRunTool implements FlagGatedToolInterface
         private InboxSubjectResolver $subjects,
         private WorkerSessionGuard $workers,
         private RunInboxActionHandler $run,
-        private ItemActions $itemActions,
+        private RunCommandConfirmation $confirmation,
         private InboxItemPayload $payload,
         private InboxToolErrorMessages $errorMessages,
         private Security $security,
@@ -111,7 +110,7 @@ final readonly class InboxActionRunTool implements FlagGatedToolInterface
                 return $this->preview($item, $branch, $values);
             }
 
-            $handlerDigest = InboxActionKind::RunCommand === $kind ? $this->handlerDigest($item, $branch, $values, (string) $runDigest) : null;
+            $handlerDigest = InboxActionKind::RunCommand === $kind ? $this->confirmation->confirm($item, $branch, $values, (string) $runDigest) : null;
 
             $user = $this->security->getUser();
             $recorded = ($this->run)(new RunInboxActionCommand(
@@ -138,29 +137,6 @@ final readonly class InboxActionRunTool implements FlagGatedToolInterface
         } catch (\Throwable $e) {
             throw new ToolCallException('The action could not be run. The error has been logged.', previous: $e);
         }
-    }
-
-    /**
-     * Binds the digest of the preview to the item, the entry, the branch and the values it showed, because the digest of the view names only the bridge and the run list.
-     *
-     * @param array<string, string>|null $params
-     */
-    private function handlerDigest(InboxItem $item, ?string $branch, ?array $params, string $given): string
-    {
-        $view = InboxItemState::Open === $item->state ? $this->itemActions->runCommandFor($item, $branch, $params) : null;
-        if (null === $view) {
-            throw $this->errorMessages->forAgent(new DomainErrors(['action' => RunInboxActionHandler::NOT_AVAILABLE]));
-        }
-        if (!hash_equals(self::confirmation($item, $view), $given)) {
-            throw $this->errorMessages->forAgent(new DomainErrors(['action' => RunInboxActionHandler::COMMAND_CHANGED]));
-        }
-
-        return $view->runDigest();
-    }
-
-    private static function confirmation(InboxItem $item, RunCommandView $view): string
-    {
-        return hash('sha256', json_encode([(string) $item->id, $view->entry, $view->runDigest(), $view->branch, $view->values()], \JSON_THROW_ON_ERROR));
     }
 
     private function requireKind(string $action): InboxActionKind
@@ -206,10 +182,7 @@ final readonly class InboxActionRunTool implements FlagGatedToolInterface
      */
     private function preview(InboxItem $item, ?string $branch, ?array $params): array
     {
-        $view = InboxItemState::Open === $item->state ? $this->itemActions->runCommandFor($item, $branch, $params) : null;
-        if (null === $view) {
-            throw $this->errorMessages->forAgent(new DomainErrors(['action' => RunInboxActionHandler::NOT_AVAILABLE]));
-        }
+        [$view, $digest] = $this->confirmation->preview($item, $branch, $params);
 
         return [
             'preview' => true,
@@ -221,7 +194,7 @@ final readonly class InboxActionRunTool implements FlagGatedToolInterface
             'runList' => $view->runList,
             'argv' => $view->argv,
             'params' => $view->values(),
-            'runDigest' => self::confirmation($item, $view),
+            'runDigest' => $digest,
             'disabledReason' => null === $view->disabledReasonKey ? null : $this->errorMessages->sentence($view->disabledReasonKey),
         ];
     }
