@@ -18,6 +18,8 @@ final readonly class InboxThreadReply
         public ?string $note,
         /** An agent recorded the response for the owner. */
         public bool $throughAgent,
+        /** The name of the API key that recorded the response for the owner, or null when no key did. */
+        public ?string $apiKeyName = null,
     ) {
     }
 }

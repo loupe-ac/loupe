@@ -9,27 +9,23 @@ use App\Module\Bridge\Mcp\MetricQueryTool;
 use App\Module\Bridge\Metric\Formula\MetricFormula;
 use App\Module\Insights\Command\ListSavedGraphsCommand;
 use App\Module\Insights\Command\ListSavedGraphsHandler;
-use App\Module\Insights\Command\RenameSavedGraphCommand;
-use App\Module\Insights\Command\RenameSavedGraphHandler;
-use App\Module\Insights\Command\ResizeSavedGraphCommand;
-use App\Module\Insights\Command\ResizeSavedGraphHandler;
-use App\Module\Insights\Command\SetLegendSavedGraphCommand;
-use App\Module\Insights\Command\SetLegendSavedGraphHandler;
-use App\Module\Insights\Command\UpdateSavedGraphCommand;
-use App\Module\Insights\Command\UpdateSavedGraphHandler;
-use App\Module\Insights\Entity\InsightsSavedGraph;
+use App\Module\Insights\Command\SavedGraphSettingsChange;
+use App\Module\Insights\Command\UpdateSavedGraphFieldsCommand;
+use App\Module\Insights\Command\UpdateSavedGraphFieldsHandler;
 use App\Module\Insights\Entity\SavedGraphWidth;
+use App\Module\Insights\Service\SavedGraphChangeRefused;
+use App\Module\Insights\Service\SavedGraphSettingsInvalid;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;
 use Mcp\Exception\ToolCallException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
- * Changes the settings, the name, the width or the legend of a saved graph.
+ * Changes the settings, the name, the width or the legend of a saved graph in one write.
  *
  * @phpstan-import-type GraphUpdatedPayload from GraphListTool
  */
-#[McpTool(name: self::NAME, description: 'Change a saved graph on the Dashboard, by its id from graph_list. A saved graph is a tile on the Dashboard of the owner, so change one only when the owner asks for it. Pass only what changes: an argument that you leave out keeps its value. name is at most 120 characters and must not be blank. metric, unit, statistic, group, range, bucket, compare and chart are the settings, with the values of graph_save. rows, formula and format change the formula of a formula graph, with the values of graph_save: pass only the one that changes, and rows replaces all the rows. To turn a one-metric graph into a formula graph, pass both rows and formula. A formula graph keeps its first row as metric and statistic, so a bare metric or statistic on a formula graph is refused: pass rows to change the rows, or clearFormula true to go back to one metric, which keeps the first row and takes metric and statistic when you pass them. clearFormula cannot go with rows, formula or format. The settings you pass join the settings the graph keeps, and the whole set must hold together: a setting that the metric or the range cannot take is refused with the values that are valid, also one that the graph kept, such as a bucket that the new range does not take. width is half or full. showLegend is true or false. A call with no argument to change is refused. The call has no confirmation and no Undo, so previous in the response holds the earlier name, settings, formula, width and showLegend, and a call with those values puts them back. When previous.formula is null, the earlier graph read one metric, so pass clearFormula true to put it back. A call that changes several kinds of setting runs several small writes, and a failure between them leaves the first writes in place, so repeat the call to finish it. A removed graph is refused: bring it back with graph_restore first. The response gives the graph as graph, previous, and the Dashboard as graph_list answers it.')]
+#[McpTool(name: self::NAME, description: 'Change a saved graph on the Dashboard, by its id from graph_list. A saved graph is a tile on the Dashboard of the owner, so change one only when the owner asks for it. Pass only what changes: an argument that you leave out keeps its value. name is at most 120 characters and must not be blank. metric, unit, statistic, group, range, bucket, compare and chart are the settings, with the values of graph_save. rows, formula and format change the formula of a formula graph, with the values of graph_save: pass only the one that changes, and rows replaces all the rows. To turn a one-metric graph into a formula graph, pass both rows and formula. A formula graph keeps its first row as metric and statistic, so a bare metric or statistic on a formula graph is refused: pass rows to change the rows, or clearFormula true to go back to one metric, which keeps the first row and takes metric and statistic when you pass them. clearFormula cannot go with rows, formula or format. The settings you pass join the settings the graph keeps, and the whole set must hold together: a setting that the metric or the range cannot take is refused with the values that are valid, also one that the graph kept, such as a bucket that the new range does not take. width is half or full. showLegend is true or false. A call with no argument to change is refused. The call has no confirmation and no Undo, so previous in the response holds the earlier name, settings, formula, width and showLegend, and a call with those values puts them back. When previous.formula is null, the earlier graph read one metric, so pass clearFormula true to put it back. Every change of one call commits together, so a refused call leaves the graph as it was. A removed graph is refused: bring it back with graph_restore first. The response gives the graph as graph, previous, and the Dashboard as graph_list answers it.')]
 final readonly class GraphUpdateTool
 {
     public const string NAME = 'graph_update';
@@ -37,56 +33,10 @@ final readonly class GraphUpdateTool
     public function __construct(
         private InsightsSubjectResolver $subjects,
         private SavedGraphFinder $finder,
-        private SavedGraphSettingsCheck $settingsCheck,
-        private UpdateSavedGraphHandler $updateGraph,
-        private RenameSavedGraphHandler $renameGraph,
-        private ResizeSavedGraphHandler $resizeGraph,
-        private SetLegendSavedGraphHandler $setLegend,
+        private UpdateSavedGraphFieldsHandler $updateGraph,
         private ListSavedGraphsHandler $listGraphs,
         private InsightsToolErrorMessages $errorMessages,
     ) {
-    }
-
-    /**
-     * The settings that the graph keeps with the passed ones on top.
-     *
-     * @param array<string, string> $passed        the one-metric settings that the call passed
-     * @param array<string, string> $formulaPassed the rows, the formula and the format that the call passed
-     *
-     * @return array<string, string>
-     *
-     * @throws ToolCallException when the call mixes one metric with a formula
-     */
-    private function merge(InsightsSavedGraph $graph, array $passed, array $formulaPassed, bool $clear): array
-    {
-        $isFormula = null !== $graph->formulaRows;
-        $barePassed = isset($passed['metric']) || isset($passed['statistic']);
-        if ($clear) {
-            if ([] !== $formulaPassed) {
-                throw new ToolCallException('clearFormula cannot go with rows, formula or format. Pass clearFormula alone to go back to one metric.');
-            }
-            if (!$isFormula) {
-                throw new ToolCallException('clearFormula: This graph reads one metric, so it has no formula to clear.');
-            }
-
-            return array_diff_key($passed + $graph->settings(), ['rows' => true, 'formula' => true, 'format' => true]);
-        }
-        if ($isFormula && $barePassed && [] === $formulaPassed) {
-            throw new ToolCallException('metric, statistic: This graph reads a formula, and its metric and statistic are its first row. Pass rows to change the rows, or clearFormula true to go back to one metric.');
-        }
-        if (!$isFormula && [] !== $formulaPassed && !isset($formulaPassed['rows'], $formulaPassed['formula'])) {
-            throw new ToolCallException('rows, formula: To turn this graph into a formula graph, pass both rows and formula.');
-        }
-
-        $merged = $passed + $formulaPassed + $graph->settings();
-        if ($barePassed && isset($merged['rows'])) {
-            $first = MetricFormula::rowParts($merged['rows'])[0] ?? null;
-            if (null === $first || (isset($passed['metric']) && $passed['metric'] !== $first['metric']) || (isset($passed['statistic']) && $passed['statistic'] !== $first['statistic'])) {
-                throw new ToolCallException('metric, statistic: With rows, leave metric and statistic out, or pass the first row: they are the first row of the formula.');
-            }
-        }
-
-        return $merged;
     }
 
     /**
@@ -133,27 +83,26 @@ final readonly class GraphUpdateTool
 
             $graph = $this->finder->findActive($project, $graphId);
             $previous = ['name' => $graph->name, 'settings' => GraphListTool::settingsOf($graph), 'formula' => GraphListTool::formulaOf($graph), 'width' => $graph->width->value, 'showLegend' => $graph->showLegend];
-            $merged = $settingsPassed ? $this->merge($graph, $passed, $formulaPassed, $clear) : $graph->settings();
-            if ($settingsPassed) {
-                $this->settingsCheck->check($project, $merged);
-            }
-
-            try {
-                if ($settingsPassed && $merged !== $graph->settings()) {
-                    ($this->updateGraph)(new UpdateSavedGraphCommand($project, $graphId, $name, $merged));
-                } elseif (null !== $name && $name !== $graph->name) {
-                    ($this->renameGraph)(new RenameSavedGraphCommand($graph, $name));
+            $newName = null !== $name && ($settingsPassed || $name !== $graph->name) ? $name : null;
+            $changedWidth = $newWidth !== $graph->width ? $newWidth : null;
+            $changedLegend = $showLegend !== $graph->showLegend ? $showLegend : null;
+            if ($settingsPassed || null !== $newName || null !== $changedWidth || null !== $changedLegend) {
+                try {
+                    ($this->updateGraph)(new UpdateSavedGraphFieldsCommand(
+                        $project,
+                        $graphId,
+                        name: $newName,
+                        change: $settingsPassed ? new SavedGraphSettingsChange($passed, $formulaPassed, $clear) : null,
+                        width: $changedWidth,
+                        showLegend: $changedLegend,
+                    ));
+                } catch (SavedGraphChangeRefused|SavedGraphSettingsInvalid $e) {
+                    throw new ToolCallException($e->getMessage(), previous: $e);
+                } catch (DomainErrors $e) {
+                    throw $this->errorMessages->forAgent($e);
+                } catch (NotFoundHttpException) {
+                    throw new ToolCallException(SavedGraphFinder::GONE);
                 }
-                if (null !== $newWidth && $newWidth !== $graph->width) {
-                    ($this->resizeGraph)(new ResizeSavedGraphCommand($graph, $newWidth));
-                }
-                if (null !== $showLegend && $showLegend !== $graph->showLegend) {
-                    ($this->setLegend)(new SetLegendSavedGraphCommand($graph, $showLegend));
-                }
-            } catch (DomainErrors $e) {
-                throw $this->errorMessages->forAgent($e);
-            } catch (NotFoundHttpException) {
-                throw new ToolCallException(SavedGraphFinder::GONE);
             }
 
             return GraphListTool::answer(($this->listGraphs)(new ListSavedGraphsCommand($project)), $graph) + ['previous' => $previous];

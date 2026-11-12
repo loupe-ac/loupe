@@ -20,6 +20,7 @@ use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Repository\InboxActionRepository;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
+use App\Security\ApiKeyActor;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
@@ -99,7 +100,7 @@ final readonly class FinishRunCommandOnWorkerRunChanged
         }
 
         try {
-            $command = ($this->requestBridgeCommand)(new RequestBridgeCommandCommand($run, BridgeCommandKind::ResumeRun, $action->requestedBy, null, BridgeCommandCause::InboxAction, $action->id, $action->item->number, $action->item->id));
+            $command = ($this->requestBridgeCommand)(new RequestBridgeCommandCommand($run, BridgeCommandKind::ResumeRun, $action->requestedBy, null, BridgeCommandCause::InboxAction, $action->id, $action->item->number, $action->item->id, null === $action->apiKeyId ? null : new ApiKeyActor($action->apiKeyId, $action->apiKeyName ?? '')));
         } catch (DomainErrors $e) {
             $this->logger->info('inbox.run_command_resume_skipped', ['itemId' => (string) $action->item->id, 'actionId' => (string) $action->id, 'errors' => array_values($e->errors)]);
 

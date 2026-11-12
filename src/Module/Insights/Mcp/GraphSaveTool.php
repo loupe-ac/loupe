@@ -11,6 +11,8 @@ use App\Module\Insights\Command\ListSavedGraphsCommand;
 use App\Module\Insights\Command\ListSavedGraphsHandler;
 use App\Module\Insights\Command\SaveSavedGraphCommand;
 use App\Module\Insights\Command\SaveSavedGraphHandler;
+use App\Module\Insights\Service\SavedGraphChangeRefused;
+use App\Module\Insights\Service\SavedGraphSettingsMerger;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;
 use Mcp\Exception\ToolCallException;
@@ -67,17 +69,15 @@ final readonly class GraphSaveTool
         try {
             $project = $this->subjects->requireWritableProject();
             SavedGraphName::check($name);
-            $isFormula = [] !== $rows || null !== $formula || null !== $format;
-            if ($isFormula && (null !== $metric || null !== $statistic)) {
-                throw new ToolCallException('Pass metric and statistic, or rows and formula, and not both.');
-            }
-            if (!$isFormula && (null === $metric || null === $statistic)) {
-                throw new ToolCallException('Pass metric and statistic to save one metric, or rows and formula to save a formula.');
-            }
             $settings = array_filter(
                 ['metric' => $metric, 'unit' => $unit, 'statistic' => $statistic, 'group' => $group, 'range' => $range, 'bucket' => $bucket, 'compare' => $compare, 'chart' => $chart, 'rows' => [] === $rows ? null : MetricQueryTool::rowsText($rows), 'formula' => $formula, 'format' => $format],
                 static fn (?string $value): bool => null !== $value,
             );
+            try {
+                SavedGraphSettingsMerger::checkNew($settings);
+            } catch (SavedGraphChangeRefused $e) {
+                throw new ToolCallException($e->getMessage(), previous: $e);
+            }
             $this->settingsCheck->check($project, $settings);
 
             try {

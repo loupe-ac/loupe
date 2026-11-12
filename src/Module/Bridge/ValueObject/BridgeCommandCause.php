@@ -17,4 +17,7 @@ enum BridgeCommandCause: string
 
     /** An agent asked for the resume through the MCP tool. */
     case Agent = 'agent';
+
+    /** A script resumed the run through the public API. */
+    case ApiKey = 'api-key';
 }

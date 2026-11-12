@@ -611,6 +611,8 @@ them. [The MCP tools](mcp.md#what-the-tools-do) list the fields.
 
 A script reads the same numbers with an API key. `GET /api/v1/projects/{project}/metrics` lists the metrics, and `GET /api/v1/projects/{project}/metrics/query` reads one metric or a formula. `GET /api/v1/projects/{project}/analyses` lists the analyses, and `GET /api/v1/projects/{project}/analyses/{analysis}` reads one with its proposals. The [API reference](../reference/api/index.md#metrics-and-analyses) holds the parameters and the limits.
 
+The public API has routes for the saved graphs, the bucket rules and the analytics settings: `/api/v1/projects/{project}/graphs`, `/bucket-rules` and `/analytics/settings`. The `loupe graph`, `loupe bucket-rule` and `loupe analytics-settings` commands call them. [The API reference](../reference/api/index.md#saved-graphs) lists the rules.
+
 ## Reports
 
 The **Reports** tab lists the analyses of the project, newest first. An

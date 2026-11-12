@@ -8,6 +8,7 @@ use App\Module\Account\Entity\User;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\ValueObject\BridgeCommandCause;
 use App\Module\Bridge\ValueObject\BridgeCommandKind;
+use App\Security\ApiKeyActor;
 use Symfony\Component\Uid\Uuid;
 
 final readonly class RequestBridgeCommandCommand
@@ -22,6 +23,8 @@ final readonly class RequestBridgeCommandCommand
         public ?Uuid $inboxActionId = null,
         public ?int $inboxItemNumber = null,
         public ?Uuid $inboxItemId = null,
+        /** The API key that asks. The command then records the cause api-key, unless the caller names a more specific cause. */
+        public ?ApiKeyActor $apiKey = null,
     ) {
     }
 }

@@ -12,6 +12,8 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+
+	"github.com/loupe-ac/loupe/cli/internal/publicapi/flagname"
 )
 
 // Reserved names are flags that every command shares. A parameter that would
@@ -360,6 +362,8 @@ func (g *generator) build(path, method string, raw operation) (op, error) {
 		k := kebab(name)
 		if where == "query parameter" && name == formulaFormatParam {
 			k = formulaFormatFlag
+		} else if renamed, ok := flagname.Renames[name]; ok && where == "body field" {
+			k = renamed
 		}
 		if reserved[k] {
 			return fmt.Errorf("%s %q collides with the shared flag --%s", where, name, k)

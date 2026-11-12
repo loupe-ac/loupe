@@ -43,7 +43,7 @@ final readonly class InboxItemResponse
         #[OA\Property(enum: ['open', 'resolved', 'declined', 'cancelled'])]
         public string $state,
 
-        #[OA\Property(description: 'Who closed the item.', nullable: true, enum: ['owner', 'owner-through-agent', 'agent', 'loupe', 'rule'])]
+        #[OA\Property(description: 'Who closed the item.', nullable: true, enum: ['owner', 'owner-through-agent', 'owner-through-api-key', 'agent', 'loupe', 'rule'])]
         public ?string $closedBy,
 
         #[OA\Property(description: 'Why Loupe, a rule or an agent closed the item. Null for a response of the owner.', nullable: true)]

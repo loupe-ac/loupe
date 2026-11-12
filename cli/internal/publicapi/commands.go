@@ -63,6 +63,18 @@ var Commands = []Command{
 	{Path: []string{"document", "address"}, Op: "markDocumentCommentAddressed"},
 	{Path: []string{"github", "repository", "status"}, Op: "getGitHubRepositoryStatus"},
 	{Path: []string{"inbox", "create"}, Op: "createInboxItem", LongText: "body"},
+	{Path: []string{"graph", "list"}, Op: "listGraphs"},
+	{Path: []string{"graph", "get"}, Op: "getGraph"},
+	{Path: []string{"graph", "create"}, Op: "createGraph"},
+	{Path: []string{"graph", "update"}, Op: "updateGraph"},
+	{Path: []string{"graph", "delete"}, Op: "deleteGraph"},
+	{Path: []string{"graph", "restore"}, Op: "restoreGraph"},
+	{Path: []string{"bucket-rule", "list"}, Op: "listBucketRules"},
+	{Path: []string{"bucket-rule", "create"}, Op: "createBucketRule"},
+	{Path: []string{"bucket-rule", "update"}, Op: "updateBucketRule"},
+	{Path: []string{"bucket-rule", "delete"}, Op: "deleteBucketRule", Confirm: true},
+	{Path: []string{"analytics-settings", "get"}, Op: "getAnalyticsSettings"},
+	{Path: []string{"analytics-settings", "update"}, Op: "updateAnalyticsSettings"},
 }
 
 // Exceptions names each operation that has no command, with the reason.

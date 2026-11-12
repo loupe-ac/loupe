@@ -78,6 +78,22 @@ class BridgeCommand
     #[ORM\Column(name: 'inbox_item_id', type: UuidType::NAME, nullable: true)]
     public ?Uuid $inboxItemId = null;
 
+    /** The API key that requested the command. No foreign key: the command outlives a deleted key. */
+    #[ORM\Column(name: 'api_key_id', type: UuidType::NAME, nullable: true)]
+    public ?Uuid $apiKeyId = null;
+
+    /** The name of the requesting key when it asked. */
+    #[ORM\Column(name: 'api_key_name', length: 100, nullable: true)]
+    public ?string $apiKeyName = null;
+
+    /** The API key that cancelled the command, which can differ from the requester. */
+    #[ORM\Column(name: 'cancelled_api_key_id', type: UuidType::NAME, nullable: true)]
+    public ?Uuid $cancelledApiKeyId = null;
+
+    /** The name of the cancelling key when it cancelled. */
+    #[ORM\Column(name: 'cancelled_api_key_name', length: 100, nullable: true)]
+    public ?string $cancelledApiKeyName = null;
+
     public function __construct(
         /** The owner of the bridge row, which is the owner of the project. */
         #[ORM\JoinColumn(nullable: false)]
