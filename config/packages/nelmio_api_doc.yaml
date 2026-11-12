@@ -278,6 +278,13 @@ when@dev: &generator
                 - { alias: ProjectBridgeList, type: App\Module\Bridge\Controller\Api\ProjectBridgeListResponse }
                 - { alias: Bridge, type: App\Module\Bridge\Controller\Api\OwnerBridgeResponse }
                 - { alias: BridgeList, type: App\Module\Bridge\Controller\Api\OwnerBridgeListResponse }
+                - { alias: MetricListEntry, type: App\Module\Bridge\Controller\Api\MetricListEntryResponse }
+                - { alias: MetricList, type: App\Module\Bridge\Controller\Api\MetricListResponse }
+                - { alias: MetricQueryResult, type: App\Module\Bridge\Controller\Api\MetricQueryResponse }
+                - { alias: AnalysisScope, type: App\Module\Insights\Controller\Api\AnalysisScopeResponse }
+                - { alias: AnalysisProposal, type: App\Module\Insights\Controller\Api\AnalysisProposalResponse }
+                - { alias: Analysis, type: App\Module\Insights\Controller\Api\AnalysisResponse }
+                - { alias: AnalysisList, type: App\Module\Insights\Controller\Api\AnalysisListResponse }
                 - { alias: InboxItem, type: App\Module\Inbox\Controller\Api\InboxItemResponse }
                 - { alias: InboxItemCreate, type: App\Module\Inbox\Controller\Api\CreateInboxItemRequest }
                 - { alias: DocumentLink, type: App\Module\Review\Controller\Api\DocumentLinkResponse }

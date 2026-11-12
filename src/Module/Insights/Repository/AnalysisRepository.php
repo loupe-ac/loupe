@@ -71,6 +71,30 @@ class AnalysisRepository extends ServiceEntityRepository
     }
 
     /**
+     * One keyset page, newest first. The page starts after the analysis at `$after`.
+     *
+     * @param array{\DateTimeImmutable, Uuid}|null $after the creation time and the id of the last row of the previous page
+     *
+     * @return list<Analysis> at most `$limit` rows
+     */
+    public function pageByProject(Project $project, int $limit, ?array $after): array
+    {
+        $query = $this->createQueryBuilder('a')
+            ->andWhere('a.project = :project')
+            ->setParameter('project', $project)
+            ->orderBy('a.createdAt', 'DESC')
+            ->addOrderBy('a.id', 'DESC')
+            ->setMaxResults($limit);
+        if (null !== $after) {
+            $query->andWhere('a.createdAt < :at OR (a.createdAt = :at AND a.id < :id)')
+                ->setParameter('at', $after[0], 'datetime_immutable')
+                ->setParameter('id', $after[1], UuidType::NAME);
+        }
+
+        return array_values($query->getQuery()->getResult());
+    }
+
+    /**
      * The cost of the runs of the analysis in micro US dollars, read on each
      * call because a fact row can change after the analysis ends. Null when no
      * run has a known cost.

@@ -5,7 +5,7 @@ description: "The public HTTP API of Loupe at /api/v1: sign-in, requests, lists,
 
 The public API lets a script, a CI job or another tool read and change what you
 can read and change in Loupe. It covers projects, columns, cards, documents,
-reviews, feedback, artifacts, inbox items, experiments, tags, series, worker runs and bridges. The API is in **beta**.
+reviews, feedback, artifacts, inbox items, experiments, tags, series, metrics, analyses, worker runs and bridges. The API is in **beta**.
 
 The API operations section of this site lists each operation. Each instance also
 serves the same description as an OpenAPI 3.0 file at `GET /api/v1/openapi.json`.
@@ -511,6 +511,19 @@ documents. Every list takes `limit` and `cursor`, as [Lists](#lists) says.
 
 A name in a path is the name as the runs or the documents write it. Encode a
 `/` in a series name as `%2F`.
+
+## Metrics and analyses
+
+These routes read the numbers of the Analytics page. Each takes the read budget, and each list pages with a cursor.
+
+1. `GET /api/v1/projects/{project}/metrics` lists the metrics by key. Each entry holds the units, the value type, the statistics and the groups the metric takes. The workflow template of the project can declare more metrics, and the list holds one entry for each bucket and each kind of harness event of the project.
+2. `GET /api/v1/projects/{project}/metrics/query` reads one metric over time. `unit` is `run`, `card` or `reading`. Pass `metric` and `statistic`, and optionally `group`, `range`, `bucket` and `compare`. The values and defaults are those of the `metric_query` MCP tool.
+3. To combine metrics, leave `metric` and `statistic` out. Pass `rows` as `letter:metric:statistic` items separated by commas, such as `A:cache-read-tokens:sum,B:cache-write-tokens:sum`, and pass `formula`, such as `A / B`. A metric key can hold a colon, as `bucket-time:tests` does. The letter is the text before the first colon, and the statistic is the text after the last one. `format` sets how the result reads: `auto`, `number`, `percent`, `money` or `duration`.
+4. A combination that the metric refuses answers `422` with the field and the values to use. A series lists at most 100 rows, newest first, and `rowsTotal` counts them all.
+5. The metric query has its own limit of 30 requests a minute for each credential. The answer to a request over it is `429` with `Retry-After`. The query reads every run of the project in its range, so keep a loop of queries to the ranges you need.
+6. `GET /api/v1/projects/{project}/analyses` lists the analyses of the project, newest first. `GET /api/v1/projects/{project}/analyses/{analysis}` reads one. Both hold the topic, the scope, the state, the cost in US dollars and the proposals. An analysis of another project answers `404` with the code `analysis_not_found`.
+
+The CLI has `loupe metric list`, `loupe metric query`, `loupe analysis list` and `loupe analysis get`. They need CLI 2.7.0 or later.
 
 ## Worker runs and bridges
 
