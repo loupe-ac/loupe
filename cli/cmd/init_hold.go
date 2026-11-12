@@ -47,6 +47,9 @@ type initRun struct {
 	// inWait is true while the install wait owns Ctrl-C.
 	inWait atomic.Bool
 
+	// renewing is true while a renewal PUT runs, so the loop never blocks on one.
+	renewing atomic.Bool
+
 	stop     chan struct{}
 	stopOnce sync.Once
 	done     chan struct{}
@@ -116,7 +119,12 @@ func (r *initRun) loop(every time.Duration) {
 		case <-r.stop:
 			return
 		case <-tick.C:
-			r.renew()
+			if r.renewing.CompareAndSwap(false, true) {
+				go func() {
+					defer r.renewing.Store(false)
+					r.renew()
+				}()
+			}
 		case sig := <-r.notify:
 			if sig == os.Interrupt && r.keepsInWait() {
 				select {

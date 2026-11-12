@@ -373,6 +373,38 @@ func TestInitRunKeepsCtrlCQueuedAtTheEndOfTheWaitForTheLoop(t *testing.T) {
 	}
 }
 
+func TestInitRunHandsCtrlCToTheWaitWhileARenewalBlocks(t *testing.T) {
+	useBridgeID(t, holdBridgeID, nil)
+	f := &blockingHoldClient{release: make(chan struct{})}
+	r := &initRun{client: f, stop: make(chan struct{}), done: make(chan struct{}), notify: make(chan os.Signal, 1), waitSigs: make(chan os.Signal, 1)}
+	r.beginWait()
+	go r.loop(10 * time.Millisecond)
+	waitFor(t, func() bool { return r.renewing.Load() })
+
+	r.notify <- os.Interrupt
+
+	select {
+	case <-r.waitSigs:
+	case <-time.After(2 * time.Second):
+		t.Fatal("a blocked renewal kept Ctrl-C from the wait")
+	}
+	close(f.release)
+	close(r.stop)
+	<-r.done
+}
+
+type blockingHoldClient struct{ release chan struct{} }
+
+func (b *blockingHoldClient) ReportInteractiveLaunch(context.Context, string, string, api.InteractiveLaunchReport) (bool, error) {
+	<-b.release
+
+	return true, nil
+}
+
+func (b *blockingHoldClient) CloseInteractiveSession(context.Context, string) (int, error) {
+	return 0, nil
+}
+
 func TestInitRunSerializesRenewalAndClear(t *testing.T) {
 	useBridgeID(t, holdBridgeID, nil)
 	f := &fakeHoldClient{}
