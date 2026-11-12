@@ -43,6 +43,12 @@ plugins, writes the rule file, and starts the bridge in the background.
 [Run the bridge](run-the-bridge.md) describes these steps. A second run changes
 nothing that is done already.
 
+When the Loupe GitHub App is missing for your repository, `loupe init` offers to
+install it. It opens the page in your browser, waits in the terminal, and goes on
+when the repository joins the project. While `loupe init` runs, Loupe asks you
+nothing in the inbox about the setup. The changes that `loupe init` proposes
+arrive in one pull request, `Set up Loupe`. This needs CLI 2.7.0.
+
 `loupe project link` writes `.loupe.yaml`, which holds the project id. Commit
 the file, so everyone in the repository reaches the same project.
 

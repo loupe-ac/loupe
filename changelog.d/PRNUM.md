@@ -1,0 +1,1 @@
+- (#1650) — **Added:** `loupe init` now keeps the inbox quiet while it runs, offers to install the GitHub App and waits for it in the terminal, and puts its changes in one pull request from `loupe/init` that it offers to merge.

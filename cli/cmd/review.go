@@ -7,12 +7,11 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"regexp"
-	"runtime"
 	"time"
 
 	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/browser"
 	"github.com/loupe-ac/loupe/cli/internal/config"
 	"github.com/loupe-ac/loupe/cli/internal/oauth"
 	"github.com/spf13/cobra"
@@ -204,9 +203,7 @@ func newReviewSignInCmd() *cobra.Command {
 		if link == "" {
 			link = device.VerificationURI
 		}
-		if runtime.GOOS == "darwin" {
-			_ = exec.Command("open", link).Start()
-		}
+		_ = browser.Open(link)
 
 		return reviewPrint(cmd, map[string]string{"code": oauth.DisplayUserCode(device.UserCode), "url": link})
 	})

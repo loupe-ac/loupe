@@ -85,8 +85,23 @@ Next: install the Loupe GitHub App, then fix problem 1.
 
 1. After the last answer, show every change the owner approved, in one numbered list. Give the file, the old text, the new text and how it reaches the remote, such as a branch and a pull request.
 2. Ask one question: apply these changes, yes or no. The owner can also name the entries to drop.
-3. Apply the confirmed entries only. Then tell the owner to run `loupe bridge reload` when the rule file changed.
+3. Apply the confirmed entries only. Put every change that reaches the remote in the init pull request, as the next section says. Then tell the owner to run `loupe bridge reload` when the rule file changed.
 4. When no answer adds a change, skip the confirmation.
+
+## The init pull request
+
+Follow this section when at least one change is confirmed. `<default>` is the default branch of the repository. Never drop a confirmed change that no pull request carries yet.
+
+1. Run `git fetch origin`. Read the open init pull request with `gh pr list --head loupe/init --state open`.
+2. With an open one, check out `loupe/init` and add the new commits.
+3. With none, read the newest pull request of the branch: `gh pr list --head loupe/init --state all --limit 1 --json state,headRefOid`. Reset `loupe/init` to `origin/<default>`, and force-push it after the commit, in two cases only: `origin/loupe/init` does not exist, or its head is the `headRefOid` of that merged or closed pull request.
+4. In every other case the branch holds confirmed changes that no pull request carries, for example after a run with no `gh` or a failed `gh pr create`. Check out `loupe/init`, rebase it onto `origin/<default>`, and add the new commits. On a rebase conflict, abort the rebase and leave the branch as it is. Print `The branch loupe/init holds changes that conflict with <default>. Resolve them, then run loupe init again.` Skip the push and the pull request.
+5. Commit, then push. Run `gh pr create` for a new pull request, or `gh pr edit` on the open one. The title is `Set up Loupe`. The body lists every change on the branch, one per line, with its file and the reason. When `gh pr create` fails, print the error and the link of item 8. The branch keeps the commits, and the next run reuses them (item 4).
+6. Ask `Merge the init pull request now? [Y/n]` and show the link of the pull request. The default is yes.
+7. On yes, run `gh pr merge` with the first method that the repository allows, in the order squash, merge, rebase. Read the allowed methods with `gh api repos/<owner>/<repo>`. When GitHub refuses, print `GitHub refused the merge: <reason>. Merge it on GitHub when the checks pass.` and the link. Do not retry and do not enable auto-merge.
+8. Without `gh`, never reset or force-push `loupe/init`. When `origin/loupe/init` exists, check it out and add the new commits on top of it. Push the branch, print `https://github.com/<owner>/<repo>/pull/new/loupe/init`, and skip the merge question.
+
+The merge setting counts once the init pull request merges. Until then, Loupe does not ask the merge question again.
 
 ## Report
 

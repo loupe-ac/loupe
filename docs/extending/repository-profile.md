@@ -117,6 +117,18 @@ replace the existing instructions with the Loupe rule, update them so they
 agree with it, or keep them as they are. A kept requirement stays a problem in
 the summary.
 
+The agent puts every change that you confirm in one pull request from the branch
+`loupe/init`, titled `Set up Loupe`. Its body lists each change. The agent asks
+whether to merge the pull request, and merges it with the first method that the
+repository allows: squash, merge or rebase. When GitHub refuses, it prints the
+reason and the link, and you merge on GitHub. A later run adds its commits to the
+open pull request. When the branch holds confirmed changes that no pull request
+carries, the next run keeps them. When that branch conflicts with the default
+branch, the agent stops and tells you to resolve the conflict. Without `gh`, the
+agent pushes the branch and prints the link that opens the pull request. A merge
+setting that you chose counts once the pull request merges. Until then, the
+inbox does not ask the merge question again. This needs CLI 2.7.0.
+
 To write one by hand, create `.loupe/lifecycle.md`, and name the skills of
 your repository. The example is for a Node project on GitHub with the
 Lifecycle workflow.
