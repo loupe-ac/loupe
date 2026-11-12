@@ -10,4 +10,7 @@ enum CheckTrigger: string
     case Hourly = 'hourly';
     case PageOpen = 'page-open';
     case CheckAgain = 'check-again';
+
+    /** A `loupe init` run closed. The check skips the reuse of a recent result and tries again when it fails. */
+    case InitEnded = 'init-ended';
 }

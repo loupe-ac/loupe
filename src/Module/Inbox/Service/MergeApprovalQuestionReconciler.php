@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Module\Inbox\Service;
 
+use App\Module\Bridge\Contract\InitRuns;
 use App\Module\Forge\Entity\ForgeRepository;
 use App\Module\Forge\Entity\ForgeRepositorySource;
 use App\Module\Forge\Repository\ForgeRepositoryRepository;
+use App\Module\Forge\Service\InitPullRequestReaders;
 use App\Module\Forge\Service\MergeApprovals;
 use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxCloseCause;
@@ -32,6 +34,9 @@ use Symfony\Contracts\Translation\TranslatorInterface;
  * question when `.loupe.yaml` states the setting or the repository no longer fits. It reads the case itself and
  * never trusts an event, so a late or repeated trigger changes nothing. The owner's answer keeps the row open
  * until the setting is stated, so the same case opens no second question.
+ *
+ * While `loupe init` runs on the project, it opens no question and closes none. A repository whose open
+ * init pull request sets the merge setting is not asked, because the setting counts once that pull request merges.
  */
 final readonly class MergeApprovalQuestionReconciler
 {
@@ -39,6 +44,8 @@ final readonly class MergeApprovalQuestionReconciler
         private EntityManagerInterface $em,
         private ForgeRepositoryRepository $forgeRepositories,
         private MergeApprovals $mergeApprovals,
+        private InitRuns $initRuns,
+        private InitPullRequestReaders $initPullRequests,
         private InboxMergeApprovalQuestionRepository $inboxMergeApprovalQuestions,
         private InboxItemRepository $inboxItems,
         private InboxItemCloser $closer,
@@ -56,7 +63,10 @@ final readonly class MergeApprovalQuestionReconciler
 
     public function reconcile(Project $project): void
     {
-        $changed = $this->em->wrapInTransaction(function () use ($project): bool {
+        $held = $this->initRuns->isOpen($project->requireId());
+        $answeredByInitPullRequest = $held || !$this->inbox->isEnabled() ? [] : $this->answeredByInitPullRequest($project);
+
+        $changed = $this->em->wrapInTransaction(function () use ($project, $held, $answeredByInitPullRequest): bool {
             $this->em->lock($project, LockMode::PESSIMISTIC_WRITE);
 
             $now = self::whole($this->clock->now());
@@ -68,8 +78,9 @@ final readonly class MergeApprovalQuestionReconciler
             $wanted = [];
             if ($this->inbox->isEnabled()) {
                 foreach ($this->forgeRepositories->findByProject($project) as $repository) {
-                    if (ForgeRepositorySource::Installation === $repository->source && $this->mergeApprovals->of($repository)->unanswered(true)) {
-                        $wanted[($repository->id ?? throw new \LogicException('A stored repository has an id.'))->toRfc4122()] = $repository;
+                    $id = ($repository->id ?? throw new \LogicException('A stored repository has an id.'))->toRfc4122();
+                    if (ForgeRepositorySource::Installation === $repository->source && !isset($answeredByInitPullRequest[$id]) && $this->mergeApprovals->of($repository)->unanswered(true)) {
+                        $wanted[$id] = $repository;
                     }
                 }
             }
@@ -86,6 +97,9 @@ final readonly class MergeApprovalQuestionReconciler
 
                     continue;
                 }
+                if ($held && InboxItemState::Open === $question->item->state) {
+                    continue;
+                }
                 if (InboxItemState::Open === $question->item->state) {
                     $this->closer->close($question->item, InboxItemState::Resolved, InboxCloser::Loupe, InboxCloseCause::FactEnded, null, $now);
                 }
@@ -97,7 +111,7 @@ final readonly class MergeApprovalQuestionReconciler
             $this->em->flush();
 
             $created = [];
-            foreach ($wanted as $repositoryId => $repository) {
+            foreach ($held ? [] : $wanted as $repositoryId => $repository) {
                 if (!isset($open[$repositoryId])) {
                     $created[] = $this->open($project, $repository, $now);
                     $changed = true;
@@ -114,6 +128,26 @@ final readonly class MergeApprovalQuestionReconciler
         if ($changed) {
             $this->inboxChanged->changed($project);
         }
+    }
+
+    /**
+     * Reads the forge before the transaction, so no row lock waits on it.
+     *
+     * @return array<string, true> the ids of the repositories that the reconcile would ask, and whose open init pull request sets the merge setting
+     */
+    private function answeredByInitPullRequest(Project $project): array
+    {
+        $answered = [];
+        foreach ($this->forgeRepositories->findByProject($project) as $repository) {
+            if (ForgeRepositorySource::Installation !== $repository->source || !$this->mergeApprovals->of($repository)->unanswered(true)) {
+                continue;
+            }
+            if ($this->initPullRequests->for($repository->forge)?->setsMergeSetting($repository) ?? false) {
+                $answered[($repository->id ?? throw new \LogicException('A stored repository has an id.'))->toRfc4122()] = true;
+            }
+        }
+
+        return $answered;
     }
 
     private function open(Project $project, ForgeRepository $repository, \DateTimeImmutable $now): InboxMergeApprovalQuestion

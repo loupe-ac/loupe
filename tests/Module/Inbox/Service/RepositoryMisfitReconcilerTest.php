@@ -6,7 +6,9 @@ namespace App\Tests\Module\Inbox\Service;
 
 use App\Module\Forge\Entity\ForgeRepository;
 use App\Module\Forge\Event\ForgeRepositoryCheckChanged;
+use App\Module\Forge\Event\ForgeRepositoryCheckEnded;
 use App\Module\Forge\Repository\ForgeRepositoryCheckRepository;
+use App\Module\Forge\Repository\ForgeRepositoryRepository;
 use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxCloseCause;
 use App\Module\Inbox\Entity\InboxCloser;
@@ -20,16 +22,19 @@ use App\Module\Inbox\Repository\InboxRepositoryMisfitRepository;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Bridge\BlockingRepositories;
 use App\Tests\Module\Inbox\InboxFixtures;
+use App\Tests\Module\Inbox\InitRunHolds;
 use App\Tests\Module\Inbox\QueuedPushes;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
+use Symfony\Component\Uid\Uuid;
 
 final class RepositoryMisfitReconcilerTest extends KernelTestCase
 {
     use BlockingRepositories;
     use InboxFixtures;
+    use InitRunHolds;
     use QueuedPushes;
 
     private const string NOW = '2026-10-27 12:00:00';
@@ -217,6 +222,70 @@ final class RepositoryMisfitReconcilerTest extends KernelTestCase
         self::assertCount(1, $this->misfits());
     }
 
+    public function test_a_running_init_opens_no_notice_and_the_end_of_the_run_opens_it(): void
+    {
+        $this->repositoryWithGaps($this->project);
+        $run = $this->startInit($this->project);
+
+        $this->deliver();
+
+        self::assertSame([], $this->misfits());
+        self::assertSame([], $this->queuedPushes());
+
+        $this->endInit($this->project, $run);
+        $this->deliver();
+
+        self::assertCount(1, $this->misfits());
+        self::assertCount(1, $this->queuedPushes());
+    }
+
+    public function test_a_running_init_keeps_an_open_notice_open_after_its_gaps_ended(): void
+    {
+        $repository = $this->repositoryWithGaps($this->project);
+        $this->deliver();
+        $run = $this->startInit($this->project);
+        $this->fit($repository);
+
+        $this->deliver();
+
+        $kept = $this->onlyMisfit();
+        self::assertSame(InboxItemState::Open, $kept->item->state);
+        self::assertNull($kept->endedAt);
+
+        $this->endInit($this->project, $run);
+        $this->deliver();
+
+        self::assertSame(InboxItemState::Resolved, $this->onlyMisfit()->item->state);
+    }
+
+    public function test_a_running_init_still_rewrites_the_gaps_of_an_open_notice_and_sends_no_push(): void
+    {
+        $repository = $this->repositoryWithGaps($this->project, ['no_pull_request_rule', 'check_missing']);
+        $this->deliver();
+        $this->startInit($this->project);
+        $this->setGaps($repository, ['no_pull_request_rule']);
+
+        $this->deliver();
+
+        $misfit = $this->onlyMisfit();
+        self::assertSame(InboxItemState::Open, $misfit->item->state);
+        self::assertSame([['id' => (string) $repository->id, 'path' => $repository->path, 'gaps' => 1]], $misfit->repositories);
+        self::assertCount(1, $this->queuedPushes());
+    }
+
+    public function test_a_completed_check_reconciles_the_notice_though_the_summary_did_not_change(): void
+    {
+        $this->repositoryWithGaps($this->project);
+        $run = $this->startInit($this->project);
+        $this->deliver();
+        $this->endInit($this->project, $run);
+        $this->em->clear();
+
+        $this->service(EventDispatcherInterface::class)->dispatch(new ForgeRepositoryCheckEnded($this->project->id ?? throw new \LogicException('Persisted.'), $this->repositoryId()));
+
+        self::assertCount(1, $this->misfits());
+    }
+
     public function test_a_project_with_the_inbox_off_opens_nothing(): void
     {
         $this->switchFlag($this->em, InboxInstallFlags::FLAG_INBOX_ENABLED, false);
@@ -225,6 +294,13 @@ final class RepositoryMisfitReconcilerTest extends KernelTestCase
         $this->deliver();
 
         self::assertSame([], $this->misfits());
+    }
+
+    private function repositoryId(): Uuid
+    {
+        $repository = $this->service(ForgeRepositoryRepository::class)->findByProjectId($this->project->requireId())[0] ?? throw new \LogicException('No repository.');
+
+        return $repository->id ?? throw new \LogicException('Persisted.');
     }
 
     private function deliver(): void

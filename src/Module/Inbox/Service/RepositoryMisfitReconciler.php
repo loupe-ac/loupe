@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Inbox\Service;
 
+use App\Module\Bridge\Contract\InitRuns;
 use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxCloseCause;
 use App\Module\Inbox\Entity\InboxCloser;
@@ -30,12 +31,14 @@ use Symfony\Contracts\Translation\TranslatorInterface;
  * Keeps one open notice per project while a repository blocks its new work, and makes the notice match the
  * current hold: it names each blocking repository with its gaps, and it closes when no repository blocks.
  * It reads the hold itself and never trusts an event, so a late or repeated trigger changes nothing.
+ * While `loupe init` runs on the project, it opens no notice and closes none, and it still rewrites the gaps of an open one.
  */
 final readonly class RepositoryMisfitReconciler
 {
     public function __construct(
         private EntityManagerInterface $em,
         private WorkHolds $workHolds,
+        private InitRuns $initRuns,
         private InboxRepositoryMisfitRepository $inboxRepositoryMisfits,
         private InboxItemRepository $inboxItems,
         private InboxItemCloser $closer,
@@ -68,9 +71,10 @@ final readonly class RepositoryMisfitReconciler
                 $this->em->flush();
             }
 
+            $initRunning = $this->initRuns->isOpen($project->requireId());
             $hold = $this->inbox->isEnabled() ? $this->workHolds->heldProject($project->requireId()) : null;
             if (null === $hold) {
-                if (null === $misfit) {
+                if (null === $misfit || $initRunning) {
                     return null;
                 }
                 $this->close($misfit, $now);
@@ -81,6 +85,9 @@ final readonly class RepositoryMisfitReconciler
 
             $repositories = self::rows($hold);
             if (null === $misfit) {
+                if ($initRunning) {
+                    return null;
+                }
                 $misfit = $this->open($project, $repositories, $now);
                 $this->em->flush();
                 $this->searchIndexer->index($misfit->item);

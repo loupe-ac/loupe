@@ -8,6 +8,7 @@ use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Forge\Entity\ForgeRepositorySource;
 use App\Module\Forge\Entity\PullRequestReview;
 use App\Module\Forge\Event\ForgeBranchPushed;
+use App\Module\Forge\Event\ForgePullRequestBranchChanged;
 use App\Module\Forge\EventListener\RateLimitForgeDeliveries;
 use App\Module\GitHub\Entity\GitHubInstallation;
 use App\Module\GitHub\Entity\GitHubRepositorySelection;
@@ -221,6 +222,28 @@ final class ReceiveAppDeliveryControllerTest extends WebTestCase
         self::assertCount(1, $pushed);
         self::assertSame(['github', 'acme/t', 'epic/852'], [$pushed[0]->forge, $pushed[0]->repository, $pushed[0]->branch]);
         self::assertEquals($project->id, $pushed[0]->projectId);
+    }
+
+    public function test_a_pull_request_delivery_announces_its_head_branch_to_the_project_that_owns_the_repository(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $project = $this->project('pr-branch');
+        $this->installation(9_000_623);
+        $this->owned($project, 623, 'acme/v', ForgeRepositorySource::Installation, 9_000_623);
+        $announced = new RecordedEvents();
+        $dispatcher = static::getContainer()->get('event_dispatcher');
+        self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
+        $dispatcher->addListener(ForgePullRequestBranchChanged::class, $announced);
+        $payload = ['installation' => ['id' => 9_000_623], 'repository' => ['id' => 623, 'full_name' => 'acme/v']];
+
+        $this->deliver($client, self::PATH, 'pull_request', ['action' => 'opened', 'pull_request' => ['number' => 5, 'head' => ['ref' => 'loupe/init']]] + $payload, self::SECRET);
+        $this->deliver($client, self::PATH, 'pull_request', ['action' => 'labeled', 'pull_request' => ['number' => 5, 'head' => ['ref' => 'loupe/init']]] + $payload, self::SECRET);
+
+        $changed = $announced->of(ForgePullRequestBranchChanged::class);
+        self::assertCount(1, $changed);
+        self::assertSame(['github', 'acme/v', 'loupe/init'], [$changed[0]->forge, $changed[0]->repository, $changed[0]->branch]);
+        self::assertEquals($project->id, $changed[0]->projectId);
     }
 
     public function test_a_push_to_the_default_branch_queues_a_read_of_the_workflow_file(): void

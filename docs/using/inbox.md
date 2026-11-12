@@ -718,6 +718,15 @@ that nobody answered closes as **resolved** when `.loupe.yaml` gets a valid valu
 repository no longer fits the case. The question has no **Dismiss**, because merges wait until it
 has an answer. With the inbox off, Loupe opens no question, and the held merge still applies.
 
+While `loupe init` runs, the project holds its onboarding items. Init opens a run of the kind `init`
+on the project, and the Runs page shows it. While that run is open, Loupe opens no new merge question
+and no new "does not fit the workflow" notice. An item that was already open stays open and gets no
+new push. When the run ends, Loupe reads `.loupe.yaml` again and runs a fresh check of each
+repository. It then closes each item whose cause is gone, and opens an item only for a gap that the
+fresh read still finds. A run that shows no sign of life for 5 minutes closes by itself. An open
+pull request from the branch `loupe/init` that sets a valid `merge-approval` keeps the merge
+question closed until you merge or close it.
+
 Loupe opens one notice for each agent account that is at its hard limit while
 cards wait for it. An account belongs to one bridge, so two bridges with an
 account of the same name get one notice each. The title names the account, its

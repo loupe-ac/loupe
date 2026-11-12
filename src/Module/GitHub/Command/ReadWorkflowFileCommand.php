@@ -10,6 +10,8 @@ final readonly class ReadWorkflowFileCommand
 {
     public function __construct(
         public Uuid $repositoryId,
+        public bool $force = false,
+        public int $attempt = 1,
     ) {
     }
 }

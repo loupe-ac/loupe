@@ -22,6 +22,8 @@ use App\Module\Inbox\Messenger\NotifyInboxOwnerKind;
 use App\Module\Inbox\Messenger\OpenMergeApprovalPullRequest;
 use App\Module\Inbox\Repository\InboxMergeApprovalQuestionRepository;
 use App\Module\Project\Entity\Project;
+use App\Tests\Module\Forge\FakeInitPullRequestReader;
+use App\Tests\Module\Inbox\InitRunHolds;
 use App\Tests\Module\Inbox\QueuedPushes;
 use App\Tests\Module\Workflow\Service\WorkflowSettingsTestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -32,6 +34,7 @@ use Ubermuda\FeatureFlagsBundle\Repository\FeatureFlagRepository;
 
 final class MergeApprovalQuestionReconcilerTest extends WorkflowSettingsTestCase
 {
+    use InitRunHolds;
     use QueuedPushes;
 
     private Project $project;
@@ -194,6 +197,140 @@ final class MergeApprovalQuestionReconcilerTest extends WorkflowSettingsTestCase
         self::assertEquals([new OpenMergeApprovalPullRequest((string) $question->item->id)], $queued);
     }
 
+    public function test_a_running_init_opens_no_question_and_the_end_of_the_run_opens_it(): void
+    {
+        $this->installed('acme/app');
+        $run = $this->startInit($this->project);
+
+        $this->deliver();
+
+        self::assertSame([], $this->questions());
+        self::assertSame([], $this->queuedPushes());
+
+        $this->endInit($this->project, $run);
+        $this->deliver();
+
+        self::assertCount(1, $this->questions());
+        self::assertCount(1, $this->queuedPushes());
+    }
+
+    public function test_a_running_init_keeps_an_open_question_open_after_its_cause_ended(): void
+    {
+        $repository = $this->installed('acme/app');
+        $this->deliver();
+        $itemId = $this->onlyQuestion()->item->id?->toRfc4122();
+        $run = $this->startInit($this->project);
+
+        $this->read($this->project, $repository->id ?? throw new \LogicException('No id.'), ['merge-approval' => 'person']);
+        $this->deliver();
+
+        $kept = $this->onlyQuestion();
+        self::assertSame($itemId, $kept->item->id?->toRfc4122());
+        self::assertSame(InboxItemState::Open, $kept->item->state);
+        self::assertNull($kept->endedAt);
+
+        $this->endInit($this->project, $run);
+        $this->deliver();
+
+        $closed = $this->onlyQuestion();
+        self::assertSame(InboxItemState::Resolved, $closed->item->state);
+        self::assertNotNull($closed->endedAt);
+    }
+
+    public function test_a_running_init_still_ends_the_row_of_an_item_that_closed_outside_and_opens_no_new_one(): void
+    {
+        $this->installed('acme/app');
+        $this->deliver();
+        $this->onlyQuestion()->item->state = InboxItemState::Cancelled;
+        $this->em()->flush();
+        $run = $this->startInit($this->project);
+
+        $this->deliver();
+
+        $questions = $this->questions();
+        self::assertCount(1, $questions);
+        self::assertNotNull($questions[0]->endedAt);
+
+        $this->endInit($this->project, $run);
+        $this->deliver();
+
+        self::assertCount(2, $this->questions());
+    }
+
+    public function test_a_repository_whose_open_init_pull_request_sets_the_setting_is_not_asked(): void
+    {
+        $this->installed('acme/app', FakeInitPullRequestReader::FORGE);
+        $reader = $this->initReader();
+        $reader->answers = ['acme/app' => true];
+
+        $this->deliver();
+
+        self::assertSame([], $this->questions());
+        self::assertSame(['acme/app'], $reader->asked);
+    }
+
+    public function test_an_open_question_closes_when_the_init_pull_request_sets_the_setting_and_no_init_runs(): void
+    {
+        $this->installed('acme/app', FakeInitPullRequestReader::FORGE);
+        $this->deliver();
+        self::assertSame(InboxItemState::Open, $this->onlyQuestion()->item->state);
+        $this->initReader()->answers = ['acme/app' => true];
+
+        $this->deliver();
+
+        $question = $this->onlyQuestion();
+        self::assertSame(InboxItemState::Resolved, $question->item->state);
+        self::assertNotNull($question->endedAt);
+    }
+
+    public function test_the_forge_is_not_asked_for_a_repository_the_reconcile_would_not_ask(): void
+    {
+        $answered = $this->installed('acme/answered', FakeInitPullRequestReader::FORGE);
+        $reviewed = $this->installed('acme/reviewed', FakeInitPullRequestReader::FORGE);
+        $this->rules($reviewed, requiresReview: true);
+        $this->read($this->project, $answered->id ?? throw new \LogicException('No id.'), ['merge-approval' => 'person']);
+        $reader = $this->initReader();
+        $run = $this->startInit($this->project);
+
+        $this->deliver();
+        self::assertSame([], $reader->asked);
+
+        $this->endInit($this->project, $run);
+        $this->deliver();
+        self::assertSame([], $reader->asked);
+    }
+
+    public function test_the_forge_is_not_asked_while_init_runs(): void
+    {
+        $this->installed('acme/app', FakeInitPullRequestReader::FORGE);
+        $reader = $this->initReader();
+        $run = $this->startInit($this->project);
+
+        $this->deliver();
+        self::assertSame([], $reader->asked);
+
+        $this->endInit($this->project, $run);
+        $this->deliver();
+        self::assertSame(['acme/app'], $reader->asked);
+    }
+
+    public function test_a_failed_init_pull_request_read_asks_the_question(): void
+    {
+        $this->installed('acme/app', FakeInitPullRequestReader::FORGE);
+
+        $this->deliver();
+
+        self::assertCount(1, $this->questions());
+    }
+
+    private function initReader(): FakeInitPullRequestReader
+    {
+        $reader = self::getContainer()->get(FakeInitPullRequestReader::class);
+        self::assertInstanceOf(FakeInitPullRequestReader::class, $reader);
+
+        return $reader;
+    }
+
     private function answer(InboxMergeApprovalQuestion $question, string $options): void
     {
         $handler = self::getContainer()->get(AnswerInboxItemHandler::class);
@@ -201,9 +338,9 @@ final class MergeApprovalQuestionReconcilerTest extends WorkflowSettingsTestCase
         $handler(new AnswerInboxItemCommand($question->item, $options, ''));
     }
 
-    private function installed(string $path): ForgeRepository
+    private function installed(string $path, string $forge = 'github'): ForgeRepository
     {
-        $repository = new ForgeRepository($this->em()->getReference(Project::class, $this->project->requireId()) ?? throw new \LogicException('No project.'), 'github', 'ext-'.uniqid(), $path, ForgeRepositorySource::Installation, '1');
+        $repository = new ForgeRepository($this->em()->getReference(Project::class, $this->project->requireId()) ?? throw new \LogicException('No project.'), $forge, 'ext-'.uniqid(), $path, ForgeRepositorySource::Installation, '1');
         $this->em()->persist($repository);
         $this->em()->flush();
 

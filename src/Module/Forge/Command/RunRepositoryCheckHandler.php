@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Module\Forge\Command;
 
 use App\Module\Forge\Entity\ForgeRepositoryCheck;
+use App\Module\Forge\Event\ForgeRepositoryCheckEnded;
+use App\Module\Forge\Messenger\CheckForgeRepository;
 use App\Module\Forge\Messenger\CheckTrigger;
 use App\Module\Forge\Repository\ForgeRepositoryCheckRepository;
 use App\Module\Forge\Service\RepositoryChange;
@@ -19,7 +21,11 @@ use App\Module\Workflow\Contract\RepositorySuggestions;
 use App\Module\Workflow\Contract\SuggestionMark;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Messenger\Stamp\DelayStamp;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Checks one repository against the suggestions of its project template. The
@@ -29,6 +35,9 @@ use Psr\Log\LoggerInterface;
 final readonly class RunRepositoryCheckHandler
 {
     public const string FAILURE_UNSUPPORTED_FORGE = 'unsupported_forge';
+
+    public const int INIT_MAX_ATTEMPTS = 3;
+    public const int INIT_RETRY_DELAY_SECONDS = 60;
 
     public function __construct(
         private RepositorySuggestions $suggestions,
@@ -40,6 +49,8 @@ final readonly class RunRepositoryCheckHandler
         private EntityManagerInterface $em,
         private ClockInterface $clock,
         private LoggerInterface $logger,
+        private MessageBusInterface $bus,
+        private EventDispatcherInterface $events,
     ) {
     }
 
@@ -52,11 +63,14 @@ final readonly class RunRepositoryCheckHandler
         $suggestions = $this->suggestions->forProject($projectId);
         if ([] === $suggestions) {
             $this->clearStaleItems($command);
+            if (CheckTrigger::InitEnded === $command->trigger) {
+                $this->events->dispatch(new ForgeRepositoryCheckEnded($projectId, $repositoryId));
+            }
 
             return;
         }
 
-        if (CheckTrigger::CheckAgain !== $command->trigger && $this->checks->isFresh($this->forgeRepositoryChecks->findOneOfRepository($repository), $this->clock->now())) {
+        if (!\in_array($command->trigger, [CheckTrigger::CheckAgain, CheckTrigger::InitEnded], true) && $this->checks->isFresh($this->forgeRepositoryChecks->findOneOfRepository($repository), $this->clock->now())) {
             if (CheckTrigger::PageOpen === $command->trigger) {
                 $this->summaries->signal($projectId, $repositoryId);
             }
@@ -111,6 +125,27 @@ final readonly class RunRepositoryCheckHandler
             'ticket' => $ticket,
             'failure' => $failure,
         ]);
+
+        if ($accepted && null === $failure) {
+            $this->events->dispatch(new ForgeRepositoryCheckEnded($projectId, $repositoryId));
+        } elseif (CheckTrigger::InitEnded === $command->trigger) {
+            $this->retryAfterInit($command, $repositoryId);
+        }
+    }
+
+    /** The read of the close of an init run failed, or a newer read dropped its result. */
+    private function retryAfterInit(RunRepositoryCheckCommand $command, Uuid $repositoryId): void
+    {
+        if ($command->attempt >= self::INIT_MAX_ATTEMPTS) {
+            $this->logger->info('forge.init_check_gave_up', ['repositoryId' => (string) $repositoryId, 'attempt' => $command->attempt]);
+
+            return;
+        }
+
+        $this->bus->dispatch(
+            new CheckForgeRepository((string) $repositoryId, CheckTrigger::InitEnded, $command->attempt + 1),
+            [new DelayStamp(self::INIT_RETRY_DELAY_SECONDS * 1000)],
+        );
     }
 
     /** A template copy that drops its last suggestion leaves items that must hold no longer. */

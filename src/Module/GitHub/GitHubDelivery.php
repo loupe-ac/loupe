@@ -200,6 +200,19 @@ final readonly class GitHubDelivery
         return '' === $branch ? null : $branch;
     }
 
+    /** The head branch of a pull request that opened, closed, reopened or got a commit, or null for any other delivery. */
+    public function pullRequestHeadBranch(): ?string
+    {
+        if ('pull_request' !== $this->event || !\in_array($this->action(), ['opened', 'closed', 'reopened', 'synchronize'], true)) {
+            return null;
+        }
+
+        $pullRequest = $this->payload['pull_request'] ?? null;
+        $head = \is_array($pullRequest) && \is_array($pullRequest['head'] ?? null) ? ($pullRequest['head']['ref'] ?? null) : null;
+
+        return \is_string($head) && '' !== $head ? $head : null;
+    }
+
     /** Whether a push moved the default branch, as the repository block of the delivery names it. */
     public function pushedDefaultBranch(): bool
     {

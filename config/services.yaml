@@ -360,6 +360,15 @@ when@test:
             autoconfigure: true
             public: true
 
+        # Fake forge services that the onboarding hold tests switch and read.
+        App\Tests\Module\Forge\FakeInitPullRequestReader:
+            autoconfigure: true
+            public: true
+
+        App\Tests\Module\Forge\FakeWorkflowFileReads:
+            autoconfigure: true
+            public: true
+
         App\Tests\Module\Workflow\Fact\ProvidedFactsReady:
             autoconfigure: true
 

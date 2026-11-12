@@ -12,6 +12,7 @@ final readonly class RunRepositoryCheckCommand
     public function __construct(
         public ForgeRepository $repository,
         public CheckTrigger $trigger,
+        public int $attempt = 1,
     ) {
     }
 }
