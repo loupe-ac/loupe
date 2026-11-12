@@ -25,25 +25,47 @@ final class WaitlistBlockPatternControllerTest extends WebTestCase
         $entryId = (string) $entry->id;
         $client->request(Request::METHOD_GET, '/admin/waitlist');
         $this->assertSelectorExists('[data-waitlist-entry-id="'.$entryId.'"]');
+        $client->request(Request::METHOD_GET, '/admin/waitlist/block-patterns');
 
         $client->submitForm('Add pattern', ['add_waitlist_block_pattern_form[pattern]' => ' *@Spam-Add.example ']);
 
-        $this->assertResponseRedirects('/admin/waitlist');
+        $this->assertResponseRedirects('/admin/waitlist/block-patterns');
         $stored = $this->patterns()->findOneByPattern('*@spam-add.example');
         self::assertNotNull($stored);
         self::assertSame('*@spam-add.example', $stored->pattern);
 
         $crawler = $client->followRedirect();
         $this->assertSelectorExists('[data-waitlist-block-pattern-id="'.$stored->id.'"]');
-        $this->assertSelectorNotExists('[data-waitlist-entry-id="'.$entryId.'"]');
         self::assertGreaterThanOrEqual(1, (int) $crawler->filter('[data-waitlist-hidden-count]')->attr('data-waitlist-hidden-count'));
+        $client->request(Request::METHOD_GET, '/admin/waitlist');
+        $this->assertSelectorExists('[data-waitlist-pick-counts]');
+        $this->assertSelectorNotExists('[data-waitlist-entry-id="'.$entryId.'"]');
+    }
+
+    public function test_each_tab_shows_its_own_content_and_marks_itself_current(): void
+    {
+        [$client] = $this->adminClient('pattern-tabs-admin@admin-test.example.com');
+
+        $client->request(Request::METHOD_GET, '/admin/waitlist');
+        $this->assertResponseIsSuccessful();
+        $this->assertSelectorExists('[data-waitlist-pick-counts]');
+        $this->assertSelectorNotExists('[data-waitlist-block-patterns]');
+        $this->assertSelectorTextContains('[data-waitlist-tab="entries"][aria-current="page"]', 'Entries');
+        $this->assertSelectorExists('[data-waitlist-tab="block-patterns"][href="/admin/waitlist/block-patterns"]:not([aria-current])');
+
+        $client->request(Request::METHOD_GET, '/admin/waitlist/block-patterns');
+        $this->assertResponseIsSuccessful();
+        $this->assertSelectorExists('[data-waitlist-block-patterns]');
+        $this->assertSelectorNotExists('[data-waitlist-pick-counts]');
+        $this->assertSelectorTextContains('[data-waitlist-tab="block-patterns"][aria-current="page"]', 'Block patterns');
+        $this->assertSelectorExists('[data-waitlist-tab="entries"][href="/admin/waitlist"]:not([aria-current])');
     }
 
     public function test_a_pattern_of_only_stars_is_refused_with_a_field_error(): void
     {
         [$client] = $this->adminClient('pattern-stars-admin@admin-test.example.com');
         $before = \count($this->patterns()->findAll());
-        $client->request(Request::METHOD_GET, '/admin/waitlist');
+        $client->request(Request::METHOD_GET, '/admin/waitlist/block-patterns');
 
         $client->submitForm('Add pattern', ['add_waitlist_block_pattern_form[pattern]' => '**']);
 
@@ -57,7 +79,7 @@ final class WaitlistBlockPatternControllerTest extends WebTestCase
         [$client, $em] = $this->adminClient('pattern-dup-admin@admin-test.example.com');
         $em->persist(new WaitlistBlockPattern('*@dup.example'));
         $em->flush();
-        $client->request(Request::METHOD_GET, '/admin/waitlist');
+        $client->request(Request::METHOD_GET, '/admin/waitlist/block-patterns');
 
         $client->submitForm('Add pattern', ['add_waitlist_block_pattern_form[pattern]' => '*@DUP.example']);
 
@@ -78,17 +100,20 @@ final class WaitlistBlockPatternControllerTest extends WebTestCase
         $em->flush();
         $entryId = (string) $entry->id;
         $patternId = (string) $pattern->id;
-        $crawler = $client->request(Request::METHOD_GET, '/admin/waitlist');
+        $client->request(Request::METHOD_GET, '/admin/waitlist');
         $this->assertSelectorNotExists('[data-waitlist-entry-id="'.$entryId.'"]');
+        $crawler = $client->request(Request::METHOD_GET, '/admin/waitlist/block-patterns');
         $form = $crawler->filter('[data-waitlist-block-pattern-id="'.$patternId.'"] form');
         self::assertNotNull($form->attr('data-turbo-confirm'));
 
         $client->submit($form->form());
 
-        $this->assertResponseRedirects('/admin/waitlist');
+        $this->assertResponseRedirects('/admin/waitlist/block-patterns');
         $em->clear();
         self::assertNull($this->patterns()->find($patternId));
         $client->followRedirect();
+        $this->assertSelectorNotExists('[data-waitlist-block-pattern-id="'.$patternId.'"]');
+        $client->request(Request::METHOD_GET, '/admin/waitlist');
         $this->assertSelectorExists('[data-waitlist-entry-id="'.$entryId.'"]');
     }
 
@@ -101,6 +126,9 @@ final class WaitlistBlockPatternControllerTest extends WebTestCase
         $em->flush();
         $patternId = (string) $pattern->id;
         $client->loginUser($this->seedUser($em, 'pattern-plain-user@admin-test.example.com', []));
+
+        $client->request(Request::METHOD_GET, '/admin/waitlist/block-patterns');
+        $this->assertResponseStatusCodeSame(403);
 
         $client->request(Request::METHOD_POST, '/admin/waitlist/block-patterns', ['add_waitlist_block_pattern_form' => ['pattern' => '*@new.example']]);
         $this->assertResponseStatusCodeSame(403);

@@ -35,6 +35,6 @@ final class RemoveWaitlistBlockPatternController extends AppController
         ($this->removeBlockPattern)(new RemoveWaitlistBlockPatternCommand($pattern));
         $this->addFlash('success', $this->translator->trans('account.admin.waitlist.block_patterns.flash.removed'));
 
-        return $this->redirectToRoute('app_admin_waitlist_list');
+        return $this->redirectToRoute('app_admin_waitlist_block_pattern_list');
     }
 }
