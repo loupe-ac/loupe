@@ -6380,6 +6380,10 @@
                 <source>inbox.outcome.agent.withdrawn</source>
                 <target>Withdrawn by the agent</target>
             </trans-unit>
+            <trans-unit id="inbox.outcome.api_key.withdrawn">
+                <source>inbox.outcome.api_key.withdrawn</source>
+                <target>Withdrawn through an API key</target>
+            </trans-unit>
             <trans-unit id="inbox.outcome.verdict.approved">
                 <source>inbox.outcome.verdict.approved</source>
                 <target>Approved</target>
@@ -6674,6 +6678,7 @@ workflow:
             <trans-unit id="inbox.thread.closing.hint"><source>inbox.thread.closing.hint</source><target>closed this %time%</target></trans-unit>
             <trans-unit id="inbox.thread.closing.author.agent"><source>inbox.thread.closing.author.agent</source><target>Agent</target></trans-unit>
             <trans-unit id="inbox.thread.closing.author.loupe"><source>inbox.thread.closing.author.loupe</source><target>Loupe</target></trans-unit>
+            <trans-unit id="inbox.thread.closing.author.owner-through-api-key"><source>inbox.thread.closing.author.owner-through-api-key</source><target>API key</target></trans-unit>
             <trans-unit id="inbox.thread.closing.author.rule"><source>inbox.thread.closing.author.rule</source><target>Workflow rule</target></trans-unit>
             <trans-unit id="inbox.thread.closing.withdrawn"><source>inbox.thread.closing.withdrawn</source><target>The agent withdrew this item, so it takes no answer.</target></trans-unit>
             <trans-unit id="inbox.thread.closing.card-deleted"><source>inbox.thread.closing.card-deleted</source><target>The card was deleted, so nobody needs this answer.</target></trans-unit>

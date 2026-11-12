@@ -23,7 +23,7 @@ use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
 
-/** Closes an open item as withdrawn, with the reason in its note. */
+/** Closes an open item as withdrawn, with the reason in its note. An agent session closes it as the agent, and the public API as the owner through an API key. */
 final readonly class WithdrawInboxItemHandler
 {
     public const string REASON_BLANK = 'inbox.item.error.withdraw_reason_blank';
@@ -57,10 +57,13 @@ final readonly class WithdrawInboxItemHandler
         if (InboxItemKind::Workflow === $command->item->kind) {
             throw new DomainErrors(['itemId' => self::WORKFLOW_NOT_WITHDRAWABLE]);
         }
-        // Only the session that asked first can take the item back.
-        $firstAsk = $this->inboxAsks->findHolding($command->item)[0] ?? null;
-        if (null === $firstAsk?->sessionId || !$firstAsk->sessionId->equals($command->sessionId)) {
-            throw new DomainErrors(['sessionId' => self::NOT_ASKING_SESSION]);
+        // Only the session that asked first can take the item back. The public API names no session.
+        $sessionId = $command->sessionId;
+        if (null !== $sessionId) {
+            $firstAsk = $this->inboxAsks->findHolding($command->item)[0] ?? null;
+            if (null === $firstAsk?->sessionId || !$firstAsk->sessionId->equals($sessionId)) {
+                throw new DomainErrors(['sessionId' => self::NOT_ASKING_SESSION]);
+            }
         }
         if (mb_strlen($command->reason) > InboxLimits::MAX_WITHDRAW_REASON_LENGTH) {
             throw new DomainErrors(['reason' => self::REASON_TOO_LONG]);
@@ -71,12 +74,14 @@ final readonly class WithdrawInboxItemHandler
         }
 
         $item = $command->item;
-        $refusal = $this->em->wrapInTransaction(function () use ($item, $reason): ?string {
+        $closer = null === $sessionId ? InboxCloser::OwnerThroughApiKey : InboxCloser::Agent;
+        $apiKey = $command->apiKey;
+        $refusal = $this->em->wrapInTransaction(function () use ($item, $reason, $closer, $apiKey): ?string {
             // The project first, as every item writer takes it, then the state as
             // stored, so an answer that lands first is not overwritten.
             $this->em->lock($item->project, LockMode::PESSIMISTIC_WRITE);
             if (InboxItemState::Open !== $this->inboxItems->lockedState($item)
-                || !$this->closer->close($item, InboxItemState::Cancelled, InboxCloser::Agent, InboxCloseCause::Withdrawn, $reason, new \DateTimeImmutable())) {
+                || !$this->closer->close($item, InboxItemState::Cancelled, $closer, InboxCloseCause::Withdrawn, $reason, new \DateTimeImmutable(), $apiKey)) {
                 return InboxItemCloser::ITEM_NOT_OPEN;
             }
             $this->em->flush();
