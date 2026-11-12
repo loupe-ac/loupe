@@ -9331,7 +9331,7 @@
                         "nullable": true,
                         "maxLength": 200
                     },
-                    "formulaFormat": {
+                    "format": {
                         "description": "`auto`, `number`, `percent`, `money` or `duration`. A formula graph defaults to `auto`.",
                         "type": "string",
                         "nullable": true
@@ -9372,12 +9372,12 @@
                         "type": "string",
                         "maxLength": 200
                     },
-                    "formulaFormat": {
+                    "format": {
                         "description": "`auto`, `number`, `percent`, `money` or `duration`.",
                         "type": "string"
                     },
                     "clearFormula": {
-                        "description": "True turns a formula graph back into a graph of one metric. It keeps the first row, and takes `settings.metric` and `settings.statistic` when you pass them. Do not pass it with `rows`, `formula` or `formulaFormat`.",
+                        "description": "True turns a formula graph back into a graph of one metric. It keeps the first row, and takes `settings.metric` and `settings.statistic` when you pass them. Do not pass it with `rows`, `formula` or `format`.",
                         "type": "boolean"
                     },
                     "width": {

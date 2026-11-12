@@ -33,7 +33,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     operationId: 'createGraph',
     summary: 'Save a graph as a new tile at the end of the Dashboard',
     tags: ['Graphs'],
-    description: 'A saved graph is a tile on the Dashboard of the owner. A graph reads one metric (`settings.metric` and `settings.statistic`) or a formula (`rows`, `formula` and `formulaFormat`), and not both. `settings.unit` is needed. A setting that the metric or the range cannot take is refused with the values that are valid, and nothing is saved. A new graph takes half the width and shows its legend, and a change alters both.',
+    description: 'A saved graph is a tile on the Dashboard of the owner. A graph reads one metric (`settings.metric` and `settings.statistic`) or a formula (`rows`, `formula` and `format`), and not both. `settings.unit` is needed. A setting that the metric or the range cannot take is refused with the values that are valid, and nothing is saved. A new graph takes half the width and shows its legend, and a change alters both.',
     parameters: [
         new OA\Parameter(name: 'project', description: 'A project id or a project slug. A slug changes when the project is renamed, so quote the id when it must stay valid.', in: 'path', required: true, schema: new OA\Schema(type: 'string'), example: 'my-project'),
         new OA\Parameter(name: 'Idempotency-Key', description: 'A key of your choice. A retry with the same key and body answers as the first request did. The same key with another body gets 409 `idempotency_key_reused`.', in: 'header', schema: new OA\Schema(type: 'string', maxLength: 255)),

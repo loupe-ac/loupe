@@ -113,8 +113,7 @@ final readonly class InsightsApiProblems
     private static function requestField(string $setting): string
     {
         return match ($setting) {
-            'rows', 'formula', 'clearFormula' => $setting,
-            'format' => 'formulaFormat',
+            'rows', 'formula', 'format', 'clearFormula' => $setting,
             default => 'settings.'.$setting,
         };
     }

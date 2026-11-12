@@ -17,6 +17,7 @@ import (
 	"github.com/loupe-ac/loupe/cli/internal/api"
 	"github.com/loupe-ac/loupe/cli/internal/output"
 	"github.com/loupe-ac/loupe/cli/internal/publicapi"
+	"github.com/loupe-ac/loupe/cli/internal/publicapi/flagname"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"golang.org/x/term"
@@ -186,6 +187,9 @@ func hasAnswerFields(op publicapi.Operation) bool {
 }
 
 func flagName(s string) string {
+	if renamed, ok := flagname.Renames[s]; ok {
+		return renamed
+	}
 	var b strings.Builder
 	for i, r := range s {
 		if r >= 'A' && r <= 'Z' {

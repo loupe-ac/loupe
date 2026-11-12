@@ -423,13 +423,13 @@ graph with the metric query.
 2. `POST .../graphs` saves a graph as the last tile and answers `201` with the
    graph and a `Location` header. Send `settings.unit` and either
    `settings.metric` with `settings.statistic`, or a formula with `rows`,
-   `formula` and `formulaFormat`. The other settings default as the
+   `formula` and `format`. The other settings default as the
    `graph_save` MCP tool says. The Dashboard holds a limited number of
    graphs. A full Dashboard answers `409` `dashboard_full`.
 3. `GET .../graphs/{graph}` reads one graph. A removed graph, a graph of
    another project and a missing graph answer `404` `graph_not_found`.
 4. `PATCH .../graphs/{graph}` changes `name`, `settings`, `rows`, `formula`,
-   `formulaFormat`, `width`, `showLegend` or `position` in one transaction. A
+   `format`, `width`, `showLegend` or `position` in one transaction. A
    field you leave out keeps its value. `position` is the place to take among
    the graphs on the Dashboard, counted from 0. A place past the last puts the
    graph last. The settings you send join the settings the graph keeps, and the

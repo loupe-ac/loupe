@@ -40,9 +40,9 @@ final class UpdateGraphRequest
     public string $formula;
 
     #[OA\Property(description: '`auto`, `number`, `percent`, `money` or `duration`.')]
-    public string $formulaFormat;
+    public string $format;
 
-    #[OA\Property(description: 'True turns a formula graph back into a graph of one metric. It keeps the first row, and takes `settings.metric` and `settings.statistic` when you pass them. Do not pass it with `rows`, `formula` or `formulaFormat`.')]
+    #[OA\Property(description: 'True turns a formula graph back into a graph of one metric. It keeps the first row, and takes `settings.metric` and `settings.statistic` when you pass them. Do not pass it with `rows`, `formula` or `format`.')]
     public bool $clearFormula;
 
     #[OA\Property(description: 'How much of the Dashboard row the graph takes.', enum: ['half', 'full'])]
@@ -64,6 +64,6 @@ final class UpdateGraphRequest
     /** @return array<string, string> the rows, the formula and the format that the request names */
     public function formulaPassed(): array
     {
-        return GraphRowInput::formulaSettings($this->rows ?? [], $this->formula ?? null, $this->formulaFormat ?? null);
+        return GraphRowInput::formulaSettings($this->rows ?? [], $this->formula ?? null, $this->format ?? null);
     }
 }

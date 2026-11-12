@@ -39,7 +39,7 @@ final class CreateGraphRequest
     public ?string $formula = null;
 
     #[OA\Property(description: '`auto`, `number`, `percent`, `money` or `duration`. A formula graph defaults to `auto`.', nullable: true)]
-    public ?string $formulaFormat = null;
+    public ?string $format = null;
 
     #[Assert\Callback]
     public function requireUnit(ExecutionContextInterface $context): void
@@ -52,6 +52,6 @@ final class CreateGraphRequest
     /** @return array<string, string> the controls that the request names, by name */
     public function settingsMap(): array
     {
-        return ($this->settings ?? new GraphSettingsInput())->settings() + GraphRowInput::formulaSettings($this->rows, $this->formula, $this->formulaFormat);
+        return ($this->settings ?? new GraphSettingsInput())->settings() + GraphRowInput::formulaSettings($this->rows, $this->formula, $this->format);
     }
 }

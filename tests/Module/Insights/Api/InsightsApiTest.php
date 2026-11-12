@@ -82,7 +82,7 @@ final class InsightsApiTest extends WebTestCase
             'settings' => ['unit' => 'card'],
             'rows' => [['letter' => 'A', 'metric' => 'cache-read-tokens', 'statistic' => 'sum'], ['letter' => 'B', 'metric' => 'cache-write-tokens', 'statistic' => 'sum']],
             'formula' => 'A / B',
-            'formulaFormat' => 'number',
+            'format' => 'number',
         ], \JSON_THROW_ON_ERROR));
 
         self::assertResponseStatusCodeSame(201);
