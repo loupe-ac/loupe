@@ -15,6 +15,8 @@ final readonly class StartGitHubRepositoryPickCommand
         public string $redirectUri,
         /** `connect` when the owner started on the Connections tab. */
         public ?string $startedFrom = null,
+        /** The id of the `loupe init` session that sent the owner, as the link carried it. */
+        public ?string $init = null,
     ) {
     }
 }

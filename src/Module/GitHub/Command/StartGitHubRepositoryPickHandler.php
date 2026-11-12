@@ -8,6 +8,7 @@ use App\Exception\DomainErrors;
 use App\Module\GitHub\Service\GitHubAppConfiguration;
 use App\Module\GitHub\Service\GitHubInstallSession;
 use App\Module\GitHub\Service\HookSecretKey;
+use Symfony\Component\Uid\Uuid;
 
 final readonly class StartGitHubRepositoryPickHandler
 {
@@ -30,7 +31,7 @@ final readonly class StartGitHubRepositoryPickHandler
         }
 
         $repository = null !== $command->repository && 1 === preg_match('#^[A-Za-z0-9_.-]{1,100}/[A-Za-z0-9_.-]{1,100}$#', $command->repository) ? $command->repository : null;
-        $pending = $this->installSession->beginSignIn($command->project, $repository, 'connect' === $command->startedFrom ? 'connect' : null);
+        $pending = $this->installSession->beginSignIn($command->project, $repository, 'connect' === $command->startedFrom ? 'connect' : null, null !== $command->init && Uuid::isValid($command->init) ? $command->init : null);
 
         return $this->appConfiguration->authorizeUrl(
             $command->redirectUri,

@@ -32,6 +32,8 @@ final readonly class ReportInteractiveLaunchCommand
         public ?string $account = null,
         public ?string $model = null,
         public ?string $harnessSessionId = null,
+        /** True marks the wait for the App install, false ends it, null leaves it. */
+        public ?bool $awaitingInstall = null,
     ) {
     }
 }
