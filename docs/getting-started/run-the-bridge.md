@@ -33,7 +33,7 @@ loupe init
    Playwright.
 9. It offers to install the Loupe GitHub App when it is missing, opens the install
    page and waits until the repository is in the project. Press Enter to stop
-   waiting.
+   waiting. On Windows, press Ctrl-C.
 10. It starts an agent that looks for blockers with you. A blocker makes a worker
    fail on its first run, or does damage. The agent writes nothing to
    `.loupe/lifecycle.md`. This step runs only when the workflow of the project

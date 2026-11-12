@@ -19,9 +19,6 @@ import (
 // closes an init run that stays quiet for five minutes.
 var initRenewEvery = 60 * time.Second
 
-// waitEndGrace is how long after a wait an interrupt still counts for it.
-const waitEndGrace = 200 * time.Millisecond
-
 // initBridgeID names this machine to the server. A test replaces it.
 var initBridgeID = config.EnsureBridgeID
 
@@ -43,8 +40,6 @@ type initRun struct {
 	mu       sync.Mutex
 	waiting  bool
 	finished bool
-
-	waitEnded time.Time
 
 	// sendMu keeps a renewal and a mark change from interleaving their PUTs.
 	sendMu sync.Mutex
@@ -151,7 +146,6 @@ func (r *initRun) endWait() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.inWait.Store(false)
-	r.waitEnded = time.Now()
 	if r.notify == nil {
 		return
 	}
@@ -172,13 +166,13 @@ func (r *initRun) endWait() {
 	}
 }
 
-// keepsInWait says whether an interrupt belongs to the wait: the wait runs, or
-// it ended just now, while the loop held the interrupt.
+// keepsInWait says whether an interrupt belongs to the wait: the wait runs. An
+// interrupt that the loop reads after the wait ended closes init.
 func (r *initRun) keepsInWait() bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	return r.inWait.Load() || time.Since(r.waitEnded) < waitEndGrace
+	return r.inWait.Load()
 }
 
 func (r *initRun) renew() {

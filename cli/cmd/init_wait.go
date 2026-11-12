@@ -61,7 +61,7 @@ func initWaitForApp(cmd *cobra.Command, list siteLister, run *initRun, site api.
 	}
 	_ = initOpenBrowser(link)
 	fmt.Fprintln(out, "Open this link to install the App: "+link)
-	fmt.Fprintln(out, "Waiting for the install… Press Enter to stop waiting.")
+	fmt.Fprintln(out, "Waiting for the install… "+stopWaitHint())
 
 	var sigs chan os.Signal
 	if run.waitSigs != nil {

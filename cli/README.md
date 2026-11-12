@@ -398,7 +398,7 @@ loupe init --repoint             # point a rule file entry that maps another fol
 
     From the project step to the end, `loupe init` keeps an interactive run of the work kind `init` open on the project. The inbox opens no onboarding item while it is open. Init renews the run every 60 seconds, and closes it on exit and on Ctrl-C. On a server that cannot hold the run, init prints `This Loupe server cannot hold the onboarding inbox items. They may appear while init runs.` and goes on.
 
-    Before the profile step, when the App is missing and the repository is known, init asks `Install the Loupe GitHub App on <owner/name> now? [Y/n]`. On yes it opens the install link with your browser and polls the project list every 3 seconds. After the repository joins the project, it waits up to 60 seconds for the first read of its rules. Enter or Ctrl-C stops the wait. Then the agent of the profile step runs.
+    Before the profile step, when the App is missing and the repository is known, init asks `Install the Loupe GitHub App on <owner/name> now? [Y/n]`. On yes it opens the install link with your browser and polls the project list every 3 seconds. After the repository joins the project, it waits up to 60 seconds for the first read of its rules. Enter or Ctrl-C stops the wait. Windows has no Enter key for it, so the prompt says `Press Ctrl-C to stop waiting.` Then the agent of the profile step runs.
 
     The agent puts every confirmed change in one pull request from `loupe/init`, titled `Set up Loupe`, and asks whether to merge it. These features need CLI 2.7.0 and a server that has the init run.
 
