@@ -11,6 +11,9 @@ enum CheckTrigger: string
     case PageOpen = 'page-open';
     case CheckAgain = 'check-again';
 
+    /** A repository joined a project, so its first check need not wait for the hourly task. */
+    case Joined = 'joined';
+
     /** A `loupe init` run closed. The check skips the reuse of a recent result and tries again when it fails. */
     case InitEnded = 'init-ended';
 }

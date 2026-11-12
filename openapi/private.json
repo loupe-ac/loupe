@@ -12402,6 +12402,12 @@
                         "nullable": true,
                         "default": null,
                         "maxLength": 100
+                    },
+                    "awaitingInstall": {
+                        "title": "Only a run about a project sets it. True marks the wait for the App install, false ends it, and null leaves it as it is.",
+                        "type": "boolean",
+                        "nullable": true,
+                        "default": null
                     }
                 },
                 "type": "object"

@@ -10010,6 +10010,11 @@ workflow:
             <trans-unit id="github.picker.flash.added"><source>github.picker.flash.added</source><target>{0}Loupe added no repository.|{1}Loupe added 1 repository.|]1,Inf[Loupe added %count% repositories.</target></trans-unit>
             <trans-unit id="github.picker.flash.refused"><source>github.picker.flash.refused</source><target>{0}Loupe could not add any repository.|{1}Loupe could not add %repositories%. Another project holds it, or you can no longer reach it on GitHub.|]1,Inf[Loupe could not add these repositories: %repositories%. Another project holds them, or you can no longer reach them on GitHub.</target></trans-unit>
             <trans-unit id="github.picker.flash.connected"><source>github.picker.flash.connected</source><target>Connected %repository%. Add more from Repositories.</target></trans-unit>
+            <trans-unit id="github.init_handoff.page.title"><source>github.init_handoff.page.title</source><target>Back to your terminal</target></trans-unit>
+            <trans-unit id="github.init_handoff.heading"><source>github.init_handoff.heading</source><target>{0}No repository is connected to Loupe|{1}%repositories% is connected to Loupe|]1,Inf[%repositories% are connected to Loupe</target></trans-unit>
+            <trans-unit id="github.init_handoff.lead"><source>github.init_handoff.lead</source><target>Go back to your terminal. loupe init sees the install and goes on by itself.</target></trans-unit>
+            <trans-unit id="github.init_handoff.hint"><source>github.init_handoff.hint</source><target>You can close this tab.</target></trans-unit>
+            <trans-unit id="github.init_handoff.open_project"><source>github.init_handoff.open_project</source><target>Open the project</target></trans-unit>
             <trans-unit id="github.identity.add_repositories"><source>github.identity.add_repositories</source><target>Add repositories</target></trans-unit>
             <trans-unit id="github.connect.heading"><source>github.connect.heading</source><target>GitHub account</target></trans-unit>
             <trans-unit id="github.connect.intro"><source>github.connect.intro</source><target>Connect your GitHub account so that Loupe can act as you on GitHub, for example to post a review under your name.</target></trans-unit>

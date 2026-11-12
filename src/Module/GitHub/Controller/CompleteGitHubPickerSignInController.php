@@ -9,6 +9,7 @@ use App\Exception\DomainErrors;
 use App\Module\GitHub\Command\SignInGitHubPickerCommand;
 use App\Module\GitHub\Command\SignInGitHubPickerHandler;
 use App\Module\GitHub\Service\GitHubInstallSession;
+use App\Module\Project\Service\InitInstallWaits;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -30,6 +31,7 @@ class CompleteGitHubPickerSignInController extends AppController
         private readonly GitHubInstallSession $installSession,
         private readonly SignInGitHubPickerHandler $signIn,
         private readonly TranslatorInterface $translator,
+        private readonly InitInstallWaits $installWaits,
     ) {
     }
 
@@ -79,6 +81,10 @@ class CompleteGitHubPickerSignInController extends AppController
         }
 
         if (null !== $signedIn->connected) {
+            if ($this->installWaits->isWaiting($pending->init, $pending->projectId)) {
+                return $this->redirectToRoute('app_github_init_handoff', ['id' => $pending->projectId, 'repository' => $signedIn->connected]);
+            }
+
             $this->addFlash('success', $this->translator->trans('github.picker.flash.connected', ['%repository%' => $signedIn->connected]));
 
             return $tab;

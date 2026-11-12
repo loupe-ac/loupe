@@ -13,6 +13,7 @@ final readonly class StartGitHubAppInstallCommand
         /** The path to tick in the picker when the install returns. */
         public ?string $repository = null,
         public ?string $startedFrom = null,
+        public ?string $init = null,
     ) {
     }
 }

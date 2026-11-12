@@ -23,6 +23,6 @@ final readonly class StartGitHubAppInstallHandler
             throw new DomainErrors(['app' => 'github.app.flash.unavailable']);
         }
 
-        return $this->appConfiguration->installUrl($this->installSession->beginInstall($command->project, $command->repository, $command->startedFrom));
+        return $this->appConfiguration->installUrl($this->installSession->beginInstall($command->project, $command->repository, $command->startedFrom, $command->init));
     }
 }

@@ -76,6 +76,8 @@ final class ReportInteractiveLaunchRequest
         #[Assert\NotBlank(allowNull: true)]
         #[Assert\Regex(pattern: WorkerRun::HARNESS_SESSION_ID_PATTERN)]
         public ?string $harnessSessionId = null,
+        /** Only a run about a project sets it. True marks the wait for the App install, false ends it, and null leaves it as it is. */
+        public ?bool $awaitingInstall = null,
     ) {
     }
 
@@ -88,6 +90,14 @@ final class ReportInteractiveLaunchRequest
 
         if (null !== $this->subjectType && WorkSubject::CARD !== $this->subjectType && null !== $this->cardNumber) {
             $context->buildViolation('A session about a subject that is no card has no card number.')->atPath('cardNumber')->addViolation();
+        }
+    }
+
+    #[Assert\Callback]
+    public function validateAwaitingInstall(ExecutionContextInterface $context): void
+    {
+        if (null !== $this->awaitingInstall && WorkSubject::PROJECT !== $this->subjectType) {
+            $context->buildViolation('Only a session about a project waits for an install.')->atPath('awaitingInstall')->addViolation();
         }
     }
 

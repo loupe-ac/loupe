@@ -31,16 +31,16 @@ final readonly class GitHubInstallSession
     }
 
     /** @return string the state to send to GitHub with the install link */
-    public function beginInstall(Project $project, ?string $repository = null, ?string $startedFrom = null): string
+    public function beginInstall(Project $project, ?string $repository = null, ?string $startedFrom = null, ?string $init = null): string
     {
-        $pending = new PendingGitHubInstall((string) $project->id, bin2hex(random_bytes(16)), repository: $repository, startedFrom: $startedFrom);
+        $pending = new PendingGitHubInstall((string) $project->id, bin2hex(random_bytes(16)), repository: $repository, startedFrom: $startedFrom, init: $init);
         $this->store($pending);
 
         return $pending->installState ?? throw new \LogicException('An install pending holds its state.');
     }
 
     /** Mints the state and the PKCE verifier of a sign-in. */
-    public function beginSignIn(Project $project, ?string $repository, ?string $startedFrom = null): PendingGitHubInstall
+    public function beginSignIn(Project $project, ?string $repository, ?string $startedFrom = null, ?string $init = null): PendingGitHubInstall
     {
         $pending = new PendingGitHubInstall(
             (string) $project->id,
@@ -48,6 +48,7 @@ final readonly class GitHubInstallSession
             codeVerifier: self::newVerifier(),
             repository: $repository,
             startedFrom: $startedFrom,
+            init: $init,
         );
         $this->store($pending);
 
@@ -71,6 +72,7 @@ final readonly class GitHubInstallSession
             \is_string($data['encryptedToken'] ?? null) ? $data['encryptedToken'] : null,
             \is_int($data['signedInAt'] ?? null) ? $data['signedInAt'] : null,
             \is_string($data['startedFrom'] ?? null) ? $data['startedFrom'] : null,
+            \is_string($data['init'] ?? null) ? $data['init'] : null,
         );
     }
 
@@ -85,6 +87,7 @@ final readonly class GitHubInstallSession
             self::newVerifier(),
             $pending->repository,
             startedFrom: $pending->startedFrom,
+            init: $pending->init,
         );
         $this->store($authorizing);
 
@@ -100,6 +103,7 @@ final readonly class GitHubInstallSession
             encryptedToken: $this->encryptor->encrypt($token),
             signedInAt: $this->clock->now()->getTimestamp(),
             startedFrom: $pending->startedFrom,
+            init: $pending->init,
         ));
     }
 
@@ -149,6 +153,7 @@ final readonly class GitHubInstallSession
             'encryptedToken' => $pending->encryptedToken,
             'signedInAt' => $pending->signedInAt,
             'startedFrom' => $pending->startedFrom,
+            'init' => $pending->init,
         ]);
     }
 

@@ -93,6 +93,7 @@ final class ReportInteractiveLaunchController extends AppController
             account: $payload->account,
             model: $payload->model,
             harnessSessionId: $payload->harnessSessionId,
+            awaitingInstall: $payload->awaitingInstall,
         ));
 
         if (null === $result->run) {

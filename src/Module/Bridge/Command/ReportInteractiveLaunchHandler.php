@@ -6,8 +6,10 @@ namespace App\Module\Bridge\Command;
 
 use App\Module\Bridge\Service\InteractiveRuns;
 use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Bridge\WorkSubject\WorkSubjectHandlers;
 use App\Module\Project\Repository\ProjectRepository;
+use App\Module\Project\Service\InitInstallWaits;
 
 final readonly class ReportInteractiveLaunchHandler
 {
@@ -15,6 +17,7 @@ final readonly class ReportInteractiveLaunchHandler
         private ProjectRepository $projects,
         private InteractiveRuns $interactiveRuns,
         private WorkSubjectHandlers $subjects,
+        private InitInstallWaits $installWaits,
     ) {
     }
 
@@ -64,6 +67,13 @@ final readonly class ReportInteractiveLaunchHandler
             ),
             default => throw new \LogicException(\sprintf('A launch is running or not-started, never %s.', $command->state->value)),
         };
+
+        // The mark follows the request also for a run that a stale close ended, because the wait goes on after it.
+        if (WorkerRunState::Running === $command->state && null !== $command->awaitingInstall && WorkSubject::PROJECT === $command->subject->type) {
+            $command->awaitingInstall
+                ? $this->installWaits->mark($command->sessionId->toRfc4122(), $project->id?->toRfc4122() ?? throw new \LogicException('A stored project has an id.'))
+                : $this->installWaits->clear($command->sessionId->toRfc4122());
+        }
 
         return new ReportInteractiveLaunchResult($run, $created);
     }

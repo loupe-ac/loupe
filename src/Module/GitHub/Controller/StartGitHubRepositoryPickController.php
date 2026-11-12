@@ -44,6 +44,7 @@ class StartGitHubRepositoryPickController extends AppController
                 $request->query->has('repository') ? $request->query->getString('repository') : null,
                 $this->generateUrl('app_github_app_callback', [], UrlGeneratorInterface::ABSOLUTE_URL),
                 $request->query->getString('from'),
+                $request->query->has('init') ? $request->query->getString('init') : null,
             )));
         } catch (DomainErrors $e) {
             foreach ($e->errors as $translationKey) {

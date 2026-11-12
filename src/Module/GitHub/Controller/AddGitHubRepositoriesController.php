@@ -11,7 +11,9 @@ use App\Module\GitHub\Command\AddGitHubRepositoriesHandler;
 use App\Module\GitHub\Form\PickRepositoriesFormType;
 use App\Module\GitHub\Form\PickRepositoriesRequest;
 use App\Module\GitHub\Security\GitHubConnectionVoter;
+use App\Module\GitHub\Service\GitHubInstallSession;
 use App\Module\Project\Entity\Project;
+use App\Module\Project\Service\InitInstallWaits;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -29,6 +31,8 @@ class AddGitHubRepositoriesController extends AppController
     public function __construct(
         private readonly AddGitHubRepositoriesHandler $addRepositories,
         private readonly TranslatorInterface $translator,
+        private readonly GitHubInstallSession $installSession,
+        private readonly InitInstallWaits $installWaits,
     ) {
     }
 
@@ -44,6 +48,10 @@ class AddGitHubRepositoriesController extends AppController
             return $tab;
         }
 
+        // The handler clears the picker session, so the init value is read first.
+        $pending = $this->installSession->pending();
+        $init = null !== $pending && $pending->projectId === (string) $project->id ? $pending->init : null;
+
         try {
             $added = ($this->addRepositories)(new AddGitHubRepositoriesCommand($project, $picks));
         } catch (DomainErrors $e) {
@@ -56,6 +64,10 @@ class AddGitHubRepositoriesController extends AppController
             }
 
             return $tab;
+        }
+
+        if ([] !== $added->added && $this->installWaits->isWaiting($init, (string) $project->id)) {
+            return $this->redirectToRoute('app_github_init_handoff', ['id' => (string) $project->id, 'repository' => implode(',', $added->added)]);
         }
 
         if ([] !== $added->added) {
