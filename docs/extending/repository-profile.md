@@ -125,9 +125,10 @@ reason and the link, and you merge on GitHub. A later run adds its commits to th
 open pull request. When the branch holds confirmed changes that no pull request
 carries, the next run keeps them. When that branch conflicts with the default
 branch, the agent stops and tells you to resolve the conflict. Without `gh`, the
-agent pushes the branch and prints the link that opens the pull request. A merge
-setting that you chose counts once the pull request merges. Until then, the
-inbox does not ask the merge question again. This needs CLI 2.7.0.
+agent pushes the branch and prints the link that opens the pull request. When
+the pull request holds a merge setting, that setting counts once it merges, and
+until then the inbox does not ask the merge question again. A pull request with
+no merge setting does not stop the question. This needs CLI 2.7.0.
 
 To write one by hand, create `.loupe/lifecycle.md`, and name the skills of
 your repository. The example is for a Node project on GitHub with the

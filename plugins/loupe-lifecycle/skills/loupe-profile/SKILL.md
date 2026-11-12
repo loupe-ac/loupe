@@ -117,7 +117,7 @@ The stop rule: print the message. Apply the confirmed edits on `loupe/init` as i
 3. On yes, run `gh pr merge` with the first method that the repository allows, in the order squash, merge, rebase. Read the allowed methods with `gh api repos/<owner>/<repo>`. When GitHub refuses, print `GitHub refused the merge: <reason>. Merge it on GitHub when the checks pass.` and the link. Do not retry and do not enable auto-merge.
 4. Without `gh`, never force-push `loupe/init`. Push the branch, print `https://github.com/<owner>/<repo>/pull/new/loupe/init`, and skip the merge question.
 
-The merge setting counts once the init pull request merges. Until then, Loupe does not ask the merge question again.
+When the pull request holds a valid merge setting, that setting counts once it merges, and until then Loupe does not ask the merge question again. A pull request with no merge setting suppresses nothing, and the inbox asks the merge question as usual.
 
 ## Report
 
