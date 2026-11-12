@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Module\Board\Mcp;
 
 use App\Exception\DomainErrors;
-use App\Module\Bridge\Mcp\BridgeCommandRefusals;
 use App\Module\Bridge\Mcp\BridgeSubjectResolver;
+use App\Module\Bridge\Service\BridgeCommandRefusals;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\PauseReleaseHandler;
 use App\Security\McpBoundProjectVoter;
