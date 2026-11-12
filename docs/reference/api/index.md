@@ -517,6 +517,49 @@ value. `null` clears `defaultModel` or `defaultEffort`, so the instance default
 applies. A list in `subcommandPrograms` replaces the stored list, and an empty
 list clears it. A value that the settings refuse answers `422`.
 
+## Workflow, automation and readiness
+
+These routes read the workflow of a project and change its two switches. A read
+needs a key that reaches the project, and a write needs a key of its owner.
+
+1. `GET /api/v1/projects/{project}/workflow` reads the workflow: the `template`
+   and its version, the `settings` that the template declares with their
+   resolved values, the board `columns` with the slot that links to each, and
+   the `kinds` of work the workflow asks a bridge for, with the `rules` and the
+   `checks` of each kind. A column `label` is in the language of the request. A
+   project with no workflow answers `409` with `no_workflow`.
+2. `GET /api/v1/projects/{project}/workflow/automation` reads the three
+   automation settings: `enabled`, `stuckDelayMinutes` and
+   `approvalCoversConflictResolution`. A project with no workflow reports
+   `approvalCoversConflictResolution` as `true`.
+3. `PATCH` on the same path changes any of the three. A setting you leave out
+   keeps its value. `stuckDelayMinutes` is from 1 to 1440, and any other value
+   answers `422`. The changes save together, so a refusal changes none of them.
+   Setting `approvalCoversConflictResolution` on a project with no workflow
+   answers `409` with `no_workflow`. The answer holds the three settings after
+   the change.
+4. `GET /api/v1/projects/{project}/readiness` reads the readiness checks. Each
+   row holds `key`, `done` and a `status` line. `discovery` is the latest
+   discovery run, or `null`. `guideShown` tells whether the Workshop shows the
+   readiness guide. The rows show while the guide is hidden too.
+5. `PATCH /api/v1/projects/{project}/readiness` takes `{"guideShown": true}` or
+   `{"guideShown": false}` and answers `{shown, hiddenAt}`. Hiding the guide
+   again keeps the time of the first hide.
+6. `PUT /api/v1/projects/{project}/documents/{document}/highlights` takes
+   `{"quotes": ["..."]}` and replaces the whole highlight set of the current
+   version. An empty list clears it. The answer lists the quotes that now carry
+   a highlight in `highlighted`, and the quotes it skipped in `skipped`, each
+   with a `reason` of `blank`, `duplicate` or `not_found`. A skipped quote is
+   not an error. The route works only while the `review.highlights.enabled`
+   flag is on. With the flag off it answers `404` with `route_not_found`, before
+   the request budget is spent. A document of another project answers `404` with
+   `document_not_found`.
+
+A write on these routes carries the API key, as [Who made a change](#who-made-a-change)
+says. The CLI has `loupe workflow show`, `loupe workflow automation show`,
+`loupe workflow automation set`, `loupe readiness show`, `loupe readiness set`
+and `loupe document highlight`.
+
 ## Experiments, tags and series
 
 These routes read and curate what a project holds apart from its cards and

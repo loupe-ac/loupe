@@ -644,6 +644,8 @@ Highlights tint the passages a reviewer should read first. They carry no body
 and cannot be replied to — they steer attention, nothing more. They belong to
 the version current when they are set, and a new version drops them.
 
+A script sets them with `PUT /api/v1/projects/{project}/documents/{document}/highlights` or `loupe document highlight`. See the [API reference](../reference/api/index.md#workflow-automation-and-readiness).
+
 ## Agent review summary
 
 A design that went through the agent review shows a summary below its last section.

@@ -80,6 +80,12 @@ var Commands = []Command{
 	{Path: []string{"bucket-rule", "delete"}, Op: "deleteBucketRule", Confirm: true},
 	{Path: []string{"analytics-settings", "get"}, Op: "getAnalyticsSettings"},
 	{Path: []string{"analytics-settings", "update"}, Op: "updateAnalyticsSettings"},
+	{Path: []string{"workflow", "show"}, Op: "getWorkflow"},
+	{Path: []string{"workflow", "automation", "show"}, Op: "getBoardAutomation"},
+	{Path: []string{"workflow", "automation", "set"}, Op: "updateBoardAutomation"},
+	{Path: []string{"readiness", "show"}, Op: "getReadiness"},
+	{Path: []string{"readiness", "set"}, Op: "updateReadiness"},
+	{Path: []string{"document", "highlight"}, Op: "setDocumentHighlights"},
 }
 
 // Exceptions names each operation that has no command, with the reason.
