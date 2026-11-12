@@ -342,3 +342,19 @@ func TestInitGoesOnWhenTheServerRefusesTheLaunch(t *testing.T) {
 		t.Errorf("closes = %d, want 0 with no hold", w.closes)
 	}
 }
+
+func TestInitRunHandsCtrlCToARunningWait(t *testing.T) {
+	r := &initRun{stop: make(chan struct{}), done: make(chan struct{}), notify: make(chan os.Signal, 1), waitSigs: make(chan os.Signal, 1)}
+	r.inWait.Store(true)
+	go r.loop(time.Hour)
+
+	r.notify <- os.Interrupt
+
+	select {
+	case <-r.waitSigs:
+	case <-time.After(2 * time.Second):
+		t.Fatal("the wait did not get the interrupt")
+	}
+	close(r.stop)
+	<-r.done
+}

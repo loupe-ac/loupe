@@ -118,7 +118,7 @@ agree with it, or keep them as they are. A kept requirement stays a problem in
 the summary.
 
 The agent puts every change that you confirm in one pull request from the branch
-`loupe/init`, titled `Set up Loupe`. Its body lists each change. The agent asks
+`loupe/init`, titled `Set up Loupe`. Its body opens with `loupe init made these changes, as you confirmed in the terminal:` and lists each change with its file and reason. It ends with one of two fixed lines. When the pull request holds the merge setting, the line says the setting counts once the pull request merges. Otherwise it says `Merge this pull request to apply these changes.` The agent asks
 whether to merge the pull request, and merges it with the first method that the
 repository allows: squash, merge or rebase. When GitHub refuses, it prints the
 reason and the link, and you merge on GitHub. A later run adds its commits to the

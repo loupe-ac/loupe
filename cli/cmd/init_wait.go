@@ -63,11 +63,19 @@ func initWaitForApp(cmd *cobra.Command, list siteLister, run *initRun, site api.
 	fmt.Fprintln(out, "Open this link to install the App: "+link)
 	fmt.Fprintln(out, "Waiting for the install… Press Enter to stop waiting.")
 
+	var sigs chan os.Signal
+	if run.waitSigs != nil {
+		sigs = run.waitSigs
+		for len(sigs) > 0 {
+			<-sigs
+		}
+	} else {
+		sigs = make(chan os.Signal, 1)
+		signal.Notify(sigs, os.Interrupt)
+		defer signal.Stop(sigs)
+	}
 	run.inWait.Store(true)
 	defer run.inWait.Store(false)
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, os.Interrupt)
-	defer signal.Stop(sigs)
 	enter := watchEnter(in)
 	defer enter.Stop()
 

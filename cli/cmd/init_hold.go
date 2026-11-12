@@ -48,6 +48,8 @@ type initRun struct {
 	stopOnce sync.Once
 	done     chan struct{}
 	notify   chan os.Signal
+	// waitSigs carries the Ctrl-C that the loop hands to a running wait.
+	waitSigs chan os.Signal
 }
 
 // startInitRun opens the init run of a project and starts its renewal and its
@@ -69,6 +71,7 @@ func startInitRun(ctx context.Context, out io.Writer, client initRunClient, proj
 	}
 
 	r.notify = make(chan os.Signal, 1)
+	r.waitSigs = make(chan os.Signal, 1)
 	signal.Notify(r.notify, os.Interrupt, syscall.SIGTERM)
 	go r.loop(initRenewEvery)
 
@@ -113,6 +116,11 @@ func (r *initRun) loop(every time.Duration) {
 			r.renew()
 		case sig := <-r.notify:
 			if sig == os.Interrupt && r.inWait.Load() {
+				select {
+				case r.waitSigs <- sig:
+				default:
+				}
+
 				continue
 			}
 			r.exitOn(sig)
