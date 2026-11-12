@@ -2984,6 +2984,218 @@ paths:
           $ref: '#/components/responses/E409NoBridgeNoCapableBridgeBridgePausedAnd5More'
         '429':
           $ref: '#/components/responses/E429RateLimited'
+  /api/v1/projects/{project}/metrics:
+    get:
+      operationId: listMetrics
+      summary: List the metrics
+      tags:
+      - Analytics
+      description: The metrics that the metric query reads, by key, with the units, statistics and groups each one takes.
+      parameters:
+      - $ref: '#/components/parameters/Project'
+      - $ref: '#/components/parameters/Limit'
+      - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: One page of metrics.
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Link:
+              $ref: '#/components/headers/Link'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetricList'
+        '400':
+          $ref: '#/components/responses/E400InvalidCursor'
+        '401':
+          $ref: '#/components/responses/E401InvalidCredentialsApiKeyExpired'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403CredentialNotAllowed'
+        '404':
+          $ref: '#/components/responses/E404ProjectNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '422':
+          $ref: '#/components/responses/E422ValidationFailed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/projects/{project}/metrics/query:
+    get:
+      operationId: queryMetric
+      summary: Read a metric over time
+      tags:
+      - Analytics
+      description: Reads one metric of the worker runs or the finished cards of the project, or a formula over up to six metrics.
+        A query spends from its own limit of 30 a minute.
+      parameters:
+      - $ref: '#/components/parameters/Project'
+      - name: unit
+        in: query
+        required: true
+        schema:
+          type: string
+          enum: [run, card, reading]
+      - name: metric
+        in: query
+        schema:
+          type: string
+      - name: statistic
+        in: query
+        schema:
+          type: string
+          enum: [median, mean, sum, p90, count, max]
+      - name: group
+        in: query
+        schema:
+          type: string
+          default: none
+      - name: range
+        in: query
+        schema:
+          type: string
+          default: thirty-days
+          enum: [seven-days, thirty-days, ninety-days, all]
+      - name: bucket
+        in: query
+        schema:
+          type: string
+          default: week
+          enum: [day, week, month]
+      - name: compare
+        in: query
+        schema:
+          type: string
+          default: 'off'
+          enum: ['off', previous]
+      - name: rows
+        in: query
+        schema:
+          type: string
+      - name: formula
+        in: query
+        schema:
+          type: string
+      - name: format
+        in: query
+        schema:
+          type: string
+          default: auto
+          enum: [auto, number, percent, money, duration]
+      responses:
+        '200':
+          description: The series of the metric.
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetricQueryResult'
+        '401':
+          $ref: '#/components/responses/E401InvalidCredentialsApiKeyExpired'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403CredentialNotAllowed'
+        '404':
+          $ref: '#/components/responses/E404ProjectNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '422':
+          $ref: '#/components/responses/E422ValidationFailed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/projects/{project}/analyses:
+    get:
+      operationId: listAnalyses
+      summary: List the analyses of a project
+      tags:
+      - Analytics
+      description: The analyses of the project, newest first, each with its cost and its proposals.
+      parameters:
+      - $ref: '#/components/parameters/Project'
+      - $ref: '#/components/parameters/Limit'
+      - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: One page of analyses.
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Link:
+              $ref: '#/components/headers/Link'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisList'
+        '400':
+          $ref: '#/components/responses/E400InvalidCursor'
+        '401':
+          $ref: '#/components/responses/E401InvalidCredentialsApiKeyExpired'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403CredentialNotAllowed'
+        '404':
+          $ref: '#/components/responses/E404ProjectNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '422':
+          $ref: '#/components/responses/E422ValidationFailed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/projects/{project}/analyses/{analysis}:
+    get:
+      operationId: getAnalysis
+      summary: Read one analysis
+      tags:
+      - Analytics
+      description: The analysis with its cost and its proposals.
+      parameters:
+      - $ref: '#/components/parameters/Project'
+      - $ref: '#/components/parameters/AnalysisId'
+      responses:
+        '200':
+          description: The analysis.
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Analysis'
+        '401':
+          $ref: '#/components/responses/E401InvalidCredentialsApiKeyExpired'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403CredentialNotAllowed'
+        '404':
+          $ref: '#/components/responses/E404ProjectNotFoundAnalysisNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
   /api/v1/projects/{project}/bucket-rules:
     get:
       tags:
@@ -4129,6 +4341,14 @@ components:
       name: cardId
       in: query
       description: Only the feedback of this card.
+      schema:
+        type: string
+        format: uuid
+    AnalysisId:
+      name: analysis
+      in: path
+      required: true
+      description: The id of the analysis.
       schema:
         type: string
         format: uuid
@@ -9356,6 +9576,162 @@ components:
             type: string
           maxItems: 50
       type: object
+    MetricListEntry:
+      type: object
+      required: [key, units, valueType, statistics, groups, description]
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+          nullable: true
+        units:
+          type: array
+          items:
+            type: string
+        valueType:
+          type: string
+        statistics:
+          type: array
+          items:
+            type: string
+        groups:
+          type: array
+          items:
+            type: string
+        description:
+          type: string
+    MetricList:
+      type: object
+      required: [items, next]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MetricListEntry'
+        next:
+          type: string
+          nullable: true
+          format: uri
+    MetricQueryResult:
+      type: object
+      required: [unit, metric, statistic, group, range, bucket, compare, window, series]
+      properties:
+        unit:
+          type: string
+        metric:
+          type: string
+          nullable: true
+        statistic:
+          type: string
+          nullable: true
+        group:
+          type: string
+        range:
+          type: string
+        bucket:
+          type: string
+        compare:
+          type: string
+        window:
+          type: object
+        series:
+          type: array
+          items:
+            type: object
+        formula:
+          type: object
+          nullable: true
+    AnalysisScope:
+      type: object
+      required: [range]
+      properties:
+        range:
+          type: string
+        experiment:
+          type: string
+          nullable: true
+    AnalysisProposal:
+      type: object
+      required: [id, kind, title, body, payload, estimatedSaving, state, dismissReason, cardId]
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+        payload:
+          type: object
+          nullable: true
+        estimatedSaving:
+          type: string
+          nullable: true
+        state:
+          type: string
+        dismissReason:
+          type: string
+          nullable: true
+        cardId:
+          type: string
+          format: uuid
+          nullable: true
+    Analysis:
+      type: object
+      required: [id, topic, scope, question, model, effort, state, reason, createdAt, finishedAt, documentId, costUsd, proposals]
+      properties:
+        id:
+          type: string
+          format: uuid
+        topic:
+          type: string
+        scope:
+          $ref: '#/components/schemas/AnalysisScope'
+        question:
+          type: string
+          nullable: true
+        model:
+          type: string
+        effort:
+          type: string
+        state:
+          type: string
+        reason:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+          nullable: true
+        documentId:
+          type: string
+          format: uuid
+          nullable: true
+        costUsd:
+          type: number
+          nullable: true
+        proposals:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnalysisProposal'
+    AnalysisList:
+      type: object
+      required: [items, next]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Analysis'
+        next:
+          type: string
+          nullable: true
+          format: uri
   examples:
     MethodNotAllowed:
       summary: method_not_allowed
@@ -9929,6 +10305,14 @@ components:
         - field: fields
           code: fields_refused
           message: The field "markdown" is not returned in a list. Read one resource to get it.
+    AnalysisNotFound:
+      summary: analysis_not_found
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#analysis_not_found
+        title: Analysis not found
+        status: 404
+        code: analysis_not_found
+        detail: This project has no analysis with this id.
   responses:
     E405MethodNotAllowedAnon:
       description: 'Refused: `method_not_allowed`.'
@@ -11132,3 +11516,37 @@ components:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/Problem'
+    E404ProjectNotFound:
+      description: 'Refused: `project_not_found`.'
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            project_not_found:
+              $ref: '#/components/examples/ProjectNotFound'
+    E404ProjectNotFoundAnalysisNotFound:
+      description: 'Refused: `project_not_found`, `analysis_not_found`.'
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            project_not_found:
+              $ref: '#/components/examples/ProjectNotFound'
+            analysis_not_found:
+              $ref: '#/components/examples/AnalysisNotFound'

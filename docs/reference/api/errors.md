@@ -52,6 +52,10 @@ Only a credential that covers every project of the owner can create a project.
 
 The server does not serve this API version. The answer adds a `versions` list.
 
+### analysis_not_found
+
+This project has no analysis with this id. An analysis of another project answers the same.
+
 ### artifact_file_not_found
 
 This version of the artifact has no file at this path.

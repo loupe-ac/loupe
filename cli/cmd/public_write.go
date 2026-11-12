@@ -270,7 +270,7 @@ func retryKey(flag, seed, method, path string, body []byte) string {
 func checkRequiredQuery(op publicapi.Operation, f *publicFlags) error {
 	for _, p := range op.Query {
 		if _, set := f.query[p.Name](); p.Required && !set {
-			return &exitError{exitUsage, fmt.Errorf("missing --%s", flagName(p.Name))}
+			return &exitError{exitUsage, fmt.Errorf("missing --%s", queryFlagName(p))}
 		}
 	}
 

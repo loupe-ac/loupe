@@ -260,6 +260,13 @@ when@dev: &generator
                 - { alias: SeriesRow, type: App\Module\Review\Controller\Api\SeriesRowResponse }
                 - { alias: SeriesList, type: App\Module\Review\Controller\Api\SeriesListResponse }
                 - { alias: SeriesRename, type: App\Module\Review\Controller\Api\RenameSeriesRequest }
+                - { alias: MetricListEntry, type: App\Module\Bridge\Controller\Api\MetricListEntryResponse }
+                - { alias: MetricList, type: App\Module\Bridge\Controller\Api\MetricListResponse }
+                - { alias: MetricQueryResult, type: App\Module\Bridge\Controller\Api\MetricQueryResponse }
+                - { alias: AnalysisScope, type: App\Module\Insights\Controller\Api\AnalysisScopeResponse }
+                - { alias: AnalysisProposal, type: App\Module\Insights\Controller\Api\AnalysisProposalResponse }
+                - { alias: Analysis, type: App\Module\Insights\Controller\Api\AnalysisResponse }
+                - { alias: AnalysisList, type: App\Module\Insights\Controller\Api\AnalysisListResponse }
                 - { alias: InboxItem, type: App\Module\Inbox\Controller\Api\InboxItemResponse }
                 - { alias: InboxItemCreate, type: App\Module\Inbox\Controller\Api\CreateInboxItemRequest }
                 - { alias: InboxItemRow, type: App\Module\Inbox\Controller\Api\InboxItemRowResponse }

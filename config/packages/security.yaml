@@ -145,6 +145,7 @@ security:
         - { path: '^/api/v1/projects/[^/]+/experiments(/[^/]+)?$', roles: ROLE_API_PUBLIC }
         - { path: '^/api/v1/projects/[^/]+/tags$', roles: ROLE_API_PUBLIC }
         - { path: '^/api/v1/projects/[^/]+/series(/.+)?$', roles: ROLE_API_PUBLIC }
+        - { path: '^/api/v1/projects/[^/]+/(metrics(/query)?|analyses(/[^/]+)?)$', roles: ROLE_API_PUBLIC }
         - { path: '^/api/v1/projects/[^/]+/graphs(/[^/]+(/restore)?)?$', roles: ROLE_API_PUBLIC }
         - { path: '^/api/v1/projects/[^/]+/bucket-rules(/[^/]+)?$', roles: ROLE_API_PUBLIC }
         - { path: '^/api/v1/projects/[^/]+/analytics/settings$', roles: ROLE_API_PUBLIC }
