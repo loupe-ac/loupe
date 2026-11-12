@@ -80,8 +80,15 @@ func initWaitForApp(cmd *cobra.Command, list siteLister, run *initRun, site api.
 	defer enter.Stop()
 
 	fresh, installed, interrupted := waitForInstall(cmd.Context(), list, site, app.repository, enter.Pressed(), sigs)
+	run.endWait()
+	if !interrupted {
+		select {
+		case <-sigs:
+			interrupted = true
+		default:
+		}
+	}
 	if interrupted {
-		run.endWait()
 		if run.held() {
 			run.exitOn(os.Interrupt)
 		} else {

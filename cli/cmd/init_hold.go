@@ -143,12 +143,7 @@ func (r *initRun) loop(every time.Duration) {
 				}()
 			}
 		case sig := <-r.notify:
-			if sig == os.Interrupt && r.keepsInWait() {
-				select {
-				case r.waitSigs <- sig:
-				default:
-				}
-
+			if sig == os.Interrupt && r.forwardToWait(sig) {
 				continue
 			}
 			r.exitOn(sig)
@@ -180,6 +175,23 @@ func (r *initRun) keepsInWait() bool {
 	defer r.mu.Unlock()
 
 	return r.inWait.Load()
+}
+
+// forwardToWait hands an interrupt to the running wait. The check and the send
+// share the lock that endWait takes, so an interrupt either sits in waitSigs
+// when endWait returns or finds the wait over.
+func (r *initRun) forwardToWait(sig os.Signal) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if !r.inWait.Load() {
+		return false
+	}
+	select {
+	case r.waitSigs <- sig:
+	default:
+	}
+
+	return true
 }
 
 func (r *initRun) renew() {

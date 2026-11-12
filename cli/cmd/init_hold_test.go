@@ -408,6 +408,39 @@ func TestInitRunKeepsCtrlCQueuedAtTheEndOfTheWaitForTheLoop(t *testing.T) {
 	}
 }
 
+func TestInitWaitForAppEndsInitOnCtrlCThatArrivesAfterPollingReturns(t *testing.T) {
+	fastWait(t)
+	useBridgeID(t, holdBridgeID, nil)
+	f := &fakeHoldClient{}
+	var out bytes.Buffer
+	run := startInitRun(context.Background(), &out, f, "p")
+	defer run.Close()
+	var terminated os.Signal
+	oldTerm := initTerminate
+	initTerminate = func(sig os.Signal) { terminated = sig }
+	t.Cleanup(func() { initTerminate = oldTerm })
+	oldOpen := initOpenBrowser
+	initOpenBrowser = func(string) error { return nil }
+	t.Cleanup(func() { initOpenBrowser = oldOpen })
+	list := func(context.Context) ([]api.Site, error) {
+		run.notify <- os.Interrupt
+		waitFor(t, func() bool { return len(run.waitSigs) == 1 })
+
+		return []api.Site{installedSite("p", true, true)}, nil
+	}
+	cmd := &cobra.Command{}
+	cmd.SetContext(context.Background())
+	cmd.SetOut(&out)
+	cmd.SetIn(bufio.NewReader(strings.NewReader("\n")))
+	app := appCheck{need: appInstall, repository: "acme/app", link: "https://l.test/install"}
+
+	_, ok := initWaitForApp(cmd, list, run, api.Site{ID: "p"}, app)
+
+	if ok || terminated != os.Interrupt || !run.isFinished() {
+		t.Errorf("ok = %v, terminated = %v, finished = %v; want Ctrl-C after the install to end init", ok, terminated, run.isFinished())
+	}
+}
+
 func TestInitRunHandsCtrlCToTheWaitWhileARenewalBlocks(t *testing.T) {
 	useBridgeID(t, holdBridgeID, nil)
 	f := &blockingHoldClient{release: make(chan struct{})}
