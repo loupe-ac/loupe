@@ -37,6 +37,11 @@ final class InboxOutcomeTest extends TestCase
         yield 'agent finished a to-do for the owner' => ['inbox.outcome.agent_for_owner.done', InboxItemKind::Todo, $resolved, InboxCloser::OwnerThroughAgent, null, null];
         yield 'agent approved for the owner' => ['inbox.outcome.agent_for_owner.approved', InboxItemKind::Review, $resolved, InboxCloser::OwnerThroughAgent, null, InboxReviewVerdict::Approved];
         yield 'agent requested changes for the owner' => ['inbox.outcome.agent_for_owner.changes_requested', InboxItemKind::Review, $resolved, InboxCloser::OwnerThroughAgent, null, InboxReviewVerdict::ChangesRequested];
+        yield 'key answered for the owner' => ['inbox.outcome.api_key_for_owner.answered', InboxItemKind::Question, $resolved, InboxCloser::OwnerThroughApiKey, null, null];
+        yield 'key finished a to-do for the owner' => ['inbox.outcome.api_key_for_owner.done', InboxItemKind::Todo, $resolved, InboxCloser::OwnerThroughApiKey, null, null];
+        yield 'key approved for the owner' => ['inbox.outcome.api_key_for_owner.approved', InboxItemKind::Review, $resolved, InboxCloser::OwnerThroughApiKey, null, InboxReviewVerdict::Approved];
+        yield 'key requested changes for the owner' => ['inbox.outcome.api_key_for_owner.changes_requested', InboxItemKind::Review, $resolved, InboxCloser::OwnerThroughApiKey, null, InboxReviewVerdict::ChangesRequested];
+        yield 'key dismissed for the owner' => ['inbox.outcome.api_key_for_owner.dismissed', InboxItemKind::Todo, InboxItemState::Declined, InboxCloser::OwnerThroughApiKey, null, null];
         yield 'rule approved' => ['inbox.outcome.rule.approved', InboxItemKind::Review, $resolved, InboxCloser::Rule, null, InboxReviewVerdict::Approved];
         yield 'rule requested changes' => ['inbox.outcome.rule.changes_requested', InboxItemKind::Review, $resolved, InboxCloser::Rule, null, InboxReviewVerdict::ChangesRequested];
         yield 'rule resolved with no verdict' => ['inbox.outcome.rule.resolved', InboxItemKind::Review, $resolved, InboxCloser::Rule, null, null];

@@ -61,6 +61,7 @@ final readonly class InboxItemExporter implements UserDataExporterInterface
                 'dismissible' => $item->dismissible,
                 'origin' => $item->origin->value,
                 'apiKey' => null === $item->apiKeyId ? null : ['id' => (string) $item->apiKeyId, 'name' => $item->apiKeyName],
+                'closedByApiKey' => null === $item->closedApiKeyId ? null : ['id' => (string) $item->closedApiKeyId, 'name' => $item->closedApiKeyName],
                 'dedupeKey' => $item->dedupeKey,
                 'createdAt' => $item->createdAt->format(\DateTimeInterface::ATOM),
                 'updatedAt' => $item->updatedAt->format(\DateTimeInterface::ATOM),

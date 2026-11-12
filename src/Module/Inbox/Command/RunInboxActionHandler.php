@@ -35,6 +35,7 @@ use App\Module\Workflow\Command\ReleaseWorkflowPauseHandler;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\CardDirectory;
 use App\Module\Workflow\Contract\PersonWork;
+use App\Security\CurrentApiKeyActor;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
 use Ubermuda\AuditBundle\Auditor;
@@ -80,6 +81,7 @@ final readonly class RunInboxActionHandler
         private SubmitInboxDocumentReviewHandler $submitDocumentReview,
         private SubmitInboxPullRequestReviewHandler $submitPullRequestReview,
         private InboxReviewLookup $inboxReviews,
+        private CurrentApiKeyActor $currentKey,
     ) {
     }
 
@@ -161,14 +163,14 @@ final readonly class RunInboxActionHandler
 
     private function answer(RunInboxActionCommand $command): null
     {
-        ($this->answerItem)(new AnswerInboxItemCommand($command->item, $command->selectedOptions, $command->note, $command->throughAgent));
+        ($this->answerItem)(new AnswerInboxItemCommand($command->item, $command->selectedOptions, $command->note, $command->closedBy, $command->apiKey));
 
         return null;
     }
 
     private function complete(RunInboxActionCommand $command): null
     {
-        ($this->markDone)(new MarkInboxItemDoneCommand($command->item, $command->throughAgent, note: $command->note));
+        ($this->markDone)(new MarkInboxItemDoneCommand($command->item, $command->closedBy, note: $command->note, apiKey: $command->apiKey));
 
         return null;
     }
@@ -180,7 +182,7 @@ final readonly class RunInboxActionHandler
         $verdict = $command->verdict ?? '';
         $reviewNote = '' === $note ? null : $note;
         if (InboxReviewTargetKind::PullRequest === $review?->targetKind) {
-            ($this->submitPullRequestReview)(new SubmitInboxPullRequestReviewCommand($command->item, $command->user, $verdict, $command->expectedUrl ?? '', $reviewNote));
+            ($this->submitPullRequestReview)(new SubmitInboxPullRequestReviewCommand($command->item, $command->user, $verdict, $command->expectedUrl ?? '', $reviewNote, $command->closedBy, $command->apiKey));
         } else {
             ($this->submitDocumentReview)(new SubmitInboxDocumentReviewCommand(
                 $command->item,
@@ -189,6 +191,7 @@ final readonly class RunInboxActionHandler
                 $command->versionNumber ?? throw new DomainErrors(['versionNumber' => 'inbox.review.error.target_changed']),
                 $command->expectedReviewId,
                 $reviewNote,
+                $command->apiKey,
             ));
         }
 
@@ -202,13 +205,13 @@ final readonly class RunInboxActionHandler
             ?? throw new DomainErrors(['action' => self::NOT_AVAILABLE]);
 
         // The row commits first, so no queued command lacks a row. A refused request removes it again.
-        $action = new InboxAction($command->item, InboxActionKind::ResumeRun, $command->user, $note);
+        $action = $this->newAction($command, $command->item, InboxActionKind::ResumeRun, $note);
         $action->waitId = $wait->id;
         $this->em->persist($action);
         $this->em->flush();
 
         try {
-            $bridgeCommand = ($this->requestBridgeCommand)(new RequestBridgeCommandCommand($run, BridgeCommandKind::ResumeRun, $command->user, null, BridgeCommandCause::InboxAction, $action->id, $command->item->number, $command->item->id));
+            $bridgeCommand = ($this->requestBridgeCommand)(new RequestBridgeCommandCommand($run, BridgeCommandKind::ResumeRun, $command->user, null, BridgeCommandCause::InboxAction, $action->id, $command->item->number, $command->item->id, $command->apiKey));
         } catch (DomainErrors $e) {
             // The bridge closes the entity manager when a race trips its unique index, so delete through the connection.
             $this->em->getConnection()->delete('inbox_actions', ['id' => $action->id?->toRfc4122()]);
@@ -228,14 +231,14 @@ final readonly class RunInboxActionHandler
             ?? throw new DomainErrors(['action' => self::NOT_AVAILABLE]);
 
         // The row commits before the release, so the rule's next request finds it. A refused release removes it again.
-        $action = new InboxAction($command->item, InboxActionKind::RetryCard, $command->user, $note);
+        $action = $this->newAction($command, $command->item, InboxActionKind::RetryCard, $note);
         $action->pauseId = $wait->pauseId;
         $action->waitId = $wait->id;
         $this->em->persist($action);
         $this->em->flush();
 
         try {
-            ($this->releasePause)(new ReleaseWorkflowPauseCommand($card, $command->user->id ?? throw new \LogicException('A stored user has an id.'), Actor::Human, $wait->pauseId));
+            ($this->releasePause)(new ReleaseWorkflowPauseCommand($card, $command->user->id ?? throw new \LogicException('A stored user has an id.'), $this->currentKey->actorKind(Actor::Human), $wait->pauseId));
         } catch (DomainErrors $e) {
             $this->em->getConnection()->delete('inbox_actions', ['id' => $action->id?->toRfc4122()]);
             throw $e;
@@ -250,7 +253,7 @@ final readonly class RunInboxActionHandler
         $cardId = $this->itemActions->cardIdOf($item, InboxActionKind::HoldCard) ?? throw new DomainErrors(['action' => self::NOT_AVAILABLE]);
 
         // The row commits first, like a retry. A refused hold removes it again.
-        $action = new InboxAction($item, InboxActionKind::HoldCard, $command->user, $note);
+        $action = $this->newAction($command, $item, InboxActionKind::HoldCard, $note);
         $action->waitId = $this->itemActions->newestOpenWait($item)?->id;
         $this->em->persist($action);
         $this->em->flush();
@@ -272,7 +275,7 @@ final readonly class RunInboxActionHandler
         $card = $this->cards->find($target->cardId) ?? throw new DomainErrors(['action' => self::NOT_AVAILABLE]);
 
         // The row commits first, so the request names an action that exists. A refused request removes it again.
-        $action = new InboxAction($item, InboxActionKind::SendAgent, $command->user, $note);
+        $action = $this->newAction($command, $item, InboxActionKind::SendAgent, $note);
         $action->waitId = $this->itemActions->newestOpenWait($item)?->id;
         $this->em->persist($action);
         $this->em->flush();
@@ -321,7 +324,7 @@ final readonly class RunInboxActionHandler
         }
 
         // The row commits first, because the request names it. A refused request removes it again.
-        $action = new InboxAction($item, InboxActionKind::StartSession, $command->user, $note);
+        $action = $this->newAction($command, $item, InboxActionKind::StartSession, $note);
         $action->sessionPrompt = $prompt;
         $action->waitId = $this->itemActions->newestOpenWait($item)?->id;
         $this->em->persist($action);
@@ -375,7 +378,7 @@ final readonly class RunInboxActionHandler
         $card = null === $cardId ? null : ($this->cards->find($cardId) ?? throw new DomainErrors(['action' => self::NOT_AVAILABLE]));
 
         // The row commits first, because the request names it. A refused request removes it again.
-        $action = new InboxAction($item, InboxActionKind::RunCommand, $command->user, $note);
+        $action = $this->newAction($command, $item, InboxActionKind::RunCommand, $note);
         $action->waitId = $this->itemActions->newestOpenWait($item)?->id;
         $this->em->persist($action);
         $this->em->flush();
@@ -423,7 +426,7 @@ final readonly class RunInboxActionHandler
         }
 
         // The row commits first, because the request names it. A refused request removes it again.
-        $action = new InboxAction($item, InboxActionKind::AddEntry, $command->user, $note);
+        $action = $this->newAction($command, $item, InboxActionKind::AddEntry, $note);
         $this->em->persist($action);
         $this->em->flush();
 
@@ -457,9 +460,18 @@ final readonly class RunInboxActionHandler
 
     private function dismiss(RunInboxActionCommand $command, string $note): null
     {
-        ($this->declineItem)(new DeclineInboxItemCommand($command->item, $note, $command->throughAgent));
+        ($this->declineItem)(new DeclineInboxItemCommand($command->item, $note, $command->closedBy, $command->apiKey));
 
         return null;
+    }
+
+    private function newAction(RunInboxActionCommand $command, InboxItem $item, InboxActionKind $kind, string $note): InboxAction
+    {
+        $action = new InboxAction($item, $kind, $command->user, $note);
+        $action->apiKeyId = $command->apiKey?->keyId;
+        $action->apiKeyName = $command->apiKey?->keyName;
+
+        return $action;
     }
 
     private function waitOf(RunInboxActionCommand $command, InboxActionKind $kind): InboxCardWait

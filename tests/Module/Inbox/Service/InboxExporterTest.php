@@ -62,7 +62,10 @@ final class InboxExporterTest extends KernelTestCase
         );
         $item->state = InboxItemState::Resolved;
         $item->selectedOptions = [1];
-        $item->closedBy = InboxCloser::OwnerThroughAgent;
+        $item->closedBy = InboxCloser::OwnerThroughApiKey;
+        $closerKeyId = Uuid::v7();
+        $item->closedApiKeyId = $closerKeyId;
+        $item->closedApiKeyName = 'Nightly CI';
         $item->closeCause = InboxCloseCause::Withdrawn;
         $item->note = 'Done, it shipped.';
         $keyId = Uuid::v7();
@@ -92,12 +95,13 @@ final class InboxExporterTest extends KernelTestCase
             'blocking' => true,
             'state' => 'resolved',
             'selectedOptions' => [1],
-            'closedBy' => 'owner-through-agent',
+            'closedBy' => 'owner-through-api-key',
             'closeCause' => 'withdrawn',
             'note' => 'Done, it shipped.',
             'dismissible' => true,
             'origin' => 'api-key',
             'apiKey' => ['id' => (string) $keyId, 'name' => 'CI'],
+            'closedByApiKey' => ['id' => (string) $closerKeyId, 'name' => 'Nightly CI'],
             'dedupeKey' => 'weekly-ci',
             'createdAt' => new \DateTimeImmutable('2026-09-01 09:00:00')->format(\DateTimeInterface::ATOM),
             'updatedAt' => new \DateTimeImmutable('2026-09-02 10:00:00')->format(\DateTimeInterface::ATOM),

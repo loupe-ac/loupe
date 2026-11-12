@@ -13,6 +13,9 @@ enum WorkerRunCloseReason: string
     /** A person closed the run from the card or the Runs page. */
     case Person = 'person';
 
+    /** An API key closed the run. The run names the key. */
+    case ApiKey = 'api-key';
+
     /** The card moved to another column. */
     case CardMoved = 'card-moved';
 

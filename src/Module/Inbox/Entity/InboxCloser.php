@@ -11,6 +11,7 @@ enum InboxCloser: string
 {
     case Owner = 'owner';
     case OwnerThroughAgent = 'owner-through-agent';
+    case OwnerThroughApiKey = 'owner-through-api-key';
     case Agent = 'agent';
     case Loupe = 'loupe';
     case Rule = 'rule';
@@ -24,7 +25,7 @@ enum InboxCloser: string
     public function outboxActor(): string
     {
         return match ($this) {
-            self::Owner, self::OwnerThroughAgent => InboxEventType::ACTOR_HUMAN,
+            self::Owner, self::OwnerThroughAgent, self::OwnerThroughApiKey => InboxEventType::ACTOR_HUMAN,
             self::Agent => InboxEventType::ACTOR_AGENT,
             self::Loupe, self::Rule => InboxEventType::ACTOR_SYSTEM,
         };
