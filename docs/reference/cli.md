@@ -304,7 +304,7 @@ names the ways to choose. It never guesses.
 | `loupe feedback` | `list`, `get`, `address` |
 | `loupe document` | `list`, `get`, `review`, `create`, `update`, `publish`, `revise`, `verdict`, `verdict-withdraw`, `decision-answer`, `decision-clear`, `reply`, `address`, and `version list` and `version get` |
 | `loupe artifact` | `list`, `get`, `update`, `create`, `version create`, `read` |
-| `loupe inbox` | `create`, `get` |
+| `loupe inbox` | `create`, `get`, `list`, `withdraw`, `action`, `command`, `actions` |
 | `loupe graph` | `list`, `get`, `create`, `update`, `delete`, `restore` |
 | `loupe bucket-rule` | `list`, `create`, `update`, `delete` |
 | `loupe analytics-settings` | `get`, `update` |
@@ -353,6 +353,17 @@ with an API key, and the owner sees one open item for repeated failures.
 The [API reference](api/index.md#inbox-items) gives the rules. The commands
 need a CLI release after `cli/v2.0.2`, and a server with the inbox routes and
 the inbox flag on.
+
+`loupe inbox list` lists the items of a project, newest first, with the filters
+`--state`, `--card`, `--document`, `--ask`, `--session` and `--q`.
+`loupe inbox withdraw <itemId> --reason "..."` withdraws an open item.
+`loupe inbox action <itemId> --action dismiss` runs an action, and `--note`,
+`--selected-options`, `--branch`, `--params`, `--run-digest` and
+`--session-prompt` give its fields. `loupe inbox command <itemId>` previews the
+command of a `run-command` action and prints the `runDigest` that the action
+needs. `loupe inbox actions` lists the actions a worker can suggest. These five
+commands need a CLI release after `cli/v2.6.0`, and a server with the control
+routes. With the inbox flag off they fail with `route_not_found`.
 
 `loupe graph` manages the saved graphs of the Dashboard, `loupe bucket-rule`
 manages the time bucket rules, and `loupe analytics-settings` reads and changes

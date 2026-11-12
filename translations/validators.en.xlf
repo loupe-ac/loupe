@@ -61,6 +61,10 @@
                 <source>inbox.api.error.blocking_refused</source>
                 <target>An item from the API never blocks. Leave blocking out, or pass false.</target>
             </trans-unit>
+            <trans-unit id="inbox.api.error.params_not_object">
+                <source>inbox.api.error.params_not_object</source>
+                <target>The params are an object that maps each param name to a string.</target>
+            </trans-unit>
             <trans-unit id="github.form.pick_repositories_form.repositories.min">
                 <source>github.form.pick_repositories_form.repositories.min</source>
                 <target>Tick at least one repository.</target>

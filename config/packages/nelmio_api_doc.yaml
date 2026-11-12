@@ -262,6 +262,14 @@ when@dev: &generator
                 - { alias: SeriesRename, type: App\Module\Review\Controller\Api\RenameSeriesRequest }
                 - { alias: InboxItem, type: App\Module\Inbox\Controller\Api\InboxItemResponse }
                 - { alias: InboxItemCreate, type: App\Module\Inbox\Controller\Api\CreateInboxItemRequest }
+                - { alias: InboxItemRow, type: App\Module\Inbox\Controller\Api\InboxItemRowResponse }
+                - { alias: InboxItemList, type: App\Module\Inbox\Controller\Api\InboxItemListResponse }
+                - { alias: InboxItemWithdraw, type: App\Module\Inbox\Controller\Api\WithdrawInboxItemRequest }
+                - { alias: InboxItemAction, type: App\Module\Inbox\Controller\Api\RunInboxItemActionRequest }
+                - { alias: InboxActionResult, type: App\Module\Inbox\Controller\Api\InboxActionResultResponse }
+                - { alias: InboxCommandPreview, type: App\Module\Inbox\Controller\Api\InboxCommandPreviewResponse }
+                - { alias: InboxActionRow, type: App\Module\Inbox\Controller\Api\InboxActionRowResponse }
+                - { alias: InboxActionList, type: App\Module\Inbox\Controller\Api\InboxActionListResponse }
                 - { alias: DocumentLink, type: App\Module\Review\Controller\Api\DocumentLinkResponse }
                 - { alias: DocumentRow, type: App\Module\Review\Controller\Api\DocumentRowResponse }
                 - { alias: DocumentList, type: App\Module\Review\Controller\Api\DocumentListResponse }

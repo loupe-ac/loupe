@@ -173,7 +173,7 @@ final class RunCommandConfirmationTest extends KernelTestCase
     /**
      * @param list<string> $run
      *
-     * @return array<string, mixed>
+     * @return array{name: string, description: string|null, params: list<array{name: string, pattern: string, description: string|null}>, run: list<string>, timeout: string}
      */
     private static function entry(string $name, array $run): array
     {

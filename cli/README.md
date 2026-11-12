@@ -607,6 +607,9 @@ loupe experiment list --archived
 loupe series rename "Rust Atomics" --name "Atomics in Rust"
 loupe document revise <id> --body-file draft.md --description "Answered the review"
 loupe inbox create --kind notice --title "The weekly run failed" --dedupe-key weekly-ci
+loupe inbox list --state open
+loupe inbox withdraw <item id> --reason "The pull request merged"
+loupe inbox command <item id>
 loupe graph list --removed
 loupe graph update <graph id> --position 0 --width full
 loupe bucket-rule create --pattern 'mcp__loupe__*' --bucket tools
@@ -617,6 +620,8 @@ LOUPE_API_KEY=loupe_key_... LOUPE_PROJECT=acme loupe card list
 The `experiment` group (`cards`, `exclude`, `include`) needs CLI 2.1.0. The commands `experiment list`, `experiment get`, `experiment update`, `tag list`, `series list` and `series rename` need a CLI release after 2.6.0.
 
 `loupe github repository status <owner/name>` prints how a GitHub repository stands for the project: `in-project`, `free`, `other-project` or `not-shared`. Only the owner of the project may ask. It needs CLI 2.6.0 and a server that has the route.
+
+The commands `inbox list`, `inbox withdraw`, `inbox action`, `inbox command` and `inbox actions` need a CLI release after `cli/v2.6.0`, and a server with the inbox control routes. With the inbox flag off they fail with `route_not_found`.
 
 The `graph`, `bucket-rule` and `analytics-settings` groups need a CLI release after `cli/v2.6.0`. A graph
 formula format is `--formula-format`, because `--format` picks the output format.
