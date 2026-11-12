@@ -3,7 +3,7 @@ info:
   title: Loupe API v1
   version: 1.0.0
   description: |-
-    The public HTTP API of Loupe. It covers projects, board columns, cards, documents and their review, site-review feedback, and artifacts.
+    The public HTTP API of Loupe. It covers projects, board columns, cards, the cards of an experiment, documents and their review, site-review feedback, artifacts, the discovery run and the GitHub App status of a project, and the inbox items of a project.
 
     v1 is in beta for 3 months after the first release. Until then a breaking change may land with a changelog note. After that a breaking change makes /api/v2, and v1 keeps working for at least 6 months with `Deprecation` and `Sunset` headers.
 
@@ -13,7 +13,7 @@ info:
 
     A list answers `{ items, next }` and a `Link` header with `rel="next"`. It has no totals and no page numbers. PATCH takes `application/json` with partial fields. This version has no ETag, no `If-Match`, no 304 and no 412.
 
-    No route in this document is built yet. This document is the proposal.
+    Each route in this document is built. The resources the API does not reach yet are in the MCP tools alone.
   license:
     name: AGPL-3.0-or-later
     url: https://www.gnu.org/licenses/agpl-3.0.html

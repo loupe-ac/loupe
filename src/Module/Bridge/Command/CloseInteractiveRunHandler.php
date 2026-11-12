@@ -17,6 +17,6 @@ final readonly class CloseInteractiveRunHandler
     /** Null when the id names no interactive run of the project. A closed run comes back unchanged. */
     public function __invoke(CloseInteractiveRunCommand $command): ?WorkerRun
     {
-        return $this->interactiveRuns->closeById($command->project, $command->runId);
+        return $this->interactiveRuns->closeById($command->project, $command->runId, $command->apiKey);
     }
 }

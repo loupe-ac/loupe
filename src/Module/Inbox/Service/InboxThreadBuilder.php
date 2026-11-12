@@ -35,7 +35,7 @@ final readonly class InboxThreadBuilder
         $answering = null !== $last && $last->answers($watch->waits ?? []);
 
         $closed = InboxItemState::Open !== $item->state;
-        $byOwner = \in_array($item->closedBy, [InboxCloser::Owner, InboxCloser::OwnerThroughAgent], true);
+        $byOwner = \in_array($item->closedBy, [InboxCloser::Owner, InboxCloser::OwnerThroughAgent, InboxCloser::OwnerThroughApiKey], true);
         $note = null === $item->note || '' === trim($item->note) ? null : $item->note;
         $body = $item->isAutomatic() || '' === trim($item->body ?? '') ? null : $item->body;
 
@@ -68,6 +68,7 @@ final readonly class InboxThreadBuilder
             options: array_map(static fn (int $index): string => (string) ($item->options[$index] ?? $index), $item->selectedOptions),
             note: $note,
             throughAgent: InboxCloser::OwnerThroughAgent === $item->closedBy,
+            apiKeyName: InboxCloser::OwnerThroughApiKey === $item->closedBy ? $item->closedApiKeyName ?? '' : null,
         );
     }
 }

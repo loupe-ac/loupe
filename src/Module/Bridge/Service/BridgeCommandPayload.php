@@ -6,6 +6,7 @@ namespace App\Module\Bridge\Service;
 
 use App\Module\Bridge\BridgeEventType;
 use App\Module\Bridge\Entity\BridgeCommand;
+use App\Module\Bridge\ValueObject\BridgeCommandCause;
 
 /**
  * The shape of one command as the bridge reads it, in the outbox event and in
@@ -44,7 +45,8 @@ final class BridgeCommandPayload
             'startedAt' => $run?->startedAt?->format('Y-m-d\TH:i:s.uP'),
             'endedAt' => $run?->endedAt?->format('Y-m-d\TH:i:s.uP'),
             'expiresAt' => $command->expiresAt->format(\DateTimeInterface::ATOM),
-            'cause' => $command->cause->value,
+            // The bridge knows no api-key cause, so a script's resume reads as a person's.
+            'cause' => BridgeCommandCause::ApiKey === $command->cause ? BridgeCommandCause::Person->value : $command->cause->value,
             'context' => $command->context->toArray(),
             'model' => $command->model,
             'effort' => $command->effort,

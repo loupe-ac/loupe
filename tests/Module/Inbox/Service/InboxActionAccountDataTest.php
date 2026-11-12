@@ -70,6 +70,9 @@ final class InboxActionAccountDataTest extends KernelTestCase
         $action->bridgeCommandId = $commandId;
         $action->pauseId = $pauseId;
         $action->cancelledAt = new \DateTimeImmutable('2026-10-13 09:05:00');
+        $keyId = Uuid::v7();
+        $action->apiKeyId = $keyId;
+        $action->apiKeyName = 'Weekly CI';
         $plain = new InboxAction($item, InboxActionKind::Open, $owner, '', new \DateTimeImmutable('2026-10-13 10:00:00'));
         $foreign = new InboxAction($item, InboxActionKind::Dismiss, $stranger);
         $this->em->persist($action);
@@ -93,6 +96,7 @@ final class InboxActionAccountDataTest extends KernelTestCase
                 'bridgeCommandId' => $commandId->toRfc4122(),
                 'pauseId' => $pauseId->toRfc4122(),
                 'cancelledAt' => new \DateTimeImmutable('2026-10-13 09:05:00')->format(\DateTimeInterface::ATOM),
+                'apiKey' => ['id' => $keyId->toRfc4122(), 'name' => 'Weekly CI'],
             ],
             [
                 'id' => (string) $plain->id,
@@ -103,6 +107,7 @@ final class InboxActionAccountDataTest extends KernelTestCase
                 'bridgeCommandId' => null,
                 'pauseId' => null,
                 'cancelledAt' => null,
+                'apiKey' => null,
             ],
         ], $rows);
     }

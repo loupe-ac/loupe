@@ -10,6 +10,7 @@ use App\Module\Account\Entity\User;
 use App\Module\Inbox\Command\RunInboxActionCommand;
 use App\Module\Inbox\Command\RunInboxActionHandler;
 use App\Module\Inbox\Entity\InboxActionKind;
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Form\RunInboxActionRequest;
@@ -122,7 +123,7 @@ final readonly class InboxActionRunTool implements FlagGatedToolInterface
                 params: $values,
                 runDigest: $handlerDigest,
                 sessionPrompt: InboxActionKind::StartSession === $kind ? ($sessionPrompt ?? ItemActions::suggestedSessionPrompt($item)) : null,
-                throughAgent: true,
+                closedBy: InboxCloser::OwnerThroughAgent,
                 selectedOptions: implode(',', $selectedOptions),
             ));
 

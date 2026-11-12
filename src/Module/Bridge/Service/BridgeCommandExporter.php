@@ -37,6 +37,8 @@ final readonly class BridgeCommandExporter implements UserDataExporterInterface
                 'reason' => $command->reason,
                 'cause' => $command->cause->value,
                 'context' => $command->context->toArray(),
+                'requestedByApiKey' => null === $command->apiKeyId ? null : ['id' => (string) $command->apiKeyId, 'name' => $command->apiKeyName],
+                'cancelledByApiKey' => null === $command->cancelledApiKeyId ? null : ['id' => (string) $command->cancelledApiKeyId, 'name' => $command->cancelledApiKeyName],
                 // A boolean, so the file names no other person.
                 'requestedByYou' => (string) $command->requestedBy?->id === (string) $user->id,
                 'requestedAt' => $command->requestedAt->format(\DateTimeInterface::ATOM),

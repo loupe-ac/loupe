@@ -6316,6 +6316,26 @@
                 <source>inbox.outcome.agent_for_owner.dismissed</source>
                 <target>Dismissed by an agent for you</target>
             </trans-unit>
+            <trans-unit id="inbox.outcome.api_key_for_owner.answered">
+                <source>inbox.outcome.api_key_for_owner.answered</source>
+                <target>Answered through an API key for you</target>
+            </trans-unit>
+            <trans-unit id="inbox.outcome.api_key_for_owner.done">
+                <source>inbox.outcome.api_key_for_owner.done</source>
+                <target>Done through an API key for you</target>
+            </trans-unit>
+            <trans-unit id="inbox.outcome.api_key_for_owner.approved">
+                <source>inbox.outcome.api_key_for_owner.approved</source>
+                <target>Approved through an API key for you</target>
+            </trans-unit>
+            <trans-unit id="inbox.outcome.api_key_for_owner.changes_requested">
+                <source>inbox.outcome.api_key_for_owner.changes_requested</source>
+                <target>Changes requested through an API key for you</target>
+            </trans-unit>
+            <trans-unit id="inbox.outcome.api_key_for_owner.dismissed">
+                <source>inbox.outcome.api_key_for_owner.dismissed</source>
+                <target>Dismissed through an API key for you</target>
+            </trans-unit>
             <trans-unit id="inbox.outcome.rule.approved">
                 <source>inbox.outcome.rule.approved</source>
                 <target>Approved by a workflow rule</target>
@@ -6383,6 +6403,10 @@
             <trans-unit id="inbox.live.closed.cancelled">
                 <source>inbox.live.closed.cancelled</source>
                 <target>%outcome%.</target>
+            </trans-unit>
+            <trans-unit id="inbox.item.through_api_key">
+                <source>inbox.item.through_api_key</source>
+                <target>The API key %name% recorded this response for the owner.</target>
             </trans-unit>
             <trans-unit id="inbox.item.through_agent">
                 <source>inbox.item.through_agent</source>
@@ -7877,6 +7901,7 @@ workflow:
             <trans-unit id="bridge.worker_runs.details.close_reason"><source>bridge.worker_runs.details.close_reason</source><target>Closed because</target></trans-unit>
             <trans-unit id="bridge.worker_runs.close_reason.session-ended"><source>bridge.worker_runs.close_reason.session-ended</source><target>The session ended</target></trans-unit>
             <trans-unit id="bridge.worker_runs.close_reason.person"><source>bridge.worker_runs.close_reason.person</source><target>A person closed it</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.close_reason.api-key"><source>bridge.worker_runs.close_reason.api-key</source><target>An API key closed it</target></trans-unit>
             <trans-unit id="bridge.worker_runs.close_reason.card-moved"><source>bridge.worker_runs.close_reason.card-moved</source><target>The card moved to another column</target></trans-unit>
             <trans-unit id="bridge.worker_runs.close_reason.stale"><source>bridge.worker_runs.close_reason.stale</source><target>No sign of life for too long</target></trans-unit>
             <trans-unit id="bridge.worker_runs.close_reason.session-gone"><source>bridge.worker_runs.close_reason.session-gone</source><target>The session process is gone</target></trans-unit>

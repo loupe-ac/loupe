@@ -6,6 +6,7 @@ namespace App\Module\Bridge\Command;
 
 use App\Module\Account\Entity\User;
 use App\Module\Bridge\Entity\WorkerRun;
+use App\Security\ApiKeyActor;
 use Symfony\Component\Uid\Uuid;
 
 final readonly class CancelBridgeCommandCommand
@@ -15,6 +16,8 @@ final readonly class CancelBridgeCommandCommand
         public User $requestedBy,
         /** When set, the cancel applies only if the pending command has this id. */
         public ?Uuid $commandId = null,
+        /** The API key that cancels. Null for a person on a page. */
+        public ?ApiKeyActor $apiKey = null,
     ) {
     }
 }

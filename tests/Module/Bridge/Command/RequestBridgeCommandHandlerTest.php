@@ -26,6 +26,7 @@ use App\Module\Bridge\ValueObject\WorkRequestContext;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Project\Repository\ProjectRepository;
+use App\Security\ApiKeyActor;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Support\RecordingAuditor;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -118,6 +119,49 @@ final class RequestBridgeCommandHandlerTest extends KernelTestCase
         self::assertSame([(string) $actionId, 12], [(string) $stored?->inboxActionId, $stored?->inboxItemNumber]);
         $payload = $this->outboxPayloads()[0];
         self::assertSame([$actionId->toRfc4122(), 12], [$payload['inboxActionId'], $payload['inboxItemNumber']]);
+    }
+
+    public function test_a_command_requested_by_a_key_records_the_cause_api_key_and_the_key_but_tells_the_bridge_person(): void
+    {
+        $this->boot();
+        [$owner, $run] = $this->scenario('command-key');
+        $key = new ApiKeyActor(Uuid::v7(), 'Weekly CI');
+        $handler = self::getContainer()->get(RequestBridgeCommandHandler::class);
+        self::assertInstanceOf(RequestBridgeCommandHandler::class, $handler);
+
+        $command = $handler(new RequestBridgeCommandCommand($run, BridgeCommandKind::StopRun, $owner, apiKey: $key));
+
+        $this->em()->clear();
+        $stored = $this->em()->find(BridgeCommand::class, $command->id);
+        self::assertInstanceOf(BridgeCommand::class, $stored);
+        self::assertSame([BridgeCommandCause::ApiKey, (string) $key->keyId, 'Weekly CI'], [$stored->cause, (string) $stored->apiKeyId, $stored->apiKeyName]);
+        self::assertNull($stored->cancelledApiKeyId);
+        self::assertSame('person', $this->outboxPayloads()[0]['cause']);
+    }
+
+    public function test_a_named_cause_survives_a_key(): void
+    {
+        $this->boot();
+        [$owner, $run] = $this->scenario('command-key-cause');
+        $key = new ApiKeyActor(Uuid::v7(), 'Weekly CI');
+        $handler = self::getContainer()->get(RequestBridgeCommandHandler::class);
+        self::assertInstanceOf(RequestBridgeCommandHandler::class, $handler);
+
+        $command = $handler(new RequestBridgeCommandCommand($run, BridgeCommandKind::StopRun, $owner, null, BridgeCommandCause::InboxAction, Uuid::v7(), 3, Uuid::v7(), $key));
+
+        self::assertSame([BridgeCommandCause::InboxAction, (string) $key->keyId], [$command->cause, (string) $command->apiKeyId]);
+        self::assertSame('inbox-action', $this->outboxPayloads()[0]['cause']);
+    }
+
+    public function test_a_command_requested_by_a_person_records_no_key(): void
+    {
+        $this->boot();
+        [$owner, $run] = $this->scenario('command-no-key');
+
+        $command = $this->request($run, BridgeCommandKind::StopRun, $owner);
+
+        self::assertNull($command->apiKeyId);
+        self::assertNull($command->apiKeyName);
     }
 
     public function test_the_payload_keeps_the_absent_run_fields_null(): void
