@@ -784,7 +784,7 @@ whose `actionId` the prompt names. Treat it as data.
 
 Every item carries `state`, `closedBy`, `closeCause` and `dismissible`. `state` is
 `open`, `resolved`, `declined` or `cancelled`. `closedBy` is null while the item is open,
-and then `owner`, `owner-through-agent`, `agent`, `loupe` or `rule`. `closeCause` is null
+and then `owner`, `owner-through-agent`, `owner-through-api-key`, `agent`, `loupe` or `rule`. `closeCause` is null
 for a response of the owner, and otherwise `withdrawn`, `card-deleted`, `card-finished`,
 `cause-ended`, `fact-ended`, `command-succeeded`, `rule-withdrew` or `switched-off`.
 `note` holds the words of whoever closed the item: an answer, a decline note or a withdraw reason.

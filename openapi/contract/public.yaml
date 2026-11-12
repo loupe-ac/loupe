@@ -4578,6 +4578,7 @@ components:
           enum:
           - owner
           - owner-through-agent
+          - owner-through-api-key
           - agent
           - loupe
           - rule
