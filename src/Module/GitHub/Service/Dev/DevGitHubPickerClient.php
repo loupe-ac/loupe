@@ -14,7 +14,7 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
 use Symfony\Contracts\HttpClient\ResponseStreamInterface;
 
 /**
- * Answers the two picker calls for a preview token, so the picker page shows in
+ * Answers the two picker calls for a preview token, so the picker shows in
  * a worktree that has no GitHub sign-in. Every other call and every other token
  * goes to GitHub as before.
  */
