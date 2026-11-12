@@ -44,7 +44,7 @@ final readonly class InitInstallWaits
         return $item->isHit() && $item->get() === $projectId;
     }
 
-    private static function key(string $sessionId): string
+    public static function key(string $sessionId): string
     {
         return 'init_wait.'.strtolower($sessionId);
     }
