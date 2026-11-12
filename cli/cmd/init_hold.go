@@ -140,30 +140,12 @@ func (r *initRun) beginWait() {
 	r.inWait.Store(true)
 }
 
-// endWait takes Ctrl-C back and drops an interrupt that the wait already
-// owned but the loop has not read yet.
+// endWait takes Ctrl-C back. An interrupt that arrives later, queued or not,
+// reaches the loop and closes init.
 func (r *initRun) endWait() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.inWait.Store(false)
-	if r.notify == nil {
-		return
-	}
-	for {
-		select {
-		case sig := <-r.notify:
-			if sig != os.Interrupt {
-				select {
-				case r.notify <- sig:
-				default:
-				}
-
-				return
-			}
-		default:
-			return
-		}
-	}
 }
 
 // keepsInWait says whether an interrupt belongs to the wait: the wait runs. An

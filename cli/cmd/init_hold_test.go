@@ -359,14 +359,14 @@ func TestInitRunHandsCtrlCToARunningWait(t *testing.T) {
 	<-r.done
 }
 
-func TestInitRunDropsCtrlCQueuedDuringTheWaitAndEndsInitAfterIt(t *testing.T) {
+func TestInitRunKeepsCtrlCQueuedAtTheEndOfTheWaitForTheLoop(t *testing.T) {
 	r := &initRun{stop: make(chan struct{}), done: make(chan struct{}), notify: make(chan os.Signal, 1), waitSigs: make(chan os.Signal, 1)}
 	r.beginWait()
 	r.notify <- os.Interrupt
 	r.endWait()
 
-	if len(r.notify) != 0 {
-		t.Fatal("the end of the wait left a buffered interrupt for the loop")
+	if len(r.notify) != 1 {
+		t.Fatal("the end of the wait discarded an interrupt that init must act on")
 	}
 	if r.keepsInWait() {
 		t.Error("an interrupt read after the wait ended must end init")
