@@ -16,8 +16,9 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
  * The page that sends the owner back to the terminal after an install that `loupe init` started.
- * The two success paths of the picker redirect here and name the repositories they added. A visit
- * that names none the project holds goes to the Repositories tab.
+ * The two success paths of the picker redirect here. They name the repositories they added and carry the init
+ * session. A visit whose session no longer waits, or that names no repository the project holds, goes to the
+ * Repositories tab.
  */
 #[IsGranted(GitHubConnectionVoter::MANAGE, subject: 'project')]
 #[Route(
@@ -34,7 +35,7 @@ class ShowInitHandoffController extends AppController
 
     public function __invoke(Project $project, Request $request): Response
     {
-        $repositories = ($this->showHandoff)(new ShowInitHandoffCommand($project, $request->query->getString('repository')));
+        $repositories = ($this->showHandoff)(new ShowInitHandoffCommand($project, $request->query->getString('repository'), $request->query->getString('init')));
         if ([] === $repositories) {
             return $this->redirectToRoute('app_project_repositories_settings', ['id' => (string) $project->id]);
         }

@@ -82,7 +82,7 @@ class CompleteGitHubPickerSignInController extends AppController
 
         if (null !== $signedIn->connected) {
             if ($this->installWaits->isWaiting($pending->init, $pending->projectId)) {
-                return $this->redirectToRoute('app_github_init_handoff', ['id' => $pending->projectId, 'repository' => $signedIn->connected]);
+                return $this->redirectToRoute('app_github_init_handoff', ['id' => $pending->projectId, 'repository' => $signedIn->connected, 'init' => $pending->init]);
             }
 
             $this->addFlash('success', $this->translator->trans('github.picker.flash.connected', ['%repository%' => $signedIn->connected]));

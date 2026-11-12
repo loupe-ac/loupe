@@ -12,6 +12,8 @@ final readonly class ShowInitHandoffCommand
         public Project $project,
         /** The repository paths the success path named, joined by commas. */
         public string $repositories,
+        /** The init session id the success path carried. */
+        public string $init,
     ) {
     }
 }

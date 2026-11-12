@@ -67,7 +67,7 @@ class AddGitHubRepositoriesController extends AppController
         }
 
         if ([] !== $added->added && $this->installWaits->isWaiting($init, (string) $project->id)) {
-            return $this->redirectToRoute('app_github_init_handoff', ['id' => (string) $project->id, 'repository' => implode(',', $added->added)]);
+            return $this->redirectToRoute('app_github_init_handoff', ['id' => (string) $project->id, 'repository' => implode(',', $added->added), 'init' => $init]);
         }
 
         if ([] !== $added->added) {

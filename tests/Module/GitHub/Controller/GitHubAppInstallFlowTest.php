@@ -945,7 +945,7 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         $this->client->loginUser($owner);
         $this->completeInitInstall($project, $init);
 
-        self::assertResponseRedirects('/projects/'.$project->id.'/github/init-handoff?repository=acme/api');
+        self::assertResponseRedirects('/projects/'.$project->id.'/github/init-handoff?repository=acme/api&init='.$init);
         $this->client->followRedirect();
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('[data-testid="github-init-handoff"] h1', 'acme/api is connected to Loupe');
@@ -1002,11 +1002,18 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
         $this->submitPicks($project, ['101:acme/one', '202:acme/two']);
 
-        self::assertResponseRedirects('/projects/'.$project->id.'/github/init-handoff?repository=acme/one,acme/two');
+        self::assertResponseRedirects('/projects/'.$project->id.'/github/init-handoff?repository=acme/one,acme/two&init='.$init);
         $this->client->followRedirect();
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('[data-testid="github-init-handoff"] h1', 'acme/one, acme/two are connected to Loupe');
-        $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/init-handoff?repository=acme%2Fnot-held');
+        $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/init-handoff?repository=acme%2Fnot-held&init='.$init);
+        self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
+        $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/init-handoff?repository=acme%2Fone');
+        self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
+        $waits = static::getContainer()->get(InitInstallWaits::class);
+        self::assertInstanceOf(InitInstallWaits::class, $waits);
+        $waits->clear($init);
+        $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/init-handoff?repository=acme%2Fone&init='.$init);
         self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
         self::assertSame(['acme/one', 'acme/two'], $this->pathsOf($project));
     }
