@@ -183,7 +183,9 @@ choices. The "Something else" text is not counted.
 
 ### Block patterns
 
-The **Block patterns** section of `/admin/waitlist` hides spam entries. Type a
+The **Block patterns** tab of `/admin/waitlist`, at
+`/admin/waitlist/block-patterns`, hides spam entries. The **Entries** tab holds
+the table, the counts and the invites. Type a
 pattern and press **Add pattern**. A pattern matches the full email address
 and ignores case. A `*` stands for any text, so `*@mailinator.com` matches every
 address at that domain, `*.ru` matches every address that ends in `.ru`, and
@@ -193,8 +195,8 @@ would hide every entry.
 
 An entry whose address matches a pattern stays in the database, and the page
 hides it. It is not in the table, the total, the pick counts or the waiting
-count. **Invite the oldest** and **Invite selected** skip it. The section
-shows how many entries are hidden.
+count. **Invite the oldest** and **Invite selected** skip it. The tab shows how
+many entries are hidden.
 
 A person whose address matches a pattern can still join. The person sees the
 usual confirmation, the entry is saved hidden, and no waitlist email goes out.

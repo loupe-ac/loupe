@@ -44,7 +44,7 @@ final class AddWaitlistBlockPatternController extends AppController
                 ));
                 $this->addFlash('success', $this->translator->trans('account.admin.waitlist.block_patterns.flash.added'));
 
-                return $this->redirectToRoute('app_admin_waitlist_list');
+                return $this->redirectToRoute('app_admin_waitlist_block_pattern_list');
             } catch (DomainErrors $e) {
                 foreach ($e->errors as $field => $translationKey) {
                     $form->get($field)->addError(new FormError($this->translator->trans($translationKey)));
@@ -52,7 +52,7 @@ final class AddWaitlistBlockPatternController extends AppController
             }
         }
 
-        return $this->forward(ListWaitlistController::class, [ListWaitlistController::BLOCK_PATTERN_FORM => $form->createView()])
+        return $this->forward(ListWaitlistBlockPatternsController::class, [ListWaitlistBlockPatternsController::BLOCK_PATTERN_FORM => $form->createView()])
             ->setStatusCode(Response::HTTP_UNPROCESSABLE_ENTITY);
     }
 }

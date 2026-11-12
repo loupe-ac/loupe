@@ -1,0 +1,10 @@
+<twig:Ds:Tabs aria-label="{{ 'account.admin.waitlist.tabs.label'|trans }}">
+    <a class="lp-tabs__tab"
+       href="{{ path('app_admin_waitlist_list') }}"
+       data-waitlist-tab="entries"
+       {% if active == 'entries' %}aria-current="page"{% endif %}>{{ 'account.admin.waitlist.tabs.entries'|trans }}</a>
+    <a class="lp-tabs__tab"
+       href="{{ path('app_admin_waitlist_block_pattern_list') }}"
+       data-waitlist-tab="block-patterns"
+       {% if active == 'block-patterns' %}aria-current="page"{% endif %}>{{ 'account.admin.waitlist.tabs.block_patterns'|trans }}</a>
+</twig:Ds:Tabs>

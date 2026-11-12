@@ -5893,6 +5893,12 @@
         @apply mt-1 flex items-center gap-2 flex-wrap text-sm text-fg-mute;
     }
 
+    /* An admin page with a tab strip above its panels. It holds the width of
+       .admin-page, so the strip and every panel line up with an admin list. */
+    .admin-tabbed-page {
+        @apply max-w-5xl;
+    }
+
     /* ── Admin card headings ────────────────────────────────────────── */
 
     .admin-section-title {

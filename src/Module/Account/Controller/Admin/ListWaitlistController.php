@@ -7,8 +7,6 @@ namespace App\Module\Account\Controller\Admin;
 use App\Controller\AppController;
 use App\Module\Account\Command\Admin\ListWaitlistCommand;
 use App\Module\Account\Command\Admin\ListWaitlistHandler;
-use App\Module\Account\Form\Admin\AddWaitlistBlockPatternFormType;
-use App\Module\Account\Form\Admin\AddWaitlistBlockPatternRequest;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -19,8 +17,6 @@ use Ubermuda\AdminBundle\Listing\ListPageRequest;
 #[Route('/admin/waitlist', name: 'app_admin_waitlist_list')]
 final class ListWaitlistController extends AppController
 {
-    public const string BLOCK_PATTERN_FORM = 'blockPatternForm';
-
     public function __construct(
         private readonly ListWaitlistHandler $listWaitlist,
     ) {
@@ -57,10 +53,6 @@ final class ListWaitlistController extends AppController
             'sort' => $listRequest->sort,
             'dir' => $listRequest->dir,
             'pickCounts' => $view->pickCounts,
-            'blockPatterns' => $view->blockPatterns,
-            'hiddenCount' => $view->hiddenCount,
-            'blockPatternForm' => $this->getInjectedFormView($request, self::BLOCK_PATTERN_FORM)
-                ?? $this->createForm(AddWaitlistBlockPatternFormType::class, new AddWaitlistBlockPatternRequest())->createView(),
             'filters' => [],
         ]);
     }

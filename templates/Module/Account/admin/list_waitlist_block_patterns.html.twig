@@ -1,0 +1,56 @@
+{% extends '@UbermudaAdmin/base.html.twig' %}
+
+{% block title %}{{ 'account.admin.waitlist.block_patterns.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% block body %}
+    <div class="admin-tabbed-page">
+        {% include '@Account/admin/_waitlist_tabs.html.twig' with {active: 'block-patterns'} only %}
+        <section class="admin-card flex flex-col gap-4 p-6" aria-labelledby="waitlist-block-patterns-title" data-waitlist-block-patterns>
+            <div>
+                <h1 id="waitlist-block-patterns-title" class="admin-section-title">{{ 'account.admin.waitlist.block_patterns.title'|trans }}</h1>
+                <p class="admin-section-subtitle">{{ 'account.admin.waitlist.block_patterns.subtitle'|trans }}</p>
+                <p class="admin-section-subtitle" data-waitlist-hidden-count="{{ hiddenCount }}">{{ 'account.admin.waitlist.block_patterns.hidden_count'|trans({'%count%': hiddenCount}) }}</p>
+            </div>
+            {% if blockPatterns is empty %}
+                <p class="admin-section-subtitle">{{ 'account.admin.waitlist.block_patterns.empty'|trans }}</p>
+            {% else %}
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>{{ 'account.admin.waitlist.block_patterns.column.pattern'|trans }}</th>
+                            <th>{{ 'account.admin.waitlist.block_patterns.column.added'|trans }}</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for blockPattern in blockPatterns %}
+                            <tr data-waitlist-block-pattern-id="{{ blockPattern.id }}">
+                                <td><code>{{ blockPattern.pattern }}</code></td>
+                                <td>{{ blockPattern.createdAt|date('Y-m-d H:i') }}</td>
+                                <td>
+                                    <form method="post" action="{{ path('app_admin_waitlist_block_pattern_remove', {id: blockPattern.id}) }}"
+                                          data-turbo-confirm="{{ 'account.admin.waitlist.block_patterns.remove_confirm'|trans({'%pattern%': blockPattern.pattern}) }}">
+                                        <input type="hidden" name="_csrf_token" value="{{ csrf_token('admin-waitlist-block-pattern-remove') }}">
+                                        <button type="submit" class="admin-button-secondary admin-button-small">{{ 'account.admin.waitlist.block_patterns.remove'|trans }}</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %}
+            {{ form_start(blockPatternForm, {'action': path('app_admin_waitlist_block_pattern_add'), 'attr': {'novalidate': 'novalidate', 'class': 'flex flex-col gap-4', 'data-waitlist-block-pattern-add': ''}}) }}
+                {{ form_errors(blockPatternForm) }}
+                <div class="flex flex-col gap-1.5">
+                    {{ form_label(blockPatternForm.pattern, null, {'label_attr': {'class': 'admin-field-label'}}) }}
+                    {{ form_widget(blockPatternForm.pattern, {'attr': blockPatternForm.pattern.vars.attr|merge({'class': 'admin-field-input'})}) }}
+                    {{ form_help(blockPatternForm.pattern) }}
+                    {{ form_errors(blockPatternForm.pattern) }}
+                </div>
+                <div class="flex items-center justify-end gap-3 pt-2">
+                    <button type="submit" class="admin-button">{{ 'account.admin.waitlist.block_patterns.add'|trans }}</button>
+                </div>
+            {{ form_end(blockPatternForm) }}
+        </section>
+    </div>
+{% endblock %}

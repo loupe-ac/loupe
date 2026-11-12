@@ -3698,6 +3698,18 @@
                 <source>account.admin.waitlist.title</source>
                 <target>Waitlist</target>
             </trans-unit>
+            <trans-unit id="account.admin.waitlist.tabs.label">
+                <source>account.admin.waitlist.tabs.label</source>
+                <target>Waitlist views</target>
+            </trans-unit>
+            <trans-unit id="account.admin.waitlist.tabs.entries">
+                <source>account.admin.waitlist.tabs.entries</source>
+                <target>Entries</target>
+            </trans-unit>
+            <trans-unit id="account.admin.waitlist.tabs.block_patterns">
+                <source>account.admin.waitlist.tabs.block_patterns</source>
+                <target>Block patterns</target>
+            </trans-unit>
             <trans-unit id="account.admin.waitlist.unit">
                 <source>account.admin.waitlist.unit</source>
                 <target>entry</target>
