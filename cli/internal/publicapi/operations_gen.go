@@ -131,6 +131,9 @@ var Operations = []Operation{
 	{ID: "getDocumentVersion", Method: "GET", Path: "/api/v1/projects/{project}/documents/{document}/versions/{version}", Summary: "Read one version of a document", Description: "",
 		PathArgs: []string{"document", "version"}, HasProject: true, Query: nil, Body: nil,
 		Idempotent: false, TakesFields: true, Multipart: false, AnswerFields: []string{"versionNumber", "createdAt", "description", "threadCount", "markdown"}, TimeFields: []string{"createdAt"}},
+	{ID: "getExperiment", Method: "GET", Path: "/api/v1/projects/{project}/experiments/{experiment}", Summary: "Read the comparison of an experiment", Description: "The headline, the variants and the metrics that the Comparison tab shows. The cards stay on `GET .../experiments/{experiment}/cards`. `confidenceLevel` is the level of every range: 0.95 for one comparison or none, and 1 - 0.05 / N for N comparisons. A money value is in US dollars, a duration of a built-in metric in milliseconds, a duration of a metric that the workflow template declares in hours, and a ratio is between 0 and 1.",
+		PathArgs: []string{"experiment"}, HasProject: true, Query: nil, Body: nil,
+		Idempotent: false, TakesFields: false, Multipart: false, AnswerFields: []string{"experiment", "archived", "baseline", "confidenceLevel", "declaredMetrics", "unknownMetrics", "unknownGuards", "minFinishedCards", "headline", "variants", "metrics", "includedCards", "leftOutCards"}, TimeFields: nil},
 	{ID: "getFeedback", Method: "GET", Path: "/api/v1/projects/{project}/feedback/{feedback}", Summary: "Read one feedback item", Description: "",
 		PathArgs: []string{"feedback"}, HasProject: true, Query: nil, Body: nil,
 		Idempotent: false, TakesFields: true, Multipart: false, AnswerFields: []string{"id", "url", "pageUrl", "surface", "native", "screenshot", "anchors", "body", "hasDrawing", "status", "context", "createdAt", "cardId", "number", "title"}, TimeFields: []string{"createdAt"}},
@@ -220,6 +223,13 @@ var Operations = []Operation{
 			{Name: "leftOut", Type: "boolean", Format: "", Items: "", Required: false, Nullable: false, Description: "True for only the cards the comparison leaves out, and false for only the cards that count.", Enum: nil},
 		}, Body: nil,
 		Idempotent: false, TakesFields: false, Multipart: false, AnswerFields: []string{"cardId", "number", "title", "variant", "pullRequestUrls", "leftOut", "exclusion"}, TimeFields: nil},
+	{ID: "listExperiments", Method: "GET", Path: "/api/v1/projects/{project}/experiments", Summary: "List the experiments", Description: "The experiments that the runs and the pins of the project name, the latest run first and the experiments with no run last. Each row is the name of an experiment, so a script can find the name that the other experiment routes take. The state of the project can change between two pages of a walk, so an experiment can repeat or be missed.",
+		PathArgs: nil, HasProject: true, Query: []Param{
+			{Name: "limit", Type: "integer", Format: "", Items: "", Required: false, Nullable: false, Description: "The most rows to return.", Enum: nil},
+			{Name: "cursor", Type: "string", Format: "", Items: "", Required: false, Nullable: false, Description: "The opaque position from the `next` URL of the last page.", Enum: nil},
+			{Name: "archived", Type: "boolean", Format: "", Items: "", Required: false, Nullable: false, Description: "True lists only the archived experiments. The default lists only the others.", Enum: nil},
+		}, Body: nil,
+		Idempotent: false, TakesFields: false, Multipart: false, AnswerFields: []string{"name", "cards", "lastRunAt", "archived"}, TimeFields: []string{"lastRunAt"}},
 	{ID: "listFeedback", Method: "GET", Path: "/api/v1/projects/{project}/feedback", Summary: "List the feedback of the project", Description: "`screenshot` gives the size of the marked image. The image itself is not in this answer.",
 		PathArgs: nil, HasProject: true, Query: []Param{
 			{Name: "limit", Type: "integer", Format: "", Items: "", Required: false, Nullable: false, Description: "The most rows to return.", Enum: nil},
@@ -236,6 +246,18 @@ var Operations = []Operation{
 			{Name: "sort", Type: "string", Format: "", Items: "", Required: false, Nullable: false, Description: "The sort order. The default is creation order, oldest first. A leading `-` sorts newest first.", Enum: []string{"createdAt", "-createdAt"}},
 		}, Body: nil,
 		Idempotent: false, TakesFields: true, Multipart: false, AnswerFields: []string{"id", "url", "slug", "name", "description", "domain", "searchLanguage", "allowedOrigins", "createdAt"}, TimeFields: []string{"createdAt"}},
+	{ID: "listSeries", Method: "GET", Path: "/api/v1/projects/{project}/series", Summary: "List the series", Description: "The series of the project by name, ignoring case, with how many documents each holds and the highest position in use. Read this before you place a document, so a new item continues a series and takes the next free number.",
+		PathArgs: nil, HasProject: true, Query: []Param{
+			{Name: "limit", Type: "integer", Format: "", Items: "", Required: false, Nullable: false, Description: "The most rows to return.", Enum: nil},
+			{Name: "cursor", Type: "string", Format: "", Items: "", Required: false, Nullable: false, Description: "The opaque position from the `next` URL of the last page.", Enum: nil},
+		}, Body: nil,
+		Idempotent: false, TakesFields: false, Multipart: false, AnswerFields: []string{"name", "documentCount", "highestOrdinal"}, TimeFields: nil},
+	{ID: "listTags", Method: "GET", Path: "/api/v1/projects/{project}/tags", Summary: "List the tags", Description: "The tag vocabulary of the project by name, with how many documents carry each tag. Tags are coined by use, so read this before you tag a batch and join the names in use instead of coining near-duplicates. A tag that no document carries any longer stays in the list with a count of zero.",
+		PathArgs: nil, HasProject: true, Query: []Param{
+			{Name: "limit", Type: "integer", Format: "", Items: "", Required: false, Nullable: false, Description: "The most rows to return.", Enum: nil},
+			{Name: "cursor", Type: "string", Format: "", Items: "", Required: false, Nullable: false, Description: "The opaque position from the `next` URL of the last page.", Enum: nil},
+		}, Body: nil,
+		Idempotent: false, TakesFields: false, Multipart: false, AnswerFields: []string{"name", "documentCount"}, TimeFields: nil},
 	{ID: "markDocumentCommentAddressed", Method: "PATCH", Path: "/api/v1/projects/{project}/documents/{document}/comments/{comment}", Summary: "Mark a comment thread addressed", Description: "Take the root comment of a thread on the current version. A reply gets 422, with `errors[].code` `comment_is_reply`. A thread that is already addressed answers 200, and nothing changes.",
 		PathArgs: []string{"document", "comment"}, HasProject: true, Query: nil, Body: []Param{
 			{Name: "status", Type: "string", Format: "", Items: "", Required: true, Nullable: false, Description: "The only status a route writes. Resolved stays with a person.", Enum: []string{"addressed"}},
@@ -262,6 +284,11 @@ var Operations = []Operation{
 			{Name: "pauseId", Type: "string", Format: "uuid", Items: "", Required: false, Nullable: false, Description: "Lift this pause only, so a pause that changed since you read it is refused. Leave it out to lift the active pause.", Enum: nil},
 		}, Body: nil,
 		Idempotent: false, TakesFields: false, Multipart: false, AnswerFields: []string{"cardId", "url", "outcome", "kind", "reason", "ruleId"}, TimeFields: nil},
+	{ID: "renameSeries", Method: "PATCH", Path: "/api/v1/projects/{project}/series/{series}", Summary: "Rename a series", Description: "Every document of the series keeps its position. The name must not belong to another series, ignoring case, because two series carry two independent numberings. Renaming a series to its own name in another case re-spells it.",
+		PathArgs: []string{"series"}, HasProject: true, Query: nil, Body: []Param{
+			{Name: "name", Type: "string", Format: "", Items: "", Required: true, Nullable: false, Description: "The new name, stored as you spell it. It must not belong to another series, ignoring case.", Enum: nil},
+		},
+		Idempotent: false, TakesFields: false, Multipart: false, AnswerFields: []string{"name", "documentCount", "highestOrdinal"}, TimeFields: nil},
 	{ID: "reorderBoardColumns", Method: "PUT", Path: "/api/v1/projects/{project}/board/columns/order", Summary: "Put the columns in a new order", Description: "Backlog always comes first and never moves, so leave it out. `errors[].code` is `backlog_in_order`, `unknown_column` or `order_incomplete`.",
 		PathArgs: nil, HasProject: true, Query: nil, Body: []Param{
 			{Name: "order", Type: "array", Format: "", Items: "string", Required: true, Nullable: false, Description: "The slug of every column except backlog, each once, from left to right.", Enum: nil},
@@ -335,6 +362,11 @@ var Operations = []Operation{
 			{Name: "archiveReason", Type: "string", Format: "", Items: "", Required: false, Nullable: false, Description: "Why the document is archived. It is required with `archived: true`, and ignored otherwise.", Enum: nil},
 		},
 		Idempotent: false, TakesFields: false, Multipart: false, AnswerFields: []string{"documentId", "url", "title", "language", "status", "archived", "archiveReason", "version", "versionDescription", "markdown", "tags", "series", "seriesOrdinal", "references", "referencedBy", "createdAt"}, TimeFields: []string{"createdAt"}},
+	{ID: "updateExperiment", Method: "PATCH", Path: "/api/v1/projects/{project}/experiments/{experiment}", Summary: "Archive or restore an experiment", Description: "Archiving is curation: the experiment leaves the main list and shows under `archived=true`, and its data stays readable. Pins and variant assignment work as before. Archiving an archived experiment moves its archive time forward, and restoring one that is not archived changes nothing.",
+		PathArgs: []string{"experiment"}, HasProject: true, Query: nil, Body: []Param{
+			{Name: "archived", Type: "boolean", Format: "", Items: "", Required: true, Nullable: false, Description: "True archives the experiment, and false brings it back. Archiving only hides it from the main list. A run that Loupe records after the archive brings the experiment back by itself.", Enum: nil},
+		},
+		Idempotent: false, TakesFields: false, Multipart: false, AnswerFields: []string{"name", "cards", "lastRunAt", "archived"}, TimeFields: []string{"lastRunAt"}},
 	{ID: "updateProject", Method: "PATCH", Path: "/api/v1/projects/{project}", Summary: "Change a project", Description: "A new name changes the slug, so a reference to the old slug, such as a bridge rule file, stops matching.",
 		PathArgs: []string{"project"}, HasProject: true, Query: nil, Body: []Param{
 			{Name: "name", Type: "string", Format: "", Items: "", Required: false, Nullable: false, Description: "A new name. It also changes the slug.", Enum: nil},
