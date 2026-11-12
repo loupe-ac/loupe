@@ -12,6 +12,7 @@ use App\Module\Bridge\Metric\MetricRange;
 use App\Module\Bridge\Metric\MetricStatistic;
 use App\Module\Bridge\Metric\MetricUnit;
 use App\Module\Insights\Command\SavedGraphResult;
+use App\Module\Insights\Command\SavedGraphSettingsChange;
 use App\Module\Insights\Command\SaveSavedGraphCommand;
 use App\Module\Insights\Command\SaveSavedGraphHandler;
 use App\Module\Insights\Command\UpdatedSavedGraph;
@@ -269,6 +270,24 @@ final class SavedGraphHandlersTest extends KernelTestCase
         self::assertSame(['Moved up', 'First', 'Second'], $this->names($project));
         self::assertSame((string) $third->id, (string) $result->graph->id);
         self::assertNotNull($result->query);
+    }
+
+    public function test_a_partial_change_merges_with_the_settings_stored_under_the_lock(): void
+    {
+        $project = $this->scenarioProject('graph-update-partial');
+        $graph = $this->seedSavedGraph($project, 'Tests', 0);
+        $this->em()->getConnection()->executeStatement('UPDATE insights_saved_graphs SET compare = :compare WHERE id = :id', ['compare' => 'previous', 'id' => $graph->id]);
+
+        $this->service(UpdateSavedGraphFieldsHandler::class)(new UpdateSavedGraphFieldsCommand(
+            $project,
+            (string) $graph->id,
+            change: new SavedGraphSettingsChange(['chart' => 'bars']),
+        ));
+
+        $this->em()->clear();
+        $stored = $this->em()->find(InsightsSavedGraph::class, $graph->id) ?? throw new \LogicException('The graph exists.');
+        self::assertSame(MetricChartType::Bars, $stored->chartType);
+        self::assertSame(MetricCompare::Previous, $stored->compare);
     }
 
     public function test_an_update_without_settings_reads_no_query_and_keeps_the_settings(): void

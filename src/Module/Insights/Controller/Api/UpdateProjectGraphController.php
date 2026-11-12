@@ -11,13 +11,13 @@ use App\Controller\AppController;
 use App\Exception\DomainErrors;
 use App\Module\Insights\Command\DescribeSavedGraphCommand;
 use App\Module\Insights\Command\DescribeSavedGraphHandler;
+use App\Module\Insights\Command\SavedGraphSettingsChange;
 use App\Module\Insights\Command\UpdateSavedGraphFieldsCommand;
 use App\Module\Insights\Command\UpdateSavedGraphFieldsHandler;
 use App\Module\Insights\Service\InsightsApiProblems;
 use App\Module\Insights\Service\SavedGraphChangeRefused;
 use App\Module\Insights\Service\SavedGraphLookup;
-use App\Module\Insights\Service\SavedGraphSettingsMerger;
-use App\Module\Insights\Service\SavedGraphSettingsProblems;
+use App\Module\Insights\Service\SavedGraphSettingsInvalid;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
 use App\Module\Project\Security\ReachableProject;
@@ -59,7 +59,6 @@ final class UpdateProjectGraphController extends AppController
 {
     public function __construct(
         private readonly SavedGraphLookup $lookup,
-        private readonly SavedGraphSettingsProblems $settingsProblems,
         private readonly UpdateSavedGraphFieldsHandler $updateGraph,
         private readonly DescribeSavedGraphHandler $describeGraph,
         private readonly InsightsApiProblems $problems,
@@ -73,34 +72,22 @@ final class UpdateProjectGraphController extends AppController
             throw $this->problems->graphNotFound();
         }
 
-        $passed = $payload->passed();
-        $formulaPassed = $payload->formulaPassed();
-        $clear = $payload->clearFormula ?? false;
-        $settings = null;
-        if ([] !== $passed || [] !== $formulaPassed || $clear) {
-            try {
-                $merged = SavedGraphSettingsMerger::merge($found, $passed, $formulaPassed, $clear);
-            } catch (SavedGraphChangeRefused $e) {
-                throw $this->problems->changeRefused($e);
-            }
-            $invalid = $this->settingsProblems->find($project, $merged);
-            if ([] !== $invalid) {
-                throw $this->problems->invalidSettings($invalid);
-            }
-            $settings = $merged !== $found->settings() ? $merged : null;
-        }
-
+        $change = new SavedGraphSettingsChange($payload->passed(), $payload->formulaPassed(), $payload->clearFormula ?? false);
         $command = new UpdateSavedGraphFieldsCommand(
             $project,
             $graph,
             name: $payload->name ?? null,
-            settings: $settings,
+            change: $change,
             width: $payload->width ?? null,
             showLegend: $payload->showLegend ?? null,
             position: $payload->position ?? null,
         );
         try {
             ($this->updateGraph)($command);
+        } catch (SavedGraphChangeRefused $e) {
+            throw $this->problems->changeRefused($e);
+        } catch (SavedGraphSettingsInvalid $e) {
+            throw $this->problems->invalidSettings($e->problems);
         } catch (DomainErrors $e) {
             throw $this->problems->forGraph($e);
         } catch (NotFoundHttpException) {

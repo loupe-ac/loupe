@@ -17,6 +17,8 @@ final readonly class UpdateSavedGraphFieldsCommand
         public ?string $name = null,
         /** @var array<string, string>|null the whole set of controls of the Metrics page, by name */
         public ?array $settings = null,
+        /** A partial change, merged with the settings the graph keeps once the project lock is held. It excludes `settings`. */
+        public ?SavedGraphSettingsChange $change = null,
         public ?SavedGraphWidth $width = null,
         public ?bool $showLegend = null,
         /** The place among the graphs on show, counted from 0. A place past the last puts the graph last. */

@@ -11,8 +11,12 @@ use App\Module\Insights\Repository\InsightsSavedGraphRepository;
 use App\Module\Insights\Service\DashboardChange;
 use App\Module\Insights\Service\DashboardChangedPublisher;
 use App\Module\Insights\Service\InsightsRefreshRequester;
+use App\Module\Insights\Service\SavedGraphChangeRefused;
 use App\Module\Insights\Service\SavedGraphLocker;
 use App\Module\Insights\Service\SavedGraphOrder;
+use App\Module\Insights\Service\SavedGraphSettingsInvalid;
+use App\Module\Insights\Service\SavedGraphSettingsMerger;
+use App\Module\Insights\Service\SavedGraphSettingsProblems;
 use App\Module\Insights\Service\SavedGraphSettingsResolver;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -31,6 +35,7 @@ final readonly class UpdateSavedGraphFieldsHandler
         private InsightsSavedGraphRepository $insightsSavedGraphs,
         private SavedGraphLocker $locker,
         private SavedGraphSettingsResolver $settings,
+        private SavedGraphSettingsProblems $settingsProblems,
         private SavedGraphOrder $order,
         private Auditor $auditor,
         private DashboardChangedPublisher $dashboard,
@@ -39,21 +44,41 @@ final readonly class UpdateSavedGraphFieldsHandler
     }
 
     /**
-     * @throws DomainErrors          on the field `chart` when the settings lock the chart type
-     * @throws NotFoundHttpException when the graph is removed, or belongs to another project
+     * @throws DomainErrors              on the field `chart` when the settings lock the chart type
+     * @throws SavedGraphChangeRefused   when a partial change contradicts the settings the graph keeps
+     * @throws SavedGraphSettingsInvalid when the merged settings hold a value that the metric or the range cannot take
+     * @throws NotFoundHttpException     when the graph is removed, or belongs to another project
      */
     public function __invoke(UpdateSavedGraphFieldsCommand $command): UpdatedSavedGraph
     {
         $project = $command->project;
         $projectId = (string) $project->requireId();
         $query = null === $command->settings ? null : $this->settings->resolve($project, $command->settings);
+        $change = $command->change;
+        if (null !== $change && [] === $change->passed && [] === $change->formulaPassed && !$change->clearFormula) {
+            $change = null;
+        }
         $name = mb_substr(trim($command->name ?? ''), 0, InsightsSavedGraph::MAX_NAME_LENGTH);
 
-        $applied = $this->em->wrapInTransaction(function () use ($command, $projectId, $query, $name): ?array {
+        $applied = $this->em->wrapInTransaction(function () use ($command, $change, $projectId, $query, $name): ?array {
             // A caller can hold the graph already, so its fields are read again under the lock.
             $graph = $this->insightsSavedGraphs->findOneByIdAndProjectId($command->graphId, $projectId);
             if (null === $graph || !$this->locker->lockActive($graph)) {
                 return null;
+            }
+
+            if (null !== $change) {
+                // A refusal is returned, not thrown, because a thrown exception closes the entity manager.
+                try {
+                    $merged = SavedGraphSettingsMerger::merge($graph, $change->passed, $change->formulaPassed, $change->clearFormula);
+                    $invalid = $this->settingsProblems->find($command->project, $merged);
+                    if ([] !== $invalid) {
+                        return ['refused' => new SavedGraphSettingsInvalid($invalid)];
+                    }
+                    $query = $merged !== $graph->settings() ? $this->settings->resolve($command->project, $merged) : null;
+                } catch (SavedGraphChangeRefused|DomainErrors $refused) {
+                    return ['refused' => $refused];
+                }
             }
 
             $settingsChanged = false;
@@ -83,13 +108,18 @@ final readonly class UpdateSavedGraphFieldsHandler
             }
             $moved = null !== $command->position && $this->order->moveTo($graph, $command->position);
 
-            return ['graph' => $graph, 'settingsChanged' => $settingsChanged, 'moved' => $moved];
+            return ['graph' => $graph, 'query' => $query, 'settingsChanged' => $settingsChanged, 'moved' => $moved];
         });
         if (null === $applied) {
             throw new NotFoundHttpException('The project has no such graph.');
         }
 
+        if (isset($applied['refused'])) {
+            throw $applied['refused'];
+        }
+
         $graph = $applied['graph'];
+        $query = $applied['query'];
         $graphId = $graph->id ?? throw new \LogicException('A stored graph has an id.');
         $subject = new AuditSubject('project', $projectId);
         $context = ['projectId' => $projectId, 'graphId' => (string) $graphId];
