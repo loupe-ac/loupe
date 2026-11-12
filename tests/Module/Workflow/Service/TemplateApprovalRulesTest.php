@@ -35,7 +35,7 @@ final class TemplateApprovalRulesTest extends KernelTestCase
     {
         $project = $this->workflowProject('approval-rules-unbound-write');
 
-        self::assertFalse($this->rules()->setCoversConflictResolution($this->id($project->id), false));
+        self::assertNull($this->rules()->setCoversConflictResolution($this->id($project->id), false));
     }
 
     public function test_a_written_value_is_stored_in_the_copy_and_read_back(): void

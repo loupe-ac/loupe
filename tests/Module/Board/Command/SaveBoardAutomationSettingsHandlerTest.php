@@ -198,6 +198,40 @@ final class SaveBoardAutomationSettingsHandlerTest extends KernelTestCase
         self::assertTrue($this->stored()->enabled);
     }
 
+    public function test_an_explicit_approval_value_on_a_project_with_no_workflow_is_refused_even_when_it_equals_the_default(): void
+    {
+        $project = $this->workflowProject('save-automation-unbound');
+        $handler = self::getContainer()->get(SaveBoardAutomationSettingsHandler::class);
+        self::assertInstanceOf(SaveBoardAutomationSettingsHandler::class, $handler);
+
+        foreach ([true, false] as $value) {
+            try {
+                $handler(new SaveBoardAutomationSettingsCommand(project: $project, enabled: true, approvalCoversConflictResolution: $value));
+                self::fail('The save must be refused.');
+            } catch (DomainErrors $e) {
+                self::assertSame(['approvalCoversConflictResolution' => SaveBoardAutomationSettingsHandler::NO_WORKFLOW], $e->errors);
+            }
+        }
+        self::assertFalse($this->em->getConnection()->fetchOne('SELECT id FROM board_automation_settings WHERE project_id = :id', ['id' => (string) $project->id]));
+    }
+
+    public function test_a_save_that_waited_on_the_lock_compares_against_the_rule_another_save_committed(): void
+    {
+        $project = $this->workflowProject('save-automation-overlap');
+        $this->bindLifecycle($project);
+        $rules = self::getContainer()->get(ApprovalRules::class);
+        self::assertInstanceOf(ApprovalRules::class, $rules);
+        self::assertTrue($rules->coversConflictResolution($project->id));
+        $handler = self::getContainer()->get(SaveBoardAutomationSettingsHandler::class);
+        self::assertInstanceOf(SaveBoardAutomationSettingsHandler::class, $handler);
+
+        $this->em->getConnection()->executeStatement("UPDATE workflow_bindings SET definition = jsonb_set(definition::jsonb, '{approvalCoversConflictResolution}', 'false')::json WHERE project_id = :id", ['id' => (string) $project->id]);
+        $handler(new SaveBoardAutomationSettingsCommand(project: $project, approvalCoversConflictResolution: true));
+
+        $definition = json_decode((string) $this->em->getConnection()->fetchOne('SELECT definition FROM workflow_bindings WHERE project_id = :id', ['id' => (string) $project->id]), true);
+        self::assertTrue($definition['approvalCoversConflictResolution']);
+    }
+
     private function failingHandler(): SaveBoardAutomationSettingsHandler
     {
         $container = self::getContainer();

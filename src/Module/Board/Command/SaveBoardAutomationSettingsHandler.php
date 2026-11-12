@@ -45,14 +45,17 @@ final readonly class SaveBoardAutomationSettingsHandler
 
         $projectId = $command->project->id ?? throw new \LogicException('The project is not persisted.');
         $approval = $command->approvalCoversConflictResolution;
-        $approvalWrite = null !== $approval && $approval !== $this->approvalRules->coversConflictResolution($projectId) ? $approval : null;
 
         // The flushes inside the writers join this transaction, so one failure leaves every setting as it was.
         // The project row lock serializes saves, so a setting left out keeps the value another save just wrote.
-        $result = $this->em->wrapInTransaction(function () use ($command, $projectId, $approvalWrite): ?array {
+        $approvalChanged = false;
+        $result = $this->em->wrapInTransaction(function () use ($command, $projectId, $approval, &$approvalChanged): ?array {
             $this->em->lock($command->project, LockMode::PESSIMISTIC_WRITE);
-            if (null !== $approvalWrite && !$this->approvalRuleWriter->setCoversConflictResolution($projectId, $approvalWrite)) {
-                return null;
+            if (null !== $approval) {
+                $approvalChanged = $this->approvalRuleWriter->setCoversConflictResolution($projectId, $approval);
+                if (null === $approvalChanged) {
+                    return null;
+                }
             }
 
             $settings = $this->automation->settingsForUpdate($command->project);
@@ -77,7 +80,7 @@ final readonly class SaveBoardAutomationSettingsHandler
         }
         [$turnedOn, $enabled, $stuckDelayMinutes] = $result;
 
-        if (null !== $approvalWrite) {
+        if (true === $approvalChanged) {
             $this->events->dispatch(new ApprovalRuleChanged($projectId));
         }
         $this->events->dispatch(new BoardAutomationSettingsSaved(

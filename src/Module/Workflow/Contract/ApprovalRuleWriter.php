@@ -10,8 +10,10 @@ use Symfony\Component\Uid\Uuid;
 interface ApprovalRuleWriter
 {
     /**
-     * Returns false, and writes nothing, when the project has no workflow.
+     * Returns null, and writes nothing, when the project has no workflow.
+     * Returns true when it changed the stored value, and false when the stored value already equals the one given.
+     * The caller holds a lock that serializes writers, and the comparison reads the committed value.
      * Announces nothing: the caller dispatches ApprovalRuleChanged after its transaction commits.
      */
-    public function setCoversConflictResolution(Uuid $projectId, bool $value): bool;
+    public function setCoversConflictResolution(Uuid $projectId, bool $value): ?bool;
 }

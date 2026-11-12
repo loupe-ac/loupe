@@ -38,10 +38,14 @@ final readonly class TemplateApprovalRules implements ApprovalRules, ApprovalRul
     }
 
     #[\Override]
-    public function setCoversConflictResolution(Uuid $projectId, bool $value): bool
+    public function setCoversConflictResolution(Uuid $projectId, bool $value): ?bool
     {
         $binding = $this->workflowBindings->findOneByProjectId($projectId);
         if (null === $binding) {
+            return null;
+        }
+        $this->em->refresh($binding);
+        if (($binding->definition[self::KEY] ?? true) === $value) {
             return false;
         }
         $binding->definition[self::KEY] = $value;
