@@ -587,7 +587,7 @@ ones you create later.
 
 ## Commands for the public API
 
-The `project`, `column`, `card`, `experiment`, `feedback`, `document`, `artifact` and `inbox` groups
+The `project`, `column`, `card`, `experiment`, `tag`, `series`, `feedback`, `document`, `artifact` and `inbox` groups
 call the public API, one command for each operation. They are in beta. A test
 fails when an operation has no command. `docs/reference/cli.md` "Commands for
 the public API" holds the full reference: sign-in, project choice, output
@@ -603,12 +603,14 @@ loupe card update 42 --after-card 17
 loupe card reorder --column next --cards 42,17,30 --at top
 loupe experiment cards php-lsp-4 --format json
 loupe experiment exclude php-lsp-4 42 --reason "Changes no PHP"
+loupe experiment list --archived
+loupe series rename "Rust Atomics" --name "Atomics in Rust"
 loupe document revise <id> --body-file draft.md --description "Answered the review"
 loupe inbox create --kind notice --title "The weekly run failed" --dedupe-key weekly-ci
 LOUPE_API_KEY=loupe_key_... LOUPE_PROJECT=acme loupe card list
 ```
 
-The `experiment` group (`cards`, `exclude`, `include`) needs CLI 2.1.0.
+The `experiment` group (`cards`, `exclude`, `include`) needs CLI 2.1.0. The commands `experiment list`, `experiment get`, `experiment update`, `tag list`, `series list` and `series rename` need a CLI release after 2.6.0.
 
 `loupe github repository status <owner/name>` prints how a GitHub repository stands for the project: `in-project`, `free`, `other-project` or `not-shared`. Only the owner of the project may ask. It needs CLI 2.6.0 and a server that has the route.
 
