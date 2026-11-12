@@ -358,3 +358,76 @@ func TestInitRunHandsCtrlCToARunningWait(t *testing.T) {
 	close(r.stop)
 	<-r.done
 }
+
+func TestInitRunKeepsCtrlCThatArrivedDuringTheWait(t *testing.T) {
+	r := &initRun{stop: make(chan struct{}), done: make(chan struct{}), notify: make(chan os.Signal, 1), waitSigs: make(chan os.Signal, 1)}
+	r.beginWait()
+	r.notify <- os.Interrupt
+	r.endWait()
+
+	if len(r.notify) != 0 {
+		t.Fatal("the end of the wait left a buffered interrupt for the loop")
+	}
+	if !r.keepsInWait() {
+		t.Error("an interrupt read just after the wait must stay with the wait")
+	}
+	r.waitEnded = time.Now().Add(-time.Second)
+	if r.keepsInWait() {
+		t.Error("a later interrupt must end init")
+	}
+}
+
+func TestInitRunSerializesRenewalAndClear(t *testing.T) {
+	useBridgeID(t, holdBridgeID, nil)
+	f := &fakeHoldClient{}
+	run := startInitRun(context.Background(), &bytes.Buffer{}, f, "proj-1")
+	run.setWaiting(context.Background(), true)
+	var wg sync.WaitGroup
+	for i := 0; i < 20; i++ {
+		wg.Add(1)
+		go func() { defer wg.Done(); run.renew() }()
+	}
+	run.setWaiting(context.Background(), false)
+	wg.Wait()
+	run.renew()
+	run.Close()
+
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	cleared := false
+	for _, r := range f.reports {
+		if r.AwaitingInstall != nil && !*r.AwaitingInstall {
+			cleared = true
+		} else if cleared && r.AwaitingInstall != nil && *r.AwaitingInstall {
+			t.Fatal("a renewal marked the run after the clear")
+		}
+	}
+}
+
+func TestWaitForInstallStopsWhenPollingFailsAfterTheInstall(t *testing.T) {
+	oldPoll, oldRules := installPollEvery, rulesReadWait
+	installPollEvery, rulesReadWait = 5*time.Millisecond, 40*time.Millisecond
+	t.Cleanup(func() { installPollEvery, rulesReadWait = oldPoll, oldRules })
+	calls := 0
+	list := func(context.Context) ([]api.Site, error) {
+		calls++
+		if calls > 1 {
+			return nil, errors.New("down")
+		}
+
+		return []api.Site{installedSite("p", true, false)}, nil
+	}
+	done := make(chan bool, 1)
+	go func() {
+		_, ok := waitForInstall(context.Background(), list, api.Site{ID: "p"}, "acme/app", nil, nil)
+		done <- ok
+	}()
+	select {
+	case ok := <-done:
+		if !ok {
+			t.Error("the wait saw the install, want true")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("the wait outlived the rules limit while polling failed")
+	}
+}

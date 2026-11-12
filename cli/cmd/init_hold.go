@@ -19,6 +19,9 @@ import (
 // closes an init run that stays quiet for five minutes.
 var initRenewEvery = 60 * time.Second
 
+// waitEndGrace is how long after a wait an interrupt still counts for it.
+const waitEndGrace = 200 * time.Millisecond
+
 // initBridgeID names this machine to the server. A test replaces it.
 var initBridgeID = config.EnsureBridgeID
 
@@ -40,6 +43,11 @@ type initRun struct {
 	mu       sync.Mutex
 	waiting  bool
 	finished bool
+
+	waitEnded time.Time
+
+	// sendMu keeps a renewal and a mark change from interleaving their PUTs.
+	sendMu sync.Mutex
 
 	// inWait is true while the install wait owns Ctrl-C.
 	inWait atomic.Bool
@@ -115,7 +123,7 @@ func (r *initRun) loop(every time.Duration) {
 		case <-tick.C:
 			r.renew()
 		case sig := <-r.notify:
-			if sig == os.Interrupt && r.inWait.Load() {
+			if sig == os.Interrupt && r.keepsInWait() {
 				select {
 				case r.waitSigs <- sig:
 				default:
@@ -130,9 +138,54 @@ func (r *initRun) loop(every time.Duration) {
 	}
 }
 
+// beginWait gives Ctrl-C to the install wait.
+func (r *initRun) beginWait() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.inWait.Store(true)
+}
+
+// endWait takes Ctrl-C back and drops an interrupt that the wait already
+// owned but the loop has not read yet.
+func (r *initRun) endWait() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.inWait.Store(false)
+	r.waitEnded = time.Now()
+	if r.notify == nil {
+		return
+	}
+	for {
+		select {
+		case sig := <-r.notify:
+			if sig != os.Interrupt {
+				select {
+				case r.notify <- sig:
+				default:
+				}
+
+				return
+			}
+		default:
+			return
+		}
+	}
+}
+
+// keepsInWait says whether an interrupt belongs to the wait: the wait runs, or
+// it ended just now, while the loop held the interrupt.
+func (r *initRun) keepsInWait() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	return r.inWait.Load() || time.Since(r.waitEnded) < waitEndGrace
+}
+
 func (r *initRun) renew() {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
+	r.sendMu.Lock()
+	defer r.sendMu.Unlock()
 	r.mu.Lock()
 	var awaiting *bool
 	if r.waiting {
@@ -158,6 +211,8 @@ func (r *initRun) setWaiting(ctx context.Context, on bool) bool {
 	if !r.held() {
 		return false
 	}
+	r.sendMu.Lock()
+	defer r.sendMu.Unlock()
 	r.mu.Lock()
 	r.waiting = on
 	r.mu.Unlock()

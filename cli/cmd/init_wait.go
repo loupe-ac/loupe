@@ -74,8 +74,8 @@ func initWaitForApp(cmd *cobra.Command, list siteLister, run *initRun, site api.
 		signal.Notify(sigs, os.Interrupt)
 		defer signal.Stop(sigs)
 	}
-	run.inWait.Store(true)
-	defer run.inWait.Store(false)
+	run.beginWait()
+	defer run.endWait()
 	enter := watchEnter(in)
 	defer enter.Stop()
 
@@ -99,6 +99,9 @@ func waitForInstall(ctx context.Context, list siteLister, site api.Site, reposit
 		case <-sigs:
 			return current, installed != nil
 		case <-tick.C:
+		}
+		if installed != nil && time.Since(*installed) >= rulesReadWait {
+			return current, true
 		}
 		sites, err := list(ctx)
 		if err != nil {

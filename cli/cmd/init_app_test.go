@@ -137,13 +137,13 @@ func TestRefineAppTurnsAFreeRepositoryIntoAPick(t *testing.T) {
 		check  appCheck
 		want   appNeed
 	}{
-		"free":          {"free", nil, missing, appPickRepository},
-		"other project": {"other-project", nil, missing, appAddRepository},
-		"not shared":    {"not-shared", nil, missing, appAddRepository},
-		"older server":  {"", errors.New("HTTP 404"), missing, appAddRepository},
-		"no repository": {"free", nil, appCheck{need: appAddRepository}, appAddRepository},
-		"covered":       {"free", nil, appCheck{need: appCovered, repository: "o/r"}, appCovered},
-		"not installed": {"free", nil, appCheck{need: appInstall, repository: "o/r"}, appPickRepository},
+		"free":                         {"free", nil, missing, appPickRepository},
+		"other project":                {"other-project", nil, missing, appAddRepository},
+		"not shared":                   {"not-shared", nil, missing, appAddRepository},
+		"older server":                 {"", errors.New("HTTP 404"), missing, appAddRepository},
+		"no repository":                {"free", nil, appCheck{need: appAddRepository}, appAddRepository},
+		"covered":                      {"free", nil, appCheck{need: appCovered, repository: "o/r"}, appCovered},
+		"not installed":                {"free", nil, appCheck{need: appInstall, repository: "o/r"}, appPickRepository},
 		"not installed, other project": {"other-project", nil, appCheck{need: appInstall, repository: "o/r"}, appInstall},
 		"not installed, no repository": {"free", nil, appCheck{need: appInstall}, appInstall},
 	} {
