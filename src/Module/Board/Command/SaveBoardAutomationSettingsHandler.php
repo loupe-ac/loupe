@@ -42,31 +42,41 @@ final readonly class SaveBoardAutomationSettingsHandler
         }
 
         $projectId = $command->project->id ?? throw new \LogicException('The project is not persisted.');
-        $approvalChanged = null !== $command->approvalCoversConflictResolution
-            && $command->approvalCoversConflictResolution !== $this->approvalRules->coversConflictResolution($projectId);
-        if ($approvalChanged && !$this->approvalRuleWriter->setCoversConflictResolution($projectId, $command->approvalCoversConflictResolution)) {
+        $approval = $command->approvalCoversConflictResolution;
+        $approvalWrite = null !== $approval && $approval !== $this->approvalRules->coversConflictResolution($projectId) ? $approval : null;
+
+        // The flushes inside the writers join this transaction, so one failure leaves every setting as it was.
+        $outcome = $this->em->wrapInTransaction(function () use ($command, $projectId, $approvalWrite): ?bool {
+            if (null !== $approvalWrite && !$this->approvalRuleWriter->setCoversConflictResolution($projectId, $approvalWrite)) {
+                return null;
+            }
+
+            $settings = $this->automation->settingsForUpdate($command->project);
+            $wasEnabled = $settings->enabled;
+            $settings->enabled = $command->enabled;
+            $delayChanged = $settings->stuckDelayMinutes !== $command->stuckDelayMinutes;
+            $settings->stuckDelayMinutes = $command->stuckDelayMinutes;
+            $this->em->flush();
+            if ($delayChanged) {
+                // A longer delay can clear a Stuck marker, and a shorter one can add it.
+                $this->cards->makeMarkersDue($command->project, $this->clock->now());
+            }
+
+            return !$wasEnabled && $command->enabled;
+        });
+        if (null === $outcome) {
             throw new DomainErrors(['approvalCoversConflictResolution' => self::NO_WORKFLOW]);
         }
 
-        $settings = $this->automation->settingsForUpdate($command->project);
-        $wasEnabled = $settings->enabled;
-        $settings->enabled = $command->enabled;
-        $delayChanged = $settings->stuckDelayMinutes !== $command->stuckDelayMinutes;
-        $settings->stuckDelayMinutes = $command->stuckDelayMinutes;
-        $this->em->flush();
-        if ($delayChanged) {
-            // A longer delay can clear a Stuck marker, and a shorter one can add it.
-            $this->cards->makeMarkersDue($command->project, $this->clock->now());
-        }
         $this->events->dispatch(new BoardAutomationSettingsSaved(
             $command->project,
-            !$wasEnabled && $command->enabled,
+            $outcome,
         ));
 
         $this->auditor->record('board.automation_settings_saved', AuditOutcome::Success, [
             'projectId' => (string) $command->project->id,
             'enabled' => $command->enabled,
-            'stuckDelayMinutes' => $settings->stuckDelayMinutes,
+            'stuckDelayMinutes' => $command->stuckDelayMinutes,
             'approvalCoversConflictResolution' => $this->approvalRules->coversConflictResolution($projectId),
         ]);
     }

@@ -612,6 +612,10 @@ loupe inbox create --kind notice --title "The weekly run failed" --dedupe-key we
 loupe inbox list --state open
 loupe inbox withdraw <item id> --reason "The pull request merged"
 loupe inbox command <item id>
+loupe workflow show
+loupe workflow automation set --stuck-delay-minutes 90
+loupe readiness set --guide-shown=false
+loupe document highlight <id> --quotes "short-lived JWTs"
 loupe graph list --removed
 loupe graph update <graph id> --position 0 --width full
 loupe bucket-rule create --pattern 'mcp__loupe__*' --bucket tools
@@ -626,6 +630,8 @@ The `metric` group (`list`, `query`) and the `analysis` group (`list`, `get`) ne
 `loupe github repository status <owner/name>` prints how a GitHub repository stands for the project: `in-project`, `free`, `other-project` or `not-shared`. Only the owner of the project may ask. It needs CLI 2.6.0 and a server that has the route.
 
 The commands `inbox list`, `inbox withdraw`, `inbox action`, `inbox command` and `inbox actions` need a CLI release after `cli/v2.6.0`, and a server with the inbox control routes. With the inbox flag off they fail with `route_not_found`.
+
+The commands `workflow show`, `workflow automation show`, `workflow automation set`, `readiness show`, `readiness set` and `document highlight` need a CLI release after `cli/v2.6.0`, and a server with the workflow and readiness routes. `document highlight` fails with `route_not_found` while the `review.highlights.enabled` flag is off.
 
 The `graph`, `bucket-rule` and `analytics-settings` groups need a CLI release after `cli/v2.6.0`. A graph
 formula format is `--formula-format`, because `--format` picks the output format.

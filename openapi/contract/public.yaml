@@ -3,7 +3,7 @@ info:
   title: Loupe API v1
   version: 1.0.0
   description: |-
-    The public HTTP API of Loupe. It covers projects, board columns, cards, the cards of an experiment, documents and their review, site-review feedback, artifacts, the discovery run and the GitHub App status of a project, and the inbox items of a project, with the actions on them.
+    The public HTTP API of Loupe. It covers projects, board columns, cards, the cards of an experiment, documents and their review, site-review feedback, artifacts, the discovery run and the GitHub App status of a project, the inbox items of a project, with the actions on them, and the workflow, the automation settings and the readiness checks of a project.
 
     v1 is in beta for 3 months after the first release. Until then a breaking change may land with a changelog note. After that a breaking change makes /api/v2, and v1 keeps working for at least 6 months with `Deprecation` and `Sunset` headers.
 
@@ -59,6 +59,10 @@ tags:
   description: The saved graphs of the Dashboard of a project.
 - name: Analytics settings
   description: The analytics settings of a project.
+- name: Workflow
+  description: The workflow of a project and its automation settings.
+- name: Readiness
+  description: The readiness checks of a project and the switch of the readiness guide.
 paths:
   /api/v1/openapi.json:
     get:
@@ -3736,6 +3740,255 @@ paths:
           $ref: '#/components/responses/E400InvalidJson'
         '404':
           $ref: '#/components/responses/E404ProjectNotFoundRouteNotFound'
+        '415':
+          $ref: '#/components/responses/E415UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/E422ValidationFailed'
+        '401':
+          $ref: '#/components/responses/E401InvalidCredentialsApiKeyExpired'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403CredentialNotAllowed'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/projects/{project}/workflow:
+    get:
+      operationId: getWorkflow
+      summary: Read the workflow of a project
+      tags:
+      - Workflow
+      description: 'The template and its version, the settings the template declares with their resolved values, the board columns with the workflow slot that links to each, and each kind of work the workflow can ask a bridge for, with the rules that ask for it and the checks it needs from the project. A project that has no workflow answers 409 `no_workflow`.'
+      parameters:
+      - $ref: '#/components/parameters/Project'
+      responses:
+        '200':
+          description: The workflow of the project.
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+        '404':
+          $ref: '#/components/responses/E404ProjectNotFoundRouteNotFound'
+        '409':
+          $ref: '#/components/responses/E409NoWorkflow'
+        '401':
+          $ref: '#/components/responses/E401InvalidCredentialsApiKeyExpired'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403CredentialNotAllowed'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/projects/{project}/workflow/automation:
+    get:
+      operationId: getBoardAutomation
+      summary: Read the automation settings of a project
+      tags:
+      - Workflow
+      description: 'The same switches as the Automation page of the project settings.'
+      parameters:
+      - $ref: '#/components/parameters/Project'
+      responses:
+        '200':
+          description: The automation settings.
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BoardAutomation'
+        '404':
+          $ref: '#/components/responses/E404ProjectNotFoundRouteNotFound'
+        '401':
+          $ref: '#/components/responses/E401InvalidCredentialsApiKeyExpired'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403CredentialNotAllowed'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+    patch:
+      operationId: updateBoardAutomation
+      summary: Change the automation settings of a project
+      tags:
+      - Workflow
+      description: 'A setting you leave out keeps its value. The three changes save together, so a refusal changes none of them. Turning `enabled` off stops the workflow from moving cards and from asking for work.'
+      parameters:
+      - $ref: '#/components/parameters/Project'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BoardAutomationUpdate'
+      responses:
+        '200':
+          description: The settings after the change.
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BoardAutomation'
+        '400':
+          $ref: '#/components/responses/E400InvalidJson'
+        '404':
+          $ref: '#/components/responses/E404ProjectNotFoundRouteNotFound'
+        '409':
+          $ref: '#/components/responses/E409NoWorkflow'
+        '415':
+          $ref: '#/components/responses/E415UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/E422ValidationFailed'
+        '401':
+          $ref: '#/components/responses/E401InvalidCredentialsApiKeyExpired'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403CredentialNotAllowed'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/projects/{project}/readiness:
+    get:
+      operationId: getReadiness
+      summary: Read the readiness checks of a project
+      tags:
+      - Readiness
+      description: 'Each check says whether it is done, with a short status. `discovery` is the latest discovery run, or null when discovery never ran. To start discovery, call `POST .../discovery`.'
+      parameters:
+      - $ref: '#/components/parameters/Project'
+      responses:
+        '200':
+          description: The readiness checks of the project.
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Readiness'
+        '404':
+          $ref: '#/components/responses/E404ProjectNotFoundRouteNotFound'
+        '401':
+          $ref: '#/components/responses/E401InvalidCredentialsApiKeyExpired'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403CredentialNotAllowed'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+    patch:
+      operationId: updateReadiness
+      summary: Show or hide the readiness guide
+      tags:
+      - Readiness
+      description: 'The same switch as the Agent readiness tab of the project settings. Hiding the guide again keeps the time of the first hide.'
+      parameters:
+      - $ref: '#/components/parameters/Project'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReadinessUpdate'
+      responses:
+        '200':
+          description: Whether the guide shows after the change.
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessGuide'
+        '400':
+          $ref: '#/components/responses/E400InvalidJson'
+        '404':
+          $ref: '#/components/responses/E404ProjectNotFoundRouteNotFound'
+        '415':
+          $ref: '#/components/responses/E415UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/E422ValidationFailed'
+        '401':
+          $ref: '#/components/responses/E401InvalidCredentialsApiKeyExpired'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403CredentialNotAllowed'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/projects/{project}/documents/{document}/highlights:
+    put:
+      operationId: setDocumentHighlights
+      summary: Replace the highlights of a document
+      tags:
+      - Documents
+      description: 'Highlights tint the passages a reviewer should read first. The call replaces the whole highlight set of the current version, and an empty list clears it. A new version starts with none, so restate them after a revision. A quote that cannot be located is reported in `skipped` and does not fail the call. The route answers 404 `route_not_found` while the instance has `review.highlights.enabled` switched off.'
+      parameters:
+      - $ref: '#/components/parameters/Project'
+      - $ref: '#/components/parameters/Document'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentHighlightsSet'
+      responses:
+        '200':
+          description: The highlight set after the call.
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentHighlights'
+        '400':
+          $ref: '#/components/responses/E400InvalidJson'
+        '404':
+          $ref: '#/components/responses/E404ProjectNotFoundDocumentNotFoundRouteNotFound'
         '415':
           $ref: '#/components/responses/E415UnsupportedMediaType'
         '422':
@@ -9576,6 +9829,236 @@ components:
             type: string
           maxItems: 50
       type: object
+    Workflow:
+      type: object
+      required: [template, approvalCoversConflictResolution, epicBranch, requirements, settings, githubAppId, columns, kinds]
+      properties:
+        template:
+          $ref: '#/components/schemas/WorkflowTemplate'
+        approvalCoversConflictResolution:
+          type: boolean
+          description: Whether an approval of a pull request still covers a merge from the base that holds a conflict resolution.
+        epicBranch:
+          type: string
+          nullable: true
+          description: The epic branch pattern, with `{number}` for the card number. Null when the project has no epic branches.
+        requirements:
+          type: array
+          items:
+            type: string
+          description: The written requirements of the workflow, in template order.
+        settings:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkflowSetting'
+          description: The settings that the template declares, in template order. A repository setting has one entry for each repository of the project.
+        githubAppId:
+          type: string
+          nullable: true
+          description: The id of the Loupe GitHub App, or null when the instance has none.
+        columns:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkflowColumn'
+          description: The board columns in board order.
+        kinds:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkflowKind'
+          description: Each kind of work the workflow can ask a bridge for.
+    WorkflowTemplate:
+      type: object
+      required: [key, version]
+      properties:
+        key:
+          type: string
+        version:
+          type: string
+    WorkflowRepository:
+      type: object
+      required: [path, forge]
+      properties:
+        path:
+          type: string
+        forge:
+          type: string
+    WorkflowSetting:
+      type: object
+      required: [key, scope, repository, value, source, warnings]
+      properties:
+        key:
+          type: string
+        scope:
+          type: string
+          enum: [repository, project]
+        repository:
+          nullable: true
+          allOf:
+          - $ref: '#/components/schemas/WorkflowRepository'
+        value:
+          nullable: true
+          description: The value, or null when the setting has none.
+          oneOf:
+          - type: string
+          - type: boolean
+          - type: array
+            items:
+              type: string
+        source:
+          type: string
+          description: Where the value came from.
+        warnings:
+          type: array
+          items:
+            type: string
+    WorkflowColumn:
+      type: object
+      required: [slug, label, slot, backlog, terminal]
+      properties:
+        slug:
+          type: string
+        label:
+          type: string
+        slot:
+          type: string
+          nullable: true
+        backlog:
+          type: boolean
+        terminal:
+          type: boolean
+    WorkflowKind:
+      type: object
+      required: [kind, origin, rules, checks]
+      properties:
+        kind:
+          type: string
+        origin:
+          type: string
+          enum: [template, app]
+        rules:
+          type: array
+          items:
+            type: string
+        checks:
+          type: array
+          items:
+            type: string
+    BoardAutomation:
+      type: object
+      required: [enabled, stuckDelayMinutes, approvalCoversConflictResolution]
+      properties:
+        enabled:
+          type: boolean
+        stuckDelayMinutes:
+          type: integer
+          minimum: 1
+          maximum: 1440
+        approvalCoversConflictResolution:
+          type: boolean
+    BoardAutomationUpdate:
+      type: object
+      description: A field you leave out keeps its value.
+      properties:
+        enabled:
+          type: boolean
+        stuckDelayMinutes:
+          type: integer
+          minimum: 1
+          maximum: 1440
+        approvalCoversConflictResolution:
+          type: boolean
+    Readiness:
+      type: object
+      required: [guideShown, rows, discovery]
+      properties:
+        guideShown:
+          type: boolean
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReadinessRow'
+        discovery:
+          nullable: true
+          allOf:
+          - $ref: '#/components/schemas/ReadinessDiscovery'
+    ReadinessRow:
+      type: object
+      required: [key, done, status]
+      properties:
+        key:
+          type: string
+        done:
+          type: boolean
+        status:
+          type: string
+    ReadinessDiscovery:
+      type: object
+      required: [runId, state, cardId, cardNumber, reason, createdAt]
+      properties:
+        runId:
+          type: string
+          format: uuid
+        state:
+          type: string
+        cardId:
+          type: string
+          format: uuid
+        cardNumber:
+          type: integer
+          minimum: 1
+        reason:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+    ReadinessGuide:
+      type: object
+      required: [shown, hiddenAt]
+      properties:
+        shown:
+          type: boolean
+        hiddenAt:
+          type: string
+          format: date-time
+          nullable: true
+    ReadinessUpdate:
+      type: object
+      required: [guideShown]
+      properties:
+        guideShown:
+          type: boolean
+          description: True shows the readiness guide on the Workshop, and false hides it. The checks stay readable while the guide is hidden.
+    DocumentHighlights:
+      type: object
+      required: [highlighted, skipped]
+      properties:
+        highlighted:
+          type: array
+          items:
+            type: string
+        skipped:
+          type: array
+          items:
+            $ref: '#/components/schemas/HighlightSkipped'
+    HighlightSkipped:
+      type: object
+      required: [quote, reason]
+      properties:
+        quote:
+          type: string
+        reason:
+          type: string
+          enum: [blank, duplicate, not_found]
+    DocumentHighlightsSet:
+      type: object
+      required: [quotes]
+      properties:
+        quotes:
+          type: array
+          items:
+            type: string
+          description: Verbatim passages of the document, as they read in rendered prose and not as Markdown source. The list replaces the whole highlight set, and an empty list clears it.
     MetricListEntry:
       type: object
       required: [key, units, valueType, statistics, groups, description]
@@ -11550,3 +12033,19 @@ components:
               $ref: '#/components/examples/ProjectNotFound'
             analysis_not_found:
               $ref: '#/components/examples/AnalysisNotFound'
+    E409NoWorkflow:
+      description: 'Refused: `no_workflow`.'
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            no_workflow:
+              $ref: '#/components/examples/NoWorkflow'

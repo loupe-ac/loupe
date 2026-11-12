@@ -9,6 +9,7 @@ use App\Api\EventListener\ClaimIdempotencyKeyOnRequest;
 use App\Api\EventListener\RefuseFlaggedApiWhenSwitchedOff;
 use App\Module\Artifact\Install\ArtifactInstallFlags;
 use App\Module\Inbox\Install\InboxInstallFlags;
+use App\Module\Review\Controller\Api\SetDocumentHighlightsController;
 use App\Module\Review\Mcp\DocumentHighlightTool;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
@@ -47,6 +48,19 @@ final class RefuseFlaggedApiWhenSwitchedOffTest extends KernelTestCase
         self::assertContains('api_project_inbox_ask_check', $seen);
         self::assertContains('api_inbox_item_show', $seen);
         self::assertCount(8, $seen);
+    }
+
+    public function test_the_highlights_route_carries_the_name_that_the_gate_maps(): void
+    {
+        self::bootKernel();
+        $router = self::getContainer()->get(RouterInterface::class);
+        self::assertInstanceOf(RouterInterface::class, $router);
+
+        $route = $router->getRouteCollection()->get('api_document_highlights');
+
+        self::assertNotNull($route);
+        self::assertSame(SetDocumentHighlightsController::class, $route->getDefault('_controller'));
+        self::assertSame(['PUT'], $route->getMethods());
     }
 
     public function test_the_gate_runs_after_the_firewall_and_before_the_budget_and_the_idempotency_claim(): void

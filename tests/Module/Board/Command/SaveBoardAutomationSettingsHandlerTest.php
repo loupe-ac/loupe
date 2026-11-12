@@ -10,16 +10,24 @@ use App\Module\Board\Command\SaveBoardAutomationSettingsHandler;
 use App\Module\Board\Entity\BoardAutomationSettings;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Repository\BoardAutomationSettingsRepository;
+use App\Module\Board\Repository\CardRepository;
+use App\Module\Board\Service\BoardAutomation;
 use App\Module\Project\Entity\Project;
+use App\Module\Workflow\Contract\ApprovalRules;
+use App\Module\Workflow\Contract\ApprovalRuleWriter;
 use App\Tests\Module\Board\Mcp\BoardToolScenario;
+use App\Tests\Module\Workflow\WorkflowProjects;
 use App\Tests\Support\RecordingAuditor;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Psr\Clock\ClockInterface;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 final class SaveBoardAutomationSettingsHandlerTest extends KernelTestCase
 {
     use BoardToolScenario;
+    use WorkflowProjects;
 
     private EntityManagerInterface $em;
     private RecordingAuditor $audit;
@@ -92,6 +100,41 @@ final class SaveBoardAutomationSettingsHandlerTest extends KernelTestCase
     {
         yield 'zero' => [0];
         yield 'over a day' => [1441];
+    }
+
+    public function test_a_failure_after_the_approval_write_leaves_every_setting_unchanged(): void
+    {
+        $project = $this->workflowProject('save-automation-atomic');
+        $this->bindLifecycle($project);
+        $container = self::getContainer();
+        $handler = new SaveBoardAutomationSettingsHandler(
+            $container->get(BoardAutomation::class),
+            $this->em,
+            $this->audit->auditor,
+            $container->get(EventDispatcherInterface::class),
+            $container->get(CardRepository::class),
+            new class implements ClockInterface {
+                #[\Override]
+                public function now(): \DateTimeImmutable
+                {
+                    throw new \RuntimeException('The markers update fails.');
+                }
+            },
+            $container->get(ApprovalRules::class),
+            $container->get(ApprovalRuleWriter::class),
+        );
+
+        try {
+            $handler(new SaveBoardAutomationSettingsCommand(project: $project, enabled: false, stuckDelayMinutes: 40, approvalCoversConflictResolution: false));
+            self::fail('The markers update must fail.');
+        } catch (\RuntimeException) {
+        }
+
+        $connection = $this->em->getConnection();
+        $definition = json_decode((string) $connection->fetchOne('SELECT definition FROM workflow_bindings WHERE project_id = :id', ['id' => (string) $project->id]), true);
+        self::assertTrue($definition['approvalCoversConflictResolution'] ?? true);
+        self::assertFalse($connection->fetchOne('SELECT id FROM board_automation_settings WHERE project_id = :id', ['id' => (string) $project->id]));
+        self::assertSame([], $this->audit->records('board.automation_settings_saved'));
     }
 
     private function save(bool $enabled, int $stuckDelayMinutes = BoardAutomationSettings::DEFAULT_STUCK_DELAY_MINUTES): void

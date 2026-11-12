@@ -19,6 +19,8 @@ maps each kind of work to an agent.
 
 ## Templates
 
+A script reads the workflow with `GET /api/v1/projects/{project}/workflow` or `loupe workflow show`, and it reads and changes the automation switches with `loupe workflow automation show` and `loupe workflow automation set`. See the [API reference](../reference/api/index.md#workflow-automation-and-readiness).
+
 Loupe ships two templates.
 
 | Template | For |
