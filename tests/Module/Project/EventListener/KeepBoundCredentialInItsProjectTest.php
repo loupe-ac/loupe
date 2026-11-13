@@ -9,6 +9,7 @@ use App\Module\Project\EventListener\KeepBoundCredentialInItsProject;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Security\AuthenticatedCredential;
 use App\Security\CredentialRateLimitKey;
+use App\Tests\Module\Inbox\InboxScenario;
 use App\Tests\Support\AgentCredential;
 use App\Tests\Support\OAuthScenario;
 use App\Tests\Support\RecordingAuditor;
@@ -27,6 +28,8 @@ use Symfony\Component\Uid\Uuid;
 
 final class KeepBoundCredentialInItsProjectTest extends WebTestCase
 {
+    use InboxScenario;
+
     private KernelBrowser $client;
     private OAuthScenario $scenario;
     private RecordingAuditor $audit;
@@ -37,6 +40,7 @@ final class KeepBoundCredentialInItsProjectTest extends WebTestCase
         $this->client->disableReboot();
         $this->audit = RecordingAuditor::installedIn(static::getContainer());
         $this->scenario = new OAuthScenario(static::getContainer());
+        $this->setInboxFlag(true);
     }
 
     public function test_a_bound_credential_gets_not_found_for_every_project_route_of_another_owned_project(): void

@@ -102,9 +102,10 @@ beforeEach(() => {
     HTMLFormElement.prototype.requestSubmit = vi.fn();
 });
 
-afterEach(() => {
-    application.stop();
+afterEach(async () => {
     document.body.innerHTML = '';
+    await settle();
+    application.stop();
     vi.unstubAllGlobals();
 });
 

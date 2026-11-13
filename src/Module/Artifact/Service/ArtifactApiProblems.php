@@ -34,12 +34,6 @@ final readonly class ArtifactApiProblems
         return new ApiProblemException(new ApiProblem(404, 'artifact_file_not_found', 'Artifact file not found', 'This version of the artifact has no file at this path.'));
     }
 
-    /** The answer for a switched-off feature: no route answers the path. */
-    public function routeNotFound(): ApiProblemException
-    {
-        return new ApiProblemException(new ApiProblem(404, 'route_not_found', 'Route not found', 'No route answers this path.'));
-    }
-
     /** @return list<array{field: string, code: string, message: string}> */
     public function pathsMismatch(): array
     {
@@ -77,7 +71,7 @@ final readonly class ArtifactApiProblems
             $problem = match ($field) {
                 'project' => ApiProblemException::projectNotFound(),
                 'artifactId' => $this->artifactNotFound(),
-                'artifacts' => $this->routeNotFound(),
+                'artifacts' => ApiProblemException::routeNotFound(),
                 default => null,
             };
             if (null !== $problem) {

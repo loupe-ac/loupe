@@ -113,7 +113,49 @@ class SeriesRepository extends ServiceEntityRepository
      */
     public function findByProjectWithDocumentCounts(Project $project): array
     {
-        $series = $this->findByProject($project);
+        return $this->withDocumentCounts($project, $this->findByProject($project));
+    }
+
+    /**
+     * One keyset page of the series by comparison key, with the document counts and the highest ordinal.
+     *
+     * @param int $limit the most rows to return, so a caller asks for one more than its page to learn whether a next page exists
+     *
+     * @return list<array{series: Series, documentCount: int, highestOrdinal: ?int}>
+     */
+    public function pageByProjectWithDocumentCounts(Project $project, ?string $afterNormalizedName, int $limit): array
+    {
+        $query = $this->createQueryBuilder('s')
+            ->andWhere('s.project = :project')
+            ->setParameter('project', $project)
+            ->orderBy('s.normalizedName', 'ASC')
+            ->setMaxResults($limit);
+        if (null !== $afterNormalizedName) {
+            $query->andWhere('s.normalizedName > :after')->setParameter('after', $afterNormalizedName);
+        }
+
+        /** @var list<Series> $series */
+        $series = $query->getQuery()->getResult();
+
+        return $this->withDocumentCounts($project, $series);
+    }
+
+    /** @return array{series: Series, documentCount: int, highestOrdinal: ?int} */
+    public function oneWithDocumentCounts(Series $series): array
+    {
+        return $this->withDocumentCounts($series->project, [$series])[0];
+    }
+
+    /**
+     * @param list<Series> $series
+     *
+     * @return list<array{series: Series, documentCount: int, highestOrdinal: ?int}>
+     */
+    private function withDocumentCounts(Project $project, array $series): array
+    {
+        if ([] === $series) {
+            return [];
+        }
 
         // A second query rather than a left join off the series, so a series no
         // document belongs to still reports zero instead of dropping out.
@@ -124,9 +166,10 @@ class SeriesRepository extends ServiceEntityRepository
             ->createQuery(
                 'SELECT s.normalizedName AS normalizedName, COUNT(d.id) AS documentCount, MAX(d.seriesOrdinal) AS highestOrdinal'
                 .' FROM '.Document::class.' d JOIN d.series s'
-                .' WHERE s.project = :project AND d.project = :project GROUP BY s.normalizedName',
+                .' WHERE s.project = :project AND d.project = :project AND s.normalizedName IN (:names) GROUP BY s.normalizedName',
             )
             ->setParameter('project', $project)
+            ->setParameter('names', array_map(static fn (Series $one): string => $one->normalizedName, $series))
             ->getArrayResult();
 
         $counts = array_column($rows, 'documentCount', 'normalizedName');

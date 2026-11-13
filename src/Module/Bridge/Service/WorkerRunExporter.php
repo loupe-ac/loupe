@@ -73,6 +73,8 @@ final readonly class WorkerRunExporter implements UserDataExporterInterface
                 'harness' => $run->harness,
                 'account' => $run->account,
                 'model' => $run->model,
+                'closeReason' => $run->closeReason?->value,
+                'closedByApiKey' => null === $run->closedApiKeyId ? null : ['id' => (string) $run->closedApiKeyId, 'name' => $run->closedApiKeyName],
                 'harnessSessionId' => $run->harnessSessionId,
                 'harnessVersion' => $run->harnessVersion,
                 'cliVersion' => $run->cliVersion,

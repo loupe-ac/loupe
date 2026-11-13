@@ -15,6 +15,7 @@ use App\Module\Bridge\Service\BridgeCommandPayload;
 use App\Module\Bridge\Service\BridgeCommandTtl;
 use App\Module\Bridge\Service\CardHolds;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
+use App\Module\Bridge\ValueObject\BridgeCommandCause;
 use App\Module\Bridge\ValueObject\BridgeCommandKind;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Project\Repository\ProjectRepository;
@@ -117,8 +118,10 @@ final readonly class RequestBridgeCommandHandler
                     requestedAt: $now,
                     expiresAt: $this->ttl->expiresAt($now),
                     reason: $reason,
-                    cause: $command->cause,
+                    cause: null !== $command->apiKey && BridgeCommandCause::Person === $command->cause ? BridgeCommandCause::ApiKey : $command->cause,
                 );
+                $bridgeCommand->apiKeyId = $command->apiKey?->keyId;
+                $bridgeCommand->apiKeyName = $command->apiKey?->keyName;
                 $bridgeCommand->inboxActionId = $command->inboxActionId;
                 $bridgeCommand->inboxItemNumber = $command->inboxItemNumber;
                 $bridgeCommand->inboxItemId = $command->inboxItemId;

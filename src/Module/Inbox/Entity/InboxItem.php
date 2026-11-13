@@ -90,6 +90,14 @@ class InboxItem implements ProjectScopedSubject
     #[ORM\Column(length: 100, nullable: true)]
     public ?string $apiKeyName = null;
 
+    /** The API key that closed the item as `owner-through-api-key`. No foreign key, as for the key that made it. */
+    #[ORM\Column(type: UuidType::NAME, nullable: true)]
+    public ?Uuid $closedApiKeyId = null;
+
+    /** The name of the closing key when it closed the item. */
+    #[ORM\Column(length: 100, nullable: true)]
+    public ?string $closedApiKeyName = null;
+
     /** A key of the caller. While this item is open, a create with the same key in the project returns it. */
     #[ORM\Column(length: self::MAX_DEDUPE_KEY_LENGTH, nullable: true)]
     public ?string $dedupeKey = null;

@@ -4,14 +4,12 @@ declare(strict_types=1);
 
 namespace App\Module\Workflow\Service;
 
-use App\Module\Workflow\Contract\ApprovalRuleChanged;
 use App\Module\Workflow\Contract\ApprovalRules;
 use App\Module\Workflow\Contract\ApprovalRuleWriter;
 use App\Module\Workflow\Repository\WorkflowBindingRepository;
 use App\Module\Workflow\Template\ProjectTemplateCopy;
 use App\Module\Workflow\Template\TemplateMissing;
 use Doctrine\ORM\EntityManagerInterface;
-use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\DependencyInjection\Attribute\AsAlias;
 use Symfony\Component\Uid\Uuid;
 
@@ -26,7 +24,6 @@ final readonly class TemplateApprovalRules implements ApprovalRules, ApprovalRul
         private ProjectTemplateCopy $templates,
         private WorkflowBindingRepository $workflowBindings,
         private EntityManagerInterface $em,
-        private EventDispatcherInterface $events,
     ) {
     }
 
@@ -41,19 +38,19 @@ final readonly class TemplateApprovalRules implements ApprovalRules, ApprovalRul
     }
 
     #[\Override]
-    public function setCoversConflictResolution(Uuid $projectId, bool $value): bool
+    public function setCoversConflictResolution(Uuid $projectId, bool $value): ?bool
     {
         $binding = $this->workflowBindings->findOneByProjectId($projectId);
         if (null === $binding) {
+            return null;
+        }
+        $this->em->refresh($binding);
+        if (($binding->definition[self::KEY] ?? true) === $value) {
             return false;
         }
-        $changed = $this->coversConflictResolution($projectId) !== $value;
         $binding->definition[self::KEY] = $value;
         $this->em->flush();
         $this->templates->reset();
-        if ($changed) {
-            $this->events->dispatch(new ApprovalRuleChanged($projectId));
-        }
 
         return true;
     }

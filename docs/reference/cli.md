@@ -298,12 +298,23 @@ names the ways to choose. It never guesses.
 | `loupe project` | `list`, `get`, `create`, `update`, and `link` from above |
 | `loupe column` | `list`, `get`, `create`, `update`, `delete`, `reorder` |
 | `loupe card` | `list`, `get`, `history`, `create`, `update`, `reorder`, `hold`, `release`, `pause-release` |
-| `loupe experiment` | `cards`, `exclude`, `include` |
+| `loupe experiment` | `list`, `get`, `update`, `cards`, `exclude`, `include` |
+| `loupe tag` | `list` |
+| `loupe series` | `list`, `rename` |
+| `loupe metric` | `list`, `query` |
+| `loupe analysis` | `list`, `get` |
+| `loupe run` | `list`, `get`, `tool-calls`, `host-samples`, `stop`, `resume`, `resume-batch`, `cancel-command` |
+| `loupe bridges` | `list`, `list-account` |
 | `loupe feedback` | `list`, `get`, `address` |
-| `loupe document` | `list`, `get`, `review`, `create`, `update`, `publish`, `revise`, `verdict`, `verdict-withdraw`, `decision-answer`, `decision-clear`, `reply`, `address`, and `version list` and `version get` |
+| `loupe document` | `list`, `get`, `review`, `create`, `update`, `publish`, `revise`, `verdict`, `verdict-withdraw`, `decision-answer`, `decision-clear`, `reply`, `address`, `highlight`, and `version list` and `version get` |
 | `loupe artifact` | `list`, `get`, `update`, `create`, `version create`, `read` |
-| `loupe inbox` | `create`, `get` |
+| `loupe inbox` | `create`, `get`, `list`, `withdraw`, `action`, `command`, `actions` |
+| `loupe graph` | `list`, `get`, `create`, `update`, `delete`, `restore` |
+| `loupe bucket-rule` | `list`, `create`, `update`, `delete` |
+| `loupe analytics-settings` | `get`, `update` |
 | `loupe github` | `repository status` |
+| `loupe workflow` | `show`, `automation show`, `automation set` |
+| `loupe readiness` | `show`, `set` |
 
 `loupe card list` filters by the state of a card with `--state` and
 `--state-code`: `loupe card list --state working` lists the cards with the
@@ -318,6 +329,10 @@ their variant, pull request URLs and left-out reasons. `loupe experiment exclude
 <experiment> <number> --reason "..."` leaves a card out of the comparison, and
 `loupe experiment include <experiment> <number>` puts it back. These commands
 need CLI 2.1.0 or later and a server that has the experiment routes.
+
+`loupe experiment list` lists the experiments of a project, and `--archived` lists the archived ones. `loupe experiment get <experiment>` reads the comparison of one experiment. `loupe experiment update <experiment> --archived` archives it, and `--archived=false` brings it back. `loupe tag list` lists the tags with their document counts. `loupe series list` lists the series, and `loupe series rename <series> --name "..."` renames one. These commands need a CLI release after 2.6.0 and a server that has the routes.
+`loupe metric list` lists the metrics of the project. `loupe metric query --unit run --metric cost --statistic sum` reads one metric over time, and `--rows` with `--formula` reads a formula. `--formula-format` sets how a formula result reads. `loupe analysis list` and `loupe analysis get <analysis>` read the analyses with their proposals. These commands need CLI 2.7.0 or later and a server that has the metric and analysis routes. The query has its own limit of 30 requests a minute.
+`loupe run list` lists the worker runs of a project, and `--state`, `--card`, `--work-kind`, `--bridge`, `--harness`, `--account`, `--model`, `--ended-after`, `--ended-before` and `--q` narrow the list. `loupe run get <run>` reads one run with its series and its commands, `loupe run tool-calls <run>` lists its tool calls, and `loupe run host-samples <run>` lists the host samples of its bridge. `loupe run stop <run>` stops a run, `loupe run resume <run>` resumes one, and `loupe run resume-batch --run-ids <id>,<id>` resumes up to 50 runs and prints one row per run. `loupe run cancel-command <run>` withdraws the command that waits on a run. `loupe bridges list` lists the bridges that serve the project, and `loupe bridges list-account` lists every bridge of the account. These commands need a CLI release after 2.6.0 and a server that has the routes.
 
 `loupe github repository status <owner/name> --project <slug>` tells whether the Loupe GitHub App reaches a repository and whether the project holds it. The answer is `in-project`, `free`, `other-project` or `not-shared`. Only the project owner may ask. The command needs CLI 2.6.0 or later and a server that has the lookup route.
 
@@ -346,6 +361,40 @@ with an API key, and the owner sees one open item for repeated failures.
 The [API reference](api/index.md#inbox-items) gives the rules. The commands
 need a CLI release after `cli/v2.0.2`, and a server with the inbox routes and
 the inbox flag on.
+
+`loupe inbox list` lists the items of a project, newest first, with the filters
+`--state`, `--card`, `--document`, `--ask`, `--session` and `--q`.
+`loupe inbox withdraw <itemId> --reason "..."` withdraws an open item.
+`loupe inbox action <itemId> --action dismiss` runs an action, and `--note`,
+`--selected-options`, `--branch`, `--params`, `--run-digest` and
+`--session-prompt` give its fields. `loupe inbox command <itemId>` previews the
+command of a `run-command` action and prints the `runDigest` that the action
+needs. `loupe inbox actions` lists the actions a worker can suggest. These five
+commands need a CLI release after `cli/v2.6.0`, and a server with the control
+routes. With the inbox flag off they fail with `route_not_found`.
+
+`loupe workflow show` reads the workflow of the project. `loupe workflow
+automation show` reads the automation settings, and `loupe workflow automation
+set` changes them with `--enabled`, `--stuck-delay-minutes` and
+`--approval-covers-conflict-resolution`. `loupe readiness show` reads the
+readiness checks, and `loupe readiness set --guide-shown=false` hides the
+readiness guide. `loupe document highlight <documentId> --quotes "..."` replaces
+the highlights of a document. Repeat `--quotes` for each quote, and wrap a quote
+that holds a comma in double quotes. The command works only while the
+`review.highlights.enabled` flag is on. These commands need a CLI release after
+`cli/v2.6.0` and a server that has the routes. See the
+[API reference](api/index.md#workflow-automation-and-readiness).
+
+`loupe graph` manages the saved graphs of the Dashboard, `loupe bucket-rule`
+manages the time bucket rules, and `loupe analytics-settings` reads and changes
+the analytics settings. `loupe graph list --removed` lists the graphs that a
+restore can bring back. `loupe graph update <graph> --position 0 --width full`
+changes several fields in one transaction. `--settings` and `--rows` take JSON,
+and the formula format is `--formula-format`, because `--format` picks the
+output format. `loupe bucket-rule update <rule> --position 0` moves a rule.
+`loupe bucket-rule delete` asks first, and `--yes` skips the question. The
+[API reference](api/index.md#saved-graphs) gives the rules. The commands need a
+CLI release after `cli/v2.6.0`.
 
 The verbs are the words of the MCP tools, so `document_revise` is
 `loupe document revise`. A flag is the API parameter in kebab-case:

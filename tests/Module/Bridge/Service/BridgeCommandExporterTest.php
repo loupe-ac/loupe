@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Tests\Module\Bridge\Service;
 
 use App\Module\Bridge\Service\BridgeCommandExporter;
+use App\Module\Bridge\ValueObject\BridgeCommandCause;
 use App\Module\Bridge\ValueObject\BridgeCommandKind;
 use App\Module\Bridge\ValueObject\BridgeCommandState;
 use App\Module\Bridge\ValueObject\WorkRequestContext;
 use App\Tests\Module\Bridge\BridgeScenario;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Uid\Uuid;
 
 final class BridgeCommandExporterTest extends KernelTestCase
 {
@@ -35,6 +37,11 @@ final class BridgeCommandExporterTest extends KernelTestCase
         $otherRun = $this->seedRun($em, $this->project($em, $other, 'Other Commands'), cardNumber: 9);
         $asked = $this->seedCommand($em, $otherRun, requestedAt: new \DateTimeImmutable('2026-09-29T11:30:00+00:00'), requestedBy: $exporting);
         $this->seedCommand($em, $this->seedRun($em, $this->project($em, $other, 'Unrelated Commands')));
+        $asked->cause = BridgeCommandCause::ApiKey;
+        $asked->apiKeyId = Uuid::v7();
+        $asked->apiKeyName = 'Weekly CI';
+        $asked->cancelledApiKeyId = Uuid::v7();
+        $asked->cancelledApiKeyName = 'Nightly CI';
         $em->flush();
         $em->clear();
 
@@ -53,6 +60,8 @@ final class BridgeCommandExporterTest extends KernelTestCase
                 'reason' => 'the run was gone',
                 'cause' => 'person',
                 'context' => ['pullRequestNumber' => 42, 'pullRequestUrl' => null, 'headSha' => 'abc1234', 'reason' => 'conflict', 'documentId' => null, 'inboxActionId' => null, 'inboxItemNumber' => null, 'inboxItemId' => null, 'epicBranch' => null],
+                'requestedByApiKey' => null,
+                'cancelledByApiKey' => null,
                 'requestedByYou' => false,
                 'requestedAt' => '2026-09-29T11:00:00+00:00',
                 'expiresAt' => '2026-09-29T11:15:00+00:00',
@@ -68,8 +77,10 @@ final class BridgeCommandExporterTest extends KernelTestCase
                 'kind' => 'stop-run',
                 'state' => 'pending',
                 'reason' => null,
-                'cause' => 'person',
+                'cause' => 'api-key',
                 'context' => ['pullRequestNumber' => null, 'pullRequestUrl' => null, 'headSha' => null, 'reason' => null, 'documentId' => null, 'inboxActionId' => null, 'inboxItemNumber' => null, 'inboxItemId' => null, 'epicBranch' => null],
+                'requestedByApiKey' => ['id' => (string) $asked->apiKeyId, 'name' => 'Weekly CI'],
+                'cancelledByApiKey' => ['id' => (string) $asked->cancelledApiKeyId, 'name' => 'Nightly CI'],
                 'requestedByYou' => true,
                 'requestedAt' => '2026-09-29T11:30:00+00:00',
                 'expiresAt' => '2026-09-29T11:45:00+00:00',

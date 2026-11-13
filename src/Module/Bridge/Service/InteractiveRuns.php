@@ -16,6 +16,7 @@ use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Project\Entity\Project;
+use App\Security\ApiKeyActor;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
@@ -253,12 +254,13 @@ final readonly class InteractiveRuns
     }
 
     /** Null when the id names no interactive run of the project. */
-    public function closeById(Project $project, Uuid $runId): ?WorkerRun
+    public function closeById(Project $project, Uuid $runId, ?ApiKeyActor $apiKey = null): ?WorkerRun
     {
         return $this->closeLocked(
             fn (): ?WorkerRun => $this->workerRuns->findOpenInteractiveByIdForUpdate($project, $runId),
             fn (): ?WorkerRun => $this->workerRuns->findInteractiveById($project, $runId),
-            WorkerRunCloseReason::Person,
+            null === $apiKey ? WorkerRunCloseReason::Person : WorkerRunCloseReason::ApiKey,
+            $apiKey,
         )[0];
     }
 
@@ -355,10 +357,10 @@ final readonly class InteractiveRuns
      *
      * @return array{?WorkerRun, bool}
      */
-    private function closeLocked(\Closure $findOpenLocked, \Closure $findAny, WorkerRunCloseReason $reason): array
+    private function closeLocked(\Closure $findOpenLocked, \Closure $findAny, WorkerRunCloseReason $reason, ?ApiKeyActor $apiKey = null): array
     {
         /** @var array{?WorkerRun, bool} $outcome */
-        $outcome = $this->em->wrapInTransaction(function () use ($findOpenLocked, $findAny, $reason): array {
+        $outcome = $this->em->wrapInTransaction(function () use ($findOpenLocked, $findAny, $reason, $apiKey): array {
             $run = $findOpenLocked();
             if (null === $run) {
                 $run = $findAny();
@@ -371,7 +373,7 @@ final readonly class InteractiveRuns
                 return [$run, false];
             }
 
-            $this->closeRun($run, $this->clock->now(), $reason);
+            $this->closeRun($run, $this->clock->now(), $reason, $apiKey);
             $this->em->flush();
 
             return [$run, true];
@@ -427,11 +429,13 @@ final readonly class InteractiveRuns
         }
     }
 
-    private function closeRun(WorkerRun $run, \DateTimeImmutable $at, WorkerRunCloseReason $reason): void
+    private function closeRun(WorkerRun $run, \DateTimeImmutable $at, WorkerRunCloseReason $reason, ?ApiKeyActor $apiKey = null): void
     {
         $run->moveTo(WorkerRunState::Closed);
         $run->endedAt = $at;
         $run->closeReason = $reason;
+        $run->closedApiKeyId = $apiKey?->keyId;
+        $run->closedApiKeyName = $apiKey?->keyName;
         $this->em->persist(new WorkerRunStateChange($run, WorkerRunState::Closed, $at, $at));
         $this->bus->dispatch(new CollectSessionUsage((string) $run->project->id, (string) $run->id));
     }

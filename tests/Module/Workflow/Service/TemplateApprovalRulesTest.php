@@ -35,7 +35,7 @@ final class TemplateApprovalRulesTest extends KernelTestCase
     {
         $project = $this->workflowProject('approval-rules-unbound-write');
 
-        self::assertFalse($this->rules()->setCoversConflictResolution($this->id($project->id), false));
+        self::assertNull($this->rules()->setCoversConflictResolution($this->id($project->id), false));
     }
 
     public function test_a_written_value_is_stored_in_the_copy_and_read_back(): void
@@ -55,7 +55,7 @@ final class TemplateApprovalRulesTest extends KernelTestCase
         self::assertSame(TemplateVersion::of(self::getContainer()->get(ShippedTemplates::class)->source('lifecycle')), $binding->templateVersion);
     }
 
-    public function test_a_write_announces_a_change_of_the_value_only(): void
+    public function test_a_write_announces_nothing_because_the_caller_dispatches_after_commit(): void
     {
         $project = $this->workflowProject('approval-rules-announce');
         $this->bindLifecycle($project);
@@ -72,7 +72,7 @@ final class TemplateApprovalRulesTest extends KernelTestCase
         $this->rules()->setCoversConflictResolution($id, false);
         $this->rules()->setCoversConflictResolution($id, true);
 
-        self::assertSame([(string) $id, (string) $id], $announced);
+        self::assertSame([], $announced);
     }
 
     private function rules(): TemplateApprovalRules

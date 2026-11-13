@@ -34,6 +34,7 @@ final readonly class InboxActionExporter implements UserDataExporterInterface
                 'bridgeCommandId' => $action->bridgeCommandId?->toRfc4122(),
                 'pauseId' => $action->pauseId?->toRfc4122(),
                 'cancelledAt' => $action->cancelledAt?->format(\DateTimeInterface::ATOM),
+                'apiKey' => null === $action->apiKeyId ? null : ['id' => (string) $action->apiKeyId, 'name' => $action->apiKeyName],
             ];
         }
     }

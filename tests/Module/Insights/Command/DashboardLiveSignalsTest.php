@@ -10,18 +10,12 @@ use App\Module\Insights\Command\MoveSavedGraphCommand;
 use App\Module\Insights\Command\MoveSavedGraphHandler;
 use App\Module\Insights\Command\RemoveSavedGraphCommand;
 use App\Module\Insights\Command\RemoveSavedGraphHandler;
-use App\Module\Insights\Command\RenameSavedGraphCommand;
-use App\Module\Insights\Command\RenameSavedGraphHandler;
-use App\Module\Insights\Command\ResizeSavedGraphCommand;
-use App\Module\Insights\Command\ResizeSavedGraphHandler;
 use App\Module\Insights\Command\RestoreSavedGraphCommand;
 use App\Module\Insights\Command\RestoreSavedGraphHandler;
 use App\Module\Insights\Command\SaveSavedGraphCommand;
 use App\Module\Insights\Command\SaveSavedGraphHandler;
-use App\Module\Insights\Command\SetLegendSavedGraphCommand;
-use App\Module\Insights\Command\SetLegendSavedGraphHandler;
-use App\Module\Insights\Command\UpdateSavedGraphCommand;
-use App\Module\Insights\Command\UpdateSavedGraphHandler;
+use App\Module\Insights\Command\UpdateSavedGraphFieldsCommand;
+use App\Module\Insights\Command\UpdateSavedGraphFieldsHandler;
 use App\Module\Insights\Entity\SavedGraphWidth;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Insights\InsightsScenario;
@@ -69,7 +63,7 @@ final class DashboardLiveSignalsTest extends KernelTestCase
         $this->terminate();
         $this->assertSignals($project, [['saved', (string) $saved->graph->id]]);
 
-        $this->service(UpdateSavedGraphHandler::class)(new UpdateSavedGraphCommand($project, (string) $saved->graph->id, null, self::SETTINGS));
+        $this->service(UpdateSavedGraphFieldsHandler::class)(new UpdateSavedGraphFieldsCommand($project, (string) $saved->graph->id, settings: self::SETTINGS));
         $this->terminate();
         $this->assertSignals($project, [['saved', (string) $saved->graph->id], ['updated', (string) $saved->graph->id]]);
     }
@@ -81,9 +75,9 @@ final class DashboardLiveSignalsTest extends KernelTestCase
         $second = $this->seedSavedGraph($project, 'B', 1);
         $id = (string) $second->id;
 
-        $this->service(RenameSavedGraphHandler::class)(new RenameSavedGraphCommand($second, 'Renamed'));
-        $this->service(ResizeSavedGraphHandler::class)(new ResizeSavedGraphCommand($second, SavedGraphWidth::Full));
-        $this->service(SetLegendSavedGraphHandler::class)(new SetLegendSavedGraphCommand($second, false));
+        $this->service(UpdateSavedGraphFieldsHandler::class)(new UpdateSavedGraphFieldsCommand($project, (string) $second->id, name: 'Renamed'));
+        $this->service(UpdateSavedGraphFieldsHandler::class)(new UpdateSavedGraphFieldsCommand($project, (string) $second->id, width: SavedGraphWidth::Full));
+        $this->service(UpdateSavedGraphFieldsHandler::class)(new UpdateSavedGraphFieldsCommand($project, (string) $second->id, showLegend: false));
         $this->service(MoveSavedGraphHandler::class)(new MoveSavedGraphCommand($second, -1));
         $this->service(RemoveSavedGraphHandler::class)(new RemoveSavedGraphCommand($second));
         $this->service(RestoreSavedGraphHandler::class)(new RestoreSavedGraphCommand($second));
@@ -129,7 +123,7 @@ final class DashboardLiveSignalsTest extends KernelTestCase
         $project = $this->scenarioProject('signal-payload');
         $graph = $this->seedSavedGraph($project, 'Secret name', 0);
 
-        $this->service(RenameSavedGraphHandler::class)(new RenameSavedGraphCommand($graph, 'Another secret'));
+        $this->service(UpdateSavedGraphFieldsHandler::class)(new UpdateSavedGraphFieldsCommand($project, (string) $graph->id, name: 'Another secret'));
         $this->terminate();
 
         $update = $this->updatesOf($project)[0] ?? throw new \LogicException('A signal was sent.');

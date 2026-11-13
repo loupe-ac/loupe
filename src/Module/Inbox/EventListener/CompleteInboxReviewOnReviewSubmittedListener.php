@@ -30,7 +30,7 @@ final readonly class CompleteInboxReviewOnReviewSubmittedListener
     public function __invoke(ReviewSubmitted $event): void
     {
         $result = $event->review;
-        $closer = null === $result->workflowRule ? InboxCloser::Owner : InboxCloser::Rule;
+        $closer = null === $result->workflowRule ? (null === $result->apiKeyId ? InboxCloser::Owner : InboxCloser::OwnerThroughApiKey) : InboxCloser::Rule;
         $reviews = $this->inboxReviews->findOpenForDocument($result->version->document);
         $this->inboxItems->reloadChangeableColumns(array_map(static fn ($review) => $review->item, $reviews));
         foreach ($reviews as $review) {
@@ -38,6 +38,10 @@ final readonly class CompleteInboxReviewOnReviewSubmittedListener
                 continue;
             }
 
+            if (InboxCloser::OwnerThroughApiKey === $closer) {
+                $review->item->closedApiKeyId = $result->apiKeyId;
+                $review->item->closedApiKeyName = $result->apiKeyName;
+            }
             $review->verdict = InboxReviewVerdict::from($result->verdict->value);
             $review->submittedAt = $result->submittedAt;
             $review->reviewer = $result->reviewer;

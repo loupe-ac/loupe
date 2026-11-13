@@ -7,6 +7,7 @@ namespace App\Module\Bridge\Mcp;
 use App\Exception\DomainErrors;
 use App\Module\Bridge\Command\CancelBridgeCommandCommand;
 use App\Module\Bridge\Command\CancelBridgeCommandHandler;
+use App\Module\Bridge\Service\BridgeCommandRefusals;
 use App\Security\McpBoundProjectVoter;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Exception\ToolCallException;

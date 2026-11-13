@@ -40,12 +40,11 @@ final readonly class AutomationSettingsUpdateTool
     {
         try {
             $project = $this->subjects->requireProject();
-            $current = $this->automation->settingsOf($project);
 
             ($this->saveSettings)(new SaveBoardAutomationSettingsCommand(
                 project: $project,
-                enabled: $enabled ?? $current->enabled,
-                stuckDelayMinutes: $stuckDelayMinutes ?? $current->stuckDelayMinutes,
+                enabled: $enabled,
+                stuckDelayMinutes: $stuckDelayMinutes,
                 approvalCoversConflictResolution: $approvalCoversConflictResolution,
             ));
             $saved = $this->automation->settingsOf($project);

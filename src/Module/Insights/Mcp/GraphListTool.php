@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Module\Insights\Mcp;
 
-use App\Module\Bridge\Metric\Formula\MetricFormula;
 use App\Module\Insights\Command\ListSavedGraphsCommand;
 use App\Module\Insights\Command\ListSavedGraphsHandler;
 use App\Module\Insights\Command\ListSavedGraphsView;
 use App\Module\Insights\Entity\InsightsSavedGraph;
+use App\Module\Insights\Service\SavedGraphShape;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Exception\ToolCallException;
 
@@ -90,7 +90,7 @@ final readonly class GraphListTool
     /** The place of a graph among the graphs on show, counting from 0, or null when it is not on show. */
     public static function positionOf(ListSavedGraphsView $view, InsightsSavedGraph $graph): ?int
     {
-        return array_find_key($view->graphs, static fn (InsightsSavedGraph $other): bool => $other->id?->equals($graph->id) ?? false);
+        return SavedGraphShape::positionOf($view, $graph);
     }
 
     /**
@@ -100,17 +100,13 @@ final readonly class GraphListTool
      */
     public static function settingsOf(InsightsSavedGraph $graph): array
     {
-        return array_diff_key($graph->settings(), ['rows' => true, 'formula' => true, 'format' => true]);
+        return SavedGraphShape::settingsOf($graph);
     }
 
     /** @return ?FormulaPayload null for a graph that reads one metric */
     public static function formulaOf(InsightsSavedGraph $graph): ?array
     {
-        if (null === $graph->formulaRows) {
-            return null;
-        }
-
-        return ['rows' => MetricFormula::rowParts($graph->formulaRows), 'formula' => $graph->formula ?? '', 'format' => $graph->format ?? ''];
+        return SavedGraphShape::formulaOf($graph);
     }
 
     /** @return GraphPayload */

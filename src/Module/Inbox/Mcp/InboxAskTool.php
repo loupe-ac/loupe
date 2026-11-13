@@ -11,6 +11,7 @@ use App\Module\Inbox\Command\AskInboxHandler;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\InboxLimits;
 use App\Module\Inbox\Install\InboxInstallFlags;
+use App\Module\Inbox\Service\InboxItemPayload;
 use App\Module\Inbox\Service\RunSuggestions;
 use App\Module\Inbox\Service\SessionPromptLimit;
 use Mcp\Capability\Attribute\McpTool;

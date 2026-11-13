@@ -61,6 +61,7 @@ final readonly class SubmitInboxDocumentReviewHandler
                     versionNumber: $command->versionNumber,
                     note: $command->note,
                     expectedReviewId: $command->expectedReviewId,
+                    apiKey: $command->apiKey,
                 ));
             } catch (DomainErrors $error) {
                 return $error;

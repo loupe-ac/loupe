@@ -587,7 +587,7 @@ ones you create later.
 
 ## Commands for the public API
 
-The `project`, `column`, `card`, `experiment`, `feedback`, `document`, `artifact` and `inbox` groups
+The `project`, `column`, `card`, `experiment`, `metric`, `analysis`, `tag`, `series`, `feedback`, `document`, `artifact`, `inbox`, `graph`, `bucket-rule`, `analytics-settings`, `run` and `bridges` groups
 call the public API, one command for each operation. They are in beta. A test
 fails when an operation has no command. `docs/reference/cli.md` "Commands for
 the public API" holds the full reference: sign-in, project choice, output
@@ -603,14 +603,42 @@ loupe card update 42 --after-card 17
 loupe card reorder --column next --cards 42,17,30 --at top
 loupe experiment cards php-lsp-4 --format json
 loupe experiment exclude php-lsp-4 42 --reason "Changes no PHP"
+loupe experiment list --archived
+loupe series rename "Rust Atomics" --name "Atomics in Rust"
+loupe metric query --unit run --metric cost --statistic sum --range thirty-days
+loupe analysis get <id>
 loupe document revise <id> --body-file draft.md --description "Answered the review"
 loupe inbox create --kind notice --title "The weekly run failed" --dedupe-key weekly-ci
+loupe inbox list --state open
+loupe inbox withdraw <item id> --reason "The pull request merged"
+loupe inbox command <item id>
+loupe workflow show
+loupe workflow automation set --stuck-delay-minutes 90
+loupe readiness set --guide-shown=false
+loupe document highlight <id> --quotes "short-lived JWTs"
+loupe graph list --removed
+loupe graph update <graph id> --position 0 --width full
+loupe bucket-rule create --pattern 'mcp__loupe__*' --bucket tools
+loupe analytics-settings update --default-effort high
+loupe run list --state failed --state timed-out
+loupe run resume-batch --run-ids 0199a1b2-0000-7000-8000-000000000001,0199a1b2-0000-7000-8000-000000000002
 LOUPE_API_KEY=loupe_key_... LOUPE_PROJECT=acme loupe card list
 ```
 
-The `experiment` group (`cards`, `exclude`, `include`) needs CLI 2.1.0.
+The `experiment` group (`cards`, `exclude`, `include`) needs CLI 2.1.0. The commands `experiment list`, `experiment get`, `experiment update`, `tag list`, `series list` and `series rename` need a CLI release after 2.6.0.
+
+The `metric` group (`list`, `query`) and the `analysis` group (`list`, `get`) need CLI 2.7.0 and a server that has the metric and analysis routes.
 
 `loupe github repository status <owner/name>` prints how a GitHub repository stands for the project: `in-project`, `free`, `other-project` or `not-shared`. Only the owner of the project may ask. It needs CLI 2.6.0 and a server that has the route.
+
+The `run` and `bridges` groups need a CLI release after `cli/v2.6.0`. `loupe run resume` resumes one run, and `loupe run resume-batch` resumes up to 50.
+
+The commands `inbox list`, `inbox withdraw`, `inbox action`, `inbox command` and `inbox actions` need a CLI release after `cli/v2.6.0`, and a server with the inbox control routes. With the inbox flag off they fail with `route_not_found`.
+
+The commands `workflow show`, `workflow automation show`, `workflow automation set`, `readiness show`, `readiness set` and `document highlight` need a CLI release after `cli/v2.6.0`, and a server with the workflow and readiness routes. `document highlight` fails with `route_not_found` while the `review.highlights.enabled` flag is off.
+
+The `graph`, `bucket-rule` and `analytics-settings` groups need a CLI release after `cli/v2.6.0`. A graph
+formula format is `--formula-format`, because `--format` picks the output format.
 
 `loupe card reorder` and the `--position`, `--before-card` and `--after-card` flags of
 `loupe card update` need a CLI release after `cli/v2.5.6`.

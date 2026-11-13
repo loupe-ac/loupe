@@ -7,6 +7,7 @@ namespace App\Tests\Api\Pagination;
 use App\Api\Pagination\Cursor;
 use App\Api\Problem\ApiProblemException;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Uid\Uuid;
 
 final class CursorTest extends TestCase
 {
@@ -54,6 +55,31 @@ final class CursorTest extends TestCase
         $this->assertInvalid(static fn () => Cursor::decode('not a cursor!', 'number'));
         $this->assertInvalid(static fn () => Cursor::decode(rtrim(strtr(base64_encode('[1,2]'), '+/', '-_'), '='), 'number'));
         $this->assertInvalid(static fn () => Cursor::decode(rtrim(strtr(base64_encode('{"s":"number"}'), '+/', '-_'), '='), 'number'));
+    }
+
+    public function test_a_time_position_keeps_the_microseconds_in_utc(): void
+    {
+        $at = new \DateTimeImmutable('2026-11-01 12:00:00.123456', new \DateTimeZone('Europe/Paris'));
+
+        $position = Cursor::decode(Cursor::afterTime('sampledAt', $at)->encode(), 'sampledAt')->timePosition();
+
+        self::assertSame('2026-11-01 11:00:00.123456', $position->format('Y-m-d H:i:s.u'));
+    }
+
+    public function test_a_number_position_and_an_id_position_round_trip(): void
+    {
+        $id = Uuid::v7();
+
+        self::assertSame(42, Cursor::decode(Cursor::afterNumber('seq', 42)->encode(), 'seq')->numberPosition());
+        self::assertTrue($id->equals(Cursor::decode(Cursor::afterId('id', $id)->encode(), 'id')->idPosition()));
+    }
+
+    public function test_a_position_that_does_not_parse_is_refused(): void
+    {
+        $this->assertInvalid(static fn () => new Cursor('seq', 'abc', '')->numberPosition());
+        $this->assertInvalid(static fn () => new Cursor('seq', '99999999999999999999', '')->numberPosition());
+        $this->assertInvalid(static fn () => new Cursor('id', 'abc', '')->idPosition());
+        $this->assertInvalid(static fn () => new Cursor('at', 'abc', '')->timePosition());
     }
 
     /** @param \Closure(): mixed $call */

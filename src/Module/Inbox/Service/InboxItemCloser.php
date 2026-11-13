@@ -10,6 +10,7 @@ use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Repository\InboxItemRepository;
+use App\Security\ApiKeyActor;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -51,11 +52,11 @@ final readonly class InboxItemCloser
      *
      * @throws DomainErrors keyed by $errorField, or by the fields $respond names, when the item takes no such response
      */
-    public function respond(InboxItem $item, InboxItemState $state, InboxCloser $closer, ?InboxCloseCause $cause, string $errorField, \Closure $respond): void
+    public function respond(InboxItem $item, InboxItemState $state, InboxCloser $closer, ?InboxCloseCause $cause, string $errorField, \Closure $respond, ?ApiKeyActor $apiKey = null): void
     {
         self::assertClosed($state);
 
-        $errors = $this->em->wrapInTransaction(function () use ($item, $state, $closer, $cause, $errorField, $respond): ?array {
+        $errors = $this->em->wrapInTransaction(function () use ($item, $state, $closer, $cause, $errorField, $respond, $apiKey): ?array {
             $this->em->lock($item->project, LockMode::PESSIMISTIC_WRITE);
             // Read under the lock, so a response or an agent's change that landed
             // since the item was loaded counts. refresh() would also reload
@@ -77,6 +78,10 @@ final readonly class InboxItemCloser
             $item->state = $state;
             $item->closedBy = $closer;
             $item->closeCause = $cause;
+            // Only the key that closed the item as itself is named.
+            $keyed = InboxCloser::OwnerThroughApiKey === $closer ? $apiKey : null;
+            $item->closedApiKeyId = $keyed?->keyId;
+            $item->closedApiKeyName = $keyed?->keyName;
             $item->updatedAt = $now;
             // The flush that ends the transaction writes only what differs from
             // the copy Doctrine loaded, so it would miss a field cleared back to
@@ -97,7 +102,7 @@ final readonly class InboxItemCloser
     /**
      * The caller holds the project lock and transaction, and flushes afterward.
      */
-    public function close(InboxItem $item, InboxItemState $state, InboxCloser $closer, ?InboxCloseCause $cause, ?string $note, \DateTimeImmutable $now): bool
+    public function close(InboxItem $item, InboxItemState $state, InboxCloser $closer, ?InboxCloseCause $cause, ?string $note, \DateTimeImmutable $now, ?ApiKeyActor $apiKey = null): bool
     {
         self::assertClosed($state);
         if (InboxItemState::Open !== $item->state) {
@@ -109,6 +114,9 @@ final readonly class InboxItemCloser
         $item->closeCause = $cause;
         $item->note = $note;
         $item->closedAt = $now;
+        $keyed = InboxCloser::OwnerThroughApiKey === $closer ? $apiKey : null;
+        $item->closedApiKeyId = $keyed?->keyId;
+        $item->closedApiKeyName = $keyed?->keyName;
         $item->updatedAt = $now;
         $this->askCloser->closeAsksHolding($item, $closer->outboxActor(), $now);
 

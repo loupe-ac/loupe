@@ -135,6 +135,27 @@ class WorkerRunToolCallRepository extends ServiceEntityRepository
     }
 
     /**
+     * The calls of a run after a sequence number, in sequence order.
+     *
+     * @return list<WorkerRunToolCall>
+     */
+    public function findAfterSeqOfRun(WorkerRun $run, int $afterSeq, int $limit): array
+    {
+        /** @var list<WorkerRunToolCall> $calls */
+        $calls = $this->createQueryBuilder('c')
+            ->andWhere('c.run = :run')
+            ->andWhere('c.seq > :afterSeq')
+            ->setParameter('run', $run)
+            ->setParameter('afterSeq', $afterSeq)
+            ->orderBy('c.seq', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+
+        return $calls;
+    }
+
+    /**
      * Every tool call of every run on every project the user owns, for the
      * account data export.
      *

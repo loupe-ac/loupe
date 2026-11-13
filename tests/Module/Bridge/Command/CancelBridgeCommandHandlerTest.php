@@ -15,6 +15,7 @@ use App\Module\Bridge\Service\CardHolds;
 use App\Module\Bridge\ValueObject\BridgeCommandKind;
 use App\Module\Bridge\ValueObject\BridgeCommandState;
 use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Security\ApiKeyActor;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Support\RecordedEvents;
 use App\Tests\Support\RecordingAuditor;
@@ -57,7 +58,44 @@ final class CancelBridgeCommandHandlerTest extends KernelTestCase
             'projectId' => (string) $run->project->id,
             'runId' => (string) $run->id,
             'bridgeId' => (string) $run->bridgeId,
+            'apiKeyId' => null,
         ], $record->context);
+    }
+
+    public function test_a_key_that_cancels_a_command_a_person_requested_is_named_on_the_cancel_columns_only(): void
+    {
+        $this->boot();
+        $audit = RecordingAuditor::installedIn(self::getContainer());
+        [$owner, $run] = $this->scenario('cancel-by-key');
+        $pending = $this->seedCommand($this->em(), $run, kind: BridgeCommandKind::ResumeRun, requestedBy: $owner);
+        $key = new ApiKeyActor(Uuid::v7(), 'Weekly CI');
+
+        $this->service(CancelBridgeCommandHandler::class)(new CancelBridgeCommandCommand($run, $owner, apiKey: $key));
+
+        $this->em()->clear();
+        $stored = $this->em()->find(BridgeCommand::class, $pending->id);
+        self::assertInstanceOf(BridgeCommand::class, $stored);
+        self::assertSame(BridgeCommandState::Cancelled, $stored->state);
+        self::assertNull($stored->apiKeyId);
+        self::assertNull($stored->apiKeyName);
+        self::assertSame([(string) $key->keyId, 'Weekly CI'], [(string) $stored->cancelledApiKeyId, $stored->cancelledApiKeyName]);
+        self::assertSame((string) $key->keyId, $audit->record('bridge.command_cancelled')->context['apiKeyId']);
+    }
+
+    public function test_a_cancel_by_a_person_names_no_key(): void
+    {
+        $this->boot();
+        $audit = RecordingAuditor::installedIn(self::getContainer());
+        [$owner, $run] = $this->scenario('cancel-by-person');
+        $pending = $this->seedCommand($this->em(), $run, kind: BridgeCommandKind::ResumeRun);
+
+        $this->cancel($run, $owner);
+
+        $this->em()->clear();
+        $stored = $this->em()->find(BridgeCommand::class, $pending->id);
+        self::assertNull($stored?->cancelledApiKeyId);
+        self::assertNull($stored?->cancelledApiKeyName);
+        self::assertNull($audit->record('bridge.command_cancelled')->context['apiKeyId']);
     }
 
     public function test_a_cancel_by_id_cancels_the_pending_command_with_that_id(): void
