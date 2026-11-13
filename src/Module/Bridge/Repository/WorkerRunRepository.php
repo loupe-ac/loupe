@@ -841,6 +841,25 @@ class WorkerRunRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
+    /** Whether the project has an init run that is not open. */
+    public function hasClosedInit(Uuid $projectId): bool
+    {
+        return null !== $this->createQueryBuilder('r')
+            ->select('1')
+            ->andWhere('r.kind = :interactive')
+            ->andWhere('r.state != :running')
+            ->andWhere('r.project = :projectId')
+            ->andWhere(self::INIT_RUN_CONDITION)
+            ->setParameter('interactive', WorkerRunKind::Interactive->value)
+            ->setParameter('running', WorkerRunState::Running->value)
+            ->setParameter('projectId', $projectId, UuidType::NAME)
+            ->setParameter('initKind', InitRuns::WORK_KIND)
+            ->setParameter('initSubject', WorkSubject::PROJECT)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
     /**
      * Stamps the open interactive runs of the session in the project, and returns how many rows changed. A run
      * stamped within $minInterval seconds keeps its time, so a busy session writes once a minute.

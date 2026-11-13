@@ -12,4 +12,7 @@ interface InitRuns
     public const string WORK_KIND = 'init';
 
     public function isOpen(Uuid $projectId): bool;
+
+    /** Whether the project has an init run that is no longer open. */
+    public function hasClosed(Uuid $projectId): bool;
 }

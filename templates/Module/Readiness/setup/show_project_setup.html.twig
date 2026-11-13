@@ -1,0 +1,9 @@
+{% extends '@Account/auth_base.html.twig' %}
+
+{% block title %}{{ 'readiness.setup.page.title'|trans({'%project%': project.name}) }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% block auth_body %}
+<div class="lp-consent" data-testid="project-setup">
+    <h1 class="lp-consent__title">{{ project.name }}</h1>
+</div>
+{% endblock %}

@@ -10045,6 +10045,7 @@ workflow:
             <trans-unit id="github.init_handoff.lead"><source>github.init_handoff.lead</source><target>Go back to your terminal. loupe init sees the install and goes on by itself.</target></trans-unit>
             <trans-unit id="github.init_handoff.hint"><source>github.init_handoff.hint</source><target>You can close this tab.</target></trans-unit>
             <trans-unit id="github.init_handoff.open_project"><source>github.init_handoff.open_project</source><target>Open the project</target></trans-unit>
+            <trans-unit id="readiness.setup.page.title"><source>readiness.setup.page.title</source><target>Set up %project%</target></trans-unit>
             <trans-unit id="github.identity.add_repositories"><source>github.identity.add_repositories</source><target>Add repositories</target></trans-unit>
             <trans-unit id="github.connect.heading"><source>github.connect.heading</source><target>GitHub account</target></trans-unit>
             <trans-unit id="github.connect.intro"><source>github.connect.intro</source><target>Connect your GitHub account so that Loupe can act as you on GitHub, for example to post a review under your name.</target></trans-unit>
