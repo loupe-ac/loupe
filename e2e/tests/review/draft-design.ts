@@ -90,6 +90,7 @@ export async function seedDraftDesign(
         .getByLabel('Project name')
         .fill(`draft-band-${crypto.randomUUID().slice(0, 8)}`);
     await page.getByRole('button', { name: 'Add project' }).click();
+    await skipProjectSetup(page);
     await expect(page.locator('[data-workshop]')).toBeVisible(ROUND_TRIP);
     const projectId = /\/projects\/([0-9a-f-]{36})/.exec(page.url())?.[1];
     expect(projectId).toBeTruthy();

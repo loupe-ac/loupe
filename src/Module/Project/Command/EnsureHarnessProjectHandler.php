@@ -14,7 +14,7 @@ use Psr\EventDispatcher\EventDispatcherInterface;
  * Returns the named project for an owner, creating it if this is the first
  * call. Used by the dev seeding endpoints, which must be callable repeatedly
  * without accumulating duplicate projects. It binds the Simple template,
- * because the dev seed and the e2e specs work on its four columns.
+ * because the dev seed and the e2e specs work on its four columns. The project starts set up, so the setup gate leaves its pages reachable.
  */
 final readonly class EnsureHarnessProjectHandler
 {
@@ -33,6 +33,7 @@ final readonly class EnsureHarnessProjectHandler
         }
 
         $project = new Project($command->owner, $command->name);
+        $project->setUp = true;
         $this->em->persist($project);
         $this->events->dispatch(new ProjectCreating($project, 'simple'));
         $this->em->flush();

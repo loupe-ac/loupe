@@ -457,3 +457,9 @@ export async function addBoardColumn(
         settings.getByRole('heading', { name: label, exact: true }),
     ).toBeVisible({ timeout: coverageScaled(15_000) });
 }
+
+/** A new project opens on its setup page. This skips it, as an owner who wants the board does. */
+export async function skipProjectSetup(page: Page): Promise<void> {
+    await expect(page).toHaveURL(/\/projects\/[0-9a-f-]{36}\/setup$/);
+    await page.getByRole('button', { name: 'Skip for now' }).click();
+}
