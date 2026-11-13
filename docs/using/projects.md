@@ -35,7 +35,7 @@ The `inbox:` list of the workflow template decides which card waits open an item
 See [Choosing which waits open an item](inbox.md#choosing-which-waits-open-an-item).
 
 The first-project setup form also accepts a description.
-Account data exports include descriptions in `projects.json`.
+Account data exports include descriptions, the set-up state and the reached milestones in `projects.json`.
 
 Open Agents to see the project's reported bridge connections, CLI versions, and latest heartbeats.
 Connection details and setup buttons wrap to fit narrow screens and enlarged text.

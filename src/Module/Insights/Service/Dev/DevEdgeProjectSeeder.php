@@ -165,6 +165,7 @@ final readonly class DevEdgeProjectSeeder implements DevSeederInterface
         $this->devProjects->renameOldProject($context->devUser(), $name);
 
         $project = new Project($context->devUser(), $name, createdAt: $context->at($secondsAgo));
+        $project->setUp = true;
         $context->ids->assign($project, $id);
         $this->em->persist($project);
         $this->events->dispatch(new ProjectCreating($project, 'simple'));

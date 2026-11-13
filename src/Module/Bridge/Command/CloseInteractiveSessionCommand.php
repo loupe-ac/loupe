@@ -7,12 +7,16 @@ namespace App\Module\Bridge\Command;
 use App\Module\Account\Entity\User;
 use Symfony\Component\Uid\Uuid;
 
-/** Closes every open interactive run of one session in the projects of its owner. */
+/**
+ * Closes every open interactive run of one session in the projects of its owner. A finished session
+ * also reaches the init-finished milestone of each project it ran init in.
+ */
 final readonly class CloseInteractiveSessionCommand
 {
     public function __construct(
         public User $owner,
         public Uuid $sessionId,
+        public bool $finished = false,
     ) {
     }
 }

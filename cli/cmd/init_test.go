@@ -69,6 +69,7 @@ type initWorld struct {
 	launchMu     sync.Mutex
 	launches     []map[string]any
 	closes       int
+	closeBodies  []string
 	launchStatus int
 }
 
@@ -97,7 +98,9 @@ func newInitWorld(t *testing.T, sites string) *initWorld {
 			rw.WriteHeader(status)
 			fmt.Fprint(rw, `{}`)
 		case strings.HasPrefix(r.URL.Path, "/api/v1/bridge/interactive-sessions/") && r.Method == http.MethodPost:
+			raw, _ := io.ReadAll(r.Body)
 			w.launchMu.Lock()
+			w.closeBodies = append(w.closeBodies, string(raw))
 			w.closes++
 			w.launchMu.Unlock()
 			fmt.Fprint(rw, `{"closed":1}`)
