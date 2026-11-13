@@ -309,6 +309,9 @@ func githubFacts(site api.Site) string {
 		if r.MergeApprovalSource != "" {
 			b.WriteString(" (source " + r.MergeApprovalSource + ")")
 		}
+		if r.MergeApprovalPullRequestURL != nil && *r.MergeApprovalPullRequestURL != "" {
+			b.WriteString(", answered in the inbox, pull request " + *r.MergeApprovalPullRequestURL)
+		}
 		b.WriteString(".")
 	}
 

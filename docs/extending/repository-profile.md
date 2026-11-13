@@ -129,6 +129,7 @@ agent pushes the branch and prints the link that opens the pull request. When
 the pull request holds a merge setting, that setting counts once it merges, and
 until then the inbox does not ask the merge question again. A pull request with
 no merge setting does not stop the question. This needs CLI 2.7.0.
+When you answered the merge question in the inbox and Loupe opened its pull request, the agent skips the merge question, prints `You answered who approves a merge in the inbox. Merge <link> to apply it.`, and keeps the merge setting out of the init pull request.
 
 To write one by hand, create `.loupe/lifecycle.md`, and name the skills of
 your repository. The example is for a Node project on GitHub with the
