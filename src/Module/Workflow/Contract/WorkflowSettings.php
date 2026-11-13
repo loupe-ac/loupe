@@ -22,6 +22,9 @@ interface WorkflowSettings
      */
     public function forProject(Uuid $projectId, string $key): ResolvedSetting;
 
+    /** Whether the setting that the template declares for the key takes the raw value of a `.loupe.yaml` file. A key that the template does not declare takes none. */
+    public function accepts(Uuid $projectId, string $key, mixed $value): bool;
+
     /** @return list<string> one warning for each project setting that the repositories of the project set to different valid values, limited to the settings that the given repository sets */
     public function projectConflicts(Uuid $projectId, Uuid $repositoryId): array;
 }

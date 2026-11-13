@@ -349,6 +349,19 @@ final class GitHubDeliveryTest extends TestCase
         self::assertNull($this->delivery('status', ['ref' => 'refs/heads/main', 'repository' => self::REPOSITORY])->pushedBranch());
     }
 
+    public function test_the_head_branch_is_read_for_the_pull_request_actions_that_change_a_branch_only(): void
+    {
+        $pullRequest = ['head' => ['ref' => 'loupe/init'], 'number' => 3];
+        foreach (['opened', 'closed', 'reopened', 'synchronize'] as $action) {
+            self::assertSame('loupe/init', $this->delivery('pull_request', ['action' => $action, 'pull_request' => $pullRequest, 'repository' => self::REPOSITORY])->pullRequestHeadBranch(), $action);
+        }
+        self::assertNull($this->delivery('pull_request', ['action' => 'edited', 'pull_request' => $pullRequest, 'repository' => self::REPOSITORY])->pullRequestHeadBranch());
+        self::assertNull($this->delivery('pull_request_review', ['action' => 'opened', 'pull_request' => $pullRequest, 'repository' => self::REPOSITORY])->pullRequestHeadBranch());
+        self::assertNull($this->delivery('pull_request', ['action' => 'opened', 'pull_request' => ['head' => ['ref' => '']], 'repository' => self::REPOSITORY])->pullRequestHeadBranch());
+        self::assertNull($this->delivery('pull_request', ['action' => 'opened', 'pull_request' => ['head' => 'x'], 'repository' => self::REPOSITORY])->pullRequestHeadBranch());
+        self::assertNull($this->delivery('pull_request', ['action' => 'opened', 'repository' => self::REPOSITORY])->pullRequestHeadBranch());
+    }
+
     public function test_repeated_hints_are_given_once(): void
     {
         self::assertEquals([PullRequestRefreshHint::number(3), PullRequestRefreshHint::head('abc123')], $this->delivery('check_suite', [

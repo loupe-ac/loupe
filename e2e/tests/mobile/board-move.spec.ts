@@ -5,6 +5,7 @@
  */
 
 import { expect, type Locator, type Page } from '@playwright/test';
+import { submitRedirectingForm } from '../helpers';
 import {
     hubStubbedTest as base,
     suppressToolbar,
@@ -67,7 +68,11 @@ const test = base.extend<{ boardUrl: string }>({
                 .getByRole('button', { name: /new project/i })
                 .click();
             await page.getByLabel('Project name').fill(`move-${RUN}-${tag}`);
-            await page.getByRole('button', { name: 'Add project' }).click();
+            await submitRedirectingForm(
+                page,
+                page.getByRole('button', { name: 'Add project', exact: true }),
+                '/projects?page=1',
+            );
             await expect(page.locator('[data-workshop]')).toBeVisible({
                 timeout: 30_000,
             });

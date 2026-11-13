@@ -396,6 +396,12 @@ loupe init --repoint             # point a rule file entry that maps another fol
    another project uses, never change the exit status.
     When the Loupe GitHub App does not cover the repository of the `origin` remote, step 13 asks the server about it with the lookup route of the public API. A repository that the App reaches and no project holds prints `Shared with Loupe, not in this project.`, and the link opens the picker with that repository ticked (`/projects/<id>/github/install?repository=owner/name`). This needs CLI 2.6.0 and a server that has the route. An older server, or a failed call, leaves the plain install link.
 
+    From the project step to the end, `loupe init` keeps an interactive run of the work kind `init` open on the project. The inbox opens no onboarding item while it is open. Init renews the run every 60 seconds, and closes it on exit and on Ctrl-C. On a server that cannot hold the run, init prints `This Loupe server cannot hold the onboarding inbox items. They may appear while init runs.` and goes on.
+
+    Before the profile step, when the App is missing and the repository is known, init asks `Install the Loupe GitHub App on <owner/name> now? [Y/n]`. On yes it opens the install link with your browser and polls the project list every 3 seconds. After the repository joins the project, it waits up to 60 seconds for the first read of its rules. Enter or Ctrl-C stops the wait. Windows has no Enter key for it, so the prompt says `Press Ctrl-C to stop waiting.` Then the agent of the profile step runs.
+
+    The agent puts every confirmed change in one pull request from `loupe/init`, titled `Set up Loupe`, and asks whether to merge it. These features need CLI 2.7.0 and a server that has the init run.
+
 ## `loupe discovery start`
 
 Starts a discovery run for the project, and prints the link of the Workshop

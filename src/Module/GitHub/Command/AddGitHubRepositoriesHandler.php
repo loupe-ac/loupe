@@ -6,6 +6,8 @@ namespace App\Module\GitHub\Command;
 
 use App\Exception\DomainErrors;
 use App\Module\Forge\Entity\ForgeRepositorySource;
+use App\Module\Forge\Messenger\CheckForgeRepository;
+use App\Module\Forge\Messenger\CheckTrigger;
 use App\Module\GitHub\GitHubRepositoryPick;
 use App\Module\GitHub\Service\DeliveryAnnouncer;
 use App\Module\GitHub\Service\GitHubInstallationRecords;
@@ -13,6 +15,7 @@ use App\Module\GitHub\Service\GitHubInstallSession;
 use App\Module\GitHub\Service\GitHubUserApi;
 use App\Module\GitHub\Service\GitHubUserApiFailed;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
@@ -32,6 +35,7 @@ final readonly class AddGitHubRepositoriesHandler
         private DeliveryAnnouncer $announcer,
         private Auditor $auditor,
         private LoggerInterface $logger,
+        private MessageBusInterface $bus,
     ) {
     }
 
@@ -90,10 +94,16 @@ final readonly class AddGitHubRepositoriesHandler
                     $recorded = true;
                 }
 
-                if (null === $this->announcer->claim($command->project, $repository, ForgeRepositorySource::Installation, $installationId)) {
+                $claim = $this->announcer->claim($command->project, $repository, ForgeRepositorySource::Installation, $installationId);
+                if (null === $claim) {
                     $refused[] = $repository->fullName;
 
                     continue;
+                }
+
+                // The first check would wait for the hourly task or for the Repositories tab, and a waiting `loupe init` needs it.
+                if (null !== $claim->repository?->id) {
+                    $this->bus->dispatch(new CheckForgeRepository($claim->repository->id->toRfc4122(), CheckTrigger::Joined));
                 }
 
                 $added[] = $repository->fullName;

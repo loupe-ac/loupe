@@ -41,6 +41,20 @@ final class WorkflowSettingsTest extends WorkflowSettingsTestCase
         self::assertCount(1, $setting->warnings);
     }
 
+    public function test_accepts_tells_whether_the_declared_setting_takes_the_raw_value(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('accepts-value');
+        $this->bindLifecycle($project);
+        $id = $project->requireId();
+
+        self::assertTrue($this->settings()->accepts($id, 'merge-approval', 'person'));
+        self::assertTrue($this->settings()->accepts($id, 'merge-approval', 'agent'));
+        self::assertFalse($this->settings()->accepts($id, 'merge-approval', 'maybe'));
+        self::assertFalse($this->settings()->accepts($id, 'merge-approval', true));
+        self::assertFalse($this->settings()->accepts($id, 'no-such-key', 'person'));
+    }
+
     public function test_a_list_value_resolves_from_the_file(): void
     {
         self::bootKernel();

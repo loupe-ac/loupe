@@ -24,6 +24,8 @@ final readonly class PendingGitHubInstall
         public ?int $signedInAt = null,
         /** The tab that started the trip, `connect` for Connections. Anything else means Repositories. */
         public ?string $startedFrom = null,
+        /** The id of the `loupe init` session that started the trip. Only the wait mark gives it meaning. */
+        public ?string $init = null,
     ) {
     }
 

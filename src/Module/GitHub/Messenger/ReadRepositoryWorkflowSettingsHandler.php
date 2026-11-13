@@ -23,6 +23,6 @@ final readonly class ReadRepositoryWorkflowSettingsHandler
             return;
         }
 
-        ($this->readWorkflowFile)(new ReadWorkflowFileCommand(Uuid::fromString($message->repositoryId)));
+        ($this->readWorkflowFile)(new ReadWorkflowFileCommand(Uuid::fromString($message->repositoryId), $message->force, $message->attempt));
     }
 }

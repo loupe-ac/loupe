@@ -125,6 +125,9 @@ const SubjectCard = "card"
 // SubjectInboxItem is the subject type of an inbox item.
 const SubjectInboxItem = "inbox-item"
 
+// SubjectProject is the subject type of a project, as the run of `loupe init` uses it.
+const SubjectProject = "project"
+
 // OnCard reports whether the work is about a card.
 func (w WorkRequest) OnCard() bool {
 	return w.SubjectType == SubjectCard

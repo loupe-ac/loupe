@@ -21,13 +21,15 @@ final readonly class CloseStaleInteractiveRunsHandler
     ) {
     }
 
-    /** @return list<WorkerRun> the runs it closed, none while the feature flag is off */
+    /** @return list<WorkerRun> the runs it closed. An init run closes whatever the feature flag says, and no other run closes while it is off */
     public function __invoke(CloseStaleInteractiveRunsCommand $command): array
     {
+        $now = $this->clock->now();
+        $closed = $this->interactiveRuns->closeStaleInit($this->staleClose->initQuietBefore($now), self::BATCH_SIZE);
         if (!$this->staleClose->enabled()) {
-            return [];
+            return $closed;
         }
 
-        return $this->interactiveRuns->closeStale($this->staleClose->quietBefore($this->clock->now()), self::BATCH_SIZE);
+        return [...$closed, ...$this->interactiveRuns->closeStale($this->staleClose->quietBefore($now), self::BATCH_SIZE)];
     }
 }

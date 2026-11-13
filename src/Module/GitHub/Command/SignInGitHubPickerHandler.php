@@ -48,7 +48,7 @@ final readonly class SignInGitHubPickerHandler
             $this->installSession->signIn($pending, $token);
             if (null === $pending->installationId) {
                 if (null !== $pending->repository && null !== $this->listing->list($project, $token, $pending->repository)->missingRepository) {
-                    return new GitHubPickerSignIn(null, [], ($this->startInstall)(new StartGitHubAppInstallCommand($project, $pending->repository, $pending->startedFrom)));
+                    return new GitHubPickerSignIn(null, [], ($this->startInstall)(new StartGitHubAppInstallCommand($project, $pending->repository, $pending->startedFrom, $pending->init)));
                 }
 
                 return new GitHubPickerSignIn(null);

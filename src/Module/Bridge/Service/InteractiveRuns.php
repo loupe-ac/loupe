@@ -63,9 +63,9 @@ final readonly class InteractiveRuns
 
     /**
      * Records a session that the bridge launched, and whether this call created
-     * the run. The subject is a card or an inbox item. The bridge gives each launch a new session, so any run the
+     * the run. The subject is a card, an inbox item or a project. The bridge gives each launch a new session, so any run the
      * session already has on the subject keeps its state, and takes only the
-     * harness fields. A retry that arrives after a move closed the session
+     * harness fields. A repeat for an open run also stamps its last activity. A retry that arrives after a move closed the session
      * thus never opens it again.
      *
      * @return array{WorkerRun, bool}
@@ -90,6 +90,7 @@ final readonly class InteractiveRuns
             $workRequestId,
             $ruleId,
             static fn (WorkerRun $run): bool => $run->recordHarness($harness, $account, $model, $harnessSessionId),
+            renew: true,
         );
     }
 
@@ -100,14 +101,14 @@ final readonly class InteractiveRuns
      *
      * @return array{WorkerRun, bool}
      */
-    private function openUnlessFound(Project $project, WorkSubject $subject, ?int $cardNumber, Uuid $sessionId, string $name, ?Uuid $bridgeId, \Closure $find, ?Uuid $workRequestId = null, ?string $ruleId = null, ?\Closure $recordHarness = null, ?\Closure $beforeCreate = null): array
+    private function openUnlessFound(Project $project, WorkSubject $subject, ?int $cardNumber, Uuid $sessionId, string $name, ?Uuid $bridgeId, \Closure $find, ?Uuid $workRequestId = null, ?string $ruleId = null, ?\Closure $recordHarness = null, ?\Closure $beforeCreate = null, bool $renew = false): array
     {
         if ('' === trim($name) || mb_strlen($name) > WorkerRun::MAX_WORK_KIND_LENGTH) {
             throw new \InvalidArgumentException(\sprintf('An interactive run needs a name of 1 to %d characters.', WorkerRun::MAX_WORK_KIND_LENGTH));
         }
 
         /** @var array{WorkerRun, bool, bool} $outcome */
-        $outcome = $this->em->wrapInTransaction(function () use ($project, $subject, $cardNumber, $sessionId, $name, $bridgeId, $find, $workRequestId, $ruleId, $recordHarness, $beforeCreate): array {
+        $outcome = $this->em->wrapInTransaction(function () use ($project, $subject, $cardNumber, $sessionId, $name, $bridgeId, $find, $workRequestId, $ruleId, $recordHarness, $beforeCreate, $renew): array {
             // The project lock serialises two opens of one session, which would
             // otherwise both miss the read and trip the unique index.
             $this->em->lock($project, LockMode::PESSIMISTIC_WRITE);
@@ -115,8 +116,12 @@ final readonly class InteractiveRuns
             $found = $find();
             if (null !== $found) {
                 $changed = null !== $recordHarness && $recordHarness($found);
+                // A repeated launch of an open run is a sign of life. It does not reload the pages.
                 if ($changed) {
                     $this->em->flush();
+                }
+                if ($renew && WorkerRunState::Running === $found->state) {
+                    $this->workerRuns->renewOpenInteractive($found, $this->clock->now());
                 }
 
                 return [$found, false, $changed];
@@ -285,6 +290,19 @@ final readonly class InteractiveRuns
     {
         return $this->closeFound(
             fn (): array => $this->workerRuns->findQuietOpenInteractiveForUpdate($quietBefore, $limit),
+            WorkerRunCloseReason::Stale,
+        );
+    }
+
+    /**
+     * Closes the open init runs with no sign of life since $quietBefore, at most $limit of them, and returns them.
+     *
+     * @return list<WorkerRun>
+     */
+    public function closeStaleInit(\DateTimeImmutable $quietBefore, int $limit): array
+    {
+        return $this->closeFound(
+            fn (): array => $this->workerRuns->findQuietOpenInitForUpdate($quietBefore, $limit),
             WorkerRunCloseReason::Stale,
         );
     }

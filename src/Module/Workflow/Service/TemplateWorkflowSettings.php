@@ -12,6 +12,7 @@ use App\Module\Workflow\Contract\TemplateSetting;
 use App\Module\Workflow\Contract\WorkflowSettings;
 use App\Module\Workflow\Repository\WorkflowRepositorySettingRepository;
 use App\Module\Workflow\Repository\WorkflowSettingOverrideRepository;
+use App\Module\Workflow\Template\TemplateSettings;
 use Symfony\Component\DependencyInjection\Attribute\AsAlias;
 use Symfony\Component\Uid\Uuid;
 
@@ -30,6 +31,14 @@ final readonly class TemplateWorkflowSettings implements WorkflowSettings
     public function declares(Uuid $projectId, string $key): bool
     {
         return null !== $this->templates->of($projectId)->setting($key);
+    }
+
+    #[\Override]
+    public function accepts(Uuid $projectId, string $key, mixed $value): bool
+    {
+        $setting = $this->templates->of($projectId)->setting($key);
+
+        return null !== $setting && TemplateSettings::accepts($setting, $value);
     }
 
     #[\Override]

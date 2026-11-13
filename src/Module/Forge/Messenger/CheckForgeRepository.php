@@ -10,6 +10,7 @@ final readonly class CheckForgeRepository
     public function __construct(
         public string $repositoryId,
         public CheckTrigger $trigger,
+        public int $attempt = 1,
     ) {
     }
 }

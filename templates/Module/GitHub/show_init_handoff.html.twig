@@ -1,0 +1,17 @@
+{% extends '@Account/auth_base.html.twig' %}
+
+{% block title %}{{ 'github.init_handoff.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% block auth_body %}
+<div class="lp-consent" data-testid="github-init-handoff">
+    <div class="auth-icon-badge">
+        <twig:ux:icon name="lucide:circle-check" class="lp-icon lp-icon--lg" aria-hidden="true" />
+    </div>
+    <div>
+        <h1 class="lp-consent__title">{{ 'github.init_handoff.heading'|trans({'%count%': repositories|length, '%repositories%': repositories|join(', ')}) }}</h1>
+        <p class="lp-consent__lead">{{ 'github.init_handoff.lead'|trans }}</p>
+        <p class="lp-consent__lead">{{ 'github.init_handoff.hint'|trans }}</p>
+    </div>
+    <twig:Ds:Button variant="ghost" href="{{ path('app_project_board', {id: projectId}) }}">{{ 'github.init_handoff.open_project'|trans }}</twig:Ds:Button>
+</div>
+{% endblock %}

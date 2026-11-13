@@ -6,6 +6,8 @@ namespace App\Tests\Module\GitHub\Controller;
 
 use App\Module\Forge\Entity\ForgeRepository;
 use App\Module\Forge\Entity\ForgeRepositorySource;
+use App\Module\Forge\Messenger\CheckForgeRepository;
+use App\Module\Forge\Messenger\CheckTrigger;
 use App\Module\Forge\Repository\ForgeRepositoryRepository;
 use App\Module\GitHub\Command\AddGitHubRepositoriesHandler;
 use App\Module\GitHub\Command\SignInGitHubPickerHandler;
@@ -18,6 +20,7 @@ use App\Module\GitHub\Service\GitHubPickerListing;
 use App\Module\GitHub\Service\GitHubUserApi;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
+use App\Module\Project\Service\InitInstallWaits;
 use App\Tests\Support\RecordingAuditor;
 use App\Tests\Support\RecordingLogger;
 use Psr\Clock\ClockInterface;
@@ -29,7 +32,9 @@ use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
+use Symfony\Component\Uid\Uuid;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 
@@ -179,6 +184,23 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         $this->client->loginUser($owner);
 
         self::assertMatchesRegularExpression('/^[a-f0-9]{32,}$/', $this->startInstall($project));
+    }
+
+    public function test_installing_on_another_account_keeps_the_init_session_of_the_picker(): void
+    {
+        $this->repositories[self::INSTALLATION_ID] = [['id' => 101, 'full_name' => 'acme/api']];
+        $owner = $this->signedUpUser('another-account');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+        $init = $this->markWait($project);
+
+        $this->client->loginUser($owner);
+        $this->startSignIn($project, init: $init);
+        $state = $this->startInstall($project);
+        $authorize = $this->setUpInstallation($state);
+        $this->client->request(Request::METHOD_GET, '/github/app/callback?'.http_build_query(['code' => 'the-code', 'state' => $authorize['state']]));
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/github/init-handoff?repository=acme/api&init='.$init);
     }
 
     public function test_the_setup_url_without_a_pending_session_goes_to_the_projects(): void
@@ -929,6 +951,145 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         $this->assertNotSignedIn($crawler, $project);
     }
 
+    public function test_a_fresh_install_that_init_started_ends_on_the_hand_off_page_while_init_waits(): void
+    {
+        $this->repositories[self::INSTALLATION_ID] = [['id' => 101, 'full_name' => 'acme/api']];
+        $owner = $this->signedUpUser('handoff-one');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+        $init = $this->markWait($project);
+
+        $this->client->loginUser($owner);
+        $this->completeInitInstall($project, $init);
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/github/init-handoff?repository=acme/api&init='.$init);
+        $this->client->followRedirect();
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('[data-testid="github-init-handoff"] h1', 'acme/api is connected to Loupe');
+        self::assertSelectorTextContains('[data-testid="github-init-handoff"]', 'Go back to your terminal.');
+        self::assertSelectorExists('[data-testid="github-init-handoff"] a[href="/projects/'.$project->id.'/board"]');
+        self::assertSame(['acme/api'], $this->pathsOf($project));
+    }
+
+    public function test_a_fresh_install_that_init_started_shows_the_tab_when_no_wait_mark_lives(): void
+    {
+        $this->repositories[self::INSTALLATION_ID] = [['id' => 101, 'full_name' => 'acme/api']];
+        $owner = $this->signedUpUser('handoff-none');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->completeInitInstall($project, (string) Uuid::v4());
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
+        self::assertStringContainsString('Connected acme/api.', $this->followedText());
+    }
+
+    public function test_a_wait_mark_of_another_project_does_not_show_the_hand_off_page(): void
+    {
+        $this->repositories[self::INSTALLATION_ID] = [['id' => 101, 'full_name' => 'acme/api']];
+        $owner = $this->signedUpUser('handoff-other');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+        $init = (string) Uuid::v4();
+        $waits = static::getContainer()->get(InitInstallWaits::class);
+        self::assertInstanceOf(InitInstallWaits::class, $waits);
+        $waits->mark($init, (string) Uuid::v4());
+
+        $this->client->loginUser($owner);
+        $this->completeInitInstall($project, $init);
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
+    }
+
+    public function test_the_picker_submit_of_a_session_that_init_started_ends_on_the_hand_off_page(): void
+    {
+        $this->repositories[self::INSTALLATION_ID] = [
+            ['id' => 101, 'full_name' => 'acme/one'],
+            ['id' => 202, 'full_name' => 'acme/two'],
+        ];
+        $owner = $this->signedUpUser('handoff-picker');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+        $init = $this->markWait($project);
+
+        $this->client->loginUser($owner);
+        $authorize = $this->startSignIn($project, init: $init);
+        $this->client->request(Request::METHOD_GET, '/github/app/callback?'.http_build_query(['code' => 'the-code', 'state' => $authorize['state']]));
+        self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
+        $this->submitPicks($project, ['101:acme/one', '202:acme/two']);
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/github/init-handoff?repository=acme/one,acme/two&init='.$init);
+        $this->client->followRedirect();
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('[data-testid="github-init-handoff"] h1', 'acme/one, acme/two are connected to Loupe');
+        $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/init-handoff?repository=acme%2Fnot-held&init='.$init);
+        self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
+        $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/init-handoff?repository=acme%2Fone');
+        self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
+        $waits = static::getContainer()->get(InitInstallWaits::class);
+        self::assertInstanceOf(InitInstallWaits::class, $waits);
+        $waits->clear($init);
+        $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/init-handoff?repository=acme%2Fone&init='.$init);
+        self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
+        self::assertSame(['acme/one', 'acme/two'], $this->pathsOf($project));
+    }
+
+    public function test_the_picker_submit_of_an_ordinary_sign_in_redirects_to_the_tab(): void
+    {
+        $this->repositories[self::INSTALLATION_ID] = [['id' => 101, 'full_name' => 'acme/one']];
+        $owner = $this->signedUpUser('handoff-plain');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+        $this->markWait($project);
+
+        $this->client->loginUser($owner);
+        $this->signIn($project);
+        $this->submitPicks($project, ['101:acme/one']);
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
+    }
+
+    public function test_an_init_value_that_is_no_uuid_never_shows_the_hand_off_page(): void
+    {
+        $this->repositories[self::INSTALLATION_ID] = [['id' => 101, 'full_name' => 'acme/api']];
+        $owner = $this->signedUpUser('handoff-junk');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->completeInitInstall($project, 'not-a-uuid');
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
+    }
+
+    public function test_each_repository_that_joins_gets_a_first_check(): void
+    {
+        $this->repositories[self::INSTALLATION_ID] = [
+            ['id' => 101, 'full_name' => 'acme/one'],
+            ['id' => 202, 'full_name' => 'acme/two'],
+        ];
+        $owner = $this->signedUpUser('joined');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->signIn($project);
+        $this->submitPicks($project, ['101:acme/one', '202:acme/two']);
+
+        $transport = static::getContainer()->get('messenger.transport.jobs');
+        self::assertInstanceOf(InMemoryTransport::class, $transport);
+        $checks = [];
+        foreach ($transport->getSent() as $envelope) {
+            $message = $envelope->getMessage();
+            if ($message instanceof CheckForgeRepository) {
+                $checks[] = $message;
+            }
+        }
+        self::assertCount(2, $checks);
+        self::assertSame([CheckTrigger::Joined, CheckTrigger::Joined], array_map(static fn (CheckForgeRepository $check): CheckTrigger => $check->trigger, $checks));
+    }
+
     public function test_a_fresh_install_whose_only_repository_is_taken_first_names_it_and_returns_to_the_tab(): void
     {
         $this->repositories[self::INSTALLATION_ID] = [['id' => 101, 'full_name' => 'acme/api']];
@@ -1147,9 +1308,9 @@ final class GitHubAppInstallFlowTest extends WebTestCase
     }
 
     /** @return array<int|string, string> */
-    private function startSignIn(Project $project, ?string $repository = null, ?string $from = null): array
+    private function startSignIn(Project $project, ?string $repository = null, ?string $from = null, ?string $init = null): array
     {
-        $query = array_filter(['repository' => $repository, 'from' => $from], static fn (?string $value): bool => null !== $value);
+        $query = array_filter(['repository' => $repository, 'from' => $from, 'init' => $init], static fn (?string $value): bool => null !== $value);
         $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/install'.([] === $query ? '' : '?'.http_build_query($query)));
         self::assertResponseRedirects();
         $location = (string) $this->client->getResponse()->headers->get('Location');
@@ -1163,6 +1324,17 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         $authorize = $this->startSignIn($project, $repository);
         $this->client->request(Request::METHOD_GET, '/github/app/callback?'.http_build_query(['code' => 'the-code', 'state' => $authorize['state']]));
         self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
+    }
+
+    /** Marks the wait of a new init session, as its launch PUT does. */
+    private function markWait(Project $project): string
+    {
+        $init = (string) Uuid::v4();
+        $waits = static::getContainer()->get(InitInstallWaits::class);
+        self::assertInstanceOf(InitInstallWaits::class, $waits);
+        $waits->mark($init, (string) $project->id);
+
+        return $init;
     }
 
     private function startInstall(Project $project): string
@@ -1192,6 +1364,22 @@ final class GitHubAppInstallFlowTest extends WebTestCase
     private function completeInstall(Project $project): void
     {
         $authorize = $this->setUpInstallation($this->startInstall($project));
+        $this->client->request(Request::METHOD_GET, '/github/app/callback?'.http_build_query(['code' => 'the-code', 'state' => $authorize['state']]));
+    }
+
+    /** The install that `loupe init` links to: the sign-in finds the repository missing, the install adds it. */
+    private function completeInitInstall(Project $project, string $init): void
+    {
+        $repositories = $this->repositories[self::INSTALLATION_ID];
+        $this->repositories[self::INSTALLATION_ID] = [];
+        $authorize = $this->startSignIn($project, 'acme/api', init: $init);
+        $this->client->request(Request::METHOD_GET, '/github/app/callback?'.http_build_query(['code' => 'the-code', 'state' => $authorize['state']]));
+        self::assertResponseRedirects();
+        $location = (string) $this->client->getResponse()->headers->get('Location');
+        self::assertStringStartsWith('https://github.com/apps/loupe-test/installations/new?', $location);
+
+        $this->repositories[self::INSTALLATION_ID] = $repositories;
+        $authorize = $this->setUpInstallation($this->queryOf($location)['state']);
         $this->client->request(Request::METHOD_GET, '/github/app/callback?'.http_build_query(['code' => 'the-code', 'state' => $authorize['state']]));
     }
 
@@ -1299,6 +1487,7 @@ final class GitHubAppInstallFlowTest extends WebTestCase
             self::narrow($get(\App\Module\GitHub\Service\DeliveryAnnouncer::class), \App\Module\GitHub\Service\DeliveryAnnouncer::class),
             self::narrow($get(Auditor::class), Auditor::class),
             $logger,
+            self::narrow($get('messenger.default_bus'), \Symfony\Component\Messenger\MessageBusInterface::class),
         );
         $container->set(AddGitHubRepositoriesHandler::class, $add);
         $container->set(SignInGitHubPickerHandler::class, new SignInGitHubPickerHandler(

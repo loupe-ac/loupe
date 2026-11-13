@@ -11,6 +11,8 @@ use App\Module\Forge\Entity\ForgeRepository;
 use App\Module\Forge\Entity\ForgeRepositoryCheck;
 use App\Module\Forge\Entity\ForgeRepositorySource;
 use App\Module\Forge\Event\ForgeRepositoryCheckChanged;
+use App\Module\Forge\Event\ForgeRepositoryCheckEnded;
+use App\Module\Forge\Messenger\CheckForgeRepository;
 use App\Module\Forge\Messenger\CheckTrigger;
 use App\Module\Forge\Repository\ForgeRepositoryCheckRepository;
 use App\Module\Forge\Service\RepositoryChecks;
@@ -38,8 +40,11 @@ use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\Mercure\Jwt\StaticTokenProvider;
 use Symfony\Component\Mercure\MockHub;
 use Symfony\Component\Mercure\Update;
+use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Messenger\Stamp\DelayStamp;
 use Symfony\Component\Messenger\Stamp\ReceivedStamp;
+use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 final class RunRepositoryCheckHandlerTest extends KernelTestCase
 {
@@ -98,6 +103,8 @@ final class RunRepositoryCheckHandlerTest extends KernelTestCase
             $this->em,
             $this->clock,
             new NullLogger(),
+            $this->service(MessageBusInterface::class),
+            $this->service(EventDispatcherInterface::class),
         );
     }
 
@@ -475,15 +482,174 @@ final class RunRepositoryCheckHandlerTest extends KernelTestCase
         self::assertNotSame([], $this->summaries->current($repository->project)->blocking);
     }
 
+    public function test_a_completed_check_announces_its_end_also_when_the_gaps_did_not_change(): void
+    {
+        $repository = $this->repository();
+        $ended = DispatchedEvents::of(self::getContainer(), ForgeRepositoryCheckEnded::class);
+        $this->reader->answers = [FakeRepositorySettingsReader::blocking(), FakeRepositorySettingsReader::blocking()];
+
+        $this->check($repository, CheckTrigger::Hourly);
+        $this->check($repository, CheckTrigger::CheckAgain);
+
+        self::assertCount(2, $ended->events());
+        self::assertSame((string) $repository->id, (string) $ended->events()[1]->repositoryId);
+        self::assertSame((string) $repository->project->id, (string) $ended->events()[1]->projectId);
+        self::assertSame([0, 0], $ended->transactionDepths());
+    }
+
+    public function test_a_failed_or_dropped_check_announces_no_end(): void
+    {
+        $repository = $this->repository();
+        $ended = DispatchedEvents::of(self::getContainer(), ForgeRepositoryCheckEnded::class);
+        $this->reader->answers = [new RepositorySettingsUnreadable('api_failed_500')];
+        $this->check($repository, CheckTrigger::Hourly);
+
+        $this->reader->answers = [FakeRepositorySettingsReader::blocking()];
+        $this->reader->duringRead = function () use ($repository): void {
+            $this->reader->answers = [FakeRepositorySettingsReader::clear(), ...$this->reader->answers];
+            $this->check($repository, CheckTrigger::CheckAgain);
+        };
+        $before = \count($ended->events());
+        $this->check($repository, CheckTrigger::CheckAgain);
+
+        self::assertSame(1, \count($ended->events()) - $before, 'Only the newer read ends a check.');
+    }
+
+    public function test_the_check_of_a_closed_init_run_reads_even_when_the_read_is_fresh(): void
+    {
+        $repository = $this->repository();
+        $this->reader->answers = [FakeRepositorySettingsReader::blocking(), FakeRepositorySettingsReader::clear()];
+        $this->check($repository, CheckTrigger::Hourly);
+
+        $this->check($repository, CheckTrigger::InitEnded);
+
+        self::assertSame(2, $this->reader->reads);
+        self::assertSame('fits', $this->checkOf($repository)->items[0]['state']);
+    }
+
+    public function test_a_failed_init_check_queues_itself_again_a_minute_later(): void
+    {
+        $repository = $this->repository();
+        $this->reader->answers = [new RepositorySettingsUnreadable('api_failed_500')];
+
+        $this->check($repository, CheckTrigger::InitEnded, attempt: 2);
+
+        $sent = $this->queuedChecks();
+        self::assertCount(1, $sent);
+        self::assertEquals(new CheckForgeRepository((string) $repository->id, CheckTrigger::InitEnded, 3), $sent[0]->getMessage());
+        self::assertSame(60_000, $sent[0]->last(DelayStamp::class)?->getDelay());
+    }
+
+    public function test_the_last_failed_init_check_gives_up(): void
+    {
+        $repository = $this->repository();
+        $this->reader->answers = [new RepositorySettingsUnreadable('api_failed_500')];
+
+        $this->check($repository, CheckTrigger::InitEnded, attempt: 3);
+
+        self::assertSame([], $this->queuedChecks());
+    }
+
+    public function test_an_init_check_that_a_newer_read_dropped_queues_itself_again(): void
+    {
+        $repository = $this->repository();
+        $this->reader->answers = [FakeRepositorySettingsReader::blocking()];
+        $this->reader->duringRead = function () use ($repository): void {
+            $this->reader->answers = [FakeRepositorySettingsReader::clear(), ...$this->reader->answers];
+            $this->check($repository, CheckTrigger::CheckAgain);
+        };
+
+        $this->check($repository, CheckTrigger::InitEnded);
+
+        self::assertCount(1, $this->queuedChecks());
+    }
+
+    public function test_a_failed_check_of_any_other_trigger_queues_no_retry(): void
+    {
+        $repository = $this->repository();
+        $this->reader->answers = [new RepositorySettingsUnreadable('api_failed_500')];
+
+        $this->check($repository, CheckTrigger::Hourly);
+
+        self::assertSame([], $this->queuedChecks());
+    }
+
+    public function test_a_completed_init_check_queues_no_retry(): void
+    {
+        $repository = $this->repository();
+        $this->reader->answers = [FakeRepositorySettingsReader::blocking()];
+
+        $this->check($repository, CheckTrigger::InitEnded);
+
+        self::assertSame([], $this->queuedChecks());
+    }
+
+    public function test_an_init_check_of_a_project_with_no_suggestions_counts_as_complete(): void
+    {
+        $repository = $this->repository();
+        $ended = DispatchedEvents::of(self::getContainer(), ForgeRepositoryCheckEnded::class);
+
+        ($this->handlerWithoutSuggestions())(new RunRepositoryCheckCommand($repository, CheckTrigger::Hourly));
+        self::assertSame([], $ended->events());
+
+        ($this->handlerWithoutSuggestions())(new RunRepositoryCheckCommand($repository, CheckTrigger::InitEnded));
+        self::assertCount(1, $ended->events());
+        self::assertSame(0, $this->reader->reads);
+    }
+
+    public function test_an_init_check_whose_empty_suggestions_changed_before_the_clear_queues_itself_again(): void
+    {
+        $repository = $this->repository();
+        $this->reader->answers = [FakeRepositorySettingsReader::blocking()];
+        $this->check($repository, CheckTrigger::Hourly);
+        $ended = DispatchedEvents::of(self::getContainer(), ForgeRepositoryCheckEnded::class);
+
+        $suggestions = new FakeRepositorySuggestions();
+        $suggestions->afterNextRead = static function () use ($suggestions): void {
+            $suggestions->suggestions = [self::blockingSuggestion()];
+        };
+        ($this->handlerWithoutSuggestions($suggestions))(new RunRepositoryCheckCommand($repository, CheckTrigger::InitEnded));
+
+        self::assertSame([], $ended->events());
+        self::assertCount(1, $this->queuedChecks());
+    }
+
+    public function test_an_init_check_with_no_stored_items_queues_itself_again_when_the_suggestions_changed(): void
+    {
+        $repository = $this->repository();
+        $ended = DispatchedEvents::of(self::getContainer(), ForgeRepositoryCheckEnded::class);
+
+        $suggestions = new FakeRepositorySuggestions();
+        $suggestions->afterNextRead = static function () use ($suggestions): void {
+            $suggestions->suggestions = [self::blockingSuggestion()];
+        };
+        ($this->handlerWithoutSuggestions($suggestions))(new RunRepositoryCheckCommand($repository, CheckTrigger::InitEnded));
+
+        self::assertSame([], $ended->events());
+        self::assertCount(1, $this->queuedChecks());
+    }
+
+    /** @return list<Envelope> */
+    private function queuedChecks(): array
+    {
+        $transport = self::getContainer()->get('messenger.transport.jobs');
+        self::assertInstanceOf(InMemoryTransport::class, $transport);
+
+        return array_values(array_filter(
+            $transport->getSent(),
+            static fn (Envelope $envelope): bool => $envelope->getMessage() instanceof CheckForgeRepository,
+        ));
+    }
+
     private static function blockingSuggestion(): RepositorySuggestion
     {
         return new RepositorySuggestion(RepositorySuggestionKey::BranchProtection, SuggestionMark::Blocking);
     }
 
-    private function handlerWithoutSuggestions(): RunRepositoryCheckHandler
+    private function handlerWithoutSuggestions(?FakeRepositorySuggestions $suggestions = null): RunRepositoryCheckHandler
     {
         return new RunRepositoryCheckHandler(
-            new FakeRepositorySuggestions(),
+            $suggestions ?? new FakeRepositorySuggestions(),
             $this->service(ForgeRepositoryCheckRepository::class),
             new RepositoryChecks($this->service(ForgeRepositoryCheckRepository::class), $this->service(MessageBusInterface::class), $this->clock),
             $this->summaries,
@@ -492,12 +658,14 @@ final class RunRepositoryCheckHandlerTest extends KernelTestCase
             $this->em,
             $this->clock,
             new NullLogger(),
+            $this->service(MessageBusInterface::class),
+            $this->service(EventDispatcherInterface::class),
         );
     }
 
-    private function check(ForgeRepository $repository, CheckTrigger $trigger): void
+    private function check(ForgeRepository $repository, CheckTrigger $trigger, int $attempt = 1): void
     {
-        ($this->handler)(new RunRepositoryCheckCommand($repository, $trigger));
+        ($this->handler)(new RunRepositoryCheckCommand($repository, $trigger, $attempt));
     }
 
     private function checkOf(ForgeRepository $repository): ForgeRepositoryCheck

@@ -19,6 +19,8 @@ use App\Module\GitHub\Service\GitHubAppConfiguration;
 use App\Module\GitHub\Service\GitHubRepositoryInstallations;
 use App\Module\GitHub\Service\GitHubWorkflowFileReader;
 use App\Module\Project\Entity\Project;
+use App\Module\Workflow\Contract\RepositoryWorkflowSettingsApplied;
+use App\Module\Workflow\Contract\RepositoryWorkflowSettingsUnread;
 use App\Module\Workflow\Contract\RepositoryWorkflowSettingsWriter;
 use App\Module\Workflow\Entity\WorkflowRepositorySetting;
 use App\Module\Workflow\Repository\WorkflowRepositorySettingRepository;
@@ -26,12 +28,17 @@ use App\Module\Workflow\Repository\WorkflowSettingOverrideRepository;
 use App\Module\Workflow\Service\SettingValues;
 use App\Tests\Module\GitHub\Service\CountingWorkflowSettingsWriter;
 use App\Tests\Module\Workflow\WorkflowProjects;
+use App\Tests\Support\DispatchedEvents;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
+use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Messenger\Stamp\DelayStamp;
+use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 use Symfony\Component\Uid\Uuid;
 
 final class ReadWorkflowFileHandlerTest extends KernelTestCase
@@ -352,11 +359,87 @@ final class ReadWorkflowFileHandlerTest extends KernelTestCase
         self::assertTrue($this->overrideRows()['merge-approval']->valid);
     }
 
+    public function test_a_forced_read_of_an_unchanged_file_still_announces_the_read(): void
+    {
+        $this->contents = $this->file($this->yaml('merge-approval: person'));
+        $this->read();
+        $applied = DispatchedEvents::of(self::getContainer(), RepositoryWorkflowSettingsApplied::class);
+
+        $this->read(force: false);
+        self::assertSame(0, \count($applied->events()));
+
+        $this->read(force: true);
+        $announced = $applied->events();
+        self::assertCount(1, $announced);
+        self::assertSame((string) $this->repositoryId, (string) $announced[0]->repositoryId);
+        self::assertSame([0], $applied->transactionDepths());
+    }
+
+    public function test_an_unforced_failed_read_queues_nothing(): void
+    {
+        $this->repositoryAnswer = new MockResponse('{}', ['http_code' => 500]);
+        $unread = DispatchedEvents::of(self::getContainer(), RepositoryWorkflowSettingsUnread::class);
+
+        $this->read();
+
+        self::assertSame([], $this->queued());
+        self::assertSame([], $unread->events());
+    }
+
+    public function test_a_failed_forced_read_queues_the_next_attempt_a_minute_later(): void
+    {
+        $this->repositoryAnswer = new MockResponse('{}', ['http_code' => 500]);
+        $unread = DispatchedEvents::of(self::getContainer(), RepositoryWorkflowSettingsUnread::class);
+
+        $this->read(force: true, attempt: 2);
+
+        $sent = $this->queued();
+        self::assertCount(1, $sent);
+        self::assertEquals(new ReadRepositoryWorkflowSettings((string) $this->repositoryId, true, 3), $sent[0]->getMessage());
+        self::assertSame(60_000, $sent[0]->last(DelayStamp::class)?->getDelay());
+        self::assertSame([], $unread->events());
+    }
+
+    public function test_the_last_failed_forced_read_gives_up_and_announces_the_unread_file(): void
+    {
+        $this->repositoryAnswer = new MockResponse('{}', ['http_code' => 500]);
+        $unread = DispatchedEvents::of(self::getContainer(), RepositoryWorkflowSettingsUnread::class);
+
+        $this->read(force: true, attempt: 3);
+
+        self::assertSame([], $this->queued());
+        self::assertCount(1, $unread->events());
+        self::assertSame((string) $this->project->id, (string) $unread->events()[0]->projectId);
+        self::assertSame((string) $this->repositoryId, (string) $unread->events()[0]->repositoryId);
+    }
+
+    public function test_the_message_handler_passes_force_and_attempt_on(): void
+    {
+        $this->repositoryAnswer = new MockResponse('{}', ['http_code' => 500]);
+        $handler = new ReadRepositoryWorkflowSettingsHandler($this->handler());
+
+        $handler(new ReadRepositoryWorkflowSettings((string) $this->repositoryId, true, 2));
+
+        self::assertEquals(new ReadRepositoryWorkflowSettings((string) $this->repositoryId, true, 3), $this->queued()[0]->getMessage());
+    }
+
+    /** @return list<\Symfony\Component\Messenger\Envelope> */
+    private function queued(): array
+    {
+        $transport = self::getContainer()->get('messenger.transport.jobs');
+        self::assertInstanceOf(InMemoryTransport::class, $transport);
+
+        return array_values(array_filter(
+            $transport->getSent(),
+            static fn ($envelope): bool => $envelope->getMessage() instanceof ReadRepositoryWorkflowSettings,
+        ));
+    }
+
     private ?MockResponse $repositoryAnswer = null;
 
-    private function read(?RepositoryWorkflowSettingsWriter $writer = null, ?Uuid $repositoryId = null): void
+    private function read(?RepositoryWorkflowSettingsWriter $writer = null, ?Uuid $repositoryId = null, bool $force = false, int $attempt = 1): void
     {
-        ($this->handler($writer))(new ReadWorkflowFileCommand($repositoryId ?? $this->repositoryId));
+        ($this->handler($writer))(new ReadWorkflowFileCommand($repositoryId ?? $this->repositoryId, $force, $attempt));
         $this->em()->clear();
     }
 
@@ -386,6 +469,10 @@ final class ReadWorkflowFileHandlerTest extends KernelTestCase
         self::assertInstanceOf(ForgeRepositoryRepository::class, $repositories);
         $real = $container->get(RepositoryWorkflowSettingsWriter::class);
         self::assertInstanceOf(RepositoryWorkflowSettingsWriter::class, $real);
+        $bus = $container->get(MessageBusInterface::class);
+        self::assertInstanceOf(MessageBusInterface::class, $bus);
+        $dispatcher = $container->get(EventDispatcherInterface::class);
+        self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
 
         return new ReadWorkflowFileHandler(
             $repositories,
@@ -393,6 +480,8 @@ final class ReadWorkflowFileHandlerTest extends KernelTestCase
             $writer ?? $real,
             $this->em(),
             new NullLogger(),
+            $bus,
+            $dispatcher,
         );
     }
 

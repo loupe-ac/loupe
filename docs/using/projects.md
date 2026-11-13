@@ -139,6 +139,10 @@ Select Install on another account to install the App on a GitHub account that ha
 
 `loupe init` says "Shared with Loupe, not in this project." for the repository of your folder when the App reaches it and no project holds it. Its link signs you in to GitHub and opens the picker with that repository ticked. It needs [CLI 2.6.0](../reference/cli.md#loupe-init) and a server that has the lookup route.
 
+#### While loupe init runs
+
+`loupe init` opens a run of the kind `init` on the project and renews it every minute. While it is open, the inbox opens no merge question and no repository notice for the project. When init ends, Loupe reads `.loupe.yaml` and checks each repository again, then reconciles both items. See [Automatic items](inbox.md#notices).
+
 #### No access
 
 When GitHub removes a repository from the installation, or someone uninstalls the App, the repository stays in the list. Its row shows No access with the date, and a Fix access on GitHub link. Loupe stops reading it and stops pushing to it, and a No access repository blocks no work.
