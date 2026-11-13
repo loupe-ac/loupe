@@ -44,6 +44,25 @@ When the project has no reported connections, Your crew links to connection setu
 Each connection shows its own health. This does not report whether an individual agent is available or running.
 Agent configuration and rules remain read-only in Loupe. Configure them through the CLI and its rule file.
 
+## The setup page
+
+A new project is not set up. A project is set up when `loupe init` has finished once and a bridge has connected once. Both facts stay true, so a project that is set up stays set up.
+
+While a project is not set up, each page of the project opens the setup page instead. This is the setup gate. Only the setup page, the repository picker and the hand-off page of `loupe init` open as normal. Every project that existed before the gate shipped counts as set up.
+
+The setup page shows the next step and updates by itself:
+
+- With no repository, it shows the `loupe init --project <id>` command, **Add repositories** and **Skip for now**. **Add repositories** opens the repository picker. When you add or cancel, the picker returns you to the setup page.
+- When repositories have joined, it names them and shows the same command.
+- While `loupe init` runs, it says so. It shows a list of the setup steps, each marked Done or Waiting.
+- When `loupe init` stopped before it finished, it says so and shows the command again. A Ctrl-C or an error counts as stopped.
+- When `loupe init` finished and no bridge has connected, it shows the command `loupe bridge run`.
+- When the project is set up, it shows every step as Done and a link to open the project.
+
+The last line of the list is the merge line. It shows who approves a merge in each repository: **Not asked yet**, **In the init pull request**, or the value that is set. The merge line never holds the setup.
+
+Select **Skip for now** to open the project pages for the rest of the browser session. The gate comes back in a new browser session until the project is set up. Only the project owner can skip. A person who can view the project but cannot manage it sees the setup page with the list, and has no command and no button. Projects have no members today, so nobody sees that view yet.
+
 ## Create a project through the API
 
 `POST /api/v1/projects` creates a project. A signed-in `loupe` CLI or an [API key](api-keys.md) can call it. Send a JSON body with a `name`, an optional `domain`, an optional `origins` list and an optional `remote`, the git URL of the repository.

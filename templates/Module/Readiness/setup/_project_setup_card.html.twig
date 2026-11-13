@@ -1,0 +1,110 @@
+{#- The body of the setup page. The page and its reload route both render it. Props: setup (ProjectSetupView). -#}
+{% set state = setup.state.value %}
+{% set projectName = setup.project.name %}
+{% set joined = setup.repositories|join(', ', ' and ') %}
+{% set initCommand = 'loupe init --project ' ~ setup.project.id %}
+<turbo-frame id="project-setup-frame" data-worker-run-refresh-target="frame" data-testid="project-setup" data-state="{{ state }}">
+    <div class="lp-project-setup">
+        <div class="lp-project-setup__header">
+            {% if state == 'init-running' %}
+                <twig:ux:icon name="lucide:loader-circle" class="lp-project-setup__icon" aria-hidden="true" />
+            {% elseif state == 'done' %}
+                <twig:ux:icon name="lucide:circle-check-big" class="lp-project-setup__icon" aria-hidden="true" />
+            {% endif %}
+            <h1 class="lp-project-setup__title">
+                {%- if state == 'no-repository' -%}
+                    {{ 'readiness.setup.heading.no_repository'|trans({'%project%': projectName}) }}
+                {%- elseif state == 'repositories-joined' -%}
+                    {{ 'readiness.setup.heading.repositories_joined'|trans({'%repositories%': joined, '%project%': projectName}) }}
+                {%- elseif state == 'init-running' -%}
+                    {{ 'readiness.setup.heading.init_running'|trans({'%project%': projectName}) }}
+                {%- elseif state == 'done' -%}
+                    {{ 'readiness.setup.heading.done'|trans({'%project%': projectName}) }}
+                {%- else -%}
+                    {{ 'readiness.setup.heading.not_set_up'|trans({'%project%': projectName}) }}
+                {%- endif -%}
+            </h1>
+            <p class="lp-project-setup__lead">
+                {%- if state == 'no-repository' -%}
+                    {{ 'readiness.setup.lead.no_repository'|trans }}
+                {%- elseif state == 'repositories-joined' -%}
+                    {{ 'readiness.setup.lead.repositories_joined'|trans({'%count%': setup.repositories|length}) }}
+                {%- elseif state == 'init-running' -%}
+                    {{ 'readiness.setup.lead.init_running'|trans }}
+                {%- elseif state == 'bridge-pending' -%}
+                    {{ 'readiness.setup.lead.bridge_pending'|trans }}
+                {%- elseif state == 'init-stopped' -%}
+                    {{ 'readiness.setup.lead.init_stopped'|trans({'%count%': setup.repositories|length, '%repositories%': setup.repositories|join(', ', ' or ')}) }}
+                {%- elseif state == 'member' -%}
+                    {{ 'readiness.setup.lead.member'|trans }}
+                {%- else -%}
+                    {{ 'readiness.setup.lead.done'|trans }}
+                {%- endif -%}
+            </p>
+        </div>
+
+        {% if state in ['no-repository', 'repositories-joined', 'init-stopped', 'bridge-pending'] %}
+            <twig:Ds:CodeBlock
+                :label="'readiness.setup.command.label'|trans"
+                :text="state == 'bridge-pending' ? 'loupe bridge run' : initCommand"
+                :copyLabel="'project.connect.copy'|trans"
+                :copiedLabel="'project.connect.copied'|trans"
+                testid="project-setup-command" />
+        {% endif %}
+
+        {% if state in ['no-repository', 'repositories-joined'] %}
+            <p class="lp-project-setup__waiting">
+                <twig:ux:icon name="lucide:clock" class="lp-icon lp-icon--md" aria-hidden="true" />
+                <span>{{ 'readiness.setup.waiting'|trans }}</span>
+            </p>
+        {% endif %}
+
+        {% if state not in ['no-repository', 'repositories-joined'] %}
+            <ol class="lp-project-setup__list" data-testid="project-setup-list">
+                <li class="lp-project-setup__line" data-line="repositories">
+                    {% if setup.repositories is not empty %}
+                        <twig:Ds:StatusChip modifier="ok" :label="'readiness.setup.chip.done'|trans" />
+                        <span>{{ 'readiness.setup.line.repositories.done'|trans({'%repositories%': joined, '%project%': projectName}) }}</span>
+                    {% else %}
+                        <twig:Ds:StatusChip modifier="pending" :label="'readiness.setup.chip.waiting'|trans" />
+                        <span>{{ 'readiness.setup.line.repositories.pending'|trans({'%project%': projectName}) }}</span>
+                    {% endif %}
+                </li>
+                <li class="lp-project-setup__line" data-line="init">
+                    {% if setup.initFinished or setup.initRunning %}
+                        <twig:Ds:StatusChip modifier="ok" :label="'readiness.setup.chip.done'|trans" />
+                        <span>{{ (setup.initFinished ? 'readiness.setup.line.init.finished' : 'readiness.setup.line.init.started')|trans }}</span>
+                    {% else %}
+                        <twig:Ds:StatusChip modifier="pending" :label="'readiness.setup.chip.waiting'|trans" />
+                        <span>{{ 'readiness.setup.line.init.finished'|trans }}</span>
+                    {% endif %}
+                </li>
+                <li class="lp-project-setup__line" data-line="bridge">
+                    <twig:Ds:StatusChip :modifier="setup.bridgeConnected ? 'ok' : 'pending'" :label="(setup.bridgeConnected ? 'readiness.setup.chip.done' : 'readiness.setup.chip.waiting')|trans" />
+                    <span>{{ 'readiness.setup.line.bridge'|trans({'%project%': projectName}) }}</span>
+                </li>
+                {% for line in setup.mergeLines %}
+                    <li class="lp-project-setup__line" data-line="merge" data-merge-status="{{ line.status.value }}">
+                        <twig:Ds:StatusChip modifier="neutral" :label="('readiness.setup.chip.' ~ line.status.value|replace({'-': '_'}))|trans" />
+                        <span>{{ (line.status.value == 'in-init-pull-request' ? 'readiness.setup.line.merge.in_init_pull_request' : 'readiness.setup.line.merge')|trans({'%repository%': line.repository}) }}</span>
+                    </li>
+                {% endfor %}
+            </ol>
+        {% endif %}
+
+        {% if state == 'done' %}
+            <div class="lp-project-setup__actions">
+                <twig:Ds:Button variant="primary" :href="path('app_project_workshop', {id: setup.project.id})" data-turbo-frame="_top">{{ 'readiness.setup.action.open_project'|trans }}</twig:Ds:Button>
+            </div>
+        {% elseif state != 'member' %}
+            <div class="lp-project-setup__actions">
+                {% if state == 'no-repository' %}
+                    <twig:Ds:Button variant="outline" :href="path('app_github_repositories_start', {id: setup.project.id})" data-turbo-frame="_top" data-turbo-prefetch="false">{{ 'readiness.setup.action.add_repositories'|trans }}</twig:Ds:Button>
+                {% endif %}
+                <twig:Ds:ActionForm :action="path('app_project_setup_skip', {id: setup.project.id})" token="project-setup-skip" frame="_top">
+                    <twig:Ds:Button variant="ghost" type="submit">{{ 'readiness.setup.action.skip'|trans }}</twig:Ds:Button>
+                </twig:Ds:ActionForm>
+            </div>
+        {% endif %}
+    </div>
+</turbo-frame>

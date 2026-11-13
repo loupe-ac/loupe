@@ -100,6 +100,18 @@ write a document, work a board and act on feedback. They hold no credential.
 [The Claude Code plugins](../using/mcp.md#the-claude-code-plugins) lists the
 skills, and shows how to install them by hand.
 
+### The setup page
+
+A new project is not set up until `loupe init` has finished and a bridge has
+connected. Until then, each page of the project opens the **setup page**. It
+shows the next step, such as the `loupe init --project <id>` command, and it
+updates by itself while you work in the terminal. When both steps are done, it
+shows **Open the project**.
+
+Select **Skip for now** to open the project without the setup page for the rest
+of the browser session. [The setup page](../using/projects.md#the-setup-page)
+describes each state.
+
 ## 3. Open the readiness guide
 
 Open the Workshop of the project in your instance. The project owner sees the
