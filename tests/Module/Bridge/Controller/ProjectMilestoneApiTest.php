@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Bridge\Controller;
 
+use App\Module\Account\Entity\User;
 use App\Module\Bridge\Contract\InitRuns;
 use App\Module\Bridge\Service\InteractiveRuns;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Project\Contract\ProjectMilestones;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Bridge\BridgeScenario;
+use App\Tests\Support\NotSetUp;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
@@ -24,9 +26,9 @@ final class ProjectMilestoneApiTest extends WebTestCase
         $client = static::createClient();
         $client->disableReboot();
         $owner = $this->user($this->em(), 'milestone-heartbeat@example.com');
-        $fresh = $this->project($this->em(), $owner, 'Milestone fresh');
-        $done = $this->project($this->em(), $owner, 'Milestone done');
-        $unfollowed = $this->project($this->em(), $owner, 'Milestone unfollowed');
+        $fresh = $this->newProject($owner, 'Milestone fresh');
+        $done = $this->newProject($owner, 'Milestone done');
+        $unfollowed = $this->newProject($owner, 'Milestone unfollowed');
         $this->em()->getConnection()->executeStatement('UPDATE projects SET set_up = true WHERE id = ?', [(string) $done->id]);
 
         $this->heartbeat($client, $this->agentToken($client, $owner), [(string) $fresh->id, (string) $done->id]);
@@ -43,7 +45,7 @@ final class ProjectMilestoneApiTest extends WebTestCase
         $client->disableReboot();
         $owner = $this->user($this->em(), 'milestone-heartbeat-owner@example.com');
         $stranger = $this->user($this->em(), 'milestone-heartbeat-stranger@example.com');
-        $foreign = $this->project($this->em(), $stranger, 'Milestone foreign');
+        $foreign = $this->newProject($stranger, 'Milestone foreign');
 
         $this->heartbeat($client, $this->agentToken($client, $owner), [(string) $foreign->id]);
 
@@ -56,8 +58,8 @@ final class ProjectMilestoneApiTest extends WebTestCase
         $client = static::createClient();
         $client->disableReboot();
         $owner = $this->user($this->em(), 'milestone-close@example.com');
-        $open = $this->project($this->em(), $owner, 'Milestone open init');
-        $closed = $this->project($this->em(), $owner, 'Milestone closed init');
+        $open = $this->newProject($owner, 'Milestone open init');
+        $closed = $this->newProject($owner, 'Milestone closed init');
         $sessionId = Uuid::v4();
         $this->startInit($open, $sessionId);
         $run = $this->startInit($closed, $sessionId);
@@ -75,7 +77,7 @@ final class ProjectMilestoneApiTest extends WebTestCase
         $client = static::createClient();
         $client->disableReboot();
         $owner = $this->user($this->em(), 'milestone-both@example.com');
-        $project = $this->project($this->em(), $owner, 'Milestone both');
+        $project = $this->newProject($owner, 'Milestone both');
         $sessionId = Uuid::v4();
         $this->startInit($project, $sessionId);
         $raw = $this->agentToken($client, $owner);
@@ -92,7 +94,7 @@ final class ProjectMilestoneApiTest extends WebTestCase
         $client = static::createClient();
         $client->disableReboot();
         $owner = $this->user($this->em(), 'milestone-unfinished@example.com');
-        $project = $this->project($this->em(), $owner, 'Milestone unfinished');
+        $project = $this->newProject($owner, 'Milestone unfinished');
         $sessionId = Uuid::v4();
         $this->startInit($project, $sessionId);
         $raw = $this->agentToken($client, $owner);
@@ -115,7 +117,7 @@ final class ProjectMilestoneApiTest extends WebTestCase
         $client = static::createClient();
         $client->disableReboot();
         $owner = $this->user($this->em(), 'milestone-no-init@example.com');
-        $project = $this->project($this->em(), $owner, 'Milestone no init');
+        $project = $this->newProject($owner, 'Milestone no init');
         $sessionId = Uuid::v4();
         $this->interactiveRuns()->open($project, Uuid::v7(), 1, $sessionId, 'design');
 
@@ -132,7 +134,7 @@ final class ProjectMilestoneApiTest extends WebTestCase
         $client->disableReboot();
         $owner = $this->user($this->em(), 'milestone-close-owner@example.com');
         $stranger = $this->user($this->em(), 'milestone-close-stranger@example.com');
-        $foreign = $this->project($this->em(), $stranger, 'Milestone foreign init');
+        $foreign = $this->newProject($stranger, 'Milestone foreign init');
         $sessionId = Uuid::v4();
         $this->startInit($foreign, $sessionId);
 
@@ -146,7 +148,7 @@ final class ProjectMilestoneApiTest extends WebTestCase
         $client = static::createClient();
         $client->disableReboot();
         $owner = $this->user($this->em(), 'milestone-invalid@example.com');
-        $project = $this->project($this->em(), $owner, 'Milestone invalid');
+        $project = $this->newProject($owner, 'Milestone invalid');
         $sessionId = Uuid::v4();
         $this->startInit($project, $sessionId);
         $raw = $this->agentToken($client, $owner);
@@ -184,6 +186,14 @@ final class ProjectMilestoneApiTest extends WebTestCase
     private function keys(Project $project): array
     {
         return array_values(array_map(strval(...), $this->em()->getConnection()->fetchFirstColumn('SELECT "key" FROM project_milestones WHERE project_id = ? ORDER BY "key"', [(string) $project->id])));
+    }
+
+    private function newProject(User $owner, string $name): Project
+    {
+        $project = $this->project($this->em(), $owner, $name);
+        NotSetUp::mark($this->em(), $project);
+
+        return $project;
     }
 
     private function isSetUp(Project $project): bool

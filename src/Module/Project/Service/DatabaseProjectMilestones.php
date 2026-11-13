@@ -6,6 +6,7 @@ namespace App\Module\Project\Service;
 
 use App\Module\Project\Contract\Event\ProjectSetUp;
 use App\Module\Project\Contract\ProjectMilestones;
+use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Types\Types;
@@ -54,6 +55,11 @@ final readonly class DatabaseProjectMilestones implements ProjectMilestones
         });
 
         if ($turnedOn) {
+            // The update bypasses the unit of work, so a project loaded earlier still reads the old flag.
+            $loaded = $this->em->getUnitOfWork()->tryGetById($projectId, Project::class);
+            if ($loaded instanceof Project) {
+                $loaded->setUp = true;
+            }
             $this->events->dispatch(new ProjectSetUp($projectId));
         }
     }

@@ -11,6 +11,7 @@ use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Project\Service\Dev\DevProjectSeeder;
 use App\Tests\DevSeed\SeedContextFactory;
+use App\Tests\Support\MarkNewProjectsSetUp;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
@@ -49,7 +50,12 @@ final class DevProjectSeederTest extends KernelTestCase
     public function test_every_seeded_project_is_set_up_except_the_one_made_for_it(): void
     {
         $owner = $this->owner();
-        $this->runSeeder($owner);
+        MarkNewProjectsSetUp::$enabled = false;
+        try {
+            $this->runSeeder($owner);
+        } finally {
+            MarkNewProjectsSetUp::$enabled = true;
+        }
 
         $notSetUp = $this->projects()->find(DevProjectSeeder::notSetUpProjectId());
         self::assertInstanceOf(Project::class, $notSetUp);

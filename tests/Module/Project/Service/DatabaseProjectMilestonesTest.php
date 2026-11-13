@@ -10,6 +10,7 @@ use App\Module\Project\Contract\ProjectMilestones;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Service\DatabaseProjectMilestones;
 use App\Tests\Support\DispatchedEvents;
+use App\Tests\Support\NotSetUp;
 use DAMA\DoctrineTestBundle\PHPUnit\SkipDatabaseRollback;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
@@ -40,6 +41,7 @@ final class DatabaseProjectMilestonesTest extends KernelTestCase
         $this->project = new Project($this->owner, 'Milestones '.uniqid());
         $em->persist($this->project);
         $em->flush();
+        NotSetUp::mark($em, $this->project);
         $em->clear();
 
         $milestones = self::getContainer()->get(DatabaseProjectMilestones::class);
@@ -87,6 +89,19 @@ final class DatabaseProjectMilestonesTest extends KernelTestCase
         self::assertCount(1, $this->setUp->events());
         self::assertTrue($this->projectId()->equals($this->setUp->events()[0]->projectId));
         self::assertSame([0], $this->setUp->transactionDepths());
+    }
+
+    public function test_a_project_loaded_before_the_milestone_reads_the_flag_after_it(): void
+    {
+        $em = $this->em();
+        $loaded = $em->find(Project::class, $this->projectId());
+        self::assertInstanceOf(Project::class, $loaded);
+        self::assertFalse($loaded->setUp);
+
+        $this->milestones->reach($this->projectId(), ProjectMilestones::INIT_FINISHED);
+        $this->milestones->reach($this->projectId(), ProjectMilestones::BRIDGE_CONNECTED);
+
+        self::assertTrue($loaded->setUp);
     }
 
     public function test_a_milestone_reached_again_changes_nothing_and_dispatches_nothing(): void
