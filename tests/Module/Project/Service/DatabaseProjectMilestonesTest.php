@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Project\Service;
 
 use App\Module\Account\Entity\User;
+use App\Module\Project\Contract\Event\ProjectMilestoneReached;
 use App\Module\Project\Contract\Event\ProjectSetUp;
 use App\Module\Project\Contract\ProjectMilestones;
 use App\Module\Project\Entity\Project;
@@ -31,6 +32,8 @@ final class DatabaseProjectMilestonesTest extends KernelTestCase
     private ProjectMilestones $milestones;
     /** @var DispatchedEvents<ProjectSetUp> */
     private DispatchedEvents $setUp;
+    /** @var DispatchedEvents<ProjectMilestoneReached> */
+    private DispatchedEvents $reached;
 
     protected function setUp(): void
     {
@@ -48,6 +51,7 @@ final class DatabaseProjectMilestonesTest extends KernelTestCase
         self::assertInstanceOf(ProjectMilestones::class, $milestones);
         $this->milestones = $milestones;
         $this->setUp = DispatchedEvents::of(self::getContainer(), ProjectSetUp::class);
+        $this->reached = DispatchedEvents::of(self::getContainer(), ProjectMilestoneReached::class);
         $this->other = DriverManager::getConnection($em->getConnection()->getParams());
     }
 
@@ -78,6 +82,17 @@ final class DatabaseProjectMilestonesTest extends KernelTestCase
         self::assertSame([ProjectMilestones::INIT_FINISHED], $this->keys());
         self::assertFalse($this->isSetUp());
         self::assertSame([], $this->setUp->events());
+    }
+
+    public function test_a_milestone_dispatches_its_event_once_after_the_commit(): void
+    {
+        $this->milestones->reach($this->projectId(), ProjectMilestones::INIT_FINISHED);
+        $this->milestones->reach($this->projectId(), ProjectMilestones::INIT_FINISHED);
+
+        self::assertCount(1, $this->reached->events());
+        self::assertSame(ProjectMilestones::INIT_FINISHED, $this->reached->events()[0]->key);
+        self::assertTrue($this->projectId()->equals($this->reached->events()[0]->projectId));
+        self::assertSame([0], $this->reached->transactionDepths());
     }
 
     public function test_the_second_milestone_sets_the_project_up_and_dispatches_after_the_commit(): void

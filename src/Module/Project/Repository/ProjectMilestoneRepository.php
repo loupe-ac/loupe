@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Project\Repository;
 
 use App\Module\Account\Entity\User;
+use App\Module\Project\Entity\Project;
 use App\Module\Project\Entity\ProjectMilestone;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -30,5 +31,10 @@ class ProjectMilestoneRepository extends ServiceEntityRepository
             ->addOrderBy('m.key', 'ASC')
             ->getQuery()
             ->getResult());
+    }
+
+    public function hasReached(Project $project, string $key): bool
+    {
+        return null !== $this->findOneBy(['project' => $project, 'key' => $key]);
     }
 }

@@ -10,6 +10,7 @@ use App\Module\GitHub\Service\LivePickerSignIn;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Project\Security\ProjectVoter;
+use App\Module\Project\Service\ProjectSetupSkips;
 use App\Module\Readiness\EventListener\RequireProjectSetUpListener;
 use App\Tests\Support\RecordingLogger;
 use PHPUnit\Framework\TestCase;
@@ -212,7 +213,7 @@ final class RequireProjectSetUpListenerTest extends TestCase
         $urls->method('generate')->willReturnCallback(
             static fn (string $name, array $parameters): string => '/projects/'.$parameters['id'].'/setup',
         );
-        $listener = new RequireProjectSetUpListener($tokens, $checker, $projects, $urls, new LivePickerSignIn($this->installSession));
+        $listener = new RequireProjectSetUpListener($tokens, $checker, $projects, $urls, new LivePickerSignIn($this->installSession), new ProjectSetupSkips($checker));
         $event = new RequestEvent($this->createStub(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST);
 
         $listener($event);

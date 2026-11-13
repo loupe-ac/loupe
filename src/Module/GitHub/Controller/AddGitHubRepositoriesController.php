@@ -12,8 +12,8 @@ use App\Module\GitHub\Form\PickRepositoriesFormType;
 use App\Module\GitHub\Form\PickRepositoriesRequest;
 use App\Module\GitHub\Security\GitHubConnectionVoter;
 use App\Module\GitHub\Service\GitHubInstallSession;
+use App\Module\GitHub\Service\PickerReturn;
 use App\Module\Project\Entity\Project;
-use App\Module\Project\Service\InitInstallWaits;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -32,7 +32,7 @@ class AddGitHubRepositoriesController extends AppController
         private readonly AddGitHubRepositoriesHandler $addRepositories,
         private readonly TranslatorInterface $translator,
         private readonly GitHubInstallSession $installSession,
-        private readonly InitInstallWaits $installWaits,
+        private readonly PickerReturn $pickerReturn,
     ) {
     }
 
@@ -66,8 +66,9 @@ class AddGitHubRepositoriesController extends AppController
             return $tab;
         }
 
-        if ([] !== $added->added && $this->installWaits->isWaiting($init, (string) $project->id)) {
-            return $this->redirectToRoute('app_github_init_handoff', ['id' => (string) $project->id, 'repository' => implode(',', $added->added), 'init' => $init]);
+        $target = $this->pickerReturn->target($project, $init, $added->added);
+        if ($target->isHandoff()) {
+            return $this->redirectToRoute($target->route, $target->parameters);
         }
 
         if ([] !== $added->added) {
@@ -81,6 +82,6 @@ class AddGitHubRepositoriesController extends AppController
             ]));
         }
 
-        return $this->redirectToRoute('app_project_repositories_settings', ['id' => (string) $project->id]);
+        return $this->redirectToRoute($target->route, $target->parameters);
     }
 }

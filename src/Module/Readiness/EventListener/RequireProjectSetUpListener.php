@@ -8,6 +8,7 @@ use App\Module\GitHub\Service\LivePickerSignIn;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Project\Security\ProjectVoter;
+use App\Module\Project\Service\ProjectSetupSkips;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -27,7 +28,7 @@ final readonly class RequireProjectSetUpListener
 
     public const string INTENDED_PATH_SESSION_KEY = 'project_setup.intended_path';
 
-    public const string SKIPPED_SESSION_KEY = 'project_setup_skipped';
+    public const string SKIPPED_SESSION_KEY = ProjectSetupSkips::SESSION_KEY;
 
     private const string REPOSITORIES_ROUTE = 'app_project_repositories_settings';
 
@@ -46,6 +47,7 @@ final readonly class RequireProjectSetUpListener
         private ProjectRepository $projects,
         private UrlGeneratorInterface $urlGenerator,
         private LivePickerSignIn $pickerSignIn,
+        private ProjectSetupSkips $skips,
     ) {
     }
 
@@ -109,13 +111,7 @@ final readonly class RequireProjectSetUpListener
 
     private function isSkipped(Request $request, Project $project): bool
     {
-        if (!$request->hasSession() || !$this->authorizationChecker->isGranted(ProjectVoter::MANAGE, $project)) {
-            return false;
-        }
-
-        $skipped = $request->getSession()->get(self::SKIPPED_SESSION_KEY, []);
-
-        return is_array($skipped) && in_array((string) $project->id, $skipped, true);
+        return $request->hasSession() && $this->skips->isSkipped($request->getSession(), $project);
     }
 
     private function isHtmlNavigation(Request $request): bool
