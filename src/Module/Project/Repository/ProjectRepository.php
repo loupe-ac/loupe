@@ -50,9 +50,15 @@ class ProjectRepository extends ServiceEntityRepository
     /** Serialises the writers of the project row until the transaction ends, without waiting for a key share. */
     public function lockForWrite(Project $project): void
     {
-        $this->getEntityManager()->getConnection()->executeStatement(
+        $this->lockIdForWrite($project->id ?? throw new \LogicException('A stored project has an id.'));
+    }
+
+    /** The same lock by id. It returns false when no such project exists. */
+    public function lockIdForWrite(Uuid $projectId): bool
+    {
+        return 0 < $this->getEntityManager()->getConnection()->executeStatement(
             'SELECT 1 FROM projects WHERE id = :id '.self::WRITE_LOCK,
-            ['id' => $project->id],
+            ['id' => $projectId],
             ['id' => UuidType::NAME],
         );
     }
@@ -252,6 +258,31 @@ class ProjectRepository extends ServiceEntityRepository
             ->getSingleColumnResult();
 
         return array_map(static fn (Uuid|string $id): string => (string) $id, $owned);
+    }
+
+    /**
+     * The ids among $ids of projects that are not set up yet.
+     *
+     * @param list<string> $ids canonical uuids
+     *
+     * @return list<string>
+     */
+    public function findIdsNotSetUp(array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        /** @var list<Uuid> $found */
+        $found = $this->createQueryBuilder('p')
+            ->select('p.id')
+            ->andWhere('p.setUp = false')
+            ->andWhere('p.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return array_map(static fn (Uuid|string $id): string => (string) $id, $found);
     }
 
     /**

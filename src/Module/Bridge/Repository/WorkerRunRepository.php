@@ -800,6 +800,32 @@ class WorkerRunRepository extends ServiceEntityRepository
             ->getResult());
     }
 
+    /**
+     * The projects of the owner in which the session ran init, whether the run is open or closed.
+     *
+     * @return list<Uuid>
+     */
+    public function findInitProjectIdsOfSession(User $owner, Uuid $sessionId): array
+    {
+        /** @var list<Uuid|string> $ids */
+        $ids = $this->createQueryBuilder('r')
+            ->select('DISTINCT IDENTITY(r.project)')
+            ->join('r.project', 'p')
+            ->andWhere('p.owner = :owner')
+            ->andWhere('r.sessionId = :sessionId')
+            ->andWhere('r.kind = :interactive')
+            ->andWhere(self::INIT_RUN_CONDITION)
+            ->setParameter('owner', $owner)
+            ->setParameter('sessionId', $sessionId, UuidType::NAME)
+            ->setParameter('interactive', WorkerRunKind::Interactive->value)
+            ->setParameter('initKind', InitRuns::WORK_KIND)
+            ->setParameter('initSubject', WorkSubject::PROJECT)
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return array_map(static fn (Uuid|string $id): Uuid => $id instanceof Uuid ? $id : Uuid::fromString($id), $ids);
+    }
+
     /** Whether the project has an open init run. */
     public function hasOpenInit(Uuid $projectId): bool
     {

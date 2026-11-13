@@ -26,6 +26,7 @@ final readonly class DevProjectSeeder implements DevSeederInterface
     public const string DEV_PROJECT_NAME = 'Dev Project';
     public const string KEYS_PROJECT_NAME = 'API key records';
     public const string LIFECYCLE_PROJECT_NAME = 'Dev Project (lifecycle)';
+    public const string NOT_SET_UP_PROJECT_NAME = 'Dev Project (not set up)';
 
     public function __construct(
         private ProjectRepository $projects,
@@ -52,6 +53,12 @@ final readonly class DevProjectSeeder implements DevSeederInterface
         return DevSeedId::of('project/project/lifecycle-project');
     }
 
+    /** The project that has no init run and no bridge yet, so it shows the state of a new project. */
+    public static function notSetUpProjectId(): Uuid
+    {
+        return DevSeedId::of('project/project/not-set-up-project');
+    }
+
     #[\Override]
     public function key(): string
     {
@@ -74,15 +81,17 @@ final readonly class DevProjectSeeder implements DevSeederInterface
         $keysUser = $this->users->find(DevSeedId::of(DevAccountSeeder::KEYS_USER))
             ?? throw new \LogicException('The keys account does not exist.');
         $this->project($context, $keysUser, self::keysProjectId(), self::KEYS_PROJECT_NAME);
+        $this->project($context, $context->devUser(), self::notSetUpProjectId(), self::NOT_SET_UP_PROJECT_NAME, secondsAgo: 400, setUp: false);
     }
 
-    private function project(SeedContext $context, User $owner, Uuid $id, string $name, string $workflowTemplate = 'simple', int $secondsAgo = 0): void
+    private function project(SeedContext $context, User $owner, Uuid $id, string $name, string $workflowTemplate = 'simple', int $secondsAgo = 0, bool $setUp = true): void
     {
         if ($this->projects->find($id) instanceof Project) {
             return;
         }
 
         $project = new Project($owner, $name, createdAt: $context->at($secondsAgo));
+        $project->setUp = $setUp;
 
         $this->renameOldProject($owner, $name);
 

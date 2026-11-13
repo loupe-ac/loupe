@@ -817,6 +817,11 @@ push and a session that a person started needs no bridge. It shares the `agent_w
 The answer is 200 with `{"closed": <number>}`. The number is 0 when the owner holds no open run of the session.
 A session id that is not a UUID gets 422 with the code `invalid_session_id`.
 
+The body is optional. `{"finished": true}` says the work of the session ended well. `loupe init` sends it on a
+normal finish. Loupe then records the `init-finished` milestone of every project in which the session ran an init
+run, whether that run is open or already closed. Without `finished`, or with `false`, the close records no milestone.
+A `finished` value that is not a boolean gets 422 with the code `invalid_finished`.
+
 ## Reading the card run of a session
 
 `GET /api/v1/bridge/interactive-sessions/{sessionId}/card-run` tells the session start hook of the Loupe plugin two
