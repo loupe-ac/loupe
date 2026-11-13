@@ -1,1 +1,0 @@
-- (#PR) — **Added:** A project that is not set up now opens a live setup page in place of its pages, with "Skip for now" for the owner, and the repository picker returns to it.
