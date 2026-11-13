@@ -17,6 +17,9 @@ test('a user can delete their account end to end via the emailed confirmation li
     request,
     verifiedAccount: { email, password },
 }) => {
+    // The mail wait alone can take 30 seconds, which is the default test timeout.
+    test.setTimeout(90000);
+
     // Mailpit is shared by every worktree and never cleared, so this address
     // could already hold deletion mail from an earlier run of this same spec
     // — mark the inbox before acting so we can tell "this run's email" apart

@@ -3856,18 +3856,6 @@ paths:
       responses:
         '200':
           description: One page of worker runs.
-  /api/v1/projects/{project}/workflow:
-    get:
-      operationId: getWorkflow
-      summary: Read the workflow of a project
-      tags:
-      - Workflow
-      description: 'The template and its version, the settings the template declares with their resolved values, the board columns with the workflow slot that links to each, and each kind of work the workflow can ask a bridge for, with the rules that ask for it and the checks it needs from the project. A project that has no workflow answers 409 `no_workflow`.'
-      parameters:
-      - $ref: '#/components/parameters/Project'
-      responses:
-        '200':
-          description: The workflow of the project.
           headers:
             RateLimit-Limit:
               $ref: '#/components/headers/RateLimit-Limit'
@@ -3887,14 +3875,6 @@ paths:
           $ref: '#/components/responses/E404ProjectNotFoundRouteNotFound'
         '422':
           $ref: '#/components/responses/E422ValidationFailed'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Workflow'
-        '404':
-          $ref: '#/components/responses/E404ProjectNotFoundRouteNotFound'
-        '409':
-          $ref: '#/components/responses/E409NoWorkflow'
         '401':
           $ref: '#/components/responses/E401InvalidCredentialsApiKeyExpired'
         '402':
@@ -3916,47 +3896,6 @@ paths:
         not show the outcome of a run. A run of another project gets the row `not-found`, as a missing run does. An unexpected
         failure on a run gives the row `error`, whose outcome is unknown, and the route then stops: each later row is `not-attempted`.
         Send those runs again. A resume by an API key records the key on each command.'
-  /api/v1/projects/{project}/workflow/automation:
-    get:
-      operationId: getBoardAutomation
-      summary: Read the automation settings of a project
-      tags:
-      - Workflow
-      description: 'The same switches as the Automation page of the project settings.'
-      parameters:
-      - $ref: '#/components/parameters/Project'
-      responses:
-        '200':
-          description: The automation settings.
-          headers:
-            RateLimit-Limit:
-              $ref: '#/components/headers/RateLimit-Limit'
-            RateLimit-Remaining:
-              $ref: '#/components/headers/RateLimit-Remaining'
-            RateLimit-Reset:
-              $ref: '#/components/headers/RateLimit-Reset'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BoardAutomation'
-        '404':
-          $ref: '#/components/responses/E404ProjectNotFoundRouteNotFound'
-        '401':
-          $ref: '#/components/responses/E401InvalidCredentialsApiKeyExpired'
-        '402':
-          $ref: '#/components/responses/E402SubscriptionRequired'
-        '403':
-          $ref: '#/components/responses/E403CredentialNotAllowed'
-        '405':
-          $ref: '#/components/responses/E405MethodNotAllowed'
-        '429':
-          $ref: '#/components/responses/E429RateLimited'
-    patch:
-      operationId: updateBoardAutomation
-      summary: Change the automation settings of a project
-      tags:
-      - Workflow
-      description: 'A setting you leave out keeps its value. The three changes save together, so a refusal changes none of them. Turning `enabled` off stops the workflow from moving cards and from asking for work.'
       parameters:
       - $ref: '#/components/parameters/Project'
       requestBody:
@@ -3968,10 +3907,6 @@ paths:
       responses:
         '200':
           description: One row per run.
-              $ref: '#/components/schemas/BoardAutomationUpdate'
-      responses:
-        '200':
-          description: The settings after the change.
           headers:
             RateLimit-Limit:
               $ref: '#/components/headers/RateLimit-Limit'
@@ -3983,13 +3918,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/WorkerRunResumeBatchResult'
-                $ref: '#/components/schemas/BoardAutomation'
         '400':
           $ref: '#/components/responses/E400InvalidJson'
         '404':
           $ref: '#/components/responses/E404ProjectNotFoundRouteNotFound'
-        '409':
-          $ref: '#/components/responses/E409NoWorkflow'
         '415':
           $ref: '#/components/responses/E415UnsupportedMediaType'
         '422':
@@ -4021,18 +3953,6 @@ paths:
       responses:
         '200':
           description: The run, its series and its commands.
-  /api/v1/projects/{project}/readiness:
-    get:
-      operationId: getReadiness
-      summary: Read the readiness checks of a project
-      tags:
-      - Readiness
-      description: 'Each check says whether it is done, with a short status. `discovery` is the latest discovery run, or null when discovery never ran. To start discovery, call `POST .../discovery`.'
-      parameters:
-      - $ref: '#/components/parameters/Project'
-      responses:
-        '200':
-          description: The readiness checks of the project.
           headers:
             RateLimit-Limit:
               $ref: '#/components/headers/RateLimit-Limit'
@@ -4046,9 +3966,6 @@ paths:
                 $ref: '#/components/schemas/WorkerRunShow'
         '404':
           $ref: '#/components/responses/E404ProjectNotFoundRunNotFoundRouteNotFound'
-                $ref: '#/components/schemas/Readiness'
-        '404':
-          $ref: '#/components/responses/E404ProjectNotFoundRouteNotFound'
         '401':
           $ref: '#/components/responses/E401InvalidCredentialsApiKeyExpired'
         '402':
@@ -4176,23 +4093,6 @@ paths:
       responses:
         '200':
           description: The stop is requested, or the session is closed.
-    patch:
-      operationId: updateReadiness
-      summary: Show or hide the readiness guide
-      tags:
-      - Readiness
-      description: 'The same switch as the Agent readiness tab of the project settings. Hiding the guide again keeps the time of the first hide.'
-      parameters:
-      - $ref: '#/components/parameters/Project'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ReadinessUpdate'
-      responses:
-        '200':
-          description: Whether the guide shows after the change.
           headers:
             RateLimit-Limit:
               $ref: '#/components/headers/RateLimit-Limit'
@@ -4210,11 +4110,6 @@ paths:
           $ref: '#/components/responses/E404ProjectNotFoundRunNotFoundRouteNotFound'
         '409':
           $ref: '#/components/responses/E409RunNotStoppableRunNotControllableNoBridgeAnd3More'
-                $ref: '#/components/schemas/ReadinessGuide'
-        '400':
-          $ref: '#/components/responses/E400InvalidJson'
-        '404':
-          $ref: '#/components/responses/E404ProjectNotFoundRouteNotFound'
         '415':
           $ref: '#/components/responses/E415UnsupportedMediaType'
         '422':
@@ -4246,25 +4141,6 @@ paths:
       responses:
         '200':
           description: The resume is requested.
-  /api/v1/projects/{project}/documents/{document}/highlights:
-    put:
-      operationId: setDocumentHighlights
-      summary: Replace the highlights of a document
-      tags:
-      - Documents
-      description: 'Highlights tint the passages a reviewer should read first. The call replaces the whole highlight set of the current version, and an empty list clears it. A new version starts with none, so restate them after a revision. A quote that cannot be located is reported in `skipped` and does not fail the call. The route answers 404 `route_not_found` while the instance has `review.highlights.enabled` switched off.'
-      parameters:
-      - $ref: '#/components/parameters/Project'
-      - $ref: '#/components/parameters/Document'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/DocumentHighlightsSet'
-      responses:
-        '200':
-          description: The highlight set after the call.
           headers:
             RateLimit-Limit:
               $ref: '#/components/headers/RateLimit-Limit'
@@ -4363,13 +4239,6 @@ paths:
           $ref: '#/components/responses/E400InvalidCursor'
         '404':
           $ref: '#/components/responses/E404ProjectNotFoundRouteNotFound'
-                $ref: '#/components/schemas/DocumentHighlights'
-        '400':
-          $ref: '#/components/responses/E400InvalidJson'
-        '404':
-          $ref: '#/components/responses/E404ProjectNotFoundDocumentNotFoundRouteNotFound'
-        '415':
-          $ref: '#/components/responses/E415UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/E422ValidationFailed'
         '401':
@@ -4422,6 +4291,255 @@ paths:
           $ref: '#/components/responses/E403CredentialNotAllowed'
         '404':
           $ref: '#/components/responses/E404RouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/projects/{project}/workflow:
+    get:
+      operationId: getWorkflow
+      summary: Read the workflow of a project
+      tags:
+      - Workflow
+      description: 'The template and its version, the settings the template declares with their resolved values, the board columns with the workflow slot that links to each, and each kind of work the workflow can ask a bridge for, with the rules that ask for it and the checks it needs from the project. A project that has no workflow answers 409 `no_workflow`.'
+      parameters:
+      - $ref: '#/components/parameters/Project'
+      responses:
+        '200':
+          description: The workflow of the project.
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+        '404':
+          $ref: '#/components/responses/E404ProjectNotFoundRouteNotFound'
+        '409':
+          $ref: '#/components/responses/E409NoWorkflow'
+        '401':
+          $ref: '#/components/responses/E401InvalidCredentialsApiKeyExpired'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403CredentialNotAllowed'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/projects/{project}/workflow/automation:
+    get:
+      operationId: getBoardAutomation
+      summary: Read the automation settings of a project
+      tags:
+      - Workflow
+      description: 'The same switches as the Automation page of the project settings.'
+      parameters:
+      - $ref: '#/components/parameters/Project'
+      responses:
+        '200':
+          description: The automation settings.
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BoardAutomation'
+        '404':
+          $ref: '#/components/responses/E404ProjectNotFoundRouteNotFound'
+        '401':
+          $ref: '#/components/responses/E401InvalidCredentialsApiKeyExpired'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403CredentialNotAllowed'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+    patch:
+      operationId: updateBoardAutomation
+      summary: Change the automation settings of a project
+      tags:
+      - Workflow
+      description: 'A setting you leave out keeps its value. The three changes save together, so a refusal changes none of them. Turning `enabled` off stops the workflow from moving cards and from asking for work.'
+      parameters:
+      - $ref: '#/components/parameters/Project'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BoardAutomationUpdate'
+      responses:
+        '200':
+          description: The settings after the change.
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BoardAutomation'
+        '400':
+          $ref: '#/components/responses/E400InvalidJson'
+        '404':
+          $ref: '#/components/responses/E404ProjectNotFoundRouteNotFound'
+        '409':
+          $ref: '#/components/responses/E409NoWorkflow'
+        '415':
+          $ref: '#/components/responses/E415UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/E422ValidationFailed'
+        '401':
+          $ref: '#/components/responses/E401InvalidCredentialsApiKeyExpired'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403CredentialNotAllowed'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/projects/{project}/readiness:
+    get:
+      operationId: getReadiness
+      summary: Read the readiness checks of a project
+      tags:
+      - Readiness
+      description: 'Each check says whether it is done, with a short status. `discovery` is the latest discovery run, or null when discovery never ran. To start discovery, call `POST .../discovery`.'
+      parameters:
+      - $ref: '#/components/parameters/Project'
+      responses:
+        '200':
+          description: The readiness checks of the project.
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Readiness'
+        '404':
+          $ref: '#/components/responses/E404ProjectNotFoundRouteNotFound'
+        '401':
+          $ref: '#/components/responses/E401InvalidCredentialsApiKeyExpired'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403CredentialNotAllowed'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+    patch:
+      operationId: updateReadiness
+      summary: Show or hide the readiness guide
+      tags:
+      - Readiness
+      description: 'The same switch as the Agent readiness tab of the project settings. Hiding the guide again keeps the time of the first hide.'
+      parameters:
+      - $ref: '#/components/parameters/Project'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReadinessUpdate'
+      responses:
+        '200':
+          description: Whether the guide shows after the change.
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessGuide'
+        '400':
+          $ref: '#/components/responses/E400InvalidJson'
+        '404':
+          $ref: '#/components/responses/E404ProjectNotFoundRouteNotFound'
+        '415':
+          $ref: '#/components/responses/E415UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/E422ValidationFailed'
+        '401':
+          $ref: '#/components/responses/E401InvalidCredentialsApiKeyExpired'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403CredentialNotAllowed'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/projects/{project}/documents/{document}/highlights:
+    put:
+      operationId: setDocumentHighlights
+      summary: Replace the highlights of a document
+      tags:
+      - Documents
+      description: 'Highlights tint the passages a reviewer should read first. The call replaces the whole highlight set of the current version, and an empty list clears it. A new version starts with none, so restate them after a revision. A quote that cannot be located is reported in `skipped` and does not fail the call. The route answers 404 `route_not_found` while the instance has `review.highlights.enabled` switched off.'
+      parameters:
+      - $ref: '#/components/parameters/Project'
+      - $ref: '#/components/parameters/Document'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentHighlightsSet'
+      responses:
+        '200':
+          description: The highlight set after the call.
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentHighlights'
+        '400':
+          $ref: '#/components/responses/E400InvalidJson'
+        '404':
+          $ref: '#/components/responses/E404ProjectNotFoundDocumentNotFoundRouteNotFound'
+        '415':
+          $ref: '#/components/responses/E415UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/E422ValidationFailed'
+        '401':
+          $ref: '#/components/responses/E401InvalidCredentialsApiKeyExpired'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403CredentialNotAllowed'
         '405':
           $ref: '#/components/responses/E405MethodNotAllowed'
         '429':
