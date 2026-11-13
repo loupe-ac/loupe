@@ -149,7 +149,14 @@ security:
         - { path: '^/api/v1/projects/[^/]+/graphs(/[^/]+(/restore)?)?$', roles: ROLE_API_PUBLIC }
         - { path: '^/api/v1/projects/[^/]+/bucket-rules(/[^/]+)?$', roles: ROLE_API_PUBLIC }
         - { path: '^/api/v1/projects/[^/]+/analytics/settings$', roles: ROLE_API_PUBLIC }
-        - { path: '^/api/v1/projects/[^/]+/runs(/(resume|[^/]+(/(stop|resume|tool-calls|host-samples|pending-command))?))?$', roles: ROLE_API_PUBLIC }
+        - { path: '^/api/v1/projects/[^/]+/runs$', roles: ROLE_API_PUBLIC }
+        - { path: '^/api/v1/projects/[^/]+/runs/resume$', roles: ROLE_API_PUBLIC }
+        - { path: '^/api/v1/projects/[^/]+/runs/[^/]+$', roles: ROLE_API_PUBLIC }
+        - { path: '^/api/v1/projects/[^/]+/runs/[^/]+/tool-calls$', roles: ROLE_API_PUBLIC }
+        - { path: '^/api/v1/projects/[^/]+/runs/[^/]+/host-samples$', roles: ROLE_API_PUBLIC }
+        - { path: '^/api/v1/projects/[^/]+/runs/[^/]+/stop$', roles: ROLE_API_PUBLIC }
+        - { path: '^/api/v1/projects/[^/]+/runs/[^/]+/resume$', roles: ROLE_API_PUBLIC }
+        - { path: '^/api/v1/projects/[^/]+/runs/[^/]+/pending-command$', roles: ROLE_API_PUBLIC }
         - { path: '^/api/v1/projects/[^/]+/bridges$', roles: ROLE_API_PUBLIC }
         - { path: '^/api/v1/bridges$', roles: ROLE_API_PUBLIC }
         - { path: '^/api/v1/projects/[^/]+/(workflow(/automation)?|readiness)$', roles: ROLE_API_PUBLIC }
