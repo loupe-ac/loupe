@@ -13,6 +13,8 @@ use App\Module\Project\Contract\ProjectMilestones;
 use App\Module\Project\Entity\Project;
 use App\Module\Readiness\Command\ProjectSetupState;
 use App\Module\Readiness\Command\ProjectSetupView;
+use App\Module\Readiness\Command\SetupMergeLine;
+use App\Module\Readiness\Command\SetupMergeStatus;
 use App\Tests\Module\Readiness\ReadinessScenario;
 use App\Tests\Support\NotSetUp;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -151,6 +153,22 @@ final class ShowProjectSetupControllerTest extends WebTestCase
         self::assertStringNotContainsString('project-setup-command', $html);
         self::assertStringNotContainsString('<button', $html);
         self::assertStringNotContainsString('/setup/skip', $html);
+    }
+
+    public function test_c4_prints_the_merge_marker_once_for_each_repository_and_never_for_none(): void
+    {
+        $project = $this->gatedProject('setup-c4-lines@example.com');
+        $this->join($project, 'acme/api');
+        $entity = $this->em()->find(Project::class, $project->id) ?? throw new \LogicException('gone');
+        $twig = static::getContainer()->get(Environment::class);
+        self::assertInstanceOf(Environment::class, $twig);
+        $template = '@Readiness/setup/_project_setup_card.html.twig';
+
+        $filled = $twig->render($template, ['setup' => new ProjectSetupView($entity, ProjectSetupState::Member, ['acme/api'], false, false, false, [new SetupMergeLine('acme/api', SetupMergeStatus::NotAsked)])]);
+        $empty = $twig->render($template, ['setup' => new ProjectSetupView($entity, ProjectSetupState::Member, [], false, false, false, [])]);
+
+        self::assertSame(1, substr_count($filled, 'data-line="merge"'));
+        self::assertSame(0, substr_count($empty, 'data-line="merge"'));
     }
 
     public function test_the_page_reloads_its_frame_on_the_setup_event(): void
