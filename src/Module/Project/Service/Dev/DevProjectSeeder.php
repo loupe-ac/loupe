@@ -27,6 +27,10 @@ final readonly class DevProjectSeeder implements DevSeederInterface
     public const string KEYS_PROJECT_NAME = 'API key records';
     public const string LIFECYCLE_PROJECT_NAME = 'Dev Project (lifecycle)';
     public const string NOT_SET_UP_PROJECT_NAME = 'Dev Project (not set up)';
+    public const string SETUP_NO_REPOSITORY_PROJECT_NAME = 'Dev Project (setup: no repository)';
+    public const string SETUP_INIT_RUNNING_PROJECT_NAME = 'Dev Project (setup: init running)';
+    public const string SETUP_INIT_STOPPED_PROJECT_NAME = 'Dev Project (setup: init stopped)';
+    public const string SETUP_BRIDGE_PENDING_PROJECT_NAME = 'Dev Project (setup: bridge pending)';
 
     public function __construct(
         private ProjectRepository $projects,
@@ -59,6 +63,30 @@ final readonly class DevProjectSeeder implements DevSeederInterface
         return DevSeedId::of('project/project/not-set-up-project');
     }
 
+    /** The project that is not set up and has no repository, so its setup page shows the first state. */
+    public static function setupNoRepositoryProjectId(): Uuid
+    {
+        return DevSeedId::of('project/project/setup-no-repository');
+    }
+
+    /** The project that is not set up and has an open init run. */
+    public static function setupInitRunningProjectId(): Uuid
+    {
+        return DevSeedId::of('project/project/setup-init-running');
+    }
+
+    /** The project that is not set up and whose init run closed with no finish. */
+    public static function setupInitStoppedProjectId(): Uuid
+    {
+        return DevSeedId::of('project/project/setup-init-stopped');
+    }
+
+    /** The project that is not set up, finished its init and waits for the bridge. */
+    public static function setupBridgePendingProjectId(): Uuid
+    {
+        return DevSeedId::of('project/project/setup-bridge-pending');
+    }
+
     #[\Override]
     public function key(): string
     {
@@ -82,6 +110,10 @@ final readonly class DevProjectSeeder implements DevSeederInterface
             ?? throw new \LogicException('The keys account does not exist.');
         $this->project($context, $keysUser, self::keysProjectId(), self::KEYS_PROJECT_NAME);
         $this->project($context, $context->devUser(), self::notSetUpProjectId(), self::NOT_SET_UP_PROJECT_NAME, secondsAgo: 400, setUp: false);
+        $this->project($context, $context->devUser(), self::setupNoRepositoryProjectId(), self::SETUP_NO_REPOSITORY_PROJECT_NAME, secondsAgo: 410, setUp: false);
+        $this->project($context, $context->devUser(), self::setupInitRunningProjectId(), self::SETUP_INIT_RUNNING_PROJECT_NAME, secondsAgo: 420, setUp: false);
+        $this->project($context, $context->devUser(), self::setupInitStoppedProjectId(), self::SETUP_INIT_STOPPED_PROJECT_NAME, secondsAgo: 430, setUp: false);
+        $this->project($context, $context->devUser(), self::setupBridgePendingProjectId(), self::SETUP_BRIDGE_PENDING_PROJECT_NAME, secondsAgo: 440, setUp: false);
     }
 
     private function project(SeedContext $context, User $owner, Uuid $id, string $name, string $workflowTemplate = 'simple', int $secondsAgo = 0, bool $setUp = true): void
