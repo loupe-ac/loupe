@@ -45,7 +45,7 @@ final class DevProjectSeederTest extends KernelTestCase
         $this->runSeeder($owner);
         $this->runSeeder($owner);
 
-        self::assertCount(7, $this->projects()->findBy(['owner' => $owner]));
+        self::assertCount(11, $this->projects()->findBy(['owner' => $owner]));
     }
 
     public function test_every_seeded_project_is_set_up_except_the_one_made_for_it(): void
@@ -71,6 +71,9 @@ final class DevProjectSeederTest extends KernelTestCase
             DevProjectSeeder::setupInitRunningProjectId(),
             DevProjectSeeder::setupInitStoppedProjectId(),
             DevProjectSeeder::setupBridgePendingProjectId(),
+            DevProjectSeeder::setupInitRunningEmptyProjectId(),
+            DevProjectSeeder::setupInitStoppedEmptyProjectId(),
+            DevProjectSeeder::setupBridgePendingEmptyProjectId(),
         ]);
         $actual = array_values(array_map(
             static fn (Project $project): ?string => $project->id?->toRfc4122(),

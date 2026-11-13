@@ -8,6 +8,7 @@ use App\DevSeed\DevSeederInterface;
 use App\DevSeed\DevSeedId;
 use App\DevSeed\SeedContext;
 use App\Module\Bridge\Contract\InitRuns;
+use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Service\InteractiveRuns;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Forge\Entity\ForgeRepository;
@@ -23,7 +24,8 @@ use Symfony\Component\Uid\Uuid;
 
 /**
  * Gives the projects of the other setup page states their facts. The state with a repository
- * and no init run belongs to the project that is not set up, and the done state to any seeded project.
+ * and no init run belongs to the project that is not set up. Each state with a merge line also has
+ * a twin with no repository, and the done state has a project that holds one.
  */
 #[When('dev')]
 #[When('test')]
@@ -56,30 +58,43 @@ final readonly class DevProjectSetupSeeder implements DevSeederInterface
     #[\Override]
     public function seed(SeedContext $context): void
     {
-        $running = $this->prepare($context, DevProjectSeeder::setupInitRunningProjectId(), 'acme/setup-running');
-        if ($running instanceof Project && $this->hasNoInitRun($running)) {
-            $this->launchInit($running);
-        }
+        $this->prepare($context, DevProjectSeeder::setupDoneProjectId(), 'acme/setup-done');
 
-        $stopped = $this->prepare($context, DevProjectSeeder::setupInitStoppedProjectId(), 'acme/setup-stopped');
-        if ($stopped instanceof Project && $this->hasNoInitRun($stopped)) {
-            $run = $this->launchInit($stopped);
-            $this->interactiveRuns->closeById($stopped, $run);
-        }
-
-        $pending = $this->prepare($context, DevProjectSeeder::setupBridgePendingProjectId(), 'acme/setup-pending');
-        if ($pending instanceof Project && $this->hasNoInitRun($pending)) {
-            $run = $this->launchInit($pending);
-            $this->interactiveRuns->closeById($pending, $run);
-            $this->milestones->reach($pending->requireId(), ProjectMilestones::INIT_FINISHED);
+        foreach ([
+            [DevProjectSeeder::setupInitRunningProjectId(), 'acme/setup-running', DevProjectSeeder::setupInitRunningEmptyProjectId(), false, false],
+            [DevProjectSeeder::setupInitStoppedProjectId(), 'acme/setup-stopped', DevProjectSeeder::setupInitStoppedEmptyProjectId(), true, false],
+            [DevProjectSeeder::setupBridgePendingProjectId(), 'acme/setup-pending', DevProjectSeeder::setupBridgePendingEmptyProjectId(), true, true],
+        ] as [$projectId, $path, $emptyId, $closes, $finishes]) {
+            $this->launch($context, $this->prepare($context, $projectId, $path), $closes, $finishes);
+            $this->launch($context, $this->prepare($context, $emptyId, null), $closes, $finishes);
         }
     }
 
-    private function prepare(SeedContext $context, Uuid $projectId, string $path): ?Project
+    private function launch(SeedContext $context, ?Project $project, bool $close, bool $finish): void
+    {
+        if (!$project instanceof Project || !$this->hasNoInitRun($project)) {
+            return;
+        }
+
+        $run = $this->launchInit($context, $project);
+        if ($close) {
+            $this->interactiveRuns->closeById($project, $run);
+        }
+
+        if ($finish) {
+            $this->milestones->reach($project->requireId(), ProjectMilestones::INIT_FINISHED);
+        }
+    }
+
+    private function prepare(SeedContext $context, Uuid $projectId, ?string $path): ?Project
     {
         $project = $this->projects->find($projectId);
         if (!$project instanceof Project) {
             return null;
+        }
+
+        if (null === $path) {
+            return $project;
         }
 
         $id = DevSeedId::of('project-setup/'.$path);
@@ -100,9 +115,10 @@ final readonly class DevProjectSetupSeeder implements DevSeederInterface
         return !$this->initRuns->isOpen($id) && !$this->initRuns->hasClosed($id);
     }
 
-    private function launchInit(Project $project): Uuid
+    private function launchInit(SeedContext $context, Project $project): Uuid
     {
         $id = $project->requireId();
+        $context->ids->queue(WorkerRun::class, DevSeedId::of('project-setup/run/'.$id->toRfc4122()));
         [$run] = $this->interactiveRuns->recordLaunch(
             $project,
             new WorkSubject(WorkSubject::PROJECT, $id),

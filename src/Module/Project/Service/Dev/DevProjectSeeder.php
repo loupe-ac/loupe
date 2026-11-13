@@ -31,6 +31,10 @@ final readonly class DevProjectSeeder implements DevSeederInterface
     public const string SETUP_INIT_RUNNING_PROJECT_NAME = 'Dev Project (setup: init running)';
     public const string SETUP_INIT_STOPPED_PROJECT_NAME = 'Dev Project (setup: init stopped)';
     public const string SETUP_BRIDGE_PENDING_PROJECT_NAME = 'Dev Project (setup: bridge pending)';
+    public const string SETUP_INIT_RUNNING_EMPTY_PROJECT_NAME = 'Dev Project (setup: init running, no repository)';
+    public const string SETUP_INIT_STOPPED_EMPTY_PROJECT_NAME = 'Dev Project (setup: init stopped, no repository)';
+    public const string SETUP_BRIDGE_PENDING_EMPTY_PROJECT_NAME = 'Dev Project (setup: bridge pending, no repository)';
+    public const string SETUP_DONE_PROJECT_NAME = 'Dev Project (setup: done, with repository)';
 
     public function __construct(
         private ProjectRepository $projects,
@@ -87,6 +91,30 @@ final readonly class DevProjectSeeder implements DevSeederInterface
         return DevSeedId::of('project/project/setup-bridge-pending');
     }
 
+    /** The twin of the init running project, with no repository, so the page shows no merge line. */
+    public static function setupInitRunningEmptyProjectId(): Uuid
+    {
+        return DevSeedId::of('project/project/setup-init-running-empty');
+    }
+
+    /** The twin of the init stopped project, with no repository. */
+    public static function setupInitStoppedEmptyProjectId(): Uuid
+    {
+        return DevSeedId::of('project/project/setup-init-stopped-empty');
+    }
+
+    /** The twin of the bridge pending project, with no repository. */
+    public static function setupBridgePendingEmptyProjectId(): Uuid
+    {
+        return DevSeedId::of('project/project/setup-bridge-pending-empty');
+    }
+
+    /** The set-up project that holds a repository, so the done page shows a merge line. */
+    public static function setupDoneProjectId(): Uuid
+    {
+        return DevSeedId::of('project/project/setup-done');
+    }
+
     #[\Override]
     public function key(): string
     {
@@ -114,6 +142,10 @@ final readonly class DevProjectSeeder implements DevSeederInterface
         $this->project($context, $context->devUser(), self::setupInitRunningProjectId(), self::SETUP_INIT_RUNNING_PROJECT_NAME, secondsAgo: 420, setUp: false);
         $this->project($context, $context->devUser(), self::setupInitStoppedProjectId(), self::SETUP_INIT_STOPPED_PROJECT_NAME, secondsAgo: 430, setUp: false);
         $this->project($context, $context->devUser(), self::setupBridgePendingProjectId(), self::SETUP_BRIDGE_PENDING_PROJECT_NAME, secondsAgo: 440, setUp: false);
+        $this->project($context, $context->devUser(), self::setupInitRunningEmptyProjectId(), self::SETUP_INIT_RUNNING_EMPTY_PROJECT_NAME, secondsAgo: 450, setUp: false);
+        $this->project($context, $context->devUser(), self::setupInitStoppedEmptyProjectId(), self::SETUP_INIT_STOPPED_EMPTY_PROJECT_NAME, secondsAgo: 460, setUp: false);
+        $this->project($context, $context->devUser(), self::setupBridgePendingEmptyProjectId(), self::SETUP_BRIDGE_PENDING_EMPTY_PROJECT_NAME, secondsAgo: 470, setUp: false);
+        $this->project($context, $context->devUser(), self::setupDoneProjectId(), self::SETUP_DONE_PROJECT_NAME, secondsAgo: 480);
     }
 
     private function project(SeedContext $context, User $owner, Uuid $id, string $name, string $workflowTemplate = 'simple', int $secondsAgo = 0, bool $setUp = true): void

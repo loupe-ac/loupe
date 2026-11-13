@@ -8,8 +8,10 @@
         <div class="lp-project-setup__header">
             {% if state == 'init-running' %}
                 <twig:ux:icon name="lucide:loader-circle" class="lp-project-setup__icon" aria-hidden="true" />
-            {% elseif state == 'done' %}
+            {% elseif state in ['repositories-joined', 'done'] %}
                 <twig:ux:icon name="lucide:circle-check-big" class="lp-project-setup__icon" aria-hidden="true" />
+            {% elseif state == 'member' %}
+                <twig:ux:icon name="lucide:loader-circle" class="lp-project-setup__icon" aria-hidden="true" />
             {% endif %}
             <h1 class="lp-project-setup__title">
                 {%- if state == 'no-repository' -%}

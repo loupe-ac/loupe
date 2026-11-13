@@ -58,7 +58,8 @@ final class ShowProjectSetupControllerTest extends WebTestCase
 
         self::assertSelectorExists('[data-state="repositories-joined"]');
         self::assertSelectorTextContains('.lp-project-setup__title', 'acme/api and acme/web joined Setup project');
-        self::assertSelectorTextContains('.lp-project-setup__lead', 'one of them');
+        self::assertSelectorTextContains('.lp-project-setup__lead', 'one of them. It sets up the bridge, checks the repository and asks who approves a merge.');
+        self::assertSelectorExists('.lp-project-setup__header .lp-project-setup__icon');
         self::assertSelectorExists('[data-testid="project-setup-command"]');
         self::assertSelectorNotExists('a[href="/projects/'.$project->id.'/github/install"]');
         self::assertSelectorExists('form[action="/projects/'.$project->id.'/setup/skip"]');
@@ -91,7 +92,7 @@ final class ShowProjectSetupControllerTest extends WebTestCase
 
         self::assertSelectorExists('[data-state="init-stopped"]');
         self::assertSelectorTextContains('.lp-project-setup__title', 'Setup project is not set up yet');
-        self::assertSelectorTextContains('.lp-project-setup__lead', 'loupe init stopped before the setup was done. Run it again in the folder of acme/api.');
+        self::assertSelectorTextContains('.lp-project-setup__lead', 'loupe init stopped before the setup was done. Run it again in the folder of acme/api. This page updates by itself.');
         self::assertSelectorTextContains('[data-testid="project-setup-command"]', 'loupe init --project');
         self::assertSelectorTextContains('[data-line="init"]', 'Waiting');
     }
@@ -144,7 +145,8 @@ final class ShowProjectSetupControllerTest extends WebTestCase
         $html = $twig->render('@Readiness/setup/_project_setup_card.html.twig', ['setup' => $view]);
 
         self::assertStringContainsString('data-state="member"', $html);
-        self::assertStringContainsString('The project owner finishes the setup with loupe init.', $html);
+        self::assertStringContainsString('The project owner finishes the setup with loupe init. You can open the project when it is done. This page updates by itself.', $html);
+        self::assertStringContainsString('lp-project-setup__icon', $html);
         self::assertStringContainsString('data-testid="project-setup-list"', $html);
         self::assertStringNotContainsString('project-setup-command', $html);
         self::assertStringNotContainsString('<button', $html);

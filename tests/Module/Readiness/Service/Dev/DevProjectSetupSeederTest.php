@@ -8,6 +8,7 @@ use App\Module\Account\Service\Dev\DevAccountSeeder;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Project\Service\Dev\DevProjectSeeder;
 use App\Module\Readiness\Command\ProjectSetupState;
+use App\Module\Readiness\Command\ProjectSetupView;
 use App\Module\Readiness\Command\ShowProjectSetupCommand;
 use App\Module\Readiness\Command\ShowProjectSetupHandler;
 use App\Module\Readiness\Service\Dev\DevProjectSetupSeeder;
@@ -28,6 +29,23 @@ final class DevProjectSetupSeederTest extends KernelTestCase
         self::assertSame(ProjectSetupState::InitStopped, $this->stateOf(DevProjectSeeder::setupInitStoppedProjectId()));
         self::assertSame(ProjectSetupState::BridgePending, $this->stateOf(DevProjectSeeder::setupBridgePendingProjectId()));
         self::assertSame(ProjectSetupState::Done, $this->stateOf(DevProjectSeeder::devProjectId()));
+    }
+
+    public function test_each_state_with_a_merge_line_has_an_empty_twin(): void
+    {
+        $this->seed();
+
+        foreach ([
+            [ProjectSetupState::InitRunning, DevProjectSeeder::setupInitRunningProjectId(), DevProjectSeeder::setupInitRunningEmptyProjectId()],
+            [ProjectSetupState::InitStopped, DevProjectSeeder::setupInitStoppedProjectId(), DevProjectSeeder::setupInitStoppedEmptyProjectId()],
+            [ProjectSetupState::BridgePending, DevProjectSeeder::setupBridgePendingProjectId(), DevProjectSeeder::setupBridgePendingEmptyProjectId()],
+            [ProjectSetupState::Done, DevProjectSeeder::setupDoneProjectId(), DevProjectSeeder::devProjectId()],
+        ] as [$state, $filled, $empty]) {
+            self::assertSame($state, $this->stateOf($filled));
+            self::assertSame($state, $this->stateOf($empty));
+            self::assertCount(1, $this->viewOf($filled)->mergeLines);
+            self::assertCount(0, $this->viewOf($empty)->mergeLines);
+        }
     }
 
     public function test_a_second_run_changes_no_state(): void
@@ -57,9 +75,14 @@ final class DevProjectSetupSeederTest extends KernelTestCase
 
     private function stateOf(Uuid $projectId): ProjectSetupState
     {
+        return $this->viewOf($projectId)->state;
+    }
+
+    private function viewOf(Uuid $projectId): ProjectSetupView
+    {
         $project = self::getContainer()->get(ProjectRepository::class)->find($projectId);
         self::assertNotNull($project);
 
-        return (self::getContainer()->get(ShowProjectSetupHandler::class))(new ShowProjectSetupCommand($project, true))->state;
+        return (self::getContainer()->get(ShowProjectSetupHandler::class))(new ShowProjectSetupCommand($project, true));
     }
 }
