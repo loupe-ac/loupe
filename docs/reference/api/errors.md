@@ -266,7 +266,7 @@ A board needs at least one terminal column.
 
 ### no_workflow
 
-This project has no workflow, so discovery cannot start.
+This project has no workflow. Discovery cannot start, the workflow read answers it, and the change of the approval rule answers it too.
 
 ### not_paused
 

@@ -9,8 +9,10 @@ use App\Module\Board\Entity\BoardAutomationSettings;
 use App\Module\Board\Event\BoardAutomationSettingsSaved;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Service\BoardAutomation;
+use App\Module\Workflow\Contract\ApprovalRuleChanged;
 use App\Module\Workflow\Contract\ApprovalRules;
 use App\Module\Workflow\Contract\ApprovalRuleWriter;
+use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
@@ -37,36 +39,59 @@ final readonly class SaveBoardAutomationSettingsHandler
 
     public function __invoke(SaveBoardAutomationSettingsCommand $command): void
     {
-        if ($command->stuckDelayMinutes < BoardAutomationSettings::MIN_STUCK_DELAY_MINUTES || $command->stuckDelayMinutes > BoardAutomationSettings::MAX_STUCK_DELAY_MINUTES) {
+        if (null !== $command->stuckDelayMinutes && ($command->stuckDelayMinutes < BoardAutomationSettings::MIN_STUCK_DELAY_MINUTES || $command->stuckDelayMinutes > BoardAutomationSettings::MAX_STUCK_DELAY_MINUTES)) {
             throw new DomainErrors(['stuckDelayMinutes' => self::STUCK_DELAY_INVALID]);
         }
 
         $projectId = $command->project->id ?? throw new \LogicException('The project is not persisted.');
-        $approvalChanged = null !== $command->approvalCoversConflictResolution
-            && $command->approvalCoversConflictResolution !== $this->approvalRules->coversConflictResolution($projectId);
-        if ($approvalChanged && !$this->approvalRuleWriter->setCoversConflictResolution($projectId, $command->approvalCoversConflictResolution)) {
+        $approval = $command->approvalCoversConflictResolution;
+
+        // The flushes inside the writers join this transaction, so one failure leaves every setting as it was.
+        // The project row lock serializes saves, so a setting left out keeps the value another save just wrote.
+        $approvalChanged = false;
+        $result = $this->em->wrapInTransaction(function () use ($command, $projectId, $approval, &$approvalChanged): ?array {
+            $this->em->lock($command->project, LockMode::PESSIMISTIC_WRITE);
+            if (null !== $approval) {
+                $approvalChanged = $this->approvalRuleWriter->setCoversConflictResolution($projectId, $approval);
+                if (null === $approvalChanged) {
+                    return null;
+                }
+            }
+
+            $settings = $this->automation->settingsForUpdate($command->project);
+            if (null !== $settings->id) {
+                $this->em->refresh($settings);
+            }
+            $wasEnabled = $settings->enabled;
+            $settings->enabled = $command->enabled ?? $wasEnabled;
+            $stuckDelayMinutes = $command->stuckDelayMinutes ?? $settings->stuckDelayMinutes;
+            $delayChanged = $settings->stuckDelayMinutes !== $stuckDelayMinutes;
+            $settings->stuckDelayMinutes = $stuckDelayMinutes;
+            $this->em->flush();
+            if ($delayChanged) {
+                // A longer delay can clear a Stuck marker, and a shorter one can add it.
+                $this->cards->makeMarkersDue($command->project, $this->clock->now());
+            }
+
+            return [!$wasEnabled && $settings->enabled, $settings->enabled, $stuckDelayMinutes];
+        });
+        if (null === $result) {
             throw new DomainErrors(['approvalCoversConflictResolution' => self::NO_WORKFLOW]);
         }
+        [$turnedOn, $enabled, $stuckDelayMinutes] = $result;
 
-        $settings = $this->automation->settingsForUpdate($command->project);
-        $wasEnabled = $settings->enabled;
-        $settings->enabled = $command->enabled;
-        $delayChanged = $settings->stuckDelayMinutes !== $command->stuckDelayMinutes;
-        $settings->stuckDelayMinutes = $command->stuckDelayMinutes;
-        $this->em->flush();
-        if ($delayChanged) {
-            // A longer delay can clear a Stuck marker, and a shorter one can add it.
-            $this->cards->makeMarkersDue($command->project, $this->clock->now());
+        if (true === $approvalChanged) {
+            $this->events->dispatch(new ApprovalRuleChanged($projectId));
         }
         $this->events->dispatch(new BoardAutomationSettingsSaved(
             $command->project,
-            !$wasEnabled && $command->enabled,
+            $turnedOn,
         ));
 
         $this->auditor->record('board.automation_settings_saved', AuditOutcome::Success, [
             'projectId' => (string) $command->project->id,
-            'enabled' => $command->enabled,
-            'stuckDelayMinutes' => $settings->stuckDelayMinutes,
+            'enabled' => $enabled,
+            'stuckDelayMinutes' => $stuckDelayMinutes,
             'approvalCoversConflictResolution' => $this->approvalRules->coversConflictResolution($projectId),
         ]);
     }

@@ -306,13 +306,15 @@ names the ways to choose. It never guesses.
 | `loupe run` | `list`, `get`, `tool-calls`, `host-samples`, `stop`, `resume`, `resume-batch`, `cancel-command` |
 | `loupe bridges` | `list`, `list-account` |
 | `loupe feedback` | `list`, `get`, `address` |
-| `loupe document` | `list`, `get`, `review`, `create`, `update`, `publish`, `revise`, `verdict`, `verdict-withdraw`, `decision-answer`, `decision-clear`, `reply`, `address`, and `version list` and `version get` |
+| `loupe document` | `list`, `get`, `review`, `create`, `update`, `publish`, `revise`, `verdict`, `verdict-withdraw`, `decision-answer`, `decision-clear`, `reply`, `address`, `highlight`, and `version list` and `version get` |
 | `loupe artifact` | `list`, `get`, `update`, `create`, `version create`, `read` |
 | `loupe inbox` | `create`, `get`, `list`, `withdraw`, `action`, `command`, `actions` |
 | `loupe graph` | `list`, `get`, `create`, `update`, `delete`, `restore` |
 | `loupe bucket-rule` | `list`, `create`, `update`, `delete` |
 | `loupe analytics-settings` | `get`, `update` |
 | `loupe github` | `repository status` |
+| `loupe workflow` | `show`, `automation show`, `automation set` |
+| `loupe readiness` | `show`, `set` |
 
 `loupe card list` filters by the state of a card with `--state` and
 `--state-code`: `loupe card list --state working` lists the cards with the
@@ -370,6 +372,18 @@ command of a `run-command` action and prints the `runDigest` that the action
 needs. `loupe inbox actions` lists the actions a worker can suggest. These five
 commands need a CLI release after `cli/v2.6.0`, and a server with the control
 routes. With the inbox flag off they fail with `route_not_found`.
+
+`loupe workflow show` reads the workflow of the project. `loupe workflow
+automation show` reads the automation settings, and `loupe workflow automation
+set` changes them with `--enabled`, `--stuck-delay-minutes` and
+`--approval-covers-conflict-resolution`. `loupe readiness show` reads the
+readiness checks, and `loupe readiness set --guide-shown=false` hides the
+readiness guide. `loupe document highlight <documentId> --quotes "..."` replaces
+the highlights of a document. Repeat `--quotes` for each quote, and wrap a quote
+that holds a comma in double quotes. The command works only while the
+`review.highlights.enabled` flag is on. These commands need a CLI release after
+`cli/v2.6.0` and a server that has the routes. See the
+[API reference](api/index.md#workflow-automation-and-readiness).
 
 `loupe graph` manages the saved graphs of the Dashboard, `loupe bucket-rule`
 manages the time bucket rules, and `loupe analytics-settings` reads and changes

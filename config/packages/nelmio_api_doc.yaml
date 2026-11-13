@@ -342,6 +342,22 @@ when@dev: &generator
                 - { alias: BucketRuleUpdate, type: App\Module\Insights\Controller\Api\UpdateBucketRuleRequest }
                 - { alias: AnalyticsSettings, type: App\Module\Insights\Controller\Api\AnalyticsSettingsResponse }
                 - { alias: AnalyticsSettingsUpdate, type: App\Module\Insights\Controller\Api\UpdateAnalyticsSettingsRequest }
+                - { alias: WorkflowTemplate, type: App\Module\Workflow\Controller\Api\WorkflowTemplateResponse }
+                - { alias: WorkflowRepository, type: App\Module\Workflow\Controller\Api\WorkflowRepositoryResponse }
+                - { alias: WorkflowSetting, type: App\Module\Workflow\Controller\Api\WorkflowSettingResponse }
+                - { alias: WorkflowColumn, type: App\Module\Workflow\Controller\Api\WorkflowColumnResponse }
+                - { alias: WorkflowKind, type: App\Module\Workflow\Controller\Api\WorkflowKindResponse }
+                - { alias: Workflow, type: App\Module\Workflow\Controller\Api\WorkflowResponse }
+                - { alias: BoardAutomation, type: App\Module\Board\Controller\Api\BoardAutomationResponse }
+                - { alias: BoardAutomationUpdate, type: App\Module\Board\Controller\Api\UpdateBoardAutomationRequest }
+                - { alias: ReadinessRow, type: App\Module\Readiness\Controller\Api\ReadinessRowResponse }
+                - { alias: ReadinessDiscovery, type: App\Module\Readiness\Controller\Api\ReadinessDiscoveryResponse }
+                - { alias: Readiness, type: App\Module\Readiness\Controller\Api\ReadinessResponse }
+                - { alias: ReadinessGuide, type: App\Module\Readiness\Controller\Api\ReadinessGuideResponse }
+                - { alias: ReadinessUpdate, type: App\Module\Readiness\Controller\Api\UpdateReadinessRequest }
+                - { alias: HighlightSkipped, type: App\Module\Review\Controller\Api\HighlightSkippedResponse }
+                - { alias: DocumentHighlights, type: App\Module\Review\Controller\Api\DocumentHighlightsResponse }
+                - { alias: DocumentHighlightsSet, type: App\Module\Review\Controller\Api\SetDocumentHighlightsRequest }
         areas:
             # The bundle requires an area of this name. It documents the public routes, as `public` does.
             default:

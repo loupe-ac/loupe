@@ -90,6 +90,12 @@ var Commands = []Command{
 	{Path: []string{"run", "cancel-command"}, Op: "cancelWorkerRunCommand"},
 	{Path: []string{"bridges", "list"}, Op: "listProjectBridges"},
 	{Path: []string{"bridges", "list-account"}, Op: "listBridges"},
+	{Path: []string{"workflow", "show"}, Op: "getWorkflow"},
+	{Path: []string{"workflow", "automation", "show"}, Op: "getBoardAutomation"},
+	{Path: []string{"workflow", "automation", "set"}, Op: "updateBoardAutomation"},
+	{Path: []string{"readiness", "show"}, Op: "getReadiness"},
+	{Path: []string{"readiness", "set"}, Op: "updateReadiness"},
+	{Path: []string{"document", "highlight"}, Op: "setDocumentHighlights"},
 }
 
 // Exceptions names each operation that has no command, with the reason.
