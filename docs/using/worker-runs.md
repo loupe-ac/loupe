@@ -307,6 +307,10 @@ code and a message, and `worker_run_resume` takes up to 50 runs in one call.
 There is no tool that pauses a bridge, and no tool that runs a command again.
 Each run row carries its `kind`: `worker`, `interactive` or `command`. `worker_run_list` also filters by `harness`, `account` and `model`, and each row carries them with `harnessSessionId`, `harnessVersion`, `cliVersion` and `skillVersion`.
 
+### Through the API
+
+A script reads and controls the same runs through the [public API](../reference/api/index.md#worker-runs-and-bridges) and the `loupe run` and `loupe bridges` commands. `GET /api/v1/projects/{project}/runs` lists the runs, `.../runs/{run}` reads one, and `.../tool-calls` and `.../host-samples` read its calls and its host samples. `POST .../runs/{run}/stop`, `POST .../runs/{run}/resume`, `POST .../runs/resume` and `DELETE .../runs/{run}/pending-command` stop, resume and withdraw. `GET /api/v1/projects/{project}/bridges` and `GET /api/v1/bridges` list the bridges. A stop, a resume or a cancel by an API key records the key on the command.
+
 ## Time buckets and harness events of one run
 
 The drawer of a run shows two sections for a run that is not a command.

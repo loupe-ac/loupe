@@ -5,7 +5,7 @@ description: "The public HTTP API of Loupe at /api/v1: sign-in, requests, lists,
 
 The public API lets a script, a CI job or another tool read and change what you
 can read and change in Loupe. It covers projects, columns, cards, documents,
-reviews, feedback, artifacts, inbox items, experiments, tags, series, metrics and analyses. The API is in **beta**.
+reviews, feedback, artifacts, inbox items, experiments, tags, series, metrics, analyses, worker runs and bridges. The API is in **beta**.
 
 The API operations section of this site lists each operation. Each instance also
 serves the same description as an OpenAPI 3.0 file at `GET /api/v1/openapi.json`.
@@ -606,6 +606,71 @@ These routes read the numbers of the Analytics page. Each takes the read budget,
 6. `GET /api/v1/projects/{project}/analyses` lists the analyses of the project, newest first. `GET /api/v1/projects/{project}/analyses/{analysis}` reads one. Both hold the topic, the scope, the state, the cost in US dollars and the proposals. An analysis of another project answers `404` with the code `analysis_not_found`.
 
 The CLI has `loupe metric list`, `loupe metric query`, `loupe analysis list` and `loupe analysis get`. They need CLI 2.7.0 or later.
+
+## Worker runs and bridges
+
+These routes read the runs that your bridges report, and they stop, resume and
+withdraw commands for them. A worker run is one run of a bridge worker on one
+subject, which is usually a card. `{run}` is the id of a run, and a run of
+another project answers `404` with `run_not_found`, as a missing run does.
+Every list takes `limit` and `cursor`, as [Lists](#lists) says.
+
+Read routes:
+
+1. `GET /api/v1/projects/{project}/runs` lists the runs, the run whose first
+   report came last first. These filters narrow the list, and they apply
+   together: `state` (repeat it, or separate the states with commas), `card`
+   (a card number), `workKind`, `bridge`, `harness`, `account`, `model`,
+   `endedAfter`, `endedBefore` and `q`. Each row holds the state, the bridge,
+   the usage, the model and the metrics of the run, and `pendingCommand` when a
+   command waits for the bridge.
+2. `GET /api/v1/projects/{project}/runs/{run}` reads one run in full: its output
+   and state changes, every run of its series (`series`), and every command
+   that was sent to a bridge for a run of the series (`commands`).
+3. `GET /api/v1/projects/{project}/runs/{run}/tool-calls` lists the tool calls
+   of the run in the order the worker made them. An open run can have none.
+4. `GET /api/v1/projects/{project}/runs/{run}/host-samples` lists the readings
+   of the machine of the bridge during the run, oldest first. They cover every
+   run on that bridge in that window. A run can have none.
+5. `GET /api/v1/projects/{project}/bridges` lists the bridges that serve the
+   project, ordered by id. Each row holds the open runs of the project on the
+   bridge and the work requests that the server refused to it.
+6. `GET /api/v1/bridges` lists every bridge of the account once, ordered by id,
+   with the ids of the projects it serves in `projectIds`. A credential bound to
+   one project sees the bridges that serve that project, and `projectIds` then
+   holds that project alone.
+
+Control routes need the right to change the project:
+
+1. `POST /api/v1/projects/{project}/runs/{run}/stop` asks the bridge to stop a
+   queued, resumed, preparing or running run. The body may hold a `reason` of at
+   most 1000 characters. The answer is `{"outcome": "stopped", "commandId": "..."}`.
+   An interactive session closes in Loupe at once and answers
+   `{"outcome": "closed", "commandId": null}`. A run that cannot stop answers
+   `409` with `run_not_stoppable`.
+2. `POST /api/v1/projects/{project}/runs/{run}/resume` asks the bridge to resume
+   a run that did not end well. The answer is `{"commandId": "..."}`. A run that
+   cannot resume answers `409` with `run_not_resumable`.
+3. `POST /api/v1/projects/{project}/runs/resume` resumes up to 50 runs. The body
+   is `{"runIds": ["...", "..."]}`. The route treats each run on its own and in
+   order, and it answers `200` with one row per run, so read each row: the status
+   does not show the outcome of a run. A row holds `outcome` `resumed` with
+   `commandId`, `refused` with `code` and `message`, `error`, or `not-attempted`.
+   An `error` row means that an unexpected failure hit that run and its outcome is
+   unknown. The route then stops, and each later row is `not-attempted`.
+4. `DELETE /api/v1/projects/{project}/runs/{run}/pending-command` withdraws the
+   command that waits on the run, before its bridge reads it. The answer is
+   `{"commandId": "..."}`. A run with no waiting command answers `409` with
+   `nothing_pending`.
+
+A stop does not make the card unmanaged, so a bridge rule can still start new
+work on the card. Hold the card for that. A command that waits for a bridge shows
+as `pendingCommand` on the run until the bridge reads it.
+
+A stop, a resume or a cancel by an API key records the key. A bridge command
+keeps the id and the name of the key that requested it and of the key that
+cancelled it, and a closed interactive session keeps the key that closed it. The
+reason of the command reads `api-key`.
 
 ## Who made a change
 

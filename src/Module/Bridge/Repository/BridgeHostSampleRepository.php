@@ -123,6 +123,32 @@ class BridgeHostSampleRepository extends ServiceEntityRepository
         return array_map(self::report(...), $rows);
     }
 
+    /**
+     * The samples of one bridge in the window that come after a sample time, oldest first. A bridge holds one sample per time, so the time is a stable position.
+     *
+     * @return list<BridgeHostSampleReport>
+     */
+    public function findForBridgeBetweenAfter(Uuid $ownerId, Uuid $bridgeId, \DateTimeImmutable $from, \DateTimeImmutable $to, ?\DateTimeImmutable $after, int $limit): array
+    {
+        $params = self::windowParams($ownerId, $bridgeId, $from, $to);
+        $types = self::WINDOW_TYPES;
+        $where = self::WINDOW;
+        if (null !== $after) {
+            $where .= ' AND sampled_at > :after';
+            $params['after'] = $after->setTimezone(new \DateTimeZone('UTC'));
+            $types['after'] = Types::DATETIME_IMMUTABLE;
+        }
+
+        /** @var list<SampleRow> $rows */
+        $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
+            'SELECT '.self::COLUMNS.' FROM bridge_host_samples WHERE '.$where.' ORDER BY sampled_at LIMIT :limit',
+            [...$params, 'limit' => $limit],
+            [...$types, 'limit' => Types::INTEGER],
+        );
+
+        return array_map(self::report(...), $rows);
+    }
+
     /** The count of samples findForBridgeBetween() pages through. */
     public function countForBridgeBetween(Uuid $ownerId, Uuid $bridgeId, \DateTimeImmutable $from, \DateTimeImmutable $to): int
     {

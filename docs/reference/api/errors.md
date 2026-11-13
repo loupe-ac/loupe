@@ -116,6 +116,10 @@ The credential reaches no project with this id or slug.
 
 No route matches this path, or a feature flag switches the route off.
 
+### run_not_found
+
+This project has no worker run with this id.
+
 ## 405 Method not allowed
 
 ### method_not_allowed
@@ -136,9 +140,17 @@ Board automation is off for this project, so discovery cannot start. Switch it o
 
 Nobody can rename, change, reorder or delete Backlog.
 
+### bridge_outdated
+
+The bridge of the run is too old to take commands. Update it.
+
 ### bridge_paused
 
 Every bridge that can run discovery is paused. Resume new work on a bridge.
+
+### card_held
+
+A person paused the agents on the card of the run, so it cannot resume.
 
 ### card_managed
 
@@ -163,6 +175,10 @@ This column holds cards. Pass targetColumn.
 ### columns_changed
 
 The columns changed while the call ran. Read them and try again.
+
+### command_pending
+
+A command already waits on the run. Cancel it first.
 
 ### comment_already_resolved
 
@@ -234,11 +250,15 @@ Another project of this owner already has this name.
 
 ### no_bridge
 
-No bridge serves this project now.
+No bridge serves this project now, or the run names no bridge.
 
 ### no_capable_bridge
 
 A bridge is online, but none can run discovery.
+
+### no_session
+
+The run holds no session to resume.
 
 ### no_terminal_column
 
@@ -252,6 +272,10 @@ This project has no workflow. Discovery cannot start, the workflow read answers 
 
 This card has no hold or no pause to end.
 
+### nothing_pending
+
+No command waits on the run, or its bridge already read it.
+
 ### pause_changed
 
 The active pause is not the pause named by pauseId.
@@ -259,6 +283,18 @@ The active pause is not the pause named by pauseId.
 ### run_digest_stale
 
 The command of the `run-command` action changed since the preview, or the `runDigest` is not the one of the last preview. Read the preview again and send its new digest.
+
+### run_not_controllable
+
+An interactive session takes no command from a bridge. A stop closes it in Loupe instead.
+
+### run_not_resumable
+
+The run did not end, or it succeeded, so it cannot resume.
+
+### run_not_stoppable
+
+Only a queued, resumed, preparing or running run can stop.
 
 ### series_name_taken
 
@@ -271,6 +307,10 @@ Another document in that series already holds that ordinal.
 ### slug_taken
 
 Another project of this owner has a name that gives the same slug.
+
+### unknown_bridge
+
+The bridge of the run is gone.
 
 ### verdict_already_withdrawn
 

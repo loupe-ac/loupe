@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Module\Bridge\Mcp;
+namespace App\Module\Bridge\Service;
 
 use App\Exception\DomainErrors;
 use Symfony\Contracts\Translation\TranslatorInterface;
@@ -36,8 +36,13 @@ final readonly class BridgeCommandRefusals
             'runId' => $runId,
             'outcome' => 'refused',
             'code' => self::NOT_FOUND,
-            'message' => BridgeSubjectResolver::notFound($runId),
+            'message' => self::runNotFoundMessage($runId),
         ];
+    }
+
+    public static function runNotFoundMessage(string $runId): string
+    {
+        return \sprintf('Worker run "%s" not found or not accessible.', $runId);
     }
 
     /** @return CardRefusal */

@@ -129,4 +129,14 @@ class BridgeRepository extends ServiceEntityRepository
     {
         return $this->findBy(['owner' => $owner], ['lastSeenAt' => 'DESC']);
     }
+
+    /**
+     * Every bridge of the owner in a stable order, for a list that walks by cursor.
+     *
+     * @return list<Bridge>
+     */
+    public function findByOwnerOrderedById(User $owner): array
+    {
+        return $this->findBy(['owner' => $owner], ['id' => 'ASC']);
+    }
 }

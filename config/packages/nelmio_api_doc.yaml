@@ -260,6 +260,24 @@ when@dev: &generator
                 - { alias: SeriesRow, type: App\Module\Review\Controller\Api\SeriesRowResponse }
                 - { alias: SeriesList, type: App\Module\Review\Controller\Api\SeriesListResponse }
                 - { alias: SeriesRename, type: App\Module\Review\Controller\Api\RenameSeriesRequest }
+                - { alias: WorkerRunRow, type: App\Module\Bridge\Controller\Api\WorkerRunResponse }
+                - { alias: WorkerRun, type: App\Module\Bridge\Controller\Api\WorkerRunDetailResponse }
+                - { alias: WorkerRunList, type: App\Module\Bridge\Controller\Api\WorkerRunListResponse }
+                - { alias: WorkerRunBridgeCommand, type: App\Module\Bridge\Controller\Api\BridgeCommandResponse }
+                - { alias: WorkerRunShow, type: App\Module\Bridge\Controller\Api\WorkerRunShowResponse }
+                - { alias: WorkerRunToolCall, type: App\Module\Bridge\Controller\Api\WorkerRunToolCallResponse }
+                - { alias: WorkerRunToolCallList, type: App\Module\Bridge\Controller\Api\WorkerRunToolCallListResponse }
+                - { alias: WorkerRunHostSample, type: App\Module\Bridge\Controller\Api\WorkerRunHostSampleResponse }
+                - { alias: WorkerRunHostSampleList, type: App\Module\Bridge\Controller\Api\WorkerRunHostSampleListResponse }
+                - { alias: WorkerRunStop, type: App\Module\Bridge\Controller\Api\StopWorkerRunRequest }
+                - { alias: WorkerRunStopResult, type: App\Module\Bridge\Controller\Api\StopWorkerRunResponse }
+                - { alias: WorkerRunCommandResult, type: App\Module\Bridge\Controller\Api\WorkerRunCommandResponse }
+                - { alias: WorkerRunResumeBatch, type: App\Module\Bridge\Controller\Api\ResumeWorkerRunsRequest }
+                - { alias: WorkerRunResumeBatchResult, type: App\Module\Bridge\Controller\Api\ResumeWorkerRunsResponse }
+                - { alias: ProjectBridge, type: App\Module\Bridge\Controller\Api\ProjectBridgeResponse }
+                - { alias: ProjectBridgeList, type: App\Module\Bridge\Controller\Api\ProjectBridgeListResponse }
+                - { alias: Bridge, type: App\Module\Bridge\Controller\Api\OwnerBridgeResponse }
+                - { alias: BridgeList, type: App\Module\Bridge\Controller\Api\OwnerBridgeListResponse }
                 - { alias: MetricListEntry, type: App\Module\Bridge\Controller\Api\MetricListEntryResponse }
                 - { alias: MetricList, type: App\Module\Bridge\Controller\Api\MetricListResponse }
                 - { alias: MetricQueryResult, type: App\Module\Bridge\Controller\Api\MetricQueryResponse }

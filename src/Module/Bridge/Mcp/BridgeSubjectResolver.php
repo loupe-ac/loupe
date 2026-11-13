@@ -8,6 +8,7 @@ use App\Mcp\ResolvesBoundProject;
 use App\Module\Account\Entity\User;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Repository\WorkerRunRepository;
+use App\Module\Bridge\Service\BridgeCommandRefusals;
 use App\Module\Bridge\Service\CardColumnLookupInterface;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Project\Entity\Project;
@@ -123,7 +124,7 @@ final readonly class BridgeSubjectResolver
 
     public static function notFound(string $runId): string
     {
-        return \sprintf('Worker run "%s" not found or not accessible.', $runId);
+        return BridgeCommandRefusals::runNotFoundMessage($runId);
     }
 
     public function parseRunId(string $runId): Uuid
