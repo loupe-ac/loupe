@@ -17,7 +17,6 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
 use Symfony\Component\Uid\Uuid;
-use Symfony\UX\Turbo\TurboBundle;
 
 // Priority 2: after the terms gate (3), so a person who must accept the terms
 // first never reaches this redirect.
@@ -120,10 +119,9 @@ final readonly class RequireProjectSetUpListener
             return false;
         }
 
-        if (str_contains((string) $request->headers->get('Accept', ''), TurboBundle::STREAM_MEDIA_TYPE)) {
-            return false;
-        }
+        // A GET that follows a Turbo form post lists the stream type first and html second, and it renders a page.
+        $accepted = $request->getAcceptableContentTypes();
 
-        return 'html' === $request->getPreferredFormat();
+        return [] === $accepted || \in_array('text/html', $accepted, true) || \in_array('*/*', $accepted, true);
     }
 }

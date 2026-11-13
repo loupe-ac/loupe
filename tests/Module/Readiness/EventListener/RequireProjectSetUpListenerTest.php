@@ -150,6 +150,14 @@ final class RequireProjectSetUpListenerTest extends TestCase
         self::assertNull($this->gate($stream));
     }
 
+    public function test_the_page_a_turbo_form_post_redirects_to_meets_the_gate(): void
+    {
+        $followed = $this->pageRequest('app_project_board');
+        $followed->headers->set('Accept', 'text/vnd.turbo-stream.html, text/html, application/xhtml+xml');
+
+        self::assertNotNull($this->gate($followed));
+    }
+
     public function test_a_path_outside_the_projects_never_meets_the_gate(): void
     {
         $request = $this->request('/account');

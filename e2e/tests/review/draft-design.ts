@@ -1,5 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 import { accessToken } from '../fixtures';
+import { skipProjectSetup } from '../helpers';
 
 export interface DraftDesign {
     projectId: string;
