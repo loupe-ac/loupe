@@ -32,6 +32,28 @@ const VERSION_THREE = VERSION_TWO.replace(
 
 const LINE = '.lp-diff-bar__line';
 
+// A jump eases the page, so a tap during the ease can land on a bar that is
+// still moving. Wait until the scroll position holds for a few frames.
+async function settleScroll(page: Page): Promise<void> {
+    await page.evaluate(
+        () =>
+            new Promise<void>((resolve) => {
+                let last = -1;
+                let still = 0;
+                const tick = () => {
+                    still = window.scrollY === last ? still + 1 : 0;
+                    last = window.scrollY;
+                    if (still >= 5) {
+                        resolve();
+                    } else {
+                        requestAnimationFrame(tick);
+                    }
+                };
+                requestAnimationFrame(tick);
+            }),
+    );
+}
+
 async function seedDiff(page: Page): Promise<string> {
     const response = await page.request.post('/dev/seed/document', {
         form: {
@@ -123,8 +145,10 @@ for (const { name, viewport } of VIEWPORTS) {
                     .getByRole('paragraph')
                     .filter({ hasText: '1 of 3 changes' }),
             ).toHaveCount(1);
+            await settleScroll(page);
             await bar.getByRole('button', { name: 'Next change' }).click();
             await expect(position).toHaveText('2/3');
+            await settleScroll(page);
             await bar.getByRole('button', { name: 'Previous change' }).click();
             await expect(position).toHaveText('1/3');
         });

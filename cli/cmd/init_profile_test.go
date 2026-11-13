@@ -537,6 +537,21 @@ func TestProfilePromptCarriesTheGitHubFacts(t *testing.T) {
 	}
 }
 
+func TestProfilePromptNamesThePullRequestOfAnInboxAnswer(t *testing.T) {
+	yes, link := true, "https://github.com/o/r/pull/7"
+	site := api.Site{ID: "p", GitHub: &api.GitHubFacts{AppInstalled: true, Repositories: []api.GitHubRepository{
+		{Path: "o/r", AppInstalled: &yes, MergeApprovalSource: "stored", MergeApprovalPullRequestURL: &link},
+		{Path: "o/plain", AppInstalled: &yes},
+	}}}
+	prompt := profilePrompt(site, "", false, appCheck{})
+	if !strings.Contains(prompt, "answered in the inbox, pull request "+link) {
+		t.Errorf("prompt lacks the pull request: %s", prompt)
+	}
+	if strings.Count(prompt, "answered in the inbox") != 1 {
+		t.Errorf("only the answered repository names a pull request: %s", prompt)
+	}
+}
+
 func TestProfilePromptSaysWhatThisRepositoryNeedsFromTheApp(t *testing.T) {
 	const link = "https://app.test/projects/p/github/install"
 	for name, tc := range map[string]struct {
