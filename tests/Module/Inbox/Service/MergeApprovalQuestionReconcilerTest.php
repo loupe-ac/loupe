@@ -31,6 +31,7 @@ use App\Module\Inbox\Service\InboxChangedPublisher;
 use App\Module\Inbox\Service\InboxItemCloser;
 use App\Module\Inbox\Service\InboxSearchIndexer;
 use App\Module\Inbox\Service\MergeApprovalQuestionReconciler;
+use App\Module\Project\Contract\Event\ProjectSetUp;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Forge\FakeInitPullRequestReader;
 use App\Tests\Module\Inbox\InitRunHolds;
@@ -87,6 +88,26 @@ final class MergeApprovalQuestionReconcilerTest extends WorkflowSettingsTestCase
         self::assertSame($repository->id?->toRfc4122(), $question->repositoryId->toRfc4122());
         self::assertNull($question->endedAt);
         self::assertEquals([new NotifyInboxOwner((string) $item->id, NotifyInboxOwnerKind::Notice)], $this->queuedPushes());
+    }
+
+    public function test_a_project_that_is_not_set_up_opens_no_question_until_it_is_set_up(): void
+    {
+        $this->installed('acme/app');
+        $this->em()->getConnection()->executeStatement('UPDATE projects SET set_up = false WHERE id = :id', ['id' => $this->project->requireId()->toRfc4122()]);
+        $this->em()->clear();
+
+        $this->deliver();
+
+        self::assertSame([], $this->questions());
+        self::assertSame([], $this->queuedPushes());
+
+        $this->em()->getConnection()->executeStatement('UPDATE projects SET set_up = true WHERE id = :id', ['id' => $this->project->requireId()->toRfc4122()]);
+        $dispatcher = self::getContainer()->get(EventDispatcherInterface::class);
+        self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
+        $dispatcher->dispatch(new ProjectSetUp($this->project->requireId()));
+        $this->em()->clear();
+
+        self::assertCount(1, $this->questions());
     }
 
     public function test_a_repeated_event_opens_no_second_question(): void

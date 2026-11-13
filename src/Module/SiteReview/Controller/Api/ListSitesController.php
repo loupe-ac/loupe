@@ -86,6 +86,7 @@ final class ListSitesController extends AppController
                             'reviewRequired' => $repository->reviewRequired,
                             'mergeApproval' => $repository->mergeApproval,
                             'mergeApprovalSource' => $repository->mergeApprovalSource,
+                            'mergeApprovalPullRequestUrl' => $repository->mergeApprovalPullRequestUrl,
                         ],
                         $site->github->repositories,
                     ),

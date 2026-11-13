@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Project\Service;
 
 use App\Module\Account\Entity\User;
+use App\Module\Inbox\EventListener\ReconcileMergeApprovalQuestionOnProjectSetUp;
 use App\Module\Project\Contract\Event\ProjectMilestoneReached;
 use App\Module\Project\Contract\Event\ProjectSetUp;
 use App\Module\Project\Contract\ProjectMilestones;
@@ -18,6 +19,7 @@ use Doctrine\DBAL\DriverManager;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -194,6 +196,14 @@ final class DatabaseProjectMilestonesTest extends KernelTestCase
         $other->beginTransaction();
         $other->executeStatement('SELECT 1 FROM projects WHERE id = ? FOR KEY SHARE', [(string) $this->project->id]);
         $this->em()->getConnection()->executeStatement("SET lock_timeout = '300ms'");
+        // The Inbox listener of ProjectSetUp runs after the commit and takes its own write lock, so it is not under test here.
+        $dispatcher = self::getContainer()->get('event_dispatcher');
+        self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
+        foreach ($dispatcher->getListeners(ProjectSetUp::class) as $listener) {
+            if (\is_array($listener) && $listener[0] instanceof ReconcileMergeApprovalQuestionOnProjectSetUp) {
+                $dispatcher->removeListener(ProjectSetUp::class, $listener);
+            }
+        }
 
         $this->milestones->reach($this->projectId(), ProjectMilestones::INIT_FINISHED);
         $this->milestones->reach($this->projectId(), ProjectMilestones::BRIDGE_CONNECTED);
