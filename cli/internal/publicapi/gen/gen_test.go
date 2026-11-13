@@ -30,10 +30,20 @@ func TestGenerateKeepsTheSpecOrderAndTheShape(t *testing.T) {
 }
 
 func TestGenerateRefusesAParameterThatTakesASharedFlag(t *testing.T) {
-	for _, name := range []string{"format", "retry", "project"} {
+	for _, name := range []string{"retry", "project"} {
 		_, err := Generate([]byte(strings.Replace(miniSpec, "%s", name, 1)))
 		if err == nil || !strings.Contains(err.Error(), "collides") {
 			t.Errorf("%s: got %v, want a collision error", name, err)
 		}
+	}
+}
+
+func TestGenerateTakesAQueryParameterNamedFormatAsFormulaFormat(t *testing.T) {
+	out, err := Generate([]byte(strings.Replace(miniSpec, "%s", "format", 1)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(out), `Name: "format"`) {
+		t.Errorf("the table lacks the format parameter:\n%s", out)
 	}
 }

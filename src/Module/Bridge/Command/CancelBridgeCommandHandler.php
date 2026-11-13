@@ -45,6 +45,8 @@ final readonly class CancelBridgeCommandHandler
             if (null === $pending || (null !== $command->commandId && !$command->commandId->equals($pending->id)) || !$pending->settle(BridgeCommandState::Cancelled, null, $this->clock->now())) {
                 return null;
             }
+            $pending->cancelledApiKeyId = $command->apiKey?->keyId;
+            $pending->cancelledApiKeyName = $command->apiKey?->keyName;
             $this->em->flush();
 
             return $pending;
@@ -64,6 +66,7 @@ final readonly class CancelBridgeCommandHandler
                 'projectId' => (string) $run->project->id,
                 'runId' => (string) $run->id,
                 'bridgeId' => (string) $cancelled->bridgeId,
+                'apiKeyId' => null === $command->apiKey ? null : (string) $command->apiKey->keyId,
             ],
             new AuditSubject('bridge_command', (string) $cancelled->id),
         );

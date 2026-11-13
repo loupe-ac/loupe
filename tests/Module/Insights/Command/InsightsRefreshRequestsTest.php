@@ -14,8 +14,8 @@ use App\Module\Insights\Command\SetExperimentPublicLinkCommand;
 use App\Module\Insights\Command\SetExperimentPublicLinkHandler;
 use App\Module\Insights\Command\SetGraphPublicLinkCommand;
 use App\Module\Insights\Command\SetGraphPublicLinkHandler;
-use App\Module\Insights\Command\UpdateSavedGraphCommand;
-use App\Module\Insights\Command\UpdateSavedGraphHandler;
+use App\Module\Insights\Command\UpdateSavedGraphFieldsCommand;
+use App\Module\Insights\Command\UpdateSavedGraphFieldsHandler;
 use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\Messenger\DrawPublicPreview;
 use App\Module\Insights\Messenger\RefreshInsightsItem;
@@ -61,7 +61,7 @@ final class InsightsRefreshRequestsTest extends KernelTestCase
         $project = $this->scenarioProject('ask-update');
         $graph = $this->seedSavedGraph($project, 'Cost', 0);
 
-        $this->service(UpdateSavedGraphHandler::class)(new UpdateSavedGraphCommand($project, (string) $graph->id, null, self::SETTINGS));
+        $this->service(UpdateSavedGraphFieldsHandler::class)(new UpdateSavedGraphFieldsCommand($project, (string) $graph->id, settings: self::SETTINGS));
 
         $this->assertAskedForGraph($graph);
     }
@@ -72,7 +72,7 @@ final class InsightsRefreshRequestsTest extends KernelTestCase
         $graph = $this->seedSavedGraph($project, 'Cost', 0);
         $settings = $graph->settings();
 
-        $this->service(UpdateSavedGraphHandler::class)(new UpdateSavedGraphCommand($project, (string) $graph->id, 'Renamed', $settings));
+        $this->service(UpdateSavedGraphFieldsHandler::class)(new UpdateSavedGraphFieldsCommand($project, (string) $graph->id, name: 'Renamed', settings: $settings));
 
         self::assertSame($settings, $graph->settings());
         self::assertSame('Renamed', $graph->name);

@@ -744,7 +744,10 @@ opens no new one.
 A script with an [API key](api-keys.md) can put one question, to-do or notice in
 the inbox with `POST /api/v1/projects/{project}/inbox/items` or
 `loupe inbox create`. The [API reference](../reference/api/index.md#inbox-items)
-gives the fields.
+gives the fields. The same key can list the items, withdraw an open ask, and
+answer or run an action of an item. `loupe inbox list`, `loupe inbox withdraw`,
+`loupe inbox action`, `loupe inbox command` and `loupe inbox actions` call those
+routes. See [Control routes](../reference/api/index.md#control-routes).
 
 1. The row and the thread name the key, such as "API key 'CI'", with a key
    icon. The name stays when you remove the key.

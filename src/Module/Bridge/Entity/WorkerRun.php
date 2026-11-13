@@ -228,6 +228,14 @@ class WorkerRun implements ProjectScopedSubject
     #[ORM\Column(name: 'close_reason', length: self::MAX_CLOSE_REASON_LENGTH, nullable: true, enumType: WorkerRunCloseReason::class)]
     public ?WorkerRunCloseReason $closeReason = null;
 
+    /** The API key that closed the run, for the reason `api-key`. No foreign key: the run outlives a deleted key. */
+    #[ORM\Column(name: 'closed_api_key_id', type: UuidType::NAME, nullable: true)]
+    public ?Uuid $closedApiKeyId = null;
+
+    /** The name of the closing key when it closed the run. */
+    #[ORM\Column(name: 'closed_api_key_name', length: 100, nullable: true)]
+    public ?string $closedApiKeyName = null;
+
     /** The union of the main-session tool call intervals, as the bridge measured it. Null when unknown. */
     #[ORM\Column(name: 'tool_time_ms', type: Types::BIGINT, nullable: true)]
     public ?int $toolTimeMs = null;

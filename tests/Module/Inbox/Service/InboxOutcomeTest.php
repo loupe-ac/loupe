@@ -37,6 +37,11 @@ final class InboxOutcomeTest extends TestCase
         yield 'agent finished a to-do for the owner' => ['inbox.outcome.agent_for_owner.done', InboxItemKind::Todo, $resolved, InboxCloser::OwnerThroughAgent, null, null];
         yield 'agent approved for the owner' => ['inbox.outcome.agent_for_owner.approved', InboxItemKind::Review, $resolved, InboxCloser::OwnerThroughAgent, null, InboxReviewVerdict::Approved];
         yield 'agent requested changes for the owner' => ['inbox.outcome.agent_for_owner.changes_requested', InboxItemKind::Review, $resolved, InboxCloser::OwnerThroughAgent, null, InboxReviewVerdict::ChangesRequested];
+        yield 'key answered for the owner' => ['inbox.outcome.api_key_for_owner.answered', InboxItemKind::Question, $resolved, InboxCloser::OwnerThroughApiKey, null, null];
+        yield 'key finished a to-do for the owner' => ['inbox.outcome.api_key_for_owner.done', InboxItemKind::Todo, $resolved, InboxCloser::OwnerThroughApiKey, null, null];
+        yield 'key approved for the owner' => ['inbox.outcome.api_key_for_owner.approved', InboxItemKind::Review, $resolved, InboxCloser::OwnerThroughApiKey, null, InboxReviewVerdict::Approved];
+        yield 'key requested changes for the owner' => ['inbox.outcome.api_key_for_owner.changes_requested', InboxItemKind::Review, $resolved, InboxCloser::OwnerThroughApiKey, null, InboxReviewVerdict::ChangesRequested];
+        yield 'key dismissed for the owner' => ['inbox.outcome.api_key_for_owner.dismissed', InboxItemKind::Todo, InboxItemState::Declined, InboxCloser::OwnerThroughApiKey, null, null];
         yield 'rule approved' => ['inbox.outcome.rule.approved', InboxItemKind::Review, $resolved, InboxCloser::Rule, null, InboxReviewVerdict::Approved];
         yield 'rule requested changes' => ['inbox.outcome.rule.changes_requested', InboxItemKind::Review, $resolved, InboxCloser::Rule, null, InboxReviewVerdict::ChangesRequested];
         yield 'rule resolved with no verdict' => ['inbox.outcome.rule.resolved', InboxItemKind::Review, $resolved, InboxCloser::Rule, null, null];
@@ -47,6 +52,7 @@ final class InboxOutcomeTest extends TestCase
         yield 'owner dismissed' => ['inbox.outcome.owner.dismissed', InboxItemKind::Question, InboxItemState::Declined, InboxCloser::Owner, null, null];
         yield 'agent dismissed for the owner' => ['inbox.outcome.agent_for_owner.dismissed', InboxItemKind::Todo, InboxItemState::Declined, InboxCloser::OwnerThroughAgent, null, null];
         yield 'agent withdrew' => ['inbox.outcome.agent.withdrawn', InboxItemKind::Question, $cancelled, InboxCloser::Agent, InboxCloseCause::Withdrawn, null];
+        yield 'key withdrew' => ['inbox.outcome.api_key.withdrawn', InboxItemKind::Question, $cancelled, InboxCloser::OwnerThroughApiKey, InboxCloseCause::Withdrawn, null];
         yield 'card deleted' => ['inbox.outcome.loupe.card_deleted', InboxItemKind::Question, $cancelled, InboxCloser::Loupe, InboxCloseCause::CardDeleted, null];
         yield 'card finished' => ['inbox.outcome.loupe.card_finished', InboxItemKind::Wait, $cancelled, InboxCloser::Loupe, InboxCloseCause::CardFinished, null];
         yield 'rule no longer asks' => ['inbox.outcome.loupe.rule_withdrew', InboxItemKind::Workflow, $cancelled, InboxCloser::Rule, InboxCloseCause::RuleWithdrew, null];

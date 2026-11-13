@@ -12,6 +12,8 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+
+	"github.com/loupe-ac/loupe/cli/internal/publicapi/flagname"
 )
 
 // Reserved names are flags that every command shares. A parameter that would
@@ -21,6 +23,13 @@ var reserved = map[string]bool{
 	"body-file": true, "idempotency-key": true, "output": true, "clobber": true,
 	"help": true, "config": true,
 }
+
+// The query parameter `format` is the format of a formula result. The CLI
+// names its flag --formula-format, because --format is the output format.
+const (
+	formulaFormatParam = "format"
+	formulaFormatFlag  = "formula-format"
+)
 
 type spec struct {
 	Paths      map[string]map[string]json.RawMessage `json:"paths"`
@@ -351,6 +360,11 @@ func (g *generator) build(path, method string, raw operation) (op, error) {
 	seen := map[string]string{}
 	claim := func(name, where string) error {
 		k := kebab(name)
+		if where == "query parameter" && name == formulaFormatParam {
+			k = formulaFormatFlag
+		} else if renamed, ok := flagname.Renames[name]; ok && where == "body field" {
+			k = renamed
+		}
 		if reserved[k] {
 			return fmt.Errorf("%s %q collides with the shared flag --%s", where, name, k)
 		}

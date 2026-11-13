@@ -15,6 +15,8 @@ final readonly class ListExperimentsView
         public array $experiments,
         /** How many experiments of the project are archived, whichever list this view holds. */
         public int $archivedCount = 0,
+        /** True when a walk by position has rows after the last experiment of this view. */
+        public bool $hasMore = false,
     ) {
     }
 }

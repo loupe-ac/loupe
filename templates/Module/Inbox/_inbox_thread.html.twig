@@ -150,6 +150,7 @@
                     <div class="prose lp-prose lp-inbox-thread__note"><blockquote><p>{{ reply.note }}</p></blockquote></div>
                 {% endif %}
                 {% if reply.throughAgent %}<twig:Ds:Hint data-inbox-through-agent>{{ 'inbox.item.through_agent'|trans }}</twig:Ds:Hint>{% endif %}
+                {% if reply.apiKeyName is not null %}<twig:Ds:Hint data-inbox-through-api-key>{{ 'inbox.item.through_api_key'|trans({'%name%': reply.apiKeyName}) }}</twig:Ds:Hint>{% endif %}
                 {% if review and review.verdict %}
                     {% set withdrawal = inbox_review_withdrawal(review) %}
                     {% if withdrawal %}

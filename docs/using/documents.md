@@ -636,11 +636,15 @@ Renaming a series keeps every document in place. A name another series already
 holds is refused rather than merged, because two series carry two independent
 numberings.
 
+A script lists the tags and the series, and renames a series, through the public API or the CLI: `loupe tag list`, `loupe series list` and `loupe series rename`. See the [API reference](../reference/api/index.md#experiments-tags-and-series).
+
 ## Highlights
 
 Highlights tint the passages a reviewer should read first. They carry no body
 and cannot be replied to — they steer attention, nothing more. They belong to
 the version current when they are set, and a new version drops them.
+
+A script sets them with `PUT /api/v1/projects/{project}/documents/{document}/highlights` or `loupe document highlight`. See the [API reference](../reference/api/index.md#workflow-automation-and-readiness).
 
 ## Agent review summary
 

@@ -6,6 +6,7 @@ namespace App\Module\Inbox\Command;
 
 use App\Module\Account\Entity\User;
 use App\Module\Inbox\Entity\InboxItem;
+use App\Security\ApiKeyActor;
 
 final readonly class SubmitInboxDocumentReviewCommand
 {
@@ -16,6 +17,7 @@ final readonly class SubmitInboxDocumentReviewCommand
         public int $versionNumber,
         public ?string $expectedReviewId = null,
         public ?string $note = null,
+        public ?ApiKeyActor $apiKey = null,
     ) {
     }
 }

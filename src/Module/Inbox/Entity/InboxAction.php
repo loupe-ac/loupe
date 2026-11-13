@@ -49,6 +49,14 @@ class InboxAction
     #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $cancelledAt = null;
 
+    /** The API key that ran the action. No foreign key: the row outlives a deleted key. */
+    #[ORM\Column(type: UuidType::NAME, nullable: true)]
+    public ?Uuid $apiKeyId = null;
+
+    /** The name of the key when it ran the action. */
+    #[ORM\Column(length: 100, nullable: true)]
+    public ?string $apiKeyName = null;
+
     public function __construct(
         #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
         #[ORM\ManyToOne(targetEntity: InboxItem::class)]

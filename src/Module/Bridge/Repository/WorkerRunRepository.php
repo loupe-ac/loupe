@@ -1273,14 +1273,43 @@ class WorkerRunRepository extends ServiceEntityRepository
      */
     public function findPaginatedByProject(Project $project, int $page, int $perPage, WorkerRunListQuery $query): Paginator
     {
+        $qb = $this->filteredByProject($project, $query)
+            ->setFirstResult(($page - 1) * $perPage)
+            ->setMaxResults($perPage);
+
+        // Nothing is fetch-joined, so the page LIMIT already counts runs.
+        return new Paginator($qb->getQuery(), fetchJoinCollection: false);
+    }
+
+    /**
+     * The runs of a project after a position of the list order, newest report first.
+     *
+     * @return list<WorkerRun>
+     */
+    public function findAfterByProject(Project $project, WorkerRunListQuery $query, ?\DateTimeImmutable $afterReceivedAt, ?Uuid $afterId, int $limit): array
+    {
+        $qb = $this->filteredByProject($project, $query)->setMaxResults($limit);
+
+        if (null !== $afterReceivedAt && null !== $afterId) {
+            $qb->andWhere('r.receivedAt < :afterReceivedAt OR (r.receivedAt = :afterReceivedAt AND r.id < :afterId)')
+                ->setParameter('afterReceivedAt', $afterReceivedAt, Types::DATETIME_IMMUTABLE)
+                ->setParameter('afterId', $afterId, UuidType::NAME);
+        }
+
+        /** @var list<WorkerRun> $runs */
+        $runs = $qb->getQuery()->getResult();
+
+        return $runs;
+    }
+
+    private function filteredByProject(Project $project, WorkerRunListQuery $query): QueryBuilder
+    {
         $search = $query->search;
         $qb = $this->createQueryBuilder('r')
             ->andWhere('r.project = :project')
             ->setParameter('project', $project)
             ->orderBy('r.receivedAt', 'DESC')
-            ->addOrderBy('r.id', 'DESC')
-            ->setFirstResult(($page - 1) * $perPage)
-            ->setMaxResults($perPage);
+            ->addOrderBy('r.id', 'DESC');
 
         if (null !== $search) {
             // The configuration is concatenated rather than bound, because
@@ -1352,8 +1381,7 @@ class WorkerRunRepository extends ServiceEntityRepository
                 ->setParameter('model', $query->model);
         }
 
-        // Nothing is fetch-joined, so the page LIMIT already counts runs.
-        return new Paginator($qb->getQuery(), fetchJoinCollection: false);
+        return $qb;
     }
 
     /**

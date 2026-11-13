@@ -5,7 +5,7 @@ description: "The public HTTP API of Loupe at /api/v1: sign-in, requests, lists,
 
 The public API lets a script, a CI job or another tool read and change what you
 can read and change in Loupe. It covers projects, columns, cards, documents,
-reviews, feedback, artifacts, inbox items and the cards of an experiment. The API is in **beta**.
+reviews, feedback, artifacts, inbox items, experiments, tags, series, metrics, analyses, worker runs and bridges. The API is in **beta**.
 
 The API operations section of this site lists each operation. Each instance also
 serves the same description as an OpenAPI 3.0 file at `GET /api/v1/openapi.json`.
@@ -380,7 +380,8 @@ the `value_undeclared_key` message leaves out internal keys.
 
 A script, such as a CI job, can put an item in the inbox of the owner of a
 project. The routes work only while the inbox flag is on. With the flag off,
-they answer `404`.
+every inbox route answers `404` with the code `route_not_found`, before the
+request budget and the idempotency key are spent.
 
 1. `POST /api/v1/projects/{project}/inbox/items` makes one item. `kind` is
    `question`, `todo` or `notice`. The item takes `title`, and optionally `body`,
@@ -400,11 +401,276 @@ they answer `404`.
    it to learn the answer. `selectedOptions` holds the indexes of the options
    that the owner picked, and `note` holds a written answer.
 5. The owner can dismiss every item from the API, a notice too.
+6. `GET /api/v1/projects/{project}/inbox/items` lists the items, newest number
+   first, closed items included. The filters are `state`, `card`, `document`,
+   `ask`, `session` and `q`. `q` narrows the walk to the items that match the
+   words and keeps the order of the numbers, so the best match does not come
+   first. A list takes `limit` and `cursor`, as every list does.
+
+### Control routes
+
+A key can also act on the items, as the owner would. Each of these routes
+needs a key of the owner of the project.
+
+1. `POST .../inbox/items/{itemId}/withdrawal` takes `{reason}` and withdraws an
+   open item. The item closes as `cancelled` with the cause `withdrawn`, and the
+   reason becomes its note. A key may withdraw any open question, to-do or
+   review that an agent or a key asked, also an ask that a worker waits on. It
+   cannot withdraw a wait, a notice or a workflow question that Loupe opened.
+   A closed item answers `409` `item_not_open`. An item that no caller
+   withdraws answers `409` `item_not_withdrawable`.
+2. `POST .../inbox/items/{itemId}/actions` takes `{action}` and runs it. The
+   actions are `answer`, `complete`, `dismiss`, `resume-run`, `retry-card`,
+   `send-agent`, `start-session`, `run-command` and `add-entry`. `answer`
+   takes `selectedOptions` and `note`. A response is final, so a second one
+   answers `409` `item_not_open`. An action that does not fit the item now
+   answers `422`.
+3. `run-command` takes two calls. `GET .../inbox/items/{itemId}/command` shows
+   the command, with the entry, the bridge, the branch, the argv, the params
+   and a `runDigest`. Nothing runs. Show it to the owner. Then send the action
+   with the same `branch` and `params` and with the `runDigest`. A request with
+   no `runDigest` answers `422`. A digest that no longer matches the command
+   answers `409` `run_digest_stale`, and the script reads the preview again.
+4. `GET .../inbox/actions` lists the eight actions that a worker can suggest,
+   each with its effect. With `card`, `fitsCard` tells whether each action fits
+   that card now. The list is fixed and has no cursor.
+
+The record names the key. An item that a key closed has `closedBy:
+"owner-through-api-key"`, and the inbox shows "through an API key" with the
+name of the key. A run, resume or retry that a key started carries the key too.
+A signed-in CLI has no key, so its writes read the same and name none.
 
 An item from an API key has `origin: "api-key"`, and `apiKey` holds the id and
 the name of the key. The inbox shows the name of the key as the sender. The
 name stays when the key is removed later. An item from a signed-in CLI has
 `origin: "agent"` and no key.
+
+## Saved graphs
+
+A saved graph is a tile on the Dashboard of the owner. The routes sit under
+`/api/v1/projects/{project}/graphs`. They draw no chart. Read the data of a
+graph with the metric query.
+
+1. `GET .../graphs` lists the graphs in the order the Dashboard draws them. A
+   graph answers its `id`, `name`, `position`, `width`, `showLegend`,
+   `settings` and `formula`. `position` counts from 0 among the graphs on the
+   Dashboard. `broken` names the part that the project no longer has, such as a
+   bucket that no rule names. `removed=true` lists the graphs that were removed
+   less than a day ago and that a restore can bring back. They answer
+   `position: null` and an `undoUntil` time. The list takes `limit` and
+   `cursor`, and walks in order of position, then id.
+2. `POST .../graphs` saves a graph as the last tile and answers `201` with the
+   graph and a `Location` header. Send `settings.unit` and either
+   `settings.metric` with `settings.statistic`, or a formula with `rows`,
+   `formula` and `format`. The other settings default as the
+   `graph_save` MCP tool says. The Dashboard holds a limited number of
+   graphs. A full Dashboard answers `409` `dashboard_full`.
+3. `GET .../graphs/{graph}` reads one graph. A removed graph, a graph of
+   another project and a missing graph answer `404` `graph_not_found`.
+4. `PATCH .../graphs/{graph}` changes `name`, `settings`, `rows`, `formula`,
+   `format`, `width`, `showLegend` or `position` in one transaction. A
+   field you leave out keeps its value. `position` is the place to take among
+   the graphs on the Dashboard, counted from 0. A place past the last puts the
+   graph last. The settings you send join the settings the graph keeps, and the
+   whole set must hold together. A setting that the metric or the range cannot
+   take answers `422` with the values that are valid. A formula graph keeps
+   its first row as `settings.metric` and `settings.statistic`. Send `rows` to
+   change the rows, or `clearFormula: true` to go back to one metric.
+5. `DELETE .../graphs/{graph}` removes the graph at once, with no confirmation
+   step, and answers `200` with `undoUntil`.
+6. `POST .../graphs/{graph}/restore` brings a removed graph back to its place.
+   It answers `409` `restore_expired` after the day, and `409`
+   `dashboard_full` when the Dashboard has no room. A graph that is already on
+   the Dashboard stays as it is.
+
+## Bucket rules
+
+A time bucket rule sorts the tool calls of a run into a bucket. A tool call
+takes the bucket of the first rule whose pattern matches it. A project holds at
+most 50 rules.
+
+1. `GET /api/v1/projects/{project}/bucket-rules` lists the rules in the order
+   they apply. A rule answers `id`, `position`, `pattern` and `bucket`. The list
+   takes `limit` and `cursor`.
+2. `POST .../bucket-rules` adds a rule at the end and answers `201` with a
+   `Location` header. `pattern` is a glob of at most 120 characters. `bucket`
+   is 1 to 64 characters: lower case letters, digits, underscore and hyphen. A
+   project with 50 rules answers `409` `bucket_rule_limit_reached`.
+3. `PATCH .../bucket-rules/{rule}` moves the rule to `position`, counted from
+   0. The other rules keep their order.
+4. `DELETE .../bucket-rules/{rule}` deletes the rule and answers `200` with the
+   `deleted` id.
+
+A change to the rules computes the bucket times of the project again. A rule of
+another project answers `404` `bucket_rule_not_found`.
+
+## Analytics settings
+
+`GET /api/v1/projects/{project}/analytics/settings` reads the analytics
+settings. `defaultModel` and `defaultEffort` are the values the project sets,
+or `null`. `model` and `effort` are the values a new analysis takes when it
+names none.
+
+`PATCH` on the same path changes `defaultModel`, `defaultEffort`,
+`collectFullText` or `subcommandPrograms`. A field you leave out keeps its
+value. `null` clears `defaultModel` or `defaultEffort`, so the instance default
+applies. A list in `subcommandPrograms` replaces the stored list, and an empty
+list clears it. A value that the settings refuse answers `422`.
+
+## Workflow, automation and readiness
+
+These routes read the workflow of a project and change its two switches. A read
+needs a key that reaches the project, and a write needs a key of its owner.
+
+1. `GET /api/v1/projects/{project}/workflow` reads the workflow: the `template`
+   and its version, the `settings` that the template declares with their
+   resolved values, the board `columns` with the slot that links to each, and
+   the `kinds` of work the workflow asks a bridge for, with the `rules` and the
+   `checks` of each kind. A column `label` is in the language of the request. A
+   project with no workflow answers `409` with `no_workflow`.
+2. `GET /api/v1/projects/{project}/workflow/automation` reads the three
+   automation settings: `enabled`, `stuckDelayMinutes` and
+   `approvalCoversConflictResolution`. A project with no workflow reports
+   `approvalCoversConflictResolution` as `true`.
+3. `PATCH` on the same path changes any of the three. A setting you leave out
+   keeps its value. `stuckDelayMinutes` is from 1 to 1440, and any other value
+   answers `422`. The changes save together, so a refusal changes none of them.
+   Setting `approvalCoversConflictResolution` on a project with no workflow
+   answers `409` with `no_workflow`. The answer holds the three settings after
+   the change.
+4. `GET /api/v1/projects/{project}/readiness` reads the readiness checks. Each
+   row holds `key`, `done` and a `status` line. `discovery` is the latest
+   discovery run, or `null`. `guideShown` tells whether the Workshop shows the
+   readiness guide. The rows show while the guide is hidden too.
+5. `PATCH /api/v1/projects/{project}/readiness` takes `{"guideShown": true}` or
+   `{"guideShown": false}` and answers `{shown, hiddenAt}`. Hiding the guide
+   again keeps the time of the first hide.
+6. `PUT /api/v1/projects/{project}/documents/{document}/highlights` takes
+   `{"quotes": ["..."]}` and replaces the whole highlight set of the current
+   version. An empty list clears it. The answer lists the quotes that now carry
+   a highlight in `highlighted`, and the quotes it skipped in `skipped`, each
+   with a `reason` of `blank`, `duplicate` or `not_found`. A skipped quote is
+   not an error. The route works only while the `review.highlights.enabled`
+   flag is on. With the flag off it answers `404` with `route_not_found`, before
+   the request budget is spent. A document of another project answers `404` with
+   `document_not_found`.
+
+A write on these routes carries the API key, as [Who made a change](#who-made-a-change)
+says. The CLI has `loupe workflow show`, `loupe workflow automation show`,
+`loupe workflow automation set`, `loupe readiness show`, `loupe readiness set`
+and `loupe document highlight`.
+
+## Experiments, tags and series
+
+These routes read and curate what a project holds apart from its cards and
+documents. Every list takes `limit` and `cursor`, as [Lists](#lists) says.
+
+1. `GET /api/v1/projects/{project}/experiments` lists the experiments that the
+   runs and the pins name, the latest run first. The experiments with no run
+   come last. `archived=true` lists only the archived experiments, and the
+   default lists only the others. A row holds `name`, `cards`, `lastRunAt` and
+   `archived`.
+2. `GET /api/v1/projects/{project}/experiments/{experiment}` reads the
+   comparison that the Comparison tab shows: the `headline`, the `variants` and
+   the `metrics`. The cards stay on `.../experiments/{experiment}/cards`. A money
+   value is in US dollars, a duration of a built-in metric in milliseconds, and a
+   duration of a metric from the workflow template in hours.
+3. `PATCH /api/v1/projects/{project}/experiments/{experiment}` takes
+   `{"archived": true}` or `{"archived": false}`. Archiving hides the experiment
+   from the main list. It changes no pin and no variant. A run that Loupe
+   records after the archive brings the experiment back. The answer is the row of
+   the experiment. An unknown name answers `404` with `experiment_not_found`.
+4. `GET /api/v1/projects/{project}/tags` lists the tags by name with the number
+   of documents that carry each one. A tag that no document carries stays in the
+   list with a count of `0`.
+5. `GET /api/v1/projects/{project}/series` lists the series by name, ignoring
+   case. A row holds `name`, `documentCount` and `highestOrdinal`, the highest
+   position in use.
+6. `PATCH /api/v1/projects/{project}/series/{series}` takes `{"name": "..."}`
+   and renames the series. `{series}` is the current name, URL-encoded and matched
+   ignoring case. Every document keeps its position. A name that another series
+   holds answers `409` with `series_name_taken`.
+
+A name in a path is the name as the runs or the documents write it. Encode a
+`/` in a series name as `%2F`.
+
+## Metrics and analyses
+
+These routes read the numbers of the Analytics page. Each takes the read budget, and each list pages with a cursor.
+
+1. `GET /api/v1/projects/{project}/metrics` lists the metrics by key. Each entry holds the units, the value type, the statistics and the groups the metric takes. The workflow template of the project can declare more metrics, and the list holds one entry for each bucket and each kind of harness event of the project.
+2. `GET /api/v1/projects/{project}/metrics/query` reads one metric over time. `unit` is `run`, `card` or `reading`. Pass `metric` and `statistic`, and optionally `group`, `range`, `bucket` and `compare`. The values and defaults are those of the `metric_query` MCP tool.
+3. To combine metrics, leave `metric` and `statistic` out. Pass `rows` as `letter:metric:statistic` items separated by commas, such as `A:cache-read-tokens:sum,B:cache-write-tokens:sum`, and pass `formula`, such as `A / B`. A metric key can hold a colon, as `bucket-time:tests` does. The letter is the text before the first colon, and the statistic is the text after the last one. `format` sets how the result reads: `auto`, `number`, `percent`, `money` or `duration`.
+4. A combination that the metric refuses answers `422` with the field and the values to use. A series lists at most 100 rows, newest first, and `rowsTotal` counts them all.
+5. The metric query has its own limit of 30 requests a minute for each credential. The answer to a request over it is `429` with `Retry-After`. The query reads every run of the project in its range, so keep a loop of queries to the ranges you need.
+6. `GET /api/v1/projects/{project}/analyses` lists the analyses of the project, newest first. `GET /api/v1/projects/{project}/analyses/{analysis}` reads one. Both hold the topic, the scope, the state, the cost in US dollars and the proposals. An analysis of another project answers `404` with the code `analysis_not_found`.
+
+The CLI has `loupe metric list`, `loupe metric query`, `loupe analysis list` and `loupe analysis get`. They need CLI 2.7.0 or later.
+
+## Worker runs and bridges
+
+These routes read the runs that your bridges report, and they stop, resume and
+withdraw commands for them. A worker run is one run of a bridge worker on one
+subject, which is usually a card. `{run}` is the id of a run, and a run of
+another project answers `404` with `run_not_found`, as a missing run does.
+Every list takes `limit` and `cursor`, as [Lists](#lists) says.
+
+Read routes:
+
+1. `GET /api/v1/projects/{project}/runs` lists the runs, the run whose first
+   report came last first. These filters narrow the list, and they apply
+   together: `state` (repeat it, or separate the states with commas), `card`
+   (a card number), `workKind`, `bridge`, `harness`, `account`, `model`,
+   `endedAfter`, `endedBefore` and `q`. Each row holds the state, the bridge,
+   the usage, the model and the metrics of the run, and `pendingCommand` when a
+   command waits for the bridge.
+2. `GET /api/v1/projects/{project}/runs/{run}` reads one run in full: its output
+   and state changes, every run of its series (`series`), and every command
+   that was sent to a bridge for a run of the series (`commands`).
+3. `GET /api/v1/projects/{project}/runs/{run}/tool-calls` lists the tool calls
+   of the run in the order the worker made them. An open run can have none.
+4. `GET /api/v1/projects/{project}/runs/{run}/host-samples` lists the readings
+   of the machine of the bridge during the run, oldest first. They cover every
+   run on that bridge in that window. A run can have none.
+5. `GET /api/v1/projects/{project}/bridges` lists the bridges that serve the
+   project, ordered by id. Each row holds the open runs of the project on the
+   bridge and the work requests that the server refused to it.
+6. `GET /api/v1/bridges` lists every bridge of the account once, ordered by id,
+   with the ids of the projects it serves in `projectIds`. A credential bound to
+   one project sees the bridges that serve that project, and `projectIds` then
+   holds that project alone.
+
+Control routes need the right to change the project:
+
+1. `POST /api/v1/projects/{project}/runs/{run}/stop` asks the bridge to stop a
+   queued, resumed, preparing or running run. The body may hold a `reason` of at
+   most 1000 characters. The answer is `{"outcome": "stopped", "commandId": "..."}`.
+   An interactive session closes in Loupe at once and answers
+   `{"outcome": "closed", "commandId": null}`. A run that cannot stop answers
+   `409` with `run_not_stoppable`.
+2. `POST /api/v1/projects/{project}/runs/{run}/resume` asks the bridge to resume
+   a run that did not end well. The answer is `{"commandId": "..."}`. A run that
+   cannot resume answers `409` with `run_not_resumable`.
+3. `POST /api/v1/projects/{project}/runs/resume` resumes up to 50 runs. The body
+   is `{"runIds": ["...", "..."]}`. The route treats each run on its own and in
+   order, and it answers `200` with one row per run, so read each row: the status
+   does not show the outcome of a run. A row holds `outcome` `resumed` with
+   `commandId`, `refused` with `code` and `message`, `error`, or `not-attempted`.
+   An `error` row means that an unexpected failure hit that run and its outcome is
+   unknown. The route then stops, and each later row is `not-attempted`.
+4. `DELETE /api/v1/projects/{project}/runs/{run}/pending-command` withdraws the
+   command that waits on the run, before its bridge reads it. The answer is
+   `{"commandId": "..."}`. A run with no waiting command answers `409` with
+   `nothing_pending`.
+
+A stop does not make the card unmanaged, so a bridge rule can still start new
+work on the card. Hold the card for that. A command that waits for a bridge shows
+as `pendingCommand` on the run until the bridge reads it.
+
+A stop, a resume or a cancel by an API key records the key. A bridge command
+keeps the id and the name of the key that requested it and of the key that
+cancelled it, and a closed interactive session keeps the key that closed it. The
+reason of the command reads `api-key`.
 
 ## Who made a change
 

@@ -251,8 +251,50 @@ when@dev: &generator
                 - { alias: ExperimentCardRow, type: App\Module\Bridge\Controller\Api\ExperimentCardRowResponse }
                 - { alias: ExperimentCardList, type: App\Module\Bridge\Controller\Api\ExperimentCardListResponse }
                 - { alias: ExperimentCardExclude, type: App\Module\Bridge\Controller\Api\ExcludeExperimentCardRequest }
+                - { alias: ExperimentRow, type: App\Module\Bridge\Controller\Api\ExperimentSummaryRowResponse }
+                - { alias: ExperimentList, type: App\Module\Bridge\Controller\Api\ExperimentSummaryListResponse }
+                - { alias: Experiment, type: App\Module\Bridge\Controller\Api\ExperimentResponse }
+                - { alias: ExperimentUpdate, type: App\Module\Bridge\Controller\Api\UpdateExperimentRequest }
+                - { alias: TagRow, type: App\Module\Review\Controller\Api\TagRowResponse }
+                - { alias: TagList, type: App\Module\Review\Controller\Api\TagListResponse }
+                - { alias: SeriesRow, type: App\Module\Review\Controller\Api\SeriesRowResponse }
+                - { alias: SeriesList, type: App\Module\Review\Controller\Api\SeriesListResponse }
+                - { alias: SeriesRename, type: App\Module\Review\Controller\Api\RenameSeriesRequest }
+                - { alias: WorkerRunRow, type: App\Module\Bridge\Controller\Api\WorkerRunResponse }
+                - { alias: WorkerRun, type: App\Module\Bridge\Controller\Api\WorkerRunDetailResponse }
+                - { alias: WorkerRunList, type: App\Module\Bridge\Controller\Api\WorkerRunListResponse }
+                - { alias: WorkerRunBridgeCommand, type: App\Module\Bridge\Controller\Api\BridgeCommandResponse }
+                - { alias: WorkerRunShow, type: App\Module\Bridge\Controller\Api\WorkerRunShowResponse }
+                - { alias: WorkerRunToolCall, type: App\Module\Bridge\Controller\Api\WorkerRunToolCallResponse }
+                - { alias: WorkerRunToolCallList, type: App\Module\Bridge\Controller\Api\WorkerRunToolCallListResponse }
+                - { alias: WorkerRunHostSample, type: App\Module\Bridge\Controller\Api\WorkerRunHostSampleResponse }
+                - { alias: WorkerRunHostSampleList, type: App\Module\Bridge\Controller\Api\WorkerRunHostSampleListResponse }
+                - { alias: WorkerRunStop, type: App\Module\Bridge\Controller\Api\StopWorkerRunRequest }
+                - { alias: WorkerRunStopResult, type: App\Module\Bridge\Controller\Api\StopWorkerRunResponse }
+                - { alias: WorkerRunCommandResult, type: App\Module\Bridge\Controller\Api\WorkerRunCommandResponse }
+                - { alias: WorkerRunResumeBatch, type: App\Module\Bridge\Controller\Api\ResumeWorkerRunsRequest }
+                - { alias: WorkerRunResumeBatchResult, type: App\Module\Bridge\Controller\Api\ResumeWorkerRunsResponse }
+                - { alias: ProjectBridge, type: App\Module\Bridge\Controller\Api\ProjectBridgeResponse }
+                - { alias: ProjectBridgeList, type: App\Module\Bridge\Controller\Api\ProjectBridgeListResponse }
+                - { alias: Bridge, type: App\Module\Bridge\Controller\Api\OwnerBridgeResponse }
+                - { alias: BridgeList, type: App\Module\Bridge\Controller\Api\OwnerBridgeListResponse }
+                - { alias: MetricListEntry, type: App\Module\Bridge\Controller\Api\MetricListEntryResponse }
+                - { alias: MetricList, type: App\Module\Bridge\Controller\Api\MetricListResponse }
+                - { alias: MetricQueryResult, type: App\Module\Bridge\Controller\Api\MetricQueryResponse }
+                - { alias: AnalysisScope, type: App\Module\Insights\Controller\Api\AnalysisScopeResponse }
+                - { alias: AnalysisProposal, type: App\Module\Insights\Controller\Api\AnalysisProposalResponse }
+                - { alias: Analysis, type: App\Module\Insights\Controller\Api\AnalysisResponse }
+                - { alias: AnalysisList, type: App\Module\Insights\Controller\Api\AnalysisListResponse }
                 - { alias: InboxItem, type: App\Module\Inbox\Controller\Api\InboxItemResponse }
                 - { alias: InboxItemCreate, type: App\Module\Inbox\Controller\Api\CreateInboxItemRequest }
+                - { alias: InboxItemRow, type: App\Module\Inbox\Controller\Api\InboxItemRowResponse }
+                - { alias: InboxItemList, type: App\Module\Inbox\Controller\Api\InboxItemListResponse }
+                - { alias: InboxItemWithdraw, type: App\Module\Inbox\Controller\Api\WithdrawInboxItemRequest }
+                - { alias: InboxItemAction, type: App\Module\Inbox\Controller\Api\RunInboxItemActionRequest }
+                - { alias: InboxActionResult, type: App\Module\Inbox\Controller\Api\InboxActionResultResponse }
+                - { alias: InboxCommandPreview, type: App\Module\Inbox\Controller\Api\InboxCommandPreviewResponse }
+                - { alias: InboxActionRow, type: App\Module\Inbox\Controller\Api\InboxActionRowResponse }
+                - { alias: InboxActionList, type: App\Module\Inbox\Controller\Api\InboxActionListResponse }
                 - { alias: DocumentLink, type: App\Module\Review\Controller\Api\DocumentLinkResponse }
                 - { alias: DocumentRow, type: App\Module\Review\Controller\Api\DocumentRowResponse }
                 - { alias: DocumentList, type: App\Module\Review\Controller\Api\DocumentListResponse }
@@ -282,6 +324,40 @@ when@dev: &generator
                 - { alias: VerdictSubmit, type: App\Module\Review\Controller\Api\SubmitVerdictRequest }
                 - { alias: VerdictResult, type: App\Module\Review\Controller\Api\VerdictResponse }
                 - { alias: VerdictWithdrawResult, type: App\Module\Review\Controller\Api\VerdictWithdrawResponse }
+                - { alias: GraphSettings, type: App\Module\Insights\Controller\Api\GraphSettingsResponse }
+                - { alias: GraphRow, type: App\Module\Insights\Controller\Api\GraphRowResponse }
+                - { alias: GraphFormula, type: App\Module\Insights\Controller\Api\GraphFormulaResponse }
+                - { alias: GraphBroken, type: App\Module\Insights\Controller\Api\GraphBrokenResponse }
+                - { alias: Graph, type: App\Module\Insights\Controller\Api\GraphResponse }
+                - { alias: GraphList, type: App\Module\Insights\Controller\Api\GraphListResponse }
+                - { alias: GraphRemoveResult, type: App\Module\Insights\Controller\Api\GraphRemovedResponse }
+                - { alias: GraphSettingsInput, type: App\Module\Insights\Controller\Api\GraphSettingsInput }
+                - { alias: GraphRowInput, type: App\Module\Insights\Controller\Api\GraphRowInput }
+                - { alias: GraphCreate, type: App\Module\Insights\Controller\Api\CreateGraphRequest }
+                - { alias: GraphUpdate, type: App\Module\Insights\Controller\Api\UpdateGraphRequest }
+                - { alias: BucketRule, type: App\Module\Insights\Controller\Api\BucketRuleResponse }
+                - { alias: BucketRuleList, type: App\Module\Insights\Controller\Api\BucketRuleListResponse }
+                - { alias: BucketRuleDeleteResult, type: App\Module\Insights\Controller\Api\BucketRuleDeletedResponse }
+                - { alias: BucketRuleCreate, type: App\Module\Insights\Controller\Api\CreateBucketRuleRequest }
+                - { alias: BucketRuleUpdate, type: App\Module\Insights\Controller\Api\UpdateBucketRuleRequest }
+                - { alias: AnalyticsSettings, type: App\Module\Insights\Controller\Api\AnalyticsSettingsResponse }
+                - { alias: AnalyticsSettingsUpdate, type: App\Module\Insights\Controller\Api\UpdateAnalyticsSettingsRequest }
+                - { alias: WorkflowTemplate, type: App\Module\Workflow\Controller\Api\WorkflowTemplateResponse }
+                - { alias: WorkflowRepository, type: App\Module\Workflow\Controller\Api\WorkflowRepositoryResponse }
+                - { alias: WorkflowSetting, type: App\Module\Workflow\Controller\Api\WorkflowSettingResponse }
+                - { alias: WorkflowColumn, type: App\Module\Workflow\Controller\Api\WorkflowColumnResponse }
+                - { alias: WorkflowKind, type: App\Module\Workflow\Controller\Api\WorkflowKindResponse }
+                - { alias: Workflow, type: App\Module\Workflow\Controller\Api\WorkflowResponse }
+                - { alias: BoardAutomation, type: App\Module\Board\Controller\Api\BoardAutomationResponse }
+                - { alias: BoardAutomationUpdate, type: App\Module\Board\Controller\Api\UpdateBoardAutomationRequest }
+                - { alias: ReadinessRow, type: App\Module\Readiness\Controller\Api\ReadinessRowResponse }
+                - { alias: ReadinessDiscovery, type: App\Module\Readiness\Controller\Api\ReadinessDiscoveryResponse }
+                - { alias: Readiness, type: App\Module\Readiness\Controller\Api\ReadinessResponse }
+                - { alias: ReadinessGuide, type: App\Module\Readiness\Controller\Api\ReadinessGuideResponse }
+                - { alias: ReadinessUpdate, type: App\Module\Readiness\Controller\Api\UpdateReadinessRequest }
+                - { alias: HighlightSkipped, type: App\Module\Review\Controller\Api\HighlightSkippedResponse }
+                - { alias: DocumentHighlights, type: App\Module\Review\Controller\Api\DocumentHighlightsResponse }
+                - { alias: DocumentHighlightsSet, type: App\Module\Review\Controller\Api\SetDocumentHighlightsRequest }
         areas:
             # The bundle requires an area of this name. It documents the public routes, as `public` does.
             default:

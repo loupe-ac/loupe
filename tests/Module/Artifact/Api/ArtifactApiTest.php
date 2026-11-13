@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Artifact\Api;
 
+use App\Api\EventListener\RefuseFlaggedApiWhenSwitchedOff;
 use App\Module\Account\Entity\User;
-use App\Module\Artifact\EventListener\RefuseArtifactApiWhenSwitchedOff;
 use App\Module\Artifact\Install\ArtifactInstallFlags;
 use App\Module\Artifact\Repository\ArtifactRepository;
 use App\Module\Project\Entity\Project;
@@ -529,7 +529,7 @@ final class ArtifactApiTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(404);
         self::assertSame('route_not_found', $this->json()['code']);
-        self::assertTrue($this->client->getResponse()->headers->has('RateLimit-Limit'));
+        self::assertFalse($this->client->getResponse()->headers->has('RateLimit-Limit'), 'the gate runs before the budget, so a refused request spends none');
         self::assertNull($this->stored($artifact)->archivedAt);
     }
 
@@ -556,13 +556,13 @@ final class ArtifactApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(401);
     }
 
-    public function test_every_public_artifact_route_carries_the_name_prefix_the_flag_listener_reads(): void
+    public function test_every_public_artifact_route_is_gated_by_the_flag_listener(): void
     {
         $router = static::getContainer()->get(RouterInterface::class);
         $seen = 0;
         foreach ($router->getRouteCollection() as $name => $route) {
             if (str_starts_with((string) $route->getPath(), '/api/v1/projects/{project}/artifacts')) {
-                self::assertStringStartsWith(RefuseArtifactApiWhenSwitchedOff::ROUTE_PREFIX, $name);
+                self::assertSame(ArtifactInstallFlags::FLAG_ENABLED, RefuseFlaggedApiWhenSwitchedOff::flagOf($name), $name);
                 ++$seen;
             }
         }

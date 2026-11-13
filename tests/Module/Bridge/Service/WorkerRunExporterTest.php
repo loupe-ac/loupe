@@ -10,6 +10,7 @@ use App\Module\Bridge\Entity\WorkerRunStateChange;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkerRunStateChangeRepository;
 use App\Module\Bridge\Service\WorkerRunExporter;
+use App\Module\Bridge\ValueObject\WorkerRunCloseReason;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunReason;
 use App\Module\Bridge\ValueObject\WorkerRunState;
@@ -59,6 +60,9 @@ final class WorkerRunExporterTest extends TestCase
         $run->harness = 'codex';
         $run->account = 'work';
         $run->model = 'gpt-5';
+        $run->closeReason = WorkerRunCloseReason::ApiKey;
+        $run->closedApiKeyId = Uuid::fromString('0199a0e2-0000-7000-8000-0000000000aa');
+        $run->closedApiKeyName = 'Weekly CI';
         $run->harnessSessionId = 'thread-1';
         $run->harnessVersion = '0.121.0';
         $run->cliVersion = '0.9.0';
@@ -110,6 +114,8 @@ final class WorkerRunExporterTest extends TestCase
             'harness' => 'codex',
             'account' => 'work',
             'model' => 'gpt-5',
+            'closeReason' => 'api-key',
+            'closedByApiKey' => ['id' => '0199a0e2-0000-7000-8000-0000000000aa', 'name' => 'Weekly CI'],
             'harnessSessionId' => 'thread-1',
             'harnessVersion' => '0.121.0',
             'cliVersion' => '0.9.0',
@@ -155,6 +161,18 @@ final class WorkerRunExporterTest extends TestCase
         self::assertNull($rows[0]['sessionId']);
         self::assertNull($rows[0]['startedAt']);
         self::assertNull($rows[0]['endedAt']);
+    }
+
+    public function test_a_person_close_exports_its_reason_and_no_key(): void
+    {
+        $owner = new User('Alice A', 'alice@example.com', 'x');
+        $run = $this->queuedRun(new Project($owner, 'My project'));
+        $run->closeReason = WorkerRunCloseReason::Person;
+
+        $rows = iterator_to_array($this->exporter([$run], [])->export($owner));
+
+        self::assertSame('person', $rows[0]['closeReason']);
+        self::assertNull($rows[0]['closedByApiKey']);
     }
 
     /** A spawn failure is the row a reader most wants, so the reason has to survive the export. */

@@ -6,7 +6,6 @@ namespace App\Module\Inbox\Command;
 
 use App\Exception\DomainErrors;
 use App\Module\Inbox\Entity\InboxCardWaitEndReason;
-use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
@@ -42,7 +41,7 @@ final readonly class DeclineInboxItemHandler
         $note = trim($command->note);
 
         $dismissedCardId = null;
-        $this->closer->respond($item, InboxItemState::Declined, $command->throughAgent ? InboxCloser::OwnerThroughAgent : InboxCloser::Owner, null, 'closeNote', function (InboxItem $item) use ($note, &$dismissedCardId): ?array {
+        $this->closer->respond($item, InboxItemState::Declined, $command->closedBy, null, 'closeNote', function (InboxItem $item) use ($note, &$dismissedCardId): ?array {
             $item->selectedOptions = [];
             $item->note = '' === $note ? null : $note;
             if ($item->isAutomatic()) {
@@ -50,7 +49,7 @@ final readonly class DeclineInboxItemHandler
             }
 
             return null;
-        });
+        }, $command->apiKey);
         $this->cardWaits->forReviewItems([$item]);
         if (null !== $dismissedCardId) {
             $this->cardWaits->forCards($item->project->id ?? throw new \LogicException('Project has no id.'), [$dismissedCardId]);

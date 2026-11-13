@@ -7484,6 +7484,2087 @@
                 },
                 "type": "object"
             },
+            "ExperimentRow": {
+                "required": [
+                    "name",
+                    "cards",
+                    "lastRunAt",
+                    "archived"
+                ],
+                "properties": {
+                    "name": {
+                        "description": "The name of the experiment, as the runs name it.",
+                        "type": "string"
+                    },
+                    "cards": {
+                        "description": "How many cards the runs and the pins of the experiment name.",
+                        "type": "integer",
+                        "minimum": 0
+                    },
+                    "lastRunAt": {
+                        "description": "The time of the last run of the experiment, or null when only pins name it.",
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "archived": {
+                        "description": "True when the owner archived the experiment and no run has brought it back.",
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "ExperimentList": {
+                "required": [
+                    "items",
+                    "next"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ExperimentRow"
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "Experiment": {
+                "required": [
+                    "experiment",
+                    "archived",
+                    "baseline",
+                    "confidenceLevel",
+                    "declaredMetrics",
+                    "unknownMetrics",
+                    "unknownGuards",
+                    "minFinishedCards",
+                    "headline",
+                    "variants",
+                    "metrics",
+                    "includedCards",
+                    "leftOutCards"
+                ],
+                "properties": {
+                    "experiment": {
+                        "description": "The name of the experiment.",
+                        "type": "string"
+                    },
+                    "archived": {
+                        "description": "True when the owner archived the experiment and no run has brought it back.",
+                        "type": "boolean"
+                    },
+                    "baseline": {
+                        "description": "The variant that the rule names as the baseline, or null when the experiment names none.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "confidenceLevel": {
+                        "description": "The level of every range in the answer.",
+                        "type": "number",
+                        "format": "float",
+                        "maximum": 1,
+                        "minimum": 0
+                    },
+                    "declaredMetrics": {
+                        "description": "The metric keys the rule declares, in their order, or null when it declares none and the default metrics apply.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "nullable": true
+                    },
+                    "unknownMetrics": {
+                        "description": "The declared metric keys that no metric has.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "unknownGuards": {
+                        "description": "The guard keys that no metric has. The headline leaves them out.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "minFinishedCards": {
+                        "description": "The finished cards a variant needs before its figure counts.",
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "headline": {
+                        "description": "The goal, the baseline, one comparison for each variant other than the baseline, the controls and the guards.",
+                        "required": [
+                            "goal",
+                            "baselineArm",
+                            "comparisons",
+                            "controls",
+                            "guards"
+                        ],
+                        "properties": {
+                            "goal": {
+                                "description": "What the experiment tries to improve. `problem` is `unknown-metric` for a goal key that no metric has, `no-direction` for a goal with no better way, else null. With a problem there is no comparison.",
+                                "required": [
+                                    "key",
+                                    "label",
+                                    "valueType",
+                                    "direction",
+                                    "problem"
+                                ],
+                                "properties": {
+                                    "key": {
+                                        "type": "string"
+                                    },
+                                    "label": {
+                                        "type": "string"
+                                    },
+                                    "valueType": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "direction": {
+                                        "description": "The better way, `lower` or `higher`, or null when the rule names none.",
+                                        "type": "string",
+                                        "nullable": true,
+                                        "enum": [
+                                            "lower",
+                                            "higher"
+                                        ]
+                                    },
+                                    "problem": {
+                                        "type": "string",
+                                        "nullable": true,
+                                        "enum": [
+                                            "unknown-metric",
+                                            "no-direction"
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            },
+                            "baselineArm": {
+                                "description": "The baseline, or null with no baseline.",
+                                "required": [
+                                    "name",
+                                    "point",
+                                    "cardsBehind"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "point": {
+                                        "type": "number",
+                                        "nullable": true
+                                    },
+                                    "cardsBehind": {
+                                        "type": "integer"
+                                    }
+                                },
+                                "type": "object",
+                                "nullable": true
+                            },
+                            "comparisons": {
+                                "description": "One entry for each variant other than the baseline, in name order. Empty when the experiment stores no baseline. `state` is `held` when a control on the variant or on the baseline does not pass, and `not-enough-cards` when an arm has fewer finished cards than `minFinishedCards`. `change` is null for those two states. `changeKind` is `relative` for a fraction of the baseline point, and `difference` for a ratio.",
+                                "type": "array",
+                                "items": {
+                                    "required": [
+                                        "variant",
+                                        "state",
+                                        "point",
+                                        "cardsBehind",
+                                        "changeKind",
+                                        "change",
+                                        "holdReason",
+                                        "heldBy",
+                                        "guards"
+                                    ],
+                                    "properties": {
+                                        "variant": {
+                                            "type": "string"
+                                        },
+                                        "state": {
+                                            "type": "string",
+                                            "enum": [
+                                                "not-enough-cards",
+                                                "clear",
+                                                "not-clear",
+                                                "held"
+                                            ]
+                                        },
+                                        "point": {
+                                            "type": "number",
+                                            "nullable": true
+                                        },
+                                        "cardsBehind": {
+                                            "type": "integer"
+                                        },
+                                        "changeKind": {
+                                            "type": "string",
+                                            "enum": [
+                                                "relative",
+                                                "difference"
+                                            ]
+                                        },
+                                        "change": {
+                                            "description": "A value and its range at `confidenceLevel`, or null when it has no data.",
+                                            "required": [
+                                                "point",
+                                                "low",
+                                                "high"
+                                            ],
+                                            "properties": {
+                                                "point": {
+                                                    "type": "number"
+                                                },
+                                                "low": {
+                                                    "type": "number"
+                                                },
+                                                "high": {
+                                                    "type": "number"
+                                                }
+                                            },
+                                            "type": "object",
+                                            "nullable": true
+                                        },
+                                        "holdReason": {
+                                            "type": "string",
+                                            "nullable": true,
+                                            "enum": [
+                                                "failed",
+                                                "unknown-metric",
+                                                "no-data"
+                                            ]
+                                        },
+                                        "heldBy": {
+                                            "description": "The metric keys of the controls that hold the comparison, or null.",
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            },
+                                            "nullable": true
+                                        },
+                                        "guards": {
+                                            "type": "array",
+                                            "items": {
+                                                "required": [
+                                                    "key",
+                                                    "point",
+                                                    "change"
+                                                ],
+                                                "properties": {
+                                                    "key": {
+                                                        "type": "string"
+                                                    },
+                                                    "point": {
+                                                        "type": "number",
+                                                        "nullable": true
+                                                    },
+                                                    "change": {
+                                                        "description": "A value and its range at `confidenceLevel`, or null when it has no data.",
+                                                        "required": [
+                                                            "point",
+                                                            "low",
+                                                            "high"
+                                                        ],
+                                                        "properties": {
+                                                            "point": {
+                                                                "type": "number"
+                                                            },
+                                                            "low": {
+                                                                "type": "number"
+                                                            },
+                                                            "high": {
+                                                                "type": "number"
+                                                            }
+                                                        },
+                                                        "type": "object",
+                                                        "nullable": true
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            },
+                            "controls": {
+                                "description": "The checks that the treatment of a variant applied. A control changes no figure and leaves no card out.",
+                                "type": "array",
+                                "items": {
+                                    "required": [
+                                        "metric",
+                                        "variant",
+                                        "expect",
+                                        "share",
+                                        "passingShare",
+                                        "cardsWithData",
+                                        "cardsFinished",
+                                        "result"
+                                    ],
+                                    "properties": {
+                                        "metric": {
+                                            "type": "string"
+                                        },
+                                        "variant": {
+                                            "type": "string"
+                                        },
+                                        "expect": {
+                                            "description": "A comparison and a number, such as `> 0`.",
+                                            "type": "string"
+                                        },
+                                        "share": {
+                                            "type": "number"
+                                        },
+                                        "passingShare": {
+                                            "type": "number",
+                                            "nullable": true
+                                        },
+                                        "cardsWithData": {
+                                            "type": "integer"
+                                        },
+                                        "cardsFinished": {
+                                            "type": "integer"
+                                        },
+                                        "result": {
+                                            "type": "string",
+                                            "enum": [
+                                                "passed",
+                                                "failed",
+                                                "no-data",
+                                                "unknown-metric"
+                                            ]
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            },
+                            "guards": {
+                                "description": "The metrics that the experiment must not worsen. An empty list means no guards.",
+                                "type": "array",
+                                "items": {
+                                    "required": [
+                                        "key",
+                                        "label",
+                                        "valueType",
+                                        "baselinePoint"
+                                    ],
+                                    "properties": {
+                                        "key": {
+                                            "type": "string"
+                                        },
+                                        "label": {
+                                            "type": "string"
+                                        },
+                                        "valueType": {
+                                            "type": "string"
+                                        },
+                                        "baselinePoint": {
+                                            "type": "number",
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "variants": {
+                        "description": "The variants, by name, over the cards the figures keep.",
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "name",
+                                "models",
+                                "weight",
+                                "cards",
+                                "finishedCards",
+                                "runs",
+                                "costUsd",
+                                "coveredCostUsd"
+                            ],
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "models": {
+                                    "description": "Every model its experiment runs asked for, sorted.",
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                },
+                                "weight": {
+                                    "description": "Null when the bridge sent none.",
+                                    "type": "integer",
+                                    "nullable": true
+                                },
+                                "cards": {
+                                    "description": "The kept cards.",
+                                    "type": "integer"
+                                },
+                                "finishedCards": {
+                                    "description": "The kept cards that merged or stand in a terminal column.",
+                                    "type": "integer"
+                                },
+                                "runs": {
+                                    "description": "Every worker run of the kept cards.",
+                                    "type": "integer"
+                                },
+                                "costUsd": {
+                                    "description": "The cost of those runs in US dollars, or null when no kept card reported usage.",
+                                    "type": "number",
+                                    "nullable": true
+                                },
+                                "coveredCostUsd": {
+                                    "description": "The cost of the runs of the experiment of a covered kind, or null.",
+                                    "type": "number",
+                                    "nullable": true
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "metrics": {
+                        "description": "The metrics in display order. `byVariant` maps each variant name to its value and range, or to null. `clear` is true when every variant is clear against the baseline, false when one is not, and null with no baseline. `parts` has the same shape, one row for each value that a template count splits by reason, role or kind.",
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "key",
+                                "label",
+                                "valueType",
+                                "clear",
+                                "byVariant",
+                                "parts"
+                            ],
+                            "properties": {
+                                "key": {
+                                    "type": "string"
+                                },
+                                "label": {
+                                    "type": "string"
+                                },
+                                "valueType": {
+                                    "type": "string"
+                                },
+                                "clear": {
+                                    "type": "boolean",
+                                    "nullable": true
+                                },
+                                "byVariant": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "description": "A value and its range at `confidenceLevel`, or null when it has no data.",
+                                        "type": "object",
+                                        "nullable": true
+                                    }
+                                },
+                                "parts": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object"
+                                    }
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "includedCards": {
+                        "description": "The cards the figures keep.",
+                        "type": "integer",
+                        "minimum": 0
+                    },
+                    "leftOutCards": {
+                        "description": "The cards the figures leave out.",
+                        "type": "integer",
+                        "minimum": 0
+                    }
+                },
+                "type": "object"
+            },
+            "ExperimentUpdate": {
+                "required": [
+                    "archived"
+                ],
+                "properties": {
+                    "archived": {
+                        "description": "True archives the experiment, and false brings it back. Archiving only hides it from the main list. A run that Loupe records after the archive brings the experiment back by itself.",
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "TagRow": {
+                "required": [
+                    "name",
+                    "documentCount"
+                ],
+                "properties": {
+                    "name": {
+                        "description": "The tag, as it is stored: lower case, with the surrounding spaces cut off.",
+                        "type": "string"
+                    },
+                    "documentCount": {
+                        "description": "How many documents carry the tag. Archived documents count, so the number can exceed what the document list shows.",
+                        "type": "integer",
+                        "minimum": 0
+                    }
+                },
+                "type": "object"
+            },
+            "TagList": {
+                "required": [
+                    "items",
+                    "next"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TagRow"
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "SeriesRow": {
+                "required": [
+                    "name",
+                    "documentCount",
+                    "highestOrdinal"
+                ],
+                "properties": {
+                    "name": {
+                        "description": "The name, as its first document spelled it or a rename wrote it.",
+                        "type": "string"
+                    },
+                    "documentCount": {
+                        "description": "How many documents the series holds. Archived documents count.",
+                        "type": "integer",
+                        "minimum": 0
+                    },
+                    "highestOrdinal": {
+                        "description": "The highest position in use, which says what the next free number is. Null for a series that no document belongs to.",
+                        "type": "integer",
+                        "nullable": true,
+                        "minimum": 1
+                    }
+                },
+                "type": "object"
+            },
+            "SeriesList": {
+                "required": [
+                    "items",
+                    "next"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/SeriesRow"
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "SeriesRename": {
+                "required": [
+                    "name"
+                ],
+                "properties": {
+                    "name": {
+                        "description": "The new name, stored as you spell it. It must not belong to another series, ignoring case.",
+                        "type": "string",
+                        "maxLength": 100,
+                        "minLength": 1
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRunRow": {
+                "required": [
+                    "runId",
+                    "runKey",
+                    "kind",
+                    "subjectType",
+                    "subjectId",
+                    "cardNumber",
+                    "workRequestId",
+                    "workKind",
+                    "ruleId",
+                    "state",
+                    "sessionId",
+                    "startedAt",
+                    "endedAt",
+                    "exitCode",
+                    "bridgeId",
+                    "harness",
+                    "account",
+                    "harnessSessionId",
+                    "harnessVersion",
+                    "cliVersion",
+                    "skillVersion",
+                    "pendingCommand",
+                    "reason",
+                    "usage",
+                    "model",
+                    "experiment",
+                    "variant",
+                    "metrics"
+                ],
+                "properties": {
+                    "runId": {
+                        "description": "The id of the run.",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "runKey": {
+                        "description": "The id the bridge gave the run, or null.",
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "kind": {
+                        "description": "Worker for a run of an agent, interactive for a session that a person opened, and command for a command with no agent and so no session.",
+                        "type": "string",
+                        "enum": [
+                            "worker",
+                            "interactive",
+                            "command"
+                        ]
+                    },
+                    "subjectType": {
+                        "description": "What the run is about, such as card.",
+                        "type": "string"
+                    },
+                    "subjectId": {
+                        "description": "The id of the subject. For a card, the card id.",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "cardNumber": {
+                        "description": "The number of the card, or null when the subject is no card.",
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "workRequestId": {
+                        "description": "The work request that the run ran, or null.",
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "workKind": {
+                        "description": "The kind of that work request, such as implement or fix, or the name of an interactive session.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "ruleId": {
+                        "description": "The id of the workflow rule that opened the request, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "state": {
+                        "description": "The state of the run, such as running, failed, gave-up, timed-out or lost.",
+                        "type": "string"
+                    },
+                    "sessionId": {
+                        "description": "The Loupe session of the worker, or null.",
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "startedAt": {
+                        "description": "When the run started, or null.",
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "endedAt": {
+                        "description": "When the run ended, or null while it is open.",
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "exitCode": {
+                        "description": "The exit code, or null.",
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "bridgeId": {
+                        "description": "The bridge that ran the run, or null.",
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "harness": {
+                        "description": "The harness that ran the run, such as claude-code or codex, or null until the bridge reports it.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "account": {
+                        "description": "The named harness account, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "harnessSessionId": {
+                        "description": "The id the harness gave the session, such as a Codex thread id, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "harnessVersion": {
+                        "description": "The version of the harness, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "cliVersion": {
+                        "description": "The version of the CLI that ran the run, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "skillVersion": {
+                        "description": "The version of the skill package, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "pendingCommand": {
+                        "description": "The command that waits for the bridge, or null.",
+                        "required": [
+                            "commandId",
+                            "kind",
+                            "state"
+                        ],
+                        "properties": {
+                            "commandId": {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            "kind": {
+                                "type": "string",
+                                "enum": [
+                                    "resume-run",
+                                    "stop-run",
+                                    "rerun-command",
+                                    "collect-session-usage",
+                                    "try-now"
+                                ]
+                            },
+                            "state": {
+                                "type": "string",
+                                "enum": [
+                                    "pending"
+                                ]
+                            }
+                        },
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "reason": {
+                        "description": "The failure reason, or else the last line of the output, cut to 300 characters, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "usage": {
+                        "description": "The tokens of each model the run used. Empty when the bridge sent no usage. `costUsd` is a decimal string in US dollars, or null when the model has no price.",
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "model",
+                                "source",
+                                "inputTokens",
+                                "outputTokens",
+                                "cacheReadTokens",
+                                "cacheWriteTokens",
+                                "costUsd"
+                            ],
+                            "properties": {
+                                "model": {
+                                    "type": "string"
+                                },
+                                "source": {
+                                    "type": "string",
+                                    "enum": [
+                                        "reported",
+                                        "estimated"
+                                    ]
+                                },
+                                "inputTokens": {
+                                    "type": "integer"
+                                },
+                                "outputTokens": {
+                                    "type": "integer"
+                                },
+                                "cacheReadTokens": {
+                                    "type": "integer"
+                                },
+                                "cacheWriteTokens": {
+                                    "type": "integer"
+                                },
+                                "costUsd": {
+                                    "type": "string",
+                                    "nullable": true
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "model": {
+                        "description": "The model the bridge reported, or else the model with the highest cost, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "experiment": {
+                        "description": "The experiment of the rule that ran the worker, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "variant": {
+                        "description": "The variant of that experiment, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "metrics": {
+                        "description": "The sums and the timing of the run, or null when the run has no metrics row. A figure is null when it is unknown. `costUsd` is a number in US dollars. The `concurrentRuns` and host figures are null while the run has no end, or when the bridge sent no sample.",
+                        "type": "object",
+                        "nullable": true,
+                        "additionalProperties": true
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRun": {
+                "required": [
+                    "continuesRunId",
+                    "receivedAt",
+                    "failureReason",
+                    "output",
+                    "stateChanges",
+                    "buckets",
+                    "harnessEvents"
+                ],
+                "type": "object",
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/WorkerRunRow"
+                    },
+                    {
+                        "properties": {
+                            "continuesRunId": {
+                                "description": "The run that this run resumes, or null.",
+                                "type": "string",
+                                "format": "uuid",
+                                "nullable": true
+                            },
+                            "receivedAt": {
+                                "description": "When the first report of the run arrived.",
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "failureReason": {
+                                "description": "The failure reason the bridge gave, or null.",
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "output": {
+                                "description": "The whole output the bridge reported.",
+                                "type": "string"
+                            },
+                            "stateChanges": {
+                                "description": "Each state the run reached, oldest first.",
+                                "type": "array",
+                                "items": {
+                                    "required": [
+                                        "state",
+                                        "at"
+                                    ],
+                                    "properties": {
+                                        "state": {
+                                            "type": "string"
+                                        },
+                                        "at": {
+                                            "type": "string",
+                                            "format": "date-time"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            },
+                            "buckets": {
+                                "description": "The time buckets of the run, largest first, or null for a run with no tool calls. `mainMs` is the time of the main session, `withSubagentsMs` the time of every session, and `calls` every call, subagents included. A figure is null on a row that no recompute has filled.",
+                                "type": "array",
+                                "items": {
+                                    "required": [
+                                        "bucket",
+                                        "mainMs",
+                                        "withSubagentsMs",
+                                        "calls"
+                                    ],
+                                    "properties": {
+                                        "bucket": {
+                                            "type": "string"
+                                        },
+                                        "mainMs": {
+                                            "type": "integer"
+                                        },
+                                        "withSubagentsMs": {
+                                            "type": "integer",
+                                            "nullable": true
+                                        },
+                                        "calls": {
+                                            "type": "integer",
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                },
+                                "nullable": true
+                            },
+                            "harnessEvents": {
+                                "description": "Each kind of harness event with its count, subagents included, or null when the bridge reported none.",
+                                "type": "object",
+                                "nullable": true,
+                                "additionalProperties": {
+                                    "type": "integer"
+                                }
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "WorkerRunList": {
+                "required": [
+                    "items",
+                    "next"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/WorkerRunRow"
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRunBridgeCommand": {
+                "required": [
+                    "commandId",
+                    "runId",
+                    "kind",
+                    "state",
+                    "reason",
+                    "requestedAt",
+                    "expiresAt",
+                    "settledAt"
+                ],
+                "properties": {
+                    "commandId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "runId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": [
+                            "resume-run",
+                            "stop-run",
+                            "rerun-command",
+                            "collect-session-usage",
+                            "try-now"
+                        ]
+                    },
+                    "state": {
+                        "type": "string",
+                        "enum": [
+                            "pending",
+                            "done",
+                            "refused",
+                            "expired",
+                            "cancelled"
+                        ]
+                    },
+                    "reason": {
+                        "description": "The reason the requester gave, until the bridge settles the command with a reason of its own.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "requestedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "settledAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRunShow": {
+                "required": [
+                    "run",
+                    "series",
+                    "commands"
+                ],
+                "properties": {
+                    "run": {
+                        "$ref": "#/components/schemas/WorkerRun"
+                    },
+                    "series": {
+                        "description": "Every run of the series of the run, oldest first, the run included. A series starts with one run, and each resume starts a new run that continues it.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/WorkerRunRow"
+                        }
+                    },
+                    "commands": {
+                        "description": "Every command that a person, an agent or a key sent to the bridge for a run of the series, oldest first.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/WorkerRunBridgeCommand"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRunToolCall": {
+                "required": [
+                    "seq",
+                    "tool",
+                    "kind",
+                    "startedAt",
+                    "durationMs",
+                    "isError",
+                    "inSubagent",
+                    "backgroundId",
+                    "waitsOn",
+                    "signatures",
+                    "fullText"
+                ],
+                "properties": {
+                    "seq": {
+                        "description": "The place of the call in the run, from 1.",
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "tool": {
+                        "description": "The tool, such as Bash, Read or Agent.",
+                        "type": "string"
+                    },
+                    "kind": {
+                        "description": "Shell for a shell command, subagent for a call that starts a sub-agent, tool for any other call, or null from an older bridge.",
+                        "type": "string",
+                        "nullable": true,
+                        "enum": [
+                            "shell",
+                            "subagent",
+                            "tool"
+                        ]
+                    },
+                    "startedAt": {
+                        "description": "When the call started, with milliseconds.",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "durationMs": {
+                        "description": "How long the call took. Null when the stream holds no result of the call.",
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "isError": {
+                        "description": "Whether the call failed. Null when the stream holds no result of the call.",
+                        "type": "boolean",
+                        "nullable": true
+                    },
+                    "inSubagent": {
+                        "description": "True when a subagent made the call.",
+                        "type": "boolean"
+                    },
+                    "backgroundId": {
+                        "description": "The id of the background task that the call started, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "waitsOn": {
+                        "description": "The background id of an earlier call that this call reads, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "signatures": {
+                        "description": "The program and its subcommand for each shell command, such as git status, or the tool name for any other tool.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "fullText": {
+                        "description": "The full text of the call. Null unless the project collects the full text of the calls.",
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRunToolCallList": {
+                "required": [
+                    "items",
+                    "next"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/WorkerRunToolCall"
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRunHostSample": {
+                "required": [
+                    "sampledAt",
+                    "cpuPct",
+                    "meanCpuPct",
+                    "memUsed",
+                    "memTotal",
+                    "swapUsed",
+                    "batteryPct",
+                    "onAc"
+                ],
+                "properties": {
+                    "sampledAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "cpuPct": {
+                        "description": "The use of each core, in percent.",
+                        "type": "array",
+                        "items": {
+                            "type": "number"
+                        }
+                    },
+                    "meanCpuPct": {
+                        "description": "The mean of cpuPct, rounded to one decimal, or null when cpuPct is empty.",
+                        "type": "number",
+                        "format": "float",
+                        "nullable": true
+                    },
+                    "memUsed": {
+                        "description": "Memory in use, in bytes.",
+                        "type": "integer"
+                    },
+                    "memTotal": {
+                        "description": "Memory in total, in bytes.",
+                        "type": "integer"
+                    },
+                    "swapUsed": {
+                        "description": "Swap in use, in bytes.",
+                        "type": "integer"
+                    },
+                    "batteryPct": {
+                        "description": "The battery level in percent, or null on a machine with no battery.",
+                        "type": "number",
+                        "format": "float",
+                        "nullable": true
+                    },
+                    "onAc": {
+                        "description": "Whether the machine runs on mains power, or null when it does not say.",
+                        "type": "boolean",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRunHostSampleList": {
+                "required": [
+                    "items",
+                    "next",
+                    "note"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/WorkerRunHostSample"
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    },
+                    "note": {
+                        "description": "Why the list is empty when the run has no bridge or no start, and null otherwise.",
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRunStop": {
+                "properties": {
+                    "reason": {
+                        "description": "Why the run must stop, which a person reads on the run. At most 1000 characters. A body may leave it out.",
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 1000
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRunStopResult": {
+                "required": [
+                    "outcome",
+                    "commandId"
+                ],
+                "properties": {
+                    "outcome": {
+                        "description": "`stopped` when the run asked its bridge to stop it. `closed` when the run is an interactive session: Loupe marks it closed, and the terminal of the person stays open, because no bridge holds it.",
+                        "type": "string",
+                        "enum": [
+                            "stopped",
+                            "closed"
+                        ]
+                    },
+                    "commandId": {
+                        "description": "The id of the command that waits for the bridge, or null for a closed session.",
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRunCommandResult": {
+                "required": [
+                    "commandId"
+                ],
+                "properties": {
+                    "commandId": {
+                        "description": "The id of the command that waits for the bridge, or the id of the command that was withdrawn.",
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRunResumeBatch": {
+                "required": [
+                    "runIds"
+                ],
+                "properties": {
+                    "runIds": {
+                        "description": "The ids of the runs to resume, from 1 to 50. The route treats each run on its own and in order.",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "maxItems": 50,
+                        "minItems": 1
+                    }
+                },
+                "type": "object"
+            },
+            "WorkerRunResumeBatchResult": {
+                "required": [
+                    "results"
+                ],
+                "properties": {
+                    "results": {
+                        "description": "One row per run id. `resumed` carries `commandId`. `refused` carries `code` and `message`. The codes are not-found (no run of this project has this id), no-bridge, unknown-bridge, bridge-outdated, pending, not-controllable, no-session, not-resumable and card-held. `error` says that an unexpected failure hit that run and its outcome is unknown. The route then stops, and each later row is `not-attempted`.",
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "runId",
+                                "outcome"
+                            ],
+                            "properties": {
+                                "runId": {
+                                    "type": "string"
+                                },
+                                "outcome": {
+                                    "type": "string",
+                                    "enum": [
+                                        "resumed",
+                                        "refused",
+                                        "error",
+                                        "not-attempted"
+                                    ]
+                                },
+                                "commandId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "code": {
+                                    "type": "string"
+                                },
+                                "message": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "ProjectBridge": {
+                "required": [
+                    "bridgeId",
+                    "name",
+                    "requestedName",
+                    "gitIdentity",
+                    "liveness",
+                    "quietCause",
+                    "lastSeenAt",
+                    "cliVersion",
+                    "pauseRequested",
+                    "pausedReported",
+                    "takesCommands",
+                    "takesReruns",
+                    "acceptsEntries",
+                    "commandEntries",
+                    "workerPools",
+                    "workerPoolsReportedAt",
+                    "accounts",
+                    "accountsReportedAt",
+                    "skills",
+                    "openRuns",
+                    "refusedRequests"
+                ],
+                "properties": {
+                    "bridgeId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "name": {
+                        "description": "The name the bridge holds, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "requestedName": {
+                        "description": "The name its last heartbeat asked for, or null. A requestedName with a null name means another bridge of the owner already holds that name.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "gitIdentity": {
+                        "description": "The git identity of the bridge for this project, or null when it reported none. `pushLogin` is the GitHub login the pushes use, or empty when it is unknown.",
+                        "required": [
+                            "mode",
+                            "commitName",
+                            "pushLogin",
+                            "githubUserId"
+                        ],
+                        "properties": {
+                            "mode": {
+                                "type": "string",
+                                "enum": [
+                                    "agent_account",
+                                    "app_token",
+                                    "machine"
+                                ]
+                            },
+                            "commitName": {
+                                "type": "string"
+                            },
+                            "pushLogin": {
+                                "type": "string"
+                            },
+                            "githubUserId": {
+                                "type": "integer",
+                                "nullable": true
+                            }
+                        },
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "liveness": {
+                        "description": "Live while the bridge sends its heartbeat, and quiet when it missed several.",
+                        "type": "string",
+                        "enum": [
+                            "live",
+                            "quiet"
+                        ]
+                    },
+                    "quietCause": {
+                        "description": "Null for a live bridge. login-expired when a quiet bridge lost the login that can no longer refresh, and unknown for any other quiet bridge.",
+                        "type": "string",
+                        "nullable": true,
+                        "enum": [
+                            "login-expired",
+                            "unknown"
+                        ]
+                    },
+                    "lastSeenAt": {
+                        "description": "The time of its last heartbeat.",
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "cliVersion": {
+                        "description": "The CLI version the bridge reported.",
+                        "type": "string"
+                    },
+                    "pauseRequested": {
+                        "description": "True when a person asked the bridge to start no new work.",
+                        "type": "boolean"
+                    },
+                    "pausedReported": {
+                        "description": "Whether the bridge reported that it is paused, or null when it reported nothing.",
+                        "type": "boolean",
+                        "nullable": true
+                    },
+                    "takesCommands": {
+                        "description": "False for an older bridge, which cannot resume or stop a run.",
+                        "type": "boolean"
+                    },
+                    "takesReruns": {
+                        "description": "False for a bridge that cannot run a failed command run again.",
+                        "type": "boolean"
+                    },
+                    "acceptsEntries": {
+                        "description": "True when the bridge adds a proposed command entry to its rule file after the owner confirms.",
+                        "type": "boolean"
+                    },
+                    "commandEntries": {
+                        "description": "Each command entry the bridge can run, as its last heartbeat reported them: `name`, `description`, `params`, `run` and `timeout`. Null when it reported none.",
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": true
+                        },
+                        "nullable": true
+                    },
+                    "workerPools": {
+                        "description": "Each worker pool of the bridge, with `name`, `size`, `inUse` and `queued`, as its last heartbeat reported them. Null when it reported none.",
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": true
+                        },
+                        "nullable": true
+                    },
+                    "workerPoolsReportedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "accounts": {
+                        "description": "Each account the bridge checked, with `name`, `harness`, `state`, `reason`, `used`, `projectFailure` and `otherFailedProjects`. `projectFailure` is the reason the account fails for this project, and `otherFailedProjects` counts the other projects it fails for, without naming them. Null when the bridge reported none.",
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": true
+                        },
+                        "nullable": true
+                    },
+                    "accountsReportedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "skills": {
+                        "description": "Each skill package the bridge installed, with `package`, `version`, `state` and `reason`. Null when the bridge reported none.",
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": true
+                        },
+                        "nullable": true
+                    },
+                    "openRuns": {
+                        "description": "The queued, resumed, preparing, running and stopping runs of this project on the bridge.",
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "runId",
+                                "subjectType",
+                                "subjectId",
+                                "cardNumber",
+                                "workKind",
+                                "state"
+                            ],
+                            "properties": {
+                                "runId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "subjectType": {
+                                    "type": "string"
+                                },
+                                "subjectId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "cardNumber": {
+                                    "type": "integer",
+                                    "nullable": true
+                                },
+                                "workKind": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
+                                "state": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "refusedRequests": {
+                        "description": "The open work requests of this project that the server refused to the bridge. The server refuses a claim when the account it names, or the lack of one, does not match the account that runs the work kind.",
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "workRequestId",
+                                "subjectType",
+                                "subjectId",
+                                "kind",
+                                "account"
+                            ],
+                            "properties": {
+                                "workRequestId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "subjectType": {
+                                    "type": "string"
+                                },
+                                "subjectId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "kind": {
+                                    "type": "string"
+                                },
+                                "account": {
+                                    "type": "string",
+                                    "nullable": true
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "ProjectBridgeList": {
+                "required": [
+                    "items",
+                    "next"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ProjectBridge"
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "Bridge": {
+                "required": [
+                    "bridgeId",
+                    "name",
+                    "requestedName",
+                    "liveness",
+                    "quietCause",
+                    "lastSeenAt",
+                    "cliVersion",
+                    "pauseRequested",
+                    "pausedReported",
+                    "takesCommands",
+                    "takesReruns",
+                    "projectIds"
+                ],
+                "properties": {
+                    "bridgeId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "name": {
+                        "description": "The name the bridge holds, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "requestedName": {
+                        "description": "The name its last heartbeat asked for, or null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "liveness": {
+                        "type": "string",
+                        "enum": [
+                            "live",
+                            "quiet"
+                        ]
+                    },
+                    "quietCause": {
+                        "type": "string",
+                        "nullable": true,
+                        "enum": [
+                            "login-expired",
+                            "unknown"
+                        ]
+                    },
+                    "lastSeenAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "cliVersion": {
+                        "description": "The CLI version the bridge reported.",
+                        "type": "string"
+                    },
+                    "pauseRequested": {
+                        "description": "True when a person asked the bridge to start no new work.",
+                        "type": "boolean"
+                    },
+                    "pausedReported": {
+                        "type": "boolean",
+                        "nullable": true
+                    },
+                    "takesCommands": {
+                        "description": "False for an older bridge, which cannot resume or stop a run.",
+                        "type": "boolean"
+                    },
+                    "takesReruns": {
+                        "description": "False for a bridge that cannot run a failed command run again.",
+                        "type": "boolean"
+                    },
+                    "projectIds": {
+                        "description": "The ids of the projects that the bridge serves. A credential bound to one project sees that project alone.",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "BridgeList": {
+                "required": [
+                    "items",
+                    "next"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Bridge"
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "MetricListEntry": {
+                "required": [
+                    "key",
+                    "units",
+                    "valueType",
+                    "statistics",
+                    "groups",
+                    "description"
+                ],
+                "properties": {
+                    "key": {
+                        "description": "Pass it as `metric` to the metric query.",
+                        "type": "string"
+                    },
+                    "units": {
+                        "type": "array",
+                        "items": {
+                            "enum": [
+                                "run",
+                                "card",
+                                "reading"
+                            ]
+                        }
+                    },
+                    "valueType": {
+                        "description": "Money is in US dollars, a duration in milliseconds, except a duration the workflow template declares, which is in hours.",
+                        "type": "string",
+                        "enum": [
+                            "money",
+                            "tokens",
+                            "duration",
+                            "count",
+                            "ratio",
+                            "percent"
+                        ]
+                    },
+                    "statistics": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "groups": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "description": "The label of a metric that the workflow template declares.",
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    }
+                },
+                "type": "object"
+            },
+            "MetricList": {
+                "required": [
+                    "items",
+                    "next"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/MetricListEntry"
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "MetricQueryResult": {
+                "required": [
+                    "unit",
+                    "metric",
+                    "statistic",
+                    "group",
+                    "range",
+                    "bucket",
+                    "compare",
+                    "window",
+                    "series"
+                ],
+                "properties": {
+                    "unit": {
+                        "type": "string",
+                        "enum": [
+                            "run",
+                            "card",
+                            "reading"
+                        ]
+                    },
+                    "metric": {
+                        "description": "Null for a formula query.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "statistic": {
+                        "description": "Null for a formula query.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "group": {
+                        "type": "string"
+                    },
+                    "range": {
+                        "type": "string",
+                        "enum": [
+                            "seven-days",
+                            "thirty-days",
+                            "ninety-days",
+                            "all"
+                        ]
+                    },
+                    "bucket": {
+                        "type": "string",
+                        "enum": [
+                            "day",
+                            "week",
+                            "month"
+                        ]
+                    },
+                    "compare": {
+                        "type": "string",
+                        "enum": [
+                            "off",
+                            "previous"
+                        ]
+                    },
+                    "window": {
+                        "description": "The period read (`current`) and the period before it (`previous`, null unless compare is previous). Each has `from` (null for all time) and `to`.",
+                        "type": "object"
+                    },
+                    "series": {
+                        "description": "One series per group. Each has `group`, `total` (`value`, `rows`), `points` (`start`, `value`, `rows`), `rows` (at most 100 rows, newest first: `id`, `cardNumber`, `time`, `value`), `rowsTotal` and, with compare previous, `comparison`.",
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        }
+                    },
+                    "formula": {
+                        "description": "Set for a formula query: `rows` (`letter`, `metric`, `statistic`), `formula`, `format` and `valueType`.",
+                        "type": "object",
+                        "nullable": true,
+                        "default": null
+                    }
+                },
+                "type": "object"
+            },
+            "AnalysisScope": {
+                "required": [
+                    "range"
+                ],
+                "properties": {
+                    "range": {
+                        "type": "string",
+                        "enum": [
+                            "thirty-days",
+                            "ninety-days",
+                            "all"
+                        ]
+                    },
+                    "experiment": {
+                        "description": "The experiment an experiment analysis compares.",
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    }
+                },
+                "type": "object"
+            },
+            "AnalysisProposal": {
+                "required": [
+                    "id",
+                    "kind",
+                    "title",
+                    "body",
+                    "payload",
+                    "estimatedSaving",
+                    "state",
+                    "dismissReason",
+                    "cardId"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": [
+                            "card",
+                            "bucket-rule"
+                        ]
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "body": {
+                        "type": "string"
+                    },
+                    "payload": {
+                        "description": "What the proposal makes when it is accepted: the card fields, or the bucket rule fields.",
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "estimatedSaving": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "state": {
+                        "type": "string",
+                        "enum": [
+                            "proposed",
+                            "created",
+                            "dismissed"
+                        ]
+                    },
+                    "dismissReason": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "cardId": {
+                        "description": "The card the proposal created.",
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "Analysis": {
+                "required": [
+                    "id",
+                    "topic",
+                    "scope",
+                    "question",
+                    "model",
+                    "effort",
+                    "state",
+                    "reason",
+                    "createdAt",
+                    "finishedAt",
+                    "documentId",
+                    "costUsd",
+                    "proposals"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "topic": {
+                        "type": "string",
+                        "enum": [
+                            "cost",
+                            "time",
+                            "experiment",
+                            "host",
+                            "question"
+                        ]
+                    },
+                    "scope": {
+                        "$ref": "#/components/schemas/AnalysisScope"
+                    },
+                    "question": {
+                        "description": "The question of a question analysis, else null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "model": {
+                        "type": "string"
+                    },
+                    "effort": {
+                        "type": "string"
+                    },
+                    "state": {
+                        "type": "string",
+                        "enum": [
+                            "waiting",
+                            "running",
+                            "done",
+                            "failed",
+                            "paused"
+                        ]
+                    },
+                    "reason": {
+                        "description": "Why the analysis failed or paused, else null.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "finishedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "documentId": {
+                        "description": "The report document once the analysis is done.",
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "costUsd": {
+                        "description": "The cost in US dollars of the runs of this analysis so far. Null when no run has a known cost.",
+                        "type": "number",
+                        "format": "float",
+                        "nullable": true
+                    },
+                    "proposals": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/AnalysisProposal"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "AnalysisList": {
+                "required": [
+                    "items",
+                    "next"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Analysis"
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
             "InboxItem": {
                 "required": [
                     "itemId",
@@ -7564,6 +9645,7 @@
                         "enum": [
                             "owner",
                             "owner-through-agent",
+                            "owner-through-api-key",
                             "agent",
                             "loupe",
                             "rule"
@@ -7834,6 +9916,329 @@
                         "description": "A key of your choice. While an open item of the project holds the same key, the call returns that item with 200 and creates nothing. Once that item closes, the next call creates a new item. Blank counts as no key.",
                         "type": "string",
                         "maxLength": 200
+                    }
+                },
+                "type": "object"
+            },
+            "InboxItemRow": {
+                "required": [
+                    "itemId",
+                    "number",
+                    "kind",
+                    "origin",
+                    "title",
+                    "state",
+                    "closedBy",
+                    "closeCause",
+                    "dismissible",
+                    "blocking",
+                    "createdAt",
+                    "updatedAt",
+                    "closedAt",
+                    "cardNumbers"
+                ],
+                "properties": {
+                    "itemId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "number": {
+                        "description": "The short label that counts from 1 inside this project.",
+                        "type": "integer"
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": [
+                            "question",
+                            "todo",
+                            "review",
+                            "wait",
+                            "notice",
+                            "workflow"
+                        ]
+                    },
+                    "origin": {
+                        "description": "Who wrote the item: `agent`, `loupe`, or `api-key` for an item an API key created.",
+                        "type": "string",
+                        "enum": [
+                            "agent",
+                            "loupe",
+                            "api-key"
+                        ]
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "state": {
+                        "type": "string",
+                        "enum": [
+                            "open",
+                            "resolved",
+                            "declined",
+                            "cancelled"
+                        ]
+                    },
+                    "closedBy": {
+                        "description": "Who closed the item.",
+                        "type": "string",
+                        "nullable": true,
+                        "enum": [
+                            "owner",
+                            "owner-through-agent",
+                            "owner-through-api-key",
+                            "agent",
+                            "loupe",
+                            "rule"
+                        ]
+                    },
+                    "closeCause": {
+                        "description": "Why Loupe, a rule or an agent closed the item. Null for a response of the owner.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "dismissible": {
+                        "description": "Whether the owner may dismiss the item.",
+                        "type": "boolean"
+                    },
+                    "blocking": {
+                        "description": "Whether an agent waits on the item.",
+                        "type": "boolean"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "closedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "cardNumbers": {
+                        "description": "The numbers of the linked cards, lowest first.",
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "InboxItemList": {
+                "required": [
+                    "items",
+                    "next"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/InboxItemRow"
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "InboxItemWithdraw": {
+                "required": [
+                    "reason"
+                ],
+                "properties": {
+                    "reason": {
+                        "description": "Why the item is no longer needed. The owner reads it in the note of the item.",
+                        "type": "string",
+                        "maxLength": 2000
+                    }
+                },
+                "type": "object"
+            },
+            "InboxItemAction": {
+                "required": [
+                    "action"
+                ],
+                "properties": {
+                    "action": {
+                        "description": "`answer` responds to a question, `complete` marks a to-do done and `dismiss` declines an item that allows it. A response is final. The other actions ask a bridge or the workflow. The action must fit the item now; `getInboxItem` lists the actions that fit. The links `open` and `review` are not actions of the API.",
+                        "type": "string",
+                        "enum": [
+                            "answer",
+                            "complete",
+                            "dismiss",
+                            "resume-run",
+                            "retry-card",
+                            "send-agent",
+                            "start-session",
+                            "run-command",
+                            "add-entry"
+                        ]
+                    },
+                    "note": {
+                        "description": "The words of the owner for a response, and a short text that any other action keeps in Loupe.",
+                        "type": "string",
+                        "maxLength": 10000
+                    },
+                    "selectedOptions": {
+                        "description": "The indexes of the options for an `answer`, counting from 0.",
+                        "type": "array",
+                        "items": {
+                            "type": "integer",
+                            "minimum": 0
+                        }
+                    },
+                    "branch": {
+                        "description": "`run-command` only. The branch to run on. The branch of the suggestion when you leave it out. Send the branch of the preview.",
+                        "type": "string"
+                    },
+                    "params": {
+                        "description": "`run-command` only. The value of each param, by name. The values of the suggestion when you leave it out. Send the params of the preview.",
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "runDigest": {
+                        "description": "`run-command` only, and required for it. The `runDigest` of the preview that the owner confirmed. The command runs only when it matches the command the bridge reports now.",
+                        "type": "string"
+                    },
+                    "sessionPrompt": {
+                        "description": "`start-session` only. The prompt to send. The prompt of the suggestion when you leave it out, and none when it is an empty string.",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "InboxActionResult": {
+                "required": [
+                    "actionId",
+                    "item"
+                ],
+                "properties": {
+                    "actionId": {
+                        "description": "The id of the action that Loupe recorded, or null for a response, which records the closed item alone.",
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "item": {
+                        "$ref": "#/components/schemas/InboxItem"
+                    }
+                },
+                "type": "object"
+            },
+            "InboxCommandPreview": {
+                "required": [
+                    "itemId",
+                    "entry",
+                    "bridge",
+                    "branch",
+                    "runList",
+                    "argv",
+                    "params",
+                    "runDigest",
+                    "disabledReason"
+                ],
+                "properties": {
+                    "itemId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "entry": {
+                        "description": "The command entry of the rule file of the bridge.",
+                        "type": "string"
+                    },
+                    "bridge": {
+                        "description": "The name of the bridge that runs the command, or null when none follows the project.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "branch": {
+                        "description": "The branch the command runs on.",
+                        "type": "string"
+                    },
+                    "runList": {
+                        "description": "The run list of the entry with its placeholders, as the last heartbeat of the bridge reported it.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "argv": {
+                        "description": "The argv with the built-in values and the params filled in, as the bridge runs it.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "params": {
+                        "description": "The value of each param, by name.",
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "runDigest": {
+                        "description": "Binds the item, the entry, the run list, the branch and the param values. Send it with `runInboxItemAction` to run exactly this command.",
+                        "type": "string"
+                    },
+                    "disabledReason": {
+                        "description": "Why the command cannot run now, or null when it can.",
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "InboxActionRow": {
+                "required": [
+                    "action",
+                    "effect",
+                    "fitsCard"
+                ],
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "enum": [
+                            "resume-run",
+                            "retry-card",
+                            "review",
+                            "open",
+                            "send-agent",
+                            "start-session",
+                            "run-command",
+                            "dismiss"
+                        ]
+                    },
+                    "effect": {
+                        "description": "One line on what the action does.",
+                        "type": "string"
+                    },
+                    "fitsCard": {
+                        "description": "Whether the action fits the card now. Null when the request names no card.",
+                        "type": "boolean",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "InboxActionList": {
+                "required": [
+                    "actions"
+                ],
+                "properties": {
+                    "actions": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/InboxActionRow"
+                        }
                     }
                 },
                 "type": "object"
@@ -9007,6 +11412,1033 @@
                             "changes-requested",
                             "draft"
                         ]
+                    }
+                },
+                "type": "object"
+            },
+            "GraphSettings": {
+                "required": [
+                    "metric",
+                    "unit",
+                    "statistic",
+                    "group",
+                    "range",
+                    "bucket",
+                    "compare",
+                    "chart"
+                ],
+                "properties": {
+                    "metric": {
+                        "description": "The key of a metric, such as `cost` or `bucket-time:tests`.",
+                        "type": "string"
+                    },
+                    "unit": {
+                        "description": "What one row stands for: `run`, `card` or `reading`.",
+                        "type": "string"
+                    },
+                    "statistic": {
+                        "description": "`median`, `mean`, `sum`, `p90`, `count` or `max`.",
+                        "type": "string"
+                    },
+                    "group": {
+                        "description": "How the graph splits its lines: `stage`, `model`, `variant`, `card-type`, `bridge`, `harness`, `account`, `harness-version`, `cli-version`, `skill-version`, `account-window`, `wake-gap`, `wake-cache` or `none`.",
+                        "type": "string"
+                    },
+                    "range": {
+                        "description": "`seven-days`, `thirty-days`, `ninety-days` or `all`.",
+                        "type": "string"
+                    },
+                    "bucket": {
+                        "description": "`day`, `week` or `month`. `seven-days` takes `day` alone.",
+                        "type": "string"
+                    },
+                    "compare": {
+                        "description": "`off`, or `previous` to compare with the period just before the range.",
+                        "type": "string"
+                    },
+                    "chart": {
+                        "description": "`line`, `bars`, `stacked-bars`, `percent-stacked`, `donut` or `number`.",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "GraphRow": {
+                "required": [
+                    "letter",
+                    "metric",
+                    "statistic"
+                ],
+                "properties": {
+                    "letter": {
+                        "description": "The letter that the formula uses for this row, `A` to `F`.",
+                        "type": "string"
+                    },
+                    "metric": {
+                        "description": "The key of a metric that adds up over runs.",
+                        "type": "string"
+                    },
+                    "statistic": {
+                        "description": "The statistic that reads the metric for each bucket and group.",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "GraphFormula": {
+                "required": [
+                    "rows",
+                    "formula",
+                    "format"
+                ],
+                "properties": {
+                    "rows": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/GraphRow"
+                        }
+                    },
+                    "formula": {
+                        "description": "The formula over the letters of the rows, such as `A / B`.",
+                        "type": "string"
+                    },
+                    "format": {
+                        "description": "`auto`, `number`, `percent`, `money` or `duration`.",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "GraphBroken": {
+                "required": [
+                    "reason",
+                    "name"
+                ],
+                "properties": {
+                    "reason": {
+                        "description": "What is gone.",
+                        "type": "string",
+                        "enum": [
+                            "template-metric",
+                            "bucket",
+                            "harness-event"
+                        ]
+                    },
+                    "name": {
+                        "description": "The template metric key, the bucket name or the harness event kind.",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "Graph": {
+                "required": [
+                    "id",
+                    "name",
+                    "position",
+                    "width",
+                    "showLegend",
+                    "settings",
+                    "formula",
+                    "broken",
+                    "undoUntil"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "position": {
+                        "description": "The place among the graphs on the Dashboard, counted from 0. Null for a removed graph.",
+                        "type": "integer",
+                        "nullable": true,
+                        "minimum": 0
+                    },
+                    "width": {
+                        "description": "How much of the Dashboard row the graph takes.",
+                        "type": "string",
+                        "enum": [
+                            "half",
+                            "full"
+                        ]
+                    },
+                    "showLegend": {
+                        "description": "Whether the tile shows its legend.",
+                        "type": "boolean"
+                    },
+                    "settings": {
+                        "$ref": "#/components/schemas/GraphSettings"
+                    },
+                    "formula": {
+                        "description": "The formula, or null for a graph that reads one metric.",
+                        "type": "object",
+                        "nullable": true,
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/GraphFormula"
+                            }
+                        ]
+                    },
+                    "broken": {
+                        "description": "What the graph still reads that the project no longer has, or null.",
+                        "type": "object",
+                        "nullable": true,
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/GraphBroken"
+                            }
+                        ]
+                    },
+                    "undoUntil": {
+                        "description": "For a removed graph, the time until which `POST /graphs/{graph}/restore` brings it back. Null for a graph on the Dashboard.",
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "GraphList": {
+                "required": [
+                    "items",
+                    "next"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Graph"
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "GraphRemoveResult": {
+                "required": [
+                    "undoUntil"
+                ],
+                "properties": {
+                    "undoUntil": {
+                        "description": "The time until which `POST /graphs/{graph}/restore` brings the graph back.",
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "GraphSettingsInput": {
+                "description": "A field you leave out keeps its value on a change, and takes its default on a save.",
+                "properties": {
+                    "metric": {
+                        "description": "The key of a metric from the metric list. Leave it out when the graph reads a formula.",
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 140
+                    },
+                    "unit": {
+                        "description": "`run`, `card` or `reading`. A save needs it.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "statistic": {
+                        "description": "`median`, `mean`, `sum`, `p90`, `count` or `max`. Leave it out when the graph reads a formula.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "group": {
+                        "description": "`stage`, `model`, `variant`, `card-type`, `bridge`, `harness`, `account`, `harness-version`, `cli-version`, `skill-version`, `account-window`, `wake-gap`, `wake-cache` or `none`. A save defaults to `none`.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "range": {
+                        "description": "`seven-days`, `thirty-days`, `ninety-days` or `all`. A save defaults to `ninety-days`.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "bucket": {
+                        "description": "`day`, `week` or `month`. `seven-days` takes `day` alone. A save defaults to `week`.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "compare": {
+                        "description": "`off`, or `previous` to compare with the period just before the range. A save defaults to `off`.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "chart": {
+                        "description": "`line`, `bars`, `stacked-bars`, `percent-stacked`, `donut` or `number`. A save defaults to `line`.",
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "GraphRowInput": {
+                "required": [
+                    "letter",
+                    "metric",
+                    "statistic"
+                ],
+                "properties": {
+                    "letter": {
+                        "description": "The letter that the formula uses for this row, `A` to `F`.",
+                        "type": "string",
+                        "pattern": "[^,]+"
+                    },
+                    "metric": {
+                        "description": "The key of a metric that adds up over runs.",
+                        "type": "string",
+                        "pattern": "[^,]+"
+                    },
+                    "statistic": {
+                        "description": "`median`, `mean`, `sum`, `p90`, `count` or `max`.",
+                        "type": "string",
+                        "pattern": "[^,]+"
+                    }
+                },
+                "type": "object"
+            },
+            "GraphCreate": {
+                "required": [
+                    "settings"
+                ],
+                "properties": {
+                    "name": {
+                        "description": "The name of the tile. A blank name takes the title of the graph.",
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 120
+                    },
+                    "settings": {
+                        "$ref": "#/components/schemas/GraphSettingsInput"
+                    },
+                    "rows": {
+                        "description": "The lettered rows of a formula graph, up to six. Leave them out for a graph of one metric.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/GraphRowInput"
+                        },
+                        "default": [],
+                        "maxItems": 6
+                    },
+                    "formula": {
+                        "description": "The formula over the letters of the rows, such as `A / B`.",
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 200
+                    },
+                    "format": {
+                        "description": "`auto`, `number`, `percent`, `money` or `duration`. A formula graph defaults to `auto`.",
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "SavedGraphWidth": {
+                "type": "string",
+                "enum": [
+                    "half",
+                    "full"
+                ]
+            },
+            "GraphUpdate": {
+                "description": "A field you leave out keeps its value.",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "pattern": ".*\\S.*",
+                        "maxLength": 120,
+                        "minLength": 1
+                    },
+                    "settings": {
+                        "$ref": "#/components/schemas/GraphSettingsInput"
+                    },
+                    "rows": {
+                        "description": "The lettered rows of a formula graph. They replace all the rows. To turn a one-metric graph into a formula graph, pass both `rows` and `formula`.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/GraphRowInput"
+                        },
+                        "maxItems": 6,
+                        "minItems": 1
+                    },
+                    "formula": {
+                        "description": "The formula over the letters of the rows, such as `A / B`.",
+                        "type": "string",
+                        "maxLength": 200
+                    },
+                    "format": {
+                        "description": "`auto`, `number`, `percent`, `money` or `duration`.",
+                        "type": "string"
+                    },
+                    "clearFormula": {
+                        "description": "True turns a formula graph back into a graph of one metric. It keeps the first row, and takes `settings.metric` and `settings.statistic` when you pass them. Do not pass it with `rows`, `formula` or `format`.",
+                        "type": "boolean"
+                    },
+                    "width": {
+                        "$ref": "#/components/schemas/SavedGraphWidth"
+                    },
+                    "showLegend": {
+                        "description": "Whether the tile shows its legend.",
+                        "type": "boolean"
+                    },
+                    "position": {
+                        "description": "The place to take among the graphs on the Dashboard, counted from 0 as the graph list counts it. A place past the last puts the graph last. The other graphs keep their order.",
+                        "type": "integer",
+                        "minimum": 0
+                    }
+                },
+                "type": "object"
+            },
+            "BucketRule": {
+                "required": [
+                    "id",
+                    "position",
+                    "pattern",
+                    "bucket"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "position": {
+                        "description": "The place in the order the rules apply, counted from 0.",
+                        "type": "integer",
+                        "minimum": 0
+                    },
+                    "pattern": {
+                        "description": "A glob: `*` matches any run of characters and `?` matches one.",
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "bucket": {
+                        "description": "The bucket name.",
+                        "type": "string",
+                        "maxLength": 64
+                    }
+                },
+                "type": "object"
+            },
+            "BucketRuleList": {
+                "required": [
+                    "items",
+                    "next"
+                ],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/BucketRule"
+                        }
+                    },
+                    "next": {
+                        "description": "The URL of the next page, or null on the last page.",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "BucketRuleDeleteResult": {
+                "required": [
+                    "deleted"
+                ],
+                "properties": {
+                    "deleted": {
+                        "description": "The id of the deleted rule.",
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                },
+                "type": "object"
+            },
+            "BucketRuleCreate": {
+                "required": [
+                    "pattern",
+                    "bucket"
+                ],
+                "properties": {
+                    "pattern": {
+                        "description": "A glob: `*` matches any run of characters and `?` matches one, such as `LSP` or `mcp__loupe__*`. The rule goes last in the order the rules apply.",
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "bucket": {
+                        "description": "The bucket name, 1 to 64 characters: lower case letters, digits, underscore and hyphen.",
+                        "type": "string",
+                        "maxLength": 64,
+                        "minLength": 1
+                    }
+                },
+                "type": "object"
+            },
+            "BucketRuleUpdate": {
+                "required": [
+                    "position"
+                ],
+                "properties": {
+                    "position": {
+                        "description": "The place to take in the order the rules apply, counted from 0 as the rule list counts it. A place past the last puts the rule last. The other rules keep their order.",
+                        "type": "integer",
+                        "minimum": 0
+                    }
+                },
+                "type": "object"
+            },
+            "AnalyticsSettings": {
+                "required": [
+                    "defaultModel",
+                    "defaultEffort",
+                    "collectFullText",
+                    "subcommandPrograms",
+                    "model",
+                    "effort"
+                ],
+                "properties": {
+                    "defaultModel": {
+                        "description": "The model the project sets for a new analysis, or null when it sets none.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "defaultEffort": {
+                        "description": "The effort the project sets for a new analysis, or null when it sets none.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "collectFullText": {
+                        "description": "Whether the bridge sends the full text of each tool call.",
+                        "type": "boolean"
+                    },
+                    "subcommandPrograms": {
+                        "description": "The programs whose second word joins the signature of a shell command, such as `git`. Empty when the project sets none, so the instance list applies.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "model": {
+                        "description": "The model a new analysis takes when it names none: the project value, else the instance default.",
+                        "type": "string"
+                    },
+                    "effort": {
+                        "description": "The effort a new analysis takes when it names none: `low`, `medium`, `high`, `xhigh` or `max`.",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "AnalyticsSettingsUpdate": {
+                "description": "A field you leave out keeps its value.",
+                "properties": {
+                    "defaultModel": {
+                        "description": "The model a new analysis takes when it names none, one word such as `sonnet` or `opus`. Null clears the project value, so the instance default applies.",
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 64
+                    },
+                    "defaultEffort": {
+                        "description": "`low`, `medium`, `high`, `xhigh` or `max`. Null clears the project value, so the instance default applies.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "collectFullText": {
+                        "description": "Whether the bridge sends the full text of each tool call.",
+                        "type": "boolean"
+                    },
+                    "subcommandPrograms": {
+                        "description": "The programs whose second word joins the signature of a shell command, such as `git` or `npm`. At most 50 names of letters, digits and `. _ + -`. Replaces the list, and an empty list clears it, so the instance list applies.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "maxItems": 50
+                    }
+                },
+                "type": "object"
+            },
+            "WorkflowTemplate": {
+                "required": [
+                    "key",
+                    "version"
+                ],
+                "properties": {
+                    "key": {
+                        "description": "The key of the template, such as `lifecycle`.",
+                        "type": "string"
+                    },
+                    "version": {
+                        "description": "The version of the template that the project copy follows.",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "WorkflowRepository": {
+                "required": [
+                    "path",
+                    "forge"
+                ],
+                "properties": {
+                    "path": {
+                        "description": "The path of the repository on its forge, such as `owner/name`.",
+                        "type": "string"
+                    },
+                    "forge": {
+                        "description": "The forge that hosts the repository, such as `github`.",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "WorkflowSetting": {
+                "required": [
+                    "key",
+                    "scope",
+                    "repository",
+                    "value",
+                    "source",
+                    "warnings"
+                ],
+                "properties": {
+                    "key": {
+                        "description": "The key of the setting.",
+                        "type": "string"
+                    },
+                    "scope": {
+                        "description": "`repository` for a setting that each repository states, or `project` for one value of the whole project.",
+                        "type": "string",
+                        "enum": [
+                            "repository",
+                            "project"
+                        ]
+                    },
+                    "repository": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkflowRepository"
+                            },
+                            {
+                                "type": "object",
+                                "nullable": true,
+                                "enum": [
+                                    null
+                                ]
+                            }
+                        ],
+                        "description": "The repository of a repository setting. Null for a project setting."
+                    },
+                    "value": {
+                        "description": "The value, or null when the setting has none. It is a string, a boolean or a list of strings, as the template declares the setting.",
+                        "oneOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            {
+                                "type": "object",
+                                "nullable": true,
+                                "enum": [
+                                    null
+                                ]
+                            }
+                        ]
+                    },
+                    "source": {
+                        "description": "Where the value came from: `file` (a valid value in .loupe.yaml), `invalid` (the file holds a value that is not allowed, so the value is null), `stored` (a value the app keeps for the repository until the file states the key), `default` (the default of the template), `unset` (no source states a value), `conflict` (two repositories state different values) or `template` (the value of the project copy of the template). Only a project setting has `conflict` and `template`.",
+                        "type": "string"
+                    },
+                    "warnings": {
+                        "description": "The lines that name a problem with the key.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "WorkflowColumn": {
+                "required": [
+                    "slug",
+                    "label",
+                    "slot",
+                    "backlog",
+                    "terminal"
+                ],
+                "properties": {
+                    "slug": {
+                        "description": "The slug of the column.",
+                        "type": "string"
+                    },
+                    "label": {
+                        "description": "The label of the column, in the language of the request.",
+                        "type": "string"
+                    },
+                    "slot": {
+                        "description": "The key of the workflow slot that links to the column. Null when no slot links to it.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "backlog": {
+                        "description": "True for the backlog column.",
+                        "type": "boolean"
+                    },
+                    "terminal": {
+                        "description": "True for a column that holds finished work.",
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "WorkflowKind": {
+                "required": [
+                    "kind",
+                    "origin",
+                    "rules",
+                    "checks"
+                ],
+                "properties": {
+                    "kind": {
+                        "description": "The kind of work.",
+                        "type": "string"
+                    },
+                    "origin": {
+                        "description": "Whether the template or the app adds the kind.",
+                        "type": "string",
+                        "enum": [
+                            "template",
+                            "app"
+                        ]
+                    },
+                    "rules": {
+                        "description": "The ids of the rules that ask for the kind.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "checks": {
+                        "description": "What the work needs from the project. A discovery run reads this to know what to look for.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "Workflow": {
+                "required": [
+                    "template",
+                    "approvalCoversConflictResolution",
+                    "epicBranch",
+                    "requirements",
+                    "settings",
+                    "githubAppId",
+                    "columns",
+                    "kinds"
+                ],
+                "properties": {
+                    "template": {
+                        "$ref": "#/components/schemas/WorkflowTemplate"
+                    },
+                    "approvalCoversConflictResolution": {
+                        "description": "Whether an approval of a pull request still covers a merge from the base that holds a conflict resolution.",
+                        "type": "boolean"
+                    },
+                    "epicBranch": {
+                        "description": "The epic branch pattern, with `{number}` for the card number. Null when the project has no epic branches.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "requirements": {
+                        "description": "The written requirements of the workflow, in template order.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "settings": {
+                        "description": "The settings that the template declares, in template order. A repository setting has one entry for each repository of the project.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/WorkflowSetting"
+                        }
+                    },
+                    "githubAppId": {
+                        "description": "The id of the Loupe GitHub App, or null when the instance has none. The merge stage uses it to tell the `Loupe / Approval` check of the Loupe App from a check of the same name from another App.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "columns": {
+                        "description": "The board columns in board order.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/WorkflowColumn"
+                        }
+                    },
+                    "kinds": {
+                        "description": "Each kind of work the workflow can ask a bridge for.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/WorkflowKind"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "BoardAutomation": {
+                "required": [
+                    "enabled",
+                    "stuckDelayMinutes",
+                    "approvalCoversConflictResolution"
+                ],
+                "properties": {
+                    "enabled": {
+                        "description": "Whether the workflow moves the cards and asks for their work. While it is false, the workflow moves no card and asks for no work.",
+                        "type": "boolean"
+                    },
+                    "stuckDelayMinutes": {
+                        "description": "The minutes a pull request may wait for a merge or for any card change before its card shows Stuck.",
+                        "type": "integer",
+                        "maximum": 1440,
+                        "minimum": 1
+                    },
+                    "approvalCoversConflictResolution": {
+                        "description": "Whether an approval of a pull request still covers a merge from the base that holds a conflict resolution. A project with no workflow reports true.",
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "BoardAutomationUpdate": {
+                "description": "A field you leave out keeps its value.",
+                "properties": {
+                    "enabled": {
+                        "description": "Turn the workflow of the board on or off.",
+                        "type": "boolean"
+                    },
+                    "stuckDelayMinutes": {
+                        "description": "The minutes a pull request may wait for a merge or for any card change before its card shows Stuck.",
+                        "type": "integer",
+                        "maximum": 1440,
+                        "minimum": 1
+                    },
+                    "approvalCoversConflictResolution": {
+                        "description": "Whether an approval of a pull request still covers a merge from the base that holds a conflict resolution. The value belongs to the copy of the workflow template that the project holds, so a project with no workflow answers 409 `no_workflow`.",
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "ReadinessRow": {
+                "required": [
+                    "key",
+                    "done",
+                    "status"
+                ],
+                "properties": {
+                    "key": {
+                        "description": "The key of the check, such as `agent` or `bridge`.",
+                        "type": "string"
+                    },
+                    "done": {
+                        "description": "Whether the check is done.",
+                        "type": "boolean"
+                    },
+                    "status": {
+                        "description": "A short status line, in the language of the request.",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "ReadinessDiscovery": {
+                "required": [
+                    "runId",
+                    "state",
+                    "cardId",
+                    "cardNumber",
+                    "reason",
+                    "createdAt"
+                ],
+                "properties": {
+                    "runId": {
+                        "description": "The id of the discovery run. `readiness_report_submit` takes it.",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "state": {
+                        "description": "The state of the run.",
+                        "type": "string"
+                    },
+                    "cardId": {
+                        "description": "The id of the discovery card.",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "cardNumber": {
+                        "description": "The number of the discovery card.",
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "reason": {
+                        "description": "Why the run failed. Null when it did not fail.",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "description": "When the run was requested.",
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "Readiness": {
+                "required": [
+                    "guideShown",
+                    "rows",
+                    "discovery"
+                ],
+                "properties": {
+                    "guideShown": {
+                        "description": "Whether the Workshop shows the readiness guide. The checks below show in either case.",
+                        "type": "boolean"
+                    },
+                    "rows": {
+                        "description": "The checks: whether an agent connected, a bridge runs, the GitHub App is installed, the agents push as their own GitHub account, discovery ran, and the optional review widget has a site that may sign in.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ReadinessRow"
+                        }
+                    },
+                    "discovery": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/ReadinessDiscovery"
+                            },
+                            {
+                                "type": "object",
+                                "nullable": true,
+                                "enum": [
+                                    null
+                                ]
+                            }
+                        ],
+                        "description": "The latest discovery run. Null when discovery never ran."
+                    }
+                },
+                "type": "object"
+            },
+            "ReadinessGuide": {
+                "required": [
+                    "shown",
+                    "hiddenAt"
+                ],
+                "properties": {
+                    "shown": {
+                        "description": "Whether the Workshop shows the readiness guide.",
+                        "type": "boolean"
+                    },
+                    "hiddenAt": {
+                        "description": "When the guide was hidden. Null while it shows.",
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "ReadinessUpdate": {
+                "required": [
+                    "guideShown"
+                ],
+                "properties": {
+                    "guideShown": {
+                        "description": "True shows the readiness guide on the Workshop, and false hides it. The checks stay readable while the guide is hidden.",
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "HighlightSkipped": {
+                "required": [
+                    "quote",
+                    "reason"
+                ],
+                "properties": {
+                    "quote": {
+                        "description": "The quote as the request spelled it.",
+                        "type": "string"
+                    },
+                    "reason": {
+                        "description": "`blank` for an empty quote, `duplicate` for a quote that repeats an earlier one, or `not_found` for a quote that the document text does not hold.",
+                        "type": "string",
+                        "enum": [
+                            "blank",
+                            "duplicate",
+                            "not_found"
+                        ]
+                    }
+                },
+                "type": "object"
+            },
+            "DocumentHighlights": {
+                "required": [
+                    "highlighted",
+                    "skipped"
+                ],
+                "properties": {
+                    "highlighted": {
+                        "description": "The quotes that now carry a highlight, trimmed, in request order. A quote that occurs more than once lands on its first occurrence.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "skipped": {
+                        "description": "The quotes that the call skipped, with the reason. A skipped quote is not an error.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/HighlightSkipped"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "DocumentHighlightsSet": {
+                "required": [
+                    "quotes"
+                ],
+                "properties": {
+                    "quotes": {
+                        "description": "Verbatim passages of the document, as they read in rendered prose and not as Markdown source. Keep each quote inside one paragraph or list item. The list replaces the whole highlight set, and an empty list clears it.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
                     }
                 },
                 "type": "object"

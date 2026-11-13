@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Module\Inbox\Command;
 
 use App\Exception\DomainErrors;
-use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
@@ -51,7 +50,7 @@ final readonly class AnswerInboxItemHandler
 
         // Checked inside the lock, against the options as stored: an agent may
         // change the question after the page loaded it.
-        $this->closer->respond($item, InboxItemState::Resolved, $command->throughAgent ? InboxCloser::OwnerThroughAgent : InboxCloser::Owner, null, 'selectedOptions', function (InboxItem $item) use ($command, $text): ?array {
+        $this->closer->respond($item, InboxItemState::Resolved, $command->closedBy, null, 'selectedOptions', function (InboxItem $item) use ($command, $text): ?array {
             $selected = self::parseIndexes($command->selectedOptions, \count($item->options));
             if (null === $selected) {
                 return ['selectedOptions' => self::UNKNOWN_OPTION];
@@ -81,7 +80,7 @@ final readonly class AnswerInboxItemHandler
             }
 
             return null;
-        });
+        }, $command->apiKey);
 
         $this->auditor->record(
             'inbox.item_answered',

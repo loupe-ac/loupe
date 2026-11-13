@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Module\Inbox\Command;
 
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
+use App\Security\ApiKeyActor;
 
 final readonly class AnswerInboxItemCommand
 {
@@ -13,7 +15,8 @@ final readonly class AnswerInboxItemCommand
         /** Comma-separated option indexes, as the answer form posts them. */
         public string $selectedOptions,
         public string $answerText,
-        public bool $throughAgent = false,
+        public InboxCloser $closedBy = InboxCloser::Owner,
+        public ?ApiKeyActor $apiKey = null,
     ) {
     }
 }

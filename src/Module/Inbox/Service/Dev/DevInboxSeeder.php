@@ -272,9 +272,22 @@ final readonly class DevInboxSeeder implements DevSeederInterface
             'body' => 'Nobody waits on this one, and it is still worth doing.',
         ]);
         $this->ask($context, 'spec-ready', $project, [$reviewed, $leftOpen], 259_200, 'The specification is ready to read.', DevSeedId::of('bridge/bridge/ask-spec-ready'), $context->at(259_200 - 7_200));
+        $keyed = $this->item($context, 'answered-by-key', $project, InboxItemKind::Question, 'Should the nightly import keep the old schema?', true, 90_000, [
+            'body' => 'The old schema still feeds one report.',
+            'options' => ['Keep it', 'Drop it'],
+            'freeText' => true,
+        ], static function (InboxItem $item) use ($context): void {
+            $item->state = InboxItemState::Resolved;
+            $item->closedBy = InboxCloser::OwnerThroughApiKey;
+            $item->closedApiKeyId = DevSeedId::of('inbox/api-key/weekly-ci');
+            $item->closedApiKeyName = 'Weekly CI';
+            $item->selectedOptions = [0];
+            $item->closedAt = $context->at(90_000 - 600);
+        });
+        $this->ask($context, 'keyed-answer', $project, [$keyed], 90_000, 'One question about the nightly import.', DevSeedId::of('bridge/bridge/ask-keyed-answer'), $context->at(90_000 - 600));
         $this->em->flush();
 
-        return [$answered, $declined, $reviewed, $leftOpen];
+        return [$answered, $declined, $reviewed, $leftOpen, $keyed];
     }
 
     /**

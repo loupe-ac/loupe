@@ -169,6 +169,20 @@ class InsightsSavedGraphRepository extends ServiceEntityRepository
             ->getResult());
     }
 
+    /**
+     * The graphs that are removed and still inside the Undo window, in order of position.
+     *
+     * @return list<InsightsSavedGraph>
+     */
+    public function findAllRestorable(Project $project, \DateTimeImmutable $now): array
+    {
+        return array_values($this->restorableQuery($project, $now)
+            ->orderBy('g.position', 'ASC')
+            ->addOrderBy('g.id', 'ASC')
+            ->getQuery()
+            ->getResult());
+    }
+
     public function countRestorable(Project $project, \DateTimeImmutable $now): int
     {
         return (int) $this->restorableQuery($project, $now)

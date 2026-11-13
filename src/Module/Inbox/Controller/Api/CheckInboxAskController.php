@@ -10,7 +10,6 @@ use App\Controller\AppController;
 use App\Module\Account\Entity\User;
 use App\Module\Inbox\Command\CheckInboxAskCommand;
 use App\Module\Inbox\Command\CheckInboxAskHandler;
-use App\Module\Inbox\Install\InboxInstallFlags;
 use App\Security\CredentialRateLimitKey;
 use OpenApi\Attributes as OA;
 use Symfony\Component\ExpressionLanguage\Expression;
@@ -19,7 +18,6 @@ use Symfony\Component\HttpKernel\Attribute\RateLimit;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Requirement\Requirement;
 use Symfony\Component\Uid\Uuid;
-use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
 
 /**
  * Tells the bridge, before it resumes a session, whether the ask closed and
@@ -48,7 +46,6 @@ use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
     ],
 )]
 #[RateLimit('agent_inbox_ask_checks', key: new Expression('this.rateLimitKey.forRequest(request)'))]
-#[RequireFeatureFlag(InboxInstallFlags::FLAG_INBOX_ENABLED)]
 #[Route(
     '/api/v1/bridge/projects/{handle}/inbox/asks/{askId}',
     name: 'api_project_inbox_ask_check',

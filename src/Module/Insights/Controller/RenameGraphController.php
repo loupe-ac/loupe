@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Module\Insights\Controller;
 
 use App\Controller\AppController;
-use App\Module\Insights\Command\RenameSavedGraphCommand;
-use App\Module\Insights\Command\RenameSavedGraphHandler;
+use App\Module\Insights\Command\UpdateSavedGraphFieldsCommand;
+use App\Module\Insights\Command\UpdateSavedGraphFieldsHandler;
 use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\Form\RenameGraphRequest;
 use App\Module\Insights\Service\DashboardGraphForms;
@@ -30,7 +30,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 class RenameGraphController extends AppController
 {
     public function __construct(
-        private readonly RenameSavedGraphHandler $handler,
+        private readonly UpdateSavedGraphFieldsHandler $handler,
         private readonly DashboardGraphForms $forms,
         private readonly TranslatorInterface $translator,
     ) {
@@ -48,7 +48,7 @@ class RenameGraphController extends AppController
         if (!$form->isSubmitted() || !$form->isValid()) {
             $this->addFlash('error', $this->translator->trans('analytics.dashboard.flash.invalid'));
         } else {
-            ($this->handler)(new RenameSavedGraphCommand($graph, $data->name ?? throw new \LogicException('A valid name is not null.')));
+            ($this->handler)(new UpdateSavedGraphFieldsCommand($project, (string) $graph->id, name: $data->name ?? throw new \LogicException('A valid name is not null.')));
         }
 
         return $this->redirectToRoute('app_project_analytics_dashboard', ['id' => (string) $project->id]);

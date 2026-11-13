@@ -35,14 +35,14 @@ final readonly class MarkInboxItemDoneHandler
             throw new DomainErrors([self::ERROR_FIELD => self::NOT_A_TO_DO]);
         }
 
-        $closer = $command->commandSucceeded ? InboxCloser::Loupe : ($command->throughAgent ? InboxCloser::OwnerThroughAgent : InboxCloser::Owner);
+        $closer = $command->commandSucceeded ? InboxCloser::Loupe : $command->closedBy;
         $cause = $command->commandSucceeded ? InboxCloseCause::CommandSucceeded : null;
         $note = trim($command->note);
         $this->closer->respond($item, InboxItemState::Resolved, $closer, $cause, self::ERROR_FIELD, static function (InboxItem $item) use ($note): ?array {
             $item->note = '' === $note ? null : $note;
 
             return null;
-        });
+        }, $command->apiKey);
 
         $this->auditor->record(
             'inbox.item_done',

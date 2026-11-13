@@ -47,12 +47,13 @@ final readonly class Page
     /**
      * @param \Closure(T): mixed   $present turns an item into its wire form
      * @param array<string, mixed> $extra   members a list adds beside `items` and `next`
+     * @param ?array<mixed>        $query   the query of the next link, when a filter needs a form other than the parsed query of the request
      */
-    public function toResponse(Request $request, \Closure $present, array $extra = []): JsonResponse
+    public function toResponse(Request $request, \Closure $present, array $extra = [], ?array $query = null): JsonResponse
     {
         $next = null;
         if (null !== $this->next) {
-            $query = $request->query->all();
+            $query ??= $request->query->all();
             $query['cursor'] = $this->next->encode();
             $next = $request->getSchemeAndHttpHost().$request->getBaseUrl().$request->getPathInfo().'?'.http_build_query($query);
         }

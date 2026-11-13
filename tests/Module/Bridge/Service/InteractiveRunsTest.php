@@ -15,10 +15,12 @@ use App\Module\Bridge\Repository\WorkerRunStateChangeRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\InteractiveRuns;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
+use App\Module\Bridge\ValueObject\WorkerRunCloseReason;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Project\Entity\Project;
+use App\Security\ApiKeyActor;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Support\DispatchedEvents;
 use Psr\Clock\ClockInterface;
@@ -356,6 +358,56 @@ final class InteractiveRunsTest extends KernelTestCase
         self::assertEquals($runId, $closed?->id);
         self::assertSame(WorkerRunState::Closed, $closed?->state);
         self::assertSame([['running', self::NOW], ['closed', self::NOW]], $this->history($run));
+    }
+
+    public function test_a_close_by_id_without_a_key_records_the_reason_person_and_no_key(): void
+    {
+        $project = $this->scenario('interactive-close-person');
+        $run = $this->runs()->open($project, Uuid::v7(), 3, Uuid::v4(), 'design');
+
+        $closed = $this->runs()->closeById($project, $run->id ?? throw new \LogicException('Stored.'));
+
+        $stored = $this->reload($closed ?? throw new \LogicException('Closed.'));
+        self::assertSame(WorkerRunCloseReason::Person, $stored->closeReason);
+        self::assertNull($stored->closedApiKeyId);
+        self::assertNull($stored->closedApiKeyName);
+    }
+
+    public function test_a_key_that_stops_a_run_is_named_and_a_second_close_changes_neither_reason_nor_key(): void
+    {
+        $project = $this->scenario('interactive-close-key');
+        $run = $this->runs()->open($project, Uuid::v7(), 3, Uuid::v4(), 'design');
+        $runId = $run->id ?? throw new \LogicException('Stored.');
+        $key = new ApiKeyActor(Uuid::v7(), 'Weekly CI');
+
+        $closed = $this->runs()->closeById($project, $runId, $key);
+
+        $stored = $this->reload($closed ?? throw new \LogicException('Closed.'));
+        self::assertSame(WorkerRunState::Closed, $stored->state);
+        self::assertSame(WorkerRunCloseReason::ApiKey, $stored->closeReason);
+        self::assertSame([(string) $key->keyId, 'Weekly CI'], [(string) $stored->closedApiKeyId, $stored->closedApiKeyName]);
+
+        $again = $this->runs()->closeById($project, $runId, new ApiKeyActor(Uuid::v7(), 'Other key'));
+
+        $stored = $this->reload($again ?? throw new \LogicException('Closed.'));
+        self::assertSame(WorkerRunCloseReason::ApiKey, $stored->closeReason);
+        self::assertSame([(string) $key->keyId, 'Weekly CI'], [(string) $stored->closedApiKeyId, $stored->closedApiKeyName]);
+        self::assertSame([['running', self::NOW], ['closed', self::NOW]], $this->history($stored));
+    }
+
+    public function test_a_key_closing_a_run_a_person_closed_leaves_the_reason_and_adds_no_key(): void
+    {
+        $project = $this->scenario('interactive-close-key-after-person');
+        $run = $this->runs()->open($project, Uuid::v7(), 3, Uuid::v4(), 'design');
+        $runId = $run->id ?? throw new \LogicException('Stored.');
+        $this->runs()->closeById($project, $runId);
+
+        $again = $this->runs()->closeById($project, $runId, new ApiKeyActor(Uuid::v7(), 'Weekly CI'));
+
+        $stored = $this->reload($again ?? throw new \LogicException('Closed.'));
+        self::assertSame(WorkerRunCloseReason::Person, $stored->closeReason);
+        self::assertNull($stored->closedApiKeyId);
+        self::assertNull($stored->closedApiKeyName);
     }
 
     public function test_close_with_no_run_answers_null(): void

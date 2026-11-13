@@ -33,9 +33,13 @@ final readonly class ListAgentsHandler
     {
         $projectId = (string) $command->project->id;
         $bridges = array_values(array_filter(
-            $this->bridges->findByOwner($command->project->owner),
-            static fn ($bridge): bool => in_array($projectId, $bridge->projects, true),
+            null !== $command->limit ? $this->bridges->findByOwnerOrderedById($command->project->owner) : $this->bridges->findByOwner($command->project->owner),
+            static fn ($bridge): bool => in_array($projectId, $bridge->projects, true) && (null === $command->after || strcmp((string) $bridge->id->toRfc4122(), $command->after->toRfc4122()) > 0),
         ));
+        $hasMore = null !== $command->limit && count($bridges) > $command->limit;
+        if (null !== $command->limit) {
+            $bridges = array_slice($bridges, 0, $command->limit);
+        }
         $statuses = $this->liveness->forOwner(
             $command->project->owner,
             array_map(static fn ($bridge) => $bridge->id, $bridges),
@@ -64,6 +68,7 @@ final readonly class ListAgentsHandler
                 ),
                 $bridges,
             ),
+            $hasMore,
         );
     }
 }

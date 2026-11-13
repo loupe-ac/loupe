@@ -16,10 +16,12 @@ use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Project\Entity\Project;
+use App\Security\ApiKeyActor;
 use App\Tests\Module\Inbox\InboxScenario;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Uid\Uuid;
 
 final class InboxResponseHandlersTest extends KernelTestCase
 {
@@ -224,12 +226,43 @@ final class InboxResponseHandlersTest extends KernelTestCase
     {
         $item = $this->question($this->em, $this->project, 1);
 
-        $this->answer($item, '0', '', throughAgent: true);
+        $this->answer($item, '0', '', closedBy: InboxCloser::OwnerThroughAgent);
         $stored = $this->reload($item);
         self::assertSame([InboxCloser::OwnerThroughAgent, null], [$stored->closedBy, $stored->closeCause]);
 
         self::assertSame(['selectedOptions' => 'inbox.item.error.final'], $this->refusal(fn () => $this->answer($stored, '1', '')));
         self::assertSame(InboxCloser::OwnerThroughAgent, $this->reload($item)->closedBy);
+    }
+
+    public function test_responses_through_an_api_key_record_the_key_on_the_item(): void
+    {
+        $key = new ApiKeyActor(Uuid::v7(), 'Weekly CI');
+        $answered = $this->question($this->em, $this->project, 1);
+        $declined = $this->question($this->em, $this->project, 2);
+        $done = $this->todo($this->em, $this->project, 3);
+
+        $this->answer($answered, '0', '', InboxCloser::OwnerThroughApiKey, $key);
+        $this->decline($declined, 'No.', InboxCloser::OwnerThroughApiKey, $key);
+        $this->markDone($done, InboxCloser::OwnerThroughApiKey, $key);
+
+        foreach ([$answered, $declined, $done] as $item) {
+            $stored = $this->reload($item);
+            self::assertSame(InboxCloser::OwnerThroughApiKey, $stored->closedBy);
+            self::assertSame([(string) $key->keyId, 'Weekly CI'], [(string) $stored->closedApiKeyId, $stored->closedApiKeyName]);
+        }
+    }
+
+    public function test_a_response_not_made_through_a_key_records_no_key(): void
+    {
+        $key = new ApiKeyActor(Uuid::v7(), 'Weekly CI');
+        $item = $this->question($this->em, $this->project, 1);
+
+        $this->answer($item, '0', '', InboxCloser::Owner, $key);
+
+        $stored = $this->reload($item);
+        self::assertSame(InboxCloser::Owner, $stored->closedBy);
+        self::assertNull($stored->closedApiKeyId);
+        self::assertNull($stored->closedApiKeyName);
     }
 
     public function test_a_page_response_is_closed_by_the_owner(): void
@@ -245,7 +278,7 @@ final class InboxResponseHandlersTest extends KernelTestCase
     {
         $item = $this->question($this->em, $this->project, 1);
 
-        $this->decline($item, 'No.', throughAgent: true);
+        $this->decline($item, 'No.', closedBy: InboxCloser::OwnerThroughAgent);
         $stored = $this->reload($item);
         self::assertSame([InboxItemState::Declined, InboxCloser::OwnerThroughAgent, null], [$stored->state, $stored->closedBy, $stored->closeCause]);
 
@@ -259,7 +292,7 @@ final class InboxResponseHandlersTest extends KernelTestCase
         $agent = $this->todo($this->em, $this->project, 2);
 
         $this->markDone($page);
-        $this->markDone($agent, throughAgent: true);
+        $this->markDone($agent, closedBy: InboxCloser::OwnerThroughAgent);
 
         self::assertSame([InboxCloser::Owner, null], [$this->reload($page)->closedBy, $this->reload($page)->closeCause]);
         self::assertSame([InboxCloser::OwnerThroughAgent, null], [$this->reload($agent)->closedBy, $this->reload($agent)->closeCause]);
@@ -281,30 +314,30 @@ final class InboxResponseHandlersTest extends KernelTestCase
     {
         $item = $this->question($this->em, $this->project, 1);
 
-        $this->refusal(fn () => $this->answer($item, '9', '', throughAgent: true));
+        $this->refusal(fn () => $this->answer($item, '9', '', closedBy: InboxCloser::OwnerThroughAgent));
 
         self::assertNull($this->reload($item)->closedBy);
     }
 
-    private function answer(InboxItem $item, string $selected, string $text, bool $throughAgent = false): void
+    private function answer(InboxItem $item, string $selected, string $text, InboxCloser $closedBy = InboxCloser::Owner, ?ApiKeyActor $apiKey = null): void
     {
         $handler = self::getContainer()->get(AnswerInboxItemHandler::class);
         self::assertInstanceOf(AnswerInboxItemHandler::class, $handler);
-        $handler(new AnswerInboxItemCommand($item, $selected, $text, $throughAgent));
+        $handler(new AnswerInboxItemCommand($item, $selected, $text, $closedBy, $apiKey));
     }
 
-    private function markDone(InboxItem $item, bool $throughAgent = false): void
+    private function markDone(InboxItem $item, InboxCloser $closedBy = InboxCloser::Owner, ?ApiKeyActor $apiKey = null): void
     {
         $handler = self::getContainer()->get(MarkInboxItemDoneHandler::class);
         self::assertInstanceOf(MarkInboxItemDoneHandler::class, $handler);
-        $handler(new MarkInboxItemDoneCommand($item, $throughAgent));
+        $handler(new MarkInboxItemDoneCommand($item, $closedBy, apiKey: $apiKey));
     }
 
-    private function decline(InboxItem $item, string $note, bool $throughAgent = false): void
+    private function decline(InboxItem $item, string $note, InboxCloser $closedBy = InboxCloser::Owner, ?ApiKeyActor $apiKey = null): void
     {
         $handler = self::getContainer()->get(DeclineInboxItemHandler::class);
         self::assertInstanceOf(DeclineInboxItemHandler::class, $handler);
-        $handler(new DeclineInboxItemCommand($item, $note, $throughAgent));
+        $handler(new DeclineInboxItemCommand($item, $note, $closedBy, $apiKey));
     }
 
     /**

@@ -24,6 +24,7 @@ use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\LockMode;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Query\Expr\Join;
+use Doctrine\ORM\QueryBuilder;
 use Doctrine\ORM\Tools\Pagination\Paginator;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Bridge\Doctrine\Types\UuidType;
@@ -135,11 +136,52 @@ class InboxItemRepository extends ServiceEntityRepository
         int $perPage,
     ): Paginator {
         $qb = $this->createQueryBuilder('i')
-            ->andWhere('i.project = :project')
-            ->setParameter('project', $project)
             ->orderBy('i.number', 'DESC')
             ->setFirstResult(($page - 1) * $perPage)
             ->setMaxResults($perPage);
+        $this->narrow($qb, $project, $state, $askId, $sessionId, $cardId, $documentId);
+
+        return new Paginator($qb->getQuery(), fetchJoinCollection: false);
+    }
+
+    /**
+     * The rows that follow a position in the walk of the project's items, newest number first. A query
+     * narrows the walk to the items it matches and keeps the order of the numbers.
+     *
+     * @return list<InboxItem>
+     */
+    public function findAfterNumber(
+        Project $project,
+        ?InboxItemState $state,
+        ?Uuid $askId,
+        ?Uuid $sessionId,
+        ?Uuid $cardId,
+        ?Uuid $documentId,
+        ?string $query,
+        ?int $before,
+        int $limit,
+    ): array {
+        $qb = $this->createQueryBuilder('i')
+            ->orderBy('i.number', 'DESC')
+            ->setMaxResults($limit);
+        $this->narrow($qb, $project, $state, $askId, $sessionId, $cardId, $documentId);
+
+        if (null !== $before) {
+            $qb->andWhere('i.number < :before')->setParameter('before', $before);
+        }
+        if (null !== $query) {
+            $qb->andWhere(InboxSearchPredicate::match($qb, 'i', $this->searchLanguagesOf($project), $query));
+        }
+
+        /** @var list<InboxItem> $items */
+        $items = $qb->getQuery()->getResult();
+
+        return $items;
+    }
+
+    private function narrow(QueryBuilder $qb, Project $project, ?InboxItemState $state, ?Uuid $askId, ?Uuid $sessionId, ?Uuid $cardId, ?Uuid $documentId): void
+    {
+        $qb->andWhere('i.project = :project')->setParameter('project', $project);
 
         if (null !== $state) {
             $qb->andWhere('i.state = :state')->setParameter('state', $state);
@@ -160,8 +202,6 @@ class InboxItemRepository extends ServiceEntityRepository
             $qb->andWhere(\sprintf('EXISTS (SELECT ld.id FROM %s ld JOIN ld.document d WHERE ld.item = i AND d.id = :documentId)', InboxItemDocument::class))
                 ->setParameter('documentId', $documentId, UuidType::NAME);
         }
-
-        return new Paginator($qb->getQuery(), fetchJoinCollection: false);
     }
 
     /**
@@ -555,6 +595,8 @@ class InboxItemRepository extends ServiceEntityRepository
             ->set('i.closeCause', ':closeCause')
             ->set('i.note', ':note')
             ->set('i.closedAt', ':closedAt')
+            ->set('i.closedApiKeyId', ':closedApiKeyId')
+            ->set('i.closedApiKeyName', ':closedApiKeyName')
             ->set('i.updatedAt', ':updatedAt')
             ->andWhere('i.id = :id')
             ->setParameter('state', $item->state->value)
@@ -563,6 +605,8 @@ class InboxItemRepository extends ServiceEntityRepository
             ->setParameter('closeCause', $item->closeCause?->value)
             ->setParameter('note', $item->note)
             ->setParameter('closedAt', $item->closedAt, Types::DATETIME_IMMUTABLE)
+            ->setParameter('closedApiKeyId', $item->closedApiKeyId, UuidType::NAME)
+            ->setParameter('closedApiKeyName', $item->closedApiKeyName)
             ->setParameter('updatedAt', $item->updatedAt, Types::DATETIME_IMMUTABLE)
             ->setParameter('id', $item->id, UuidType::NAME)
             ->getQuery()
