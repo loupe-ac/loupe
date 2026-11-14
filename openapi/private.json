@@ -15080,7 +15080,8 @@
                             "start",
                             "stop",
                             "busy",
-                            "idle"
+                            "idle",
+                            "tick"
                         ]
                     },
                     "lastRunAt": {
