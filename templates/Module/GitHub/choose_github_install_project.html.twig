@@ -12,7 +12,8 @@
 {{ form_start(form, {'attr': {'class': 'lp-form', 'novalidate': 'novalidate'}}) }}
     {{ form_errors(form) }}
     {% if hasProjects %}
-        <div class="flex flex-col gap-2">
+        <fieldset class="flex flex-col gap-2 border-0 m-0 p-0">
+            <legend class="mb-2 font-semibold">{{ 'github.install_project.legend'|trans }}</legend>
             {% for radio in form.project %}
                 {% set option = options[radio.vars.value] ?? null %}
                 {% if option is null %}
@@ -36,7 +37,7 @@
                 {% endif %}
             {% endfor %}
             <twig:Ds:FieldErrors :fieldView="form.project" />
-        </div>
+        </fieldset>
     {% else %}
         {% do form.project.setRendered %}
         <twig:Ds:FormField :fieldView="form.name" :hintText="'github.install_project.name_hint'|trans" data-install-name-only />

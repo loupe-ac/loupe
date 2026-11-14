@@ -59,7 +59,10 @@ class ChooseGitHubInstallProjectController extends AppController
             return $this->redirectToRoute('app_projects');
         }
 
-        $data = new ChooseInstallProjectRequest(name: mb_substr($choice->accountLogin, 0, Project::MAX_NAME_LENGTH));
+        $data = new ChooseInstallProjectRequest(
+            project: array_key_first($choice->optionsById()) ?? ChooseInstallProjectRequest::NEW_PROJECT,
+            name: mb_substr($choice->accountLogin, 0, Project::MAX_NAME_LENGTH),
+        );
         $form = $this->createForm(ChooseInstallProjectFormType::class, $data, [
             'project_ids' => [...array_keys($choice->optionsById()), ChooseInstallProjectRequest::NEW_PROJECT],
         ])->handleRequest($request);

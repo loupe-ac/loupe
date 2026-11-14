@@ -50,4 +50,12 @@ final class ChoiceComponentTest extends KernelTestCase
         self::assertCount(1, $row);
         self::assertCount(0, $this->render('<twig:Ds:Choice as="div"><input type="radio"></twig:Ds:Choice>')->filter('label'));
     }
+
+    public function test_the_control_sizing_rules_leave_a_text_field_alone(): void
+    {
+        $css = (string) file_get_contents(\dirname(__DIR__, 3).'/assets/styles/components/choice.css');
+
+        self::assertDoesNotMatchRegularExpression('/\.lp-choice(--top)? input\s*\{/', $css);
+        self::assertStringContainsString(".lp-choice input:is([type='checkbox'], [type='radio'])", $css);
+    }
 }

@@ -305,6 +305,7 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         self::assertCount(0, $crawler->filter('input[type="radio"]'), 'With no project, only the name form shows.');
         self::assertCount(1, $crawler->filter('[data-install-name-only]'));
         self::assertCount(0, $crawler->filter('[data-install-new-project]'));
+        self::assertCount(0, $crawler->filter('fieldset legend'));
         self::assertSame('Create project and continue', trim($crawler->filter('button[type="submit"]')->text()));
         self::assertStringContainsString('You can rename it later in Project settings.', $crawler->text());
     }
@@ -359,6 +360,10 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         self::assertStringContainsString('focus->select-on-input#select', (string) $newRow->filter('input[name$="[name]"]')->attr('data-action'));
         self::assertStringContainsString('input->select-on-input#select', (string) $newRow->filter('input[name$="[name]"]')->attr('data-action'));
         self::assertCount(1, $crawler->filter('input[name$="[name]"]'));
+        self::assertSame((string) $project->id, $crawler->filter('input[type="radio"][checked]')->attr('value'), 'The first owned project starts selected.');
+        self::assertCount(1, $crawler->filter('input[type="radio"][checked]'));
+        self::assertSame('Which project gets the repositories of acme? You pick the repositories next.', trim($crawler->filter('[data-testid="github-install-project"] p')->text()));
+        self::assertSame('Your projects', trim($crawler->filter('fieldset legend')->text()));
         self::assertSame('Continue', trim($crawler->filter('button[type="submit"]')->text()));
     }
 

@@ -10049,7 +10049,8 @@ workflow:
             <trans-unit id="github.install_project.page.title"><source>github.install_project.page.title</source><target>Choose a project</target></trans-unit>
             <trans-unit id="github.install_project.heading"><source>github.install_project.heading</source><target>Loupe is installed on %account%</target></trans-unit>
             <trans-unit id="github.install_project.lead_new"><source>github.install_project.lead_new</source><target>Create a project for the repositories of %account%. You pick the repositories next.</target></trans-unit>
-            <trans-unit id="github.install_project.lead_choose"><source>github.install_project.lead_choose</source><target>Pick the project that gets the repositories of %account%, or create a new one. You pick the repositories next.</target></trans-unit>
+            <trans-unit id="github.install_project.lead_choose"><source>github.install_project.lead_choose</source><target>Which project gets the repositories of %account%? You pick the repositories next.</target></trans-unit>
+            <trans-unit id="github.install_project.legend"><source>github.install_project.legend</source><target>Your projects</target></trans-unit>
             <trans-unit id="github.install_project.new_project"><source>github.install_project.new_project</source><target>New project</target></trans-unit>
             <trans-unit id="github.install_project.repository_count"><source>github.install_project.repository_count</source><target>{0}No repositories|{1}1 repository|]1,Inf[%count% repositories</target></trans-unit>
             <trans-unit id="github.install_project.name_hint"><source>github.install_project.name_hint</source><target>You can rename it later in Project settings.</target></trans-unit>
