@@ -24,7 +24,7 @@ vi.mock('@hotwired/turbo', () => ({
 
 const { default: LiveRegionController } =
     await import('../../assets/controllers/live_region_controller.js');
-const { QUIET_MILLISECONDS, RETRY_MILLISECONDS, reset } =
+const { QUIET_MILLISECONDS, RETRY_MILLISECONDS, handleLostAccess, reset } =
     await import('../../assets/lib/live_fetch.js');
 
 let application;
@@ -251,4 +251,20 @@ it('stops after a lost-access answer and shows one band', async () => {
     signal();
     await settle();
     expect(fetch).toHaveBeenCalledTimes(1);
+    expect(subscription().removed).toBe(true);
+});
+
+it('band mode shows no band after the page lost access', async () => {
+    await mount(
+        `${TYPES} data-live-region-mode-value="band"`,
+        '<div data-live-region-target="band" hidden></div>',
+    );
+    handleLostAccess({
+        status: 401,
+        headers: { get: () => 'signed-out' },
+    });
+    expect(subscription().removed).toBe(true);
+    signal();
+    subscription().options.onReconnect();
+    expect(bandElement().hidden).toBe(true);
 });

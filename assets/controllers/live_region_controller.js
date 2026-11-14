@@ -50,18 +50,24 @@ export default class extends Controller {
                 onReconnect: () => this.reconnected(),
             },
         );
-        this.removeLostListener = onLostAccess(() => this.fetcher.stop());
+        this.removeLostListener = onLostAccess(() => this.halt());
     }
 
     disconnect() {
+        this.halt();
+        this.removeLostListener?.();
+        this.removeLostListener = undefined;
+    }
+
+    halt() {
+        this.halted = true;
         this.fetcher?.stop();
         this.unsubscribe?.();
-        this.removeLostListener?.();
         this.unsubscribe = undefined;
     }
 
     changed(change) {
-        if (change.own || !this.matches(change)) {
+        if (this.halted || change.own || !this.matches(change)) {
             return;
         }
         if (this.modeValue === 'band') {
@@ -73,6 +79,9 @@ export default class extends Controller {
     }
 
     reconnected() {
+        if (this.halted) {
+            return;
+        }
         if (this.modeValue === 'band' && !this.urlValue) {
             this.showBand();
 
@@ -92,6 +101,7 @@ export default class extends Controller {
     }
 
     stop() {
+        this.halt();
         this.stoppedValue = true;
         showStoppedBand(this.element);
     }
