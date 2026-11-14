@@ -44,7 +44,10 @@ class CompleteGitHubPickerSignInController extends AppController
             return $this->redirectToRoute('app_projects');
         }
 
-        $tab = $this->redirectToRoute('connect' === $pending->startedFrom ? 'app_project_connect' : 'app_project_repositories_settings', ['id' => $pending->projectId]);
+        $projectId = $pending->projectId;
+        $tab = null === $projectId
+            ? $this->redirectToRoute('app_projects')
+            : $this->redirectToRoute('connect' === $pending->startedFrom ? 'app_project_connect' : 'app_project_repositories_settings', ['id' => $projectId]);
         $state = $request->query->get('state');
         if (!\is_string($state) || !hash_equals($pending->authorizeState, $state)) {
             $this->installSession->clear();
@@ -76,12 +79,20 @@ class CompleteGitHubPickerSignInController extends AppController
             return \array_key_exists('project', $e->errors) ? $this->redirectToRoute('app_projects') : $tab;
         }
 
+        if ($signedIn->choose) {
+            return $this->redirectToRoute('app_github_app_project');
+        }
+
+        if (null === $projectId) {
+            return $tab;
+        }
+
         if (null !== $signedIn->installUrl) {
             return $this->redirect($signedIn->installUrl);
         }
 
         if (null !== $signedIn->connected) {
-            $target = $this->pickerReturn->targetOfProjectId($pending->projectId, $pending->init, [$signedIn->connected], $pending->startedFrom);
+            $target = $this->pickerReturn->targetOfProjectId($projectId, $pending->init, [$signedIn->connected], $pending->startedFrom);
             if (!$target->isHandoff()) {
                 $this->addFlash('success', $this->translator->trans('github.picker.flash.connected', ['%repository%' => $signedIn->connected]));
             }
@@ -94,11 +105,11 @@ class CompleteGitHubPickerSignInController extends AppController
                 '%count%' => \count($signedIn->refused),
                 '%repositories%' => implode(', ', $signedIn->refused),
             ]));
-            $target = $this->pickerReturn->targetOfProjectId($pending->projectId, $pending->init, [], $pending->startedFrom);
+            $target = $this->pickerReturn->targetOfProjectId($projectId, $pending->init, [], $pending->startedFrom);
 
             return $this->redirectToRoute($target->route, $target->parameters);
         }
 
-        return $this->redirectToRoute('app_project_repositories_settings', ['id' => $pending->projectId]);
+        return $this->redirectToRoute('app_project_repositories_settings', ['id' => $projectId]);
     }
 }

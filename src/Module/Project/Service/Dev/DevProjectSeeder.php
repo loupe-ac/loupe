@@ -23,6 +23,8 @@ use Symfony\Component\Uid\Uuid;
 final readonly class DevProjectSeeder implements DevSeederInterface
 {
     public const string KEY = 'projects';
+    public const string INSTALLER_WEB_PROJECT_NAME = 'Acme web';
+    public const string INSTALLER_API_PROJECT_NAME = 'Acme api';
     public const string DEV_PROJECT_NAME = 'Dev Project';
     public const string KEYS_PROJECT_NAME = 'API key records';
     public const string LIFECYCLE_PROJECT_NAME = 'Dev Project (lifecycle)';
@@ -47,6 +49,18 @@ final readonly class DevProjectSeeder implements DevSeederInterface
     public static function devProjectId(): Uuid
     {
         return DevSeedId::of('project/project/dev-project');
+    }
+
+    /** The first of the two projects that the installer account owns, for the project choice after an install from github.com. */
+    public static function installerWebProjectId(): Uuid
+    {
+        return DevSeedId::of('project/project/installer-web');
+    }
+
+    /** The second project of the installer account. */
+    public static function installerApiProjectId(): Uuid
+    {
+        return DevSeedId::of('project/project/installer-api');
     }
 
     /** The project of the keys account, which holds the records that API keys wrote. */
@@ -137,6 +151,10 @@ final readonly class DevProjectSeeder implements DevSeederInterface
         $keysUser = $this->users->find(DevSeedId::of(DevAccountSeeder::KEYS_USER))
             ?? throw new \LogicException('The keys account does not exist.');
         $this->project($context, $keysUser, self::keysProjectId(), self::KEYS_PROJECT_NAME);
+        $installer = $this->users->find(DevSeedId::of(DevAccountSeeder::INSTALLER_USER))
+            ?? throw new \LogicException('The installer account does not exist.');
+        $this->project($context, $installer, self::installerWebProjectId(), self::INSTALLER_WEB_PROJECT_NAME, secondsAgo: 490);
+        $this->project($context, $installer, self::installerApiProjectId(), self::INSTALLER_API_PROJECT_NAME, secondsAgo: 500);
         $this->project($context, $context->devUser(), self::notSetUpProjectId(), self::NOT_SET_UP_PROJECT_NAME, secondsAgo: 400, setUp: false);
         $this->project($context, $context->devUser(), self::setupNoRepositoryProjectId(), self::SETUP_NO_REPOSITORY_PROJECT_NAME, secondsAgo: 410, setUp: false);
         $this->project($context, $context->devUser(), self::setupInitRunningProjectId(), self::SETUP_INIT_RUNNING_PROJECT_NAME, secondsAgo: 420, setUp: false);

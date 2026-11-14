@@ -73,6 +73,10 @@
                 <source>github.form.pick_repositories_form.repositories.invalid</source>
                 <target>This repository choice is not valid.</target>
             </trans-unit>
+            <trans-unit id="github.form.choose_install_project_form.project.invalid">
+                <source>github.form.choose_install_project_form.project.invalid</source>
+                <target>Pick one of your projects, or a new project.</target>
+            </trans-unit>
         </body>
     </file>
 </xliff>

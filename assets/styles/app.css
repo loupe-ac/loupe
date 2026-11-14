@@ -58,6 +58,7 @@
 @import './feature-pages/live-review.css';
 @import './feature-pages/analytics.css';
 @import './components/range-strip.css';
+@import './components/choice.css';
 @plugin "@tailwindcss/typography";
 
 /* Structural admin-* CSS shipped by the admin bundle, compiled in this app's
@@ -3295,19 +3296,6 @@
     }
     .ts-dropdown [data-selectable] .highlight {
         @apply rounded-sm bg-accent-soft;
-    }
-    /* A checkbox or radio with its label, framed like a field so the whole row is the target. */
-    .lp-choice {
-        @apply flex items-center gap-3 min-h-10 rounded-lg border border-line-field bg-field px-3 py-2.5 text-sm text-ink cursor-pointer;
-    }
-    .lp-choice input {
-        @apply w-4 h-4 shrink-0 cursor-pointer accent-accent-ink;
-    }
-    .lp-choice:has(input:checked) {
-        @apply bg-accent-soft border-accent-border;
-    }
-    .lp-choice:has(input:focus-visible) {
-        @apply outline-2 outline-offset-1 outline-accent-ink;
     }
     /* A field with one action beside it, such as a read-only value and its Copy button. */
     .lp-input-with-action {

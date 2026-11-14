@@ -21,6 +21,7 @@ use App\Module\GitHub\Service\GitHubUserApi;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Project\Service\InitInstallWaits;
+use App\Tests\Support\MarkNewProjectsSetUp;
 use App\Tests\Support\NotSetUp;
 use App\Tests\Support\RecordingAuditor;
 use App\Tests\Support\RecordingLogger;
@@ -245,10 +246,276 @@ final class GitHubAppInstallFlowTest extends WebTestCase
 
         $this->client->loginUser($owner);
         $this->startInstall($project);
-        $this->client->request(Request::METHOD_GET, '/github/app/setup?setup_action=request');
+        $this->client->request(Request::METHOD_GET, '/github/app/setup');
 
         self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
         self::assertStringContainsString('GitHub did not return an installation', $this->followedText());
+    }
+
+    public function test_a_request_return_shows_the_waiting_page_and_clears_the_install_in_progress(): void
+    {
+        $owner = $this->signedUpUser('request');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $installState = $this->startInstall($project);
+        $crawler = $this->client->request(Request::METHOD_GET, '/github/app/setup?setup_action=request&state='.$installState);
+
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('Your install request waits for an organization owner', $crawler->filter('h1')->text());
+        self::assertStringContainsString('An owner of the GitHub organization must approve', $crawler->filter('[data-testid="github-install-request-waiting"]')->text());
+        self::assertStringContainsString('open a project and select Add repositories', $crawler->text());
+        self::assertSame('/projects', $crawler->selectLink('Open projects')->attr('href'));
+        $this->client->request(Request::METHOD_GET, '/github/app/setup?installation_id='.self::INSTALLATION_ID.'&state='.$installState);
+        self::assertResponseRedirects('/projects');
+    }
+
+    public function test_a_request_return_with_no_session_shows_the_waiting_page(): void
+    {
+        $this->client->loginUser($this->signedUpUser('requestnone'));
+        $this->client->request(Request::METHOD_GET, '/github/app/setup?setup_action=request');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('[data-testid="github-install-request-waiting"]');
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function githubFirstActions(): iterable
+    {
+        yield 'install' => ['install'];
+        yield 'update' => ['update'];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('githubFirstActions')]
+    public function test_a_return_from_github_signs_in_and_opens_the_project_choice(string $action): void
+    {
+        $owner = $this->signedUpUser('first-'.$action);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->githubFirstSignIn($action);
+
+        self::assertResponseRedirects('/github/app/project');
+        $crawler = $this->client->followRedirect();
+        self::assertResponseIsSuccessful();
+        self::assertSame('Loupe is installed on acme', $crawler->filter('h1')->text());
+        self::assertStringContainsString('Create a project for the repositories of acme. You pick the repositories next.', $crawler->text());
+        self::assertSame('acme', $crawler->filter('input[name$="[name]"]')->attr('value'));
+        self::assertCount(0, $crawler->filter('input[type="radio"]'), 'With no project, only the name form shows.');
+        self::assertCount(1, $crawler->filter('[data-install-name-only]'));
+        self::assertCount(0, $crawler->filter('[data-install-new-project]'));
+        self::assertCount(0, $crawler->filter('fieldset legend'));
+        self::assertSame('Create project and continue', trim($crawler->filter('button[type="submit"]')->text()));
+        self::assertStringContainsString('You can rename it later in Project settings.', $crawler->text());
+    }
+
+    public function test_a_forged_installation_id_opens_no_project_choice(): void
+    {
+        $this->client->loginUser($this->signedUpUser('forged'));
+        $this->githubFirstSignIn('install', 999_999);
+
+        self::assertResponseRedirects('/projects');
+        self::assertStringContainsString('Loupe cannot find this install on your GitHub account.', $this->followedText());
+        $this->client->request(Request::METHOD_GET, '/github/app/project');
+        self::assertResponseRedirects('/projects');
+    }
+
+    public function test_the_project_choice_needs_a_github_sign_in(): void
+    {
+        $this->client->loginUser($this->signedUpUser('nochoice'));
+        $this->client->request(Request::METHOD_GET, '/github/app/project');
+
+        self::assertResponseRedirects('/projects');
+        self::assertStringContainsString('no GitHub sign-in in progress', $this->followedText());
+    }
+
+    public function test_the_project_choice_lists_the_owned_projects_with_their_repository_counts(): void
+    {
+        $this->repositories[self::INSTALLATION_ID] = [['id' => 101, 'full_name' => 'acme/one'], ['id' => 102, 'full_name' => 'acme/two']];
+        $owner = $this->signedUpUser('lists');
+        $stranger = $this->projectOf($this->signedUpUser('listsother'));
+        $project = $this->projectOf($owner);
+        $this->em()->persist(new ForgeRepository($project, 'github', '900', 'acme/held', ForgeRepositorySource::Hook));
+        $this->em()->flush();
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->githubFirstSignIn('install');
+        $crawler = $this->client->followRedirect();
+
+        self::assertResponseIsSuccessful();
+        $values = $crawler->filter('input[type="radio"]')->each(static fn (Crawler $radio): string => (string) $radio->attr('value'));
+        self::assertSame([(string) $project->id, 'new'], $values);
+        self::assertNotContains((string) $stranger->id, $values);
+        self::assertStringContainsString('1 repository', $crawler->filter('.lp-choice')->first()->text());
+        self::assertSame(1, $crawler->filter('label.lp-choice.lp-choice--top[data-install-project]')->count());
+        self::assertSame(2, $crawler->filter('.lp-choice.lp-choice--top')->count());
+        $newRow = $crawler->filter('[data-install-new-project]');
+        self::assertCount(1, $newRow);
+        self::assertStringContainsString('New project', $newRow->text());
+        self::assertCount(1, $newRow->filter('input[type="radio"][value="new"]'), 'The new project radio sits in its own row.');
+        self::assertCount(1, $newRow->filter('input[name$="[name]"]'), 'The name field sits inside the new project row.');
+        self::assertCount(1, $newRow->filter('input[type="radio"][data-select-on-input-target="radio"]'));
+        self::assertStringContainsString('focus->select-on-input#select', (string) $newRow->filter('input[name$="[name]"]')->attr('data-action'));
+        self::assertStringContainsString('input->select-on-input#select', (string) $newRow->filter('input[name$="[name]"]')->attr('data-action'));
+        self::assertCount(1, $crawler->filter('input[name$="[name]"]'));
+        self::assertSame((string) $project->id, $crawler->filter('input[type="radio"][checked]')->attr('value'), 'The first owned project starts selected.');
+        self::assertCount(1, $crawler->filter('input[type="radio"][checked]'));
+        self::assertSame('Which project gets the repositories of acme? You pick the repositories next.', trim($crawler->filter('[data-testid="github-install-project"] p')->text()));
+        self::assertSame('Your projects', trim($crawler->filter('fieldset legend')->text()));
+        self::assertSame('Continue', trim($crawler->filter('button[type="submit"]')->text()));
+    }
+
+    public function test_a_new_project_with_one_free_repository_adds_it_and_lands_on_the_setup_page(): void
+    {
+        $this->repositories[self::INSTALLATION_ID] = [['id' => 101, 'full_name' => 'acme/only']];
+        $owner = $this->signedUpUser('newone');
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->githubFirstSignIn('install');
+        $this->client->followRedirect();
+        MarkNewProjectsSetUp::$enabled = false;
+        try {
+            $this->postChoice('new', 'Acme platform');
+        } finally {
+            MarkNewProjectsSetUp::$enabled = true;
+        }
+
+        $project = $this->projectNamed('Acme platform');
+        self::assertSame(['acme/only'], $this->pathsOf($project));
+        self::assertResponseRedirects('/projects/'.$project->id.'/setup');
+    }
+
+    public function test_a_new_project_with_several_free_repositories_opens_the_picker(): void
+    {
+        $this->repositories[self::INSTALLATION_ID] = [['id' => 101, 'full_name' => 'acme/one'], ['id' => 102, 'full_name' => 'acme/two']];
+        $owner = $this->signedUpUser('newmany');
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->githubFirstSignIn('install');
+        $this->client->followRedirect();
+        $this->postChoice('new', 'Acme many');
+
+        $project = $this->projectNamed('Acme many');
+        self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
+        self::assertSame([], $this->pathsOf($project));
+        $crawler = $this->client->followRedirect();
+        self::assertCount(1, $crawler->filter('#repositories [data-testid="github-picker"]'));
+        $this->submitPicks($project, ['101:acme/one']);
+        self::assertSame(['acme/one'], $this->pathsOf($project));
+    }
+
+    public function test_an_existing_project_takes_the_single_free_repository(): void
+    {
+        $this->repositories[self::INSTALLATION_ID] = [['id' => 101, 'full_name' => 'acme/only']];
+        $owner = $this->signedUpUser('pickone');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->githubFirstSignIn('install');
+        $this->client->followRedirect();
+        $this->postChoice((string) $project->id, 'ignored');
+
+        self::assertResponseRedirects();
+        self::assertStringStartsWith('/projects/'.$project->id.'/', (string) $this->client->getResponse()->headers->get('Location'));
+        self::assertSame(['acme/only'], $this->pathsOf($project));
+        self::assertNull($this->projectNamedOrNull('ignored'), 'An existing project creates no project.');
+    }
+
+    public function test_a_cut_list_never_adds_at_once(): void
+    {
+        $this->repositories[self::INSTALLATION_ID] = array_map(static fn (int $id): array => ['id' => $id, 'full_name' => 'acme/r'.$id], range(1, 1001));
+        $owner = $this->signedUpUser('cut');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->githubFirstSignIn('install');
+        $this->client->followRedirect();
+        $this->postChoice((string) $project->id, '');
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
+        self::assertSame([], $this->pathsOf($project));
+    }
+
+    public function test_a_stranger_project_is_refused_and_nothing_is_added(): void
+    {
+        $this->repositories[self::INSTALLATION_ID] = [['id' => 101, 'full_name' => 'acme/only']];
+        $owner = $this->signedUpUser('mine');
+        $stranger = $this->projectOf($this->signedUpUser('theirs'));
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->githubFirstSignIn('install');
+        $this->client->followRedirect();
+        $this->postChoice((string) $stranger->id, '');
+
+        self::assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY);
+        self::assertSame([], $this->pathsOf($stranger));
+    }
+
+    public function test_a_new_project_needs_a_name(): void
+    {
+        $owner = $this->signedUpUser('noname');
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->githubFirstSignIn('install');
+        $this->client->followRedirect();
+        $this->postChoice('new', '  ');
+
+        self::assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY);
+        self::assertStringContainsString('Give the new project a name.', $this->client->getCrawler()->text());
+    }
+
+    public function test_a_taken_project_name_shows_the_error_on_the_page(): void
+    {
+        $owner = $this->signedUpUser('taken');
+        $project = $this->projectOf($owner);
+        $name = $project->name;
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->githubFirstSignIn('install');
+        $this->client->followRedirect();
+        $this->postChoice('new', $name);
+
+        self::assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY);
+    }
+
+    public function test_the_picker_lists_the_new_account_first(): void
+    {
+        $this->installations = [$this->installation(111, 'aardvark'), $this->installation(self::INSTALLATION_ID, 'zeta')];
+        $this->repositories = [111 => [['id' => 201, 'full_name' => 'aardvark/a'], ['id' => 202, 'full_name' => 'aardvark/b']], self::INSTALLATION_ID => [['id' => 101, 'full_name' => 'zeta/a'], ['id' => 102, 'full_name' => 'zeta/b']]];
+        $owner = $this->signedUpUser('sort');
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->githubFirstSignIn('install');
+        $this->client->followRedirect();
+        $this->postChoice('new', 'Sorted');
+        $crawler = $this->client->followRedirect();
+
+        $accounts = $crawler->filter('[data-testid="github-picker-account"]')->each(static fn (Crawler $account): string => trim($account->text()));
+        self::assertSame(['zeta', 'aardvark'], $accounts);
+    }
+
+    public function test_the_choice_post_needs_a_csrf_token(): void
+    {
+        $owner = $this->signedUpUser('csrf');
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->githubFirstSignIn('install');
+        $this->client->followRedirect();
+        $this->client->request(Request::METHOD_POST, '/github/app/project', ['choose_install_project_form' => ['project' => 'new', 'name' => 'No token']]);
+
+        self::assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY);
+        self::assertNull($this->projectNamedOrNull('No token'));
     }
 
     public function test_the_setup_url_after_an_install_asks_github_to_authorize(): void
@@ -1418,6 +1685,42 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         $this->repositories[self::INSTALLATION_ID] = $repositories;
         $authorize = $this->setUpInstallation($this->queryOf($location)['state']);
         $this->client->request(Request::METHOD_GET, '/github/app/callback?'.http_build_query(['code' => 'the-code', 'state' => $authorize['state']]));
+    }
+
+    /** Follows the install that began on github.com: the setup return, then the callback of the GitHub sign-in. */
+    private function githubFirstSignIn(string $action, int $installationId = self::INSTALLATION_ID): void
+    {
+        $this->client->request(Request::METHOD_GET, '/github/app/setup?'.http_build_query(['installation_id' => $installationId, 'setup_action' => $action]));
+        self::assertResponseRedirects();
+        $location = (string) $this->client->getResponse()->headers->get('Location');
+        self::assertStringStartsWith('https://github.com/login/oauth/authorize?', $location);
+        $authorize = $this->queryOf($location);
+        $this->client->request(Request::METHOD_GET, '/github/app/callback?'.http_build_query(['code' => 'the-code', 'state' => $authorize['state']]));
+    }
+
+    private function postChoice(string $project, string $name): void
+    {
+        $this->client->request(
+            Request::METHOD_POST,
+            '/github/app/project',
+            ['choose_install_project_form' => ['project' => $project, 'name' => $name, '_token' => 'csrf-token']],
+            server: ['HTTP_ORIGIN' => 'http://localhost'],
+        );
+    }
+
+    private function projectNamed(string $name): Project
+    {
+        return $this->projectNamedOrNull($name) ?? throw new \LogicException('No project is named '.$name);
+    }
+
+    private function projectNamedOrNull(string $name): ?Project
+    {
+        $this->em()->clear();
+
+        $projects = static::getContainer()->get(ProjectRepository::class);
+        self::assertInstanceOf(ProjectRepository::class, $projects);
+
+        return $projects->findOneBy(['name' => $name]);
     }
 
     /** @param list<string> $picks `installationId:repositoryId:path`, as the tickboxes post them */

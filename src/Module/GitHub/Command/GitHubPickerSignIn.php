@@ -13,6 +13,8 @@ final readonly class GitHubPickerSignIn
         public array $refused = [],
         /** The install page to open first, because the App does not reach the repository that init asked for. */
         public ?string $installUrl = null,
+        /** True when the sign-in started on github.com and the owner picks the project next. */
+        public bool $choose = false,
     ) {
     }
 }
