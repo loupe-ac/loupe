@@ -17,7 +17,7 @@
 {% set versionParams = {id: project.id, artifactId: artifact.id, number: version.number} %}
 {% set fileParams = (file is not null and not mainFile) ? {file: file.path} : {} %}
 {% set shareLink = pinned ? url('app_project_artifact_version', versionParams|merge(fileParams)) : url('app_project_artifact', {id: project.id, artifactId: artifact.id}|merge(fileParams)) %}
-<div class="lp-artifact-viewer{% if fullScreen %} lp-artifact-viewer--full{% endif %}" data-artifact-viewer>
+<div class="lp-artifact-viewer{% if fullScreen %} lp-artifact-viewer--full{% endif %}" data-artifact-viewer data-live-content>
     <div class="lp-artifact-bar">
         <h1 class="lp-artifact-bar__name" data-artifact-name>{{ artifact.name }}</h1>
         {% if artifact.archivedAt is not null %}<twig:Ds:Tag tone="neutral" data-artifact-archived>{{ 'artifact.list.archived'|trans }}</twig:Ds:Tag>{% endif %}

@@ -91,6 +91,17 @@ final class AnswerLiveRefreshOnLostAccessTest extends WebTestCase
         $this->assertResponseHeaderSame('X-Loupe-Live-Lost', 'project-deleted');
     }
 
+    public function test_a_live_refresh_of_a_project_route_keyed_on_id_gets_410(): void
+    {
+        $client = static::createClient();
+        $client->loginUser($this->user('gone-raw-id@example.com'));
+
+        $client->request(Request::METHOD_GET, '/projects/'.Uuid::v7().'/artifacts/'.Uuid::v7(), server: self::LIVE);
+
+        $this->assertResponseStatusCodeSame(410);
+        $this->assertResponseHeaderSame('X-Loupe-Live-Lost', 'project-deleted');
+    }
+
     private function project(User $owner): Project
     {
         $em = $this->em();

@@ -113,6 +113,7 @@ final class ShowArtifactControllerTest extends WebTestCase
             self::assertCount(0, $crawler->filter('.lp-sidebar'));
             self::assertCount(0, $crawler->filter('.lp-topbar'));
             self::assertCount(0, $crawler->filter('[data-artifact-full-screen]'));
+            self::assertCount(1, $crawler->filter('[data-artifact-viewer][data-live-content]'));
             self::assertSame($number, $crawler->filter('[data-artifact-version-link][aria-current="true"]')->attr('data-artifact-version-link'));
         }
     }
