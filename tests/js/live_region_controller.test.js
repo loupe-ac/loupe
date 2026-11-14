@@ -104,6 +104,22 @@ it('listens for its types and stops on disconnect', async () => {
     expect(subscription().removed).toBe(true);
 });
 
+it('resumes after the same element is removed and reinserted', async () => {
+    await mount(STREAM);
+    const region = document.getElementById('region');
+    const parent = region.parentElement;
+    region.remove();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(live.subscriptions[0].removed).toBe(true);
+    parent.appendChild(region);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(live.subscriptions).toHaveLength(2);
+    answer(200, '<turbo-stream action="update"></turbo-stream>');
+    live.subscriptions[1].handler({ type: 'artifact.changed', own: false });
+    await settle();
+    expect(fetch).toHaveBeenCalledTimes(1);
+});
+
 it('skips a change that this page made', async () => {
     await mount(STREAM);
     signal({ own: true });

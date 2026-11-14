@@ -33,9 +33,10 @@ export default class extends Controller {
     };
 
     connect() {
-        if (this.stoppedValue) {
+        if (this.stoppedValue || this.lost) {
             return;
         }
+        this.halted = false;
         this.fetcher = new LiveFetcher({
             root: this.element,
             load: (signal) => this.load(signal),
@@ -50,7 +51,10 @@ export default class extends Controller {
                 onReconnect: () => this.reconnected(),
             },
         );
-        this.removeLostListener = onLostAccess(() => this.halt());
+        this.removeLostListener = onLostAccess(() => {
+            this.lost = true;
+            this.halt();
+        });
     }
 
     disconnect() {
