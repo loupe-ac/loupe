@@ -5,6 +5,7 @@ import {
     LiveFetcher,
     MAX_WAIT_MILLISECONDS,
     QUIET_MILLISECONDS,
+    READ_TIMEOUT_MILLISECONDS,
     RETRY_MILLISECONDS,
     handleLostAccess,
     hasTypedText,
@@ -233,6 +234,22 @@ describe('LiveFetcher', () => {
         expect(onStopped).toHaveBeenCalledTimes(1);
         await vi.advanceTimersByTimeAsync(60000);
         expect(load).toHaveBeenCalledTimes(4);
+    });
+
+    it('keeps the timeout active while the body is read', async () => {
+        apply.mockImplementation(() => new Promise(() => {}));
+        make().request();
+        await vi.advanceTimersByTimeAsync(QUIET_MILLISECONDS);
+        expect(load).toHaveBeenCalledTimes(1);
+        await vi.advanceTimersByTimeAsync(READ_TIMEOUT_MILLISECONDS);
+        await vi.advanceTimersByTimeAsync(RETRY_MILLISECONDS[0]);
+        expect(load).toHaveBeenCalledTimes(2);
+        for (const wait of RETRY_MILLISECONDS.slice(1)) {
+            await vi.advanceTimersByTimeAsync(READ_TIMEOUT_MILLISECONDS + wait);
+        }
+        await vi.advanceTimersByTimeAsync(READ_TIMEOUT_MILLISECONDS);
+        expect(load).toHaveBeenCalledTimes(4);
+        expect(onStopped).toHaveBeenCalledTimes(1);
     });
 
     it.each([408, 429])('retries a %i', async (status) => {

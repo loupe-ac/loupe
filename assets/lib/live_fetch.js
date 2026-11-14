@@ -245,29 +245,33 @@ export class LiveFetcher {
         try {
             response = await this.load(abort.signal);
         } catch {
+            clearTimeout(timeout);
             if (abort.signal.aborted && !timedOut) {
                 return;
             }
             this.fail(true);
 
             return;
-        } finally {
-            clearTimeout(timeout);
         }
         if (abort.signal.aborted || this.stopped) {
+            clearTimeout(timeout);
+
             return;
         }
         if (handleLostAccess(response)) {
+            clearTimeout(timeout);
             this.stop();
 
             return;
         }
         if (!response.ok) {
+            clearTimeout(timeout);
             this.fail(transient(response.status));
 
             return;
         }
         if (this.hold(this.root)) {
+            clearTimeout(timeout);
             this.timer = setTimeout(
                 () => this.run(),
                 HOLD_RECHECK_MILLISECONDS,
@@ -276,13 +280,22 @@ export class LiveFetcher {
             return;
         }
         try {
-            await this.apply(response);
+            await Promise.race([
+                this.apply(response),
+                new Promise((_, reject) =>
+                    abort.signal.addEventListener('abort', () =>
+                        reject(new Error('aborted')),
+                    ),
+                ),
+            ]);
         } catch {
-            if (!abort.signal.aborted) {
+            if (!abort.signal.aborted || timedOut) {
                 this.fail(true);
             }
 
             return;
+        } finally {
+            clearTimeout(timeout);
         }
         this.inFlight = undefined;
         this.attempt = 0;
