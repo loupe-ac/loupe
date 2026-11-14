@@ -10,7 +10,7 @@
 
 {% block body %}
 {% do mercure_subscribe(dashboard_topic(project)) %}
-<twig:Ds:Workspace class="lp-redesign-secondary lp-redesign-runs" data-dashboard-page data-controller="dashboard-live dashboard-age" data-dashboard-live-url-value="{{ path('app_project_analytics_dashboard_grid', {id: project.id}) }}" data-dashboard-live-stopped-value="{{ 'analytics.dashboard.live.stopped'|trans }}" data-dashboard-age-now-value="{{ view.now.timestamp }}" data-dashboard-age-texts-value="{{ dashboard_age_texts()|json_encode }}">
+<twig:Ds:Workspace class="lp-redesign-secondary lp-redesign-runs" data-dashboard-page data-live-content data-controller="dashboard-live dashboard-age" data-dashboard-live-url-value="{{ path('app_project_analytics_dashboard_grid', {id: project.id}) }}" data-dashboard-live-stopped-value="{{ 'analytics.dashboard.live.stopped'|trans }}" data-dashboard-age-now-value="{{ view.now.timestamp }}" data-dashboard-age-texts-value="{{ dashboard_age_texts()|json_encode }}">
     {% include '@Insights/_header.html.twig' with {} only %}
 
     {% include '@Insights/_tabs.html.twig' with {project: project, active: 'dashboard'} only %}

@@ -376,6 +376,7 @@ final class WorkerRunChangedPublisherTest extends KernelTestCase
         $hubBuilt = false;
         $live = new LiveUpdatePublisher(
             new RequestStack(),
+            new \App\Mercure\LiveUpdateTransactionBuffer(),
             FeatureFlags::service([LiveUpdates::FLAG => false]),
             new Logger('test', [$log]),
             function () use (&$hubBuilt): HubInterface {
@@ -399,6 +400,7 @@ final class WorkerRunChangedPublisherTest extends KernelTestCase
         $other = $this->project($this->em(), $this->owner, 'Run publish failing');
         $live = new LiveUpdatePublisher(
             new RequestStack(),
+            new \App\Mercure\LiveUpdateTransactionBuffer(),
             FeatureFlags::service([LiveUpdates::FLAG => true]),
             new Logger('test', [$log]),
             fn (): HubInterface => new MockHub(

@@ -1,6 +1,7 @@
 import { Controller } from '@hotwired/stimulus';
 import { morphBodyElements, renderStreamMessage } from '@hotwired/turbo';
 import { on } from '../lib/live.js';
+import { handleLostAccess } from '../lib/live_fetch.js';
 
 /** A change often arrives with the next one close behind it. */
 export const DEBOUNCE_MILLISECONDS = 300;
@@ -195,10 +196,13 @@ export default class extends Controller {
             // A read-only GET of two fragments, not a mutation.
             // eslint-disable-next-line no-restricted-syntax
             const response = await fetch(url, {
-                headers: { Accept: accept },
+                headers: { Accept: accept, 'X-Loupe-Live-Refresh': '1' },
                 credentials: 'same-origin',
                 signal: request.signal,
             });
+            if (handleLostAccess(response)) {
+                return null;
+            }
             if (!response.ok) {
                 return request.signal.aborted
                     ? null

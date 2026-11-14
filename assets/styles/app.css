@@ -2637,6 +2637,22 @@
         @apply font-bold text-accent-ink underline;
     }
 
+    /* A row that another actor removed fades out before it goes, and a row that
+       another actor added fades in. The animations are opacity only. */
+    .lp-live-row--leaving {
+        @apply pointer-events-none;
+        animation: lp-live-row-leave 200ms ease-in both;
+    }
+    .lp-live-row--entering {
+        animation: lp-live-row-enter 200ms ease-out both;
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .lp-live-row--leaving,
+        .lp-live-row--entering {
+            animation: none;
+        }
+    }
+
     /* Board controls and column framing for the supported kanban view. The
        toolbar is the page's heading row: title, search, count and actions. */
     /* The toolbar row: the permanent toolbar, then the Backlog button a frame reload redraws. */
@@ -8596,6 +8612,24 @@
     }
     to {
         opacity: 1;
+    }
+}
+
+@keyframes lp-live-row-enter {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes lp-live-row-leave {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
     }
 }
 

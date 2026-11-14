@@ -1,6 +1,7 @@
 import { Controller } from '@hotwired/stimulus';
 import { renderStreamMessage } from '@hotwired/turbo';
 import { on } from '../lib/live.js';
+import { handleLostAccess } from '../lib/live_fetch.js';
 
 export const SIGNAL_TYPE = 'dashboard.graph_changed';
 
@@ -172,9 +173,12 @@ export default class extends Controller {
         try {
             // eslint-disable-next-line no-restricted-syntax -- a read-only GET of the grid that Turbo then applies, not a mutation.
             const response = await fetch(this.urlValue, {
-                headers: { Accept: STREAM_TYPE },
+                headers: { Accept: STREAM_TYPE, 'X-Loupe-Live-Refresh': '1' },
                 credentials: 'same-origin',
             });
+            if (handleLostAccess(response)) {
+                return;
+            }
             status = response.status;
             if (response.ok) {
                 body = await response.text();

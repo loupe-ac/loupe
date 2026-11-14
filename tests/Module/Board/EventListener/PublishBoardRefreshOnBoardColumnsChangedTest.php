@@ -216,6 +216,7 @@ final class PublishBoardRefreshOnBoardColumnsChangedTest extends KernelTestCase
     {
         $publisher = new LiveUpdatePublisher(
             new RequestStack(),
+            new \App\Mercure\LiveUpdateTransactionBuffer(),
             FeatureFlags::service([LiveUpdates::FLAG => false, AgentPush::FLAG => true]),
             new NullLogger(),
             static fn (): HubInterface => throw new \LogicException('the hub must not be built with live updates off'),
@@ -250,6 +251,7 @@ final class PublishBoardRefreshOnBoardColumnsChangedTest extends KernelTestCase
         $log = new TestHandler();
         $publisher = new LiveUpdatePublisher(
             new RequestStack(),
+            new \App\Mercure\LiveUpdateTransactionBuffer(),
             FeatureFlags::service([LiveUpdates::FLAG => true]),
             new Logger('test', [$log]),
             static fn (): HubInterface => new MockHub(

@@ -27,7 +27,7 @@
 {% set earliestVersion = versions|last.versionNumber %}
 {% set finishReviewAvailable = document.status.value in ['draft', 'in-review'] %}
 {% do mercure_subscribe(documentTopic) %}
-<div class="lp-review" data-site-review-quotes="off" data-controller="{{ finishReviewAvailable ? 'sheet ' : '' }}review-draft-live"
+<div class="lp-review" data-site-review-quotes="off" data-live-content data-controller="{{ finishReviewAvailable ? 'sheet ' : '' }}review-draft-live"
      data-review-draft-live-url-value="{{ path('app_document_draft_state', routeParameters) }}" data-review-draft-live-stopped-value="{{ 'review.draft_band.live_stopped'|trans }}"
      {% if finishReviewAvailable %}data-action="review:finish@window->sheet#open"{% endif %}>
 <div class="lp-review-block">

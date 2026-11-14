@@ -1,6 +1,7 @@
 import { Controller } from '@hotwired/stimulus';
 import { renderStreamMessage } from '@hotwired/turbo';
 import { on, status } from '../lib/live.js';
+import { handleLostAccess } from '../lib/live_fetch.js';
 
 /**
  * Shows each card change on the board as it happens. A burst of messages for
@@ -242,11 +243,16 @@ export default class extends Controller {
             // A read of the board's card digests, with no form to submit.
             // eslint-disable-next-line no-restricted-syntax
             const response = await fetch(this.manifestValue, {
-                headers: { Accept: 'application/json' },
+                headers: {
+                    Accept: 'application/json',
+                    'X-Loupe-Live-Refresh': '1',
+                },
                 credentials: 'same-origin',
                 signal: abort.signal,
             });
-            if (response.ok) {
+            if (handleLostAccess(response)) {
+                final = true;
+            } else if (response.ok) {
                 manifest = await response.json();
             } else {
                 final = !this.transient(response.status);
@@ -395,10 +401,13 @@ export default class extends Controller {
             // A read of the board's columns and lanes, with no form to submit.
             // eslint-disable-next-line no-restricted-syntax
             const response = await fetch(this.structureValue, {
-                headers: { Accept: STREAM_TYPE },
+                headers: { Accept: STREAM_TYPE, 'X-Loupe-Live-Refresh': '1' },
                 credentials: 'same-origin',
                 signal: abort.signal,
             });
+            if (handleLostAccess(response)) {
+                return { html: null, final: true };
+            }
             const type = response.headers.get('Content-Type') ?? '';
             if (response.ok && type.startsWith(STREAM_TYPE)) {
                 return { html: await response.text(), final: false };
@@ -705,12 +714,14 @@ export default class extends Controller {
             // A read of one card's placement, with no form to submit.
             // eslint-disable-next-line no-restricted-syntax
             const response = await fetch(this.urlFor(cardId), {
-                headers: { Accept: STREAM_TYPE },
+                headers: { Accept: STREAM_TYPE, 'X-Loupe-Live-Refresh': '1' },
                 credentials: 'same-origin',
                 signal: abort.signal,
             });
             const type = response.headers.get('Content-Type') ?? '';
-            if (response.ok && type.startsWith(STREAM_TYPE)) {
+            if (handleLostAccess(response)) {
+                failure = STALE;
+            } else if (response.ok && type.startsWith(STREAM_TYPE)) {
                 html = await response.text();
             } else if (!response.ok && !this.transient(response.status)) {
                 failure = STALE;

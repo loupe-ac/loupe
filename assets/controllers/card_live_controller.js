@@ -1,6 +1,7 @@
 import { Controller } from '@hotwired/stimulus';
 import { morphElements } from '@hotwired/turbo';
 import { on } from '../lib/live.js';
+import { handleLostAccess } from '../lib/live_fetch.js';
 
 /** A move often arrives with the automation's next change close behind it. */
 export const DEBOUNCE_MILLISECONDS = 300;
@@ -154,6 +155,11 @@ export default class extends Controller {
                 credentials: 'same-origin',
                 signal: request.signal,
             });
+            if (handleLostAccess(response)) {
+                this.settle();
+
+                return;
+            }
             if (!response?.ok) {
                 if (request.signal.aborted) {
                     return;

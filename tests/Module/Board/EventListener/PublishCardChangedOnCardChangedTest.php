@@ -311,6 +311,7 @@ final class PublishCardChangedOnCardChangedTest extends KernelTestCase
     {
         $publisher = new LiveUpdatePublisher(
             new RequestStack(),
+            new \App\Mercure\LiveUpdateTransactionBuffer(),
             FeatureFlags::service([LiveUpdates::FLAG => true]),
             new NullLogger(),
             fn (): HubInterface => $this->hub,

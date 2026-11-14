@@ -1,6 +1,7 @@
 import { Controller } from '@hotwired/stimulus';
 import { morphElements } from '@hotwired/turbo';
 import { on } from '../lib/live.js';
+import { handleLostAccess } from '../lib/live_fetch.js';
 
 /** An agent often asks or withdraws several items in a row. */
 export const DEBOUNCE_MILLISECONDS = 300;
@@ -118,6 +119,9 @@ export default class extends Controller {
                 credentials: 'same-origin',
                 signal: request.signal,
             });
+            if (handleLostAccess(response)) {
+                return;
+            }
             if (!response?.ok) {
                 // A page the reader may no longer see answers the same on every try.
                 if (!request.signal.aborted && response?.status >= 500) {

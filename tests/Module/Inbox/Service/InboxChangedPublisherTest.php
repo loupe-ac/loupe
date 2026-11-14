@@ -300,6 +300,7 @@ final class InboxChangedPublisherTest extends KernelTestCase
         $hubBuilt = false;
         $live = new LiveUpdatePublisher(
             new RequestStack(),
+            new \App\Mercure\LiveUpdateTransactionBuffer(),
             FeatureFlags::service([LiveUpdates::FLAG => false, InboxInstallFlags::FLAG_INBOX_ENABLED => true]),
             new Logger('test', [$log]),
             function () use (&$hubBuilt): HubInterface {
@@ -322,6 +323,7 @@ final class InboxChangedPublisherTest extends KernelTestCase
         $log = new TestHandler();
         $live = new LiveUpdatePublisher(
             new RequestStack(),
+            new \App\Mercure\LiveUpdateTransactionBuffer(),
             FeatureFlags::service([LiveUpdates::FLAG => true]),
             new Logger('test', [$log]),
             static fn (): HubInterface => new MockHub(
