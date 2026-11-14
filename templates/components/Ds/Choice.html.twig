@@ -2,7 +2,12 @@
   Props:  @comment-budget-ignore
     variant   string   top aligns the control with the first line of a row that wraps. Optional.
   The content holds the input and the text of the row.
-  Any other attribute, class included, is passed to the element.
+  Any other attribute, class included, is passed to the element. A null attribute is left out.
 #}
 {%- props variant = null -%}
+{%- for attributeName, attributeValue in attributes.all -%}
+    {%- if attributeValue is null -%}
+        {%- set attributes = attributes.remove(attributeName) -%}
+    {%- endif -%}
+{%- endfor -%}
 <label{{ attributes.defaults({class: 'lp-choice' ~ (variant ? ' lp-choice--' ~ variant : '')}) }}>{% block content %}{% endblock %}</label>

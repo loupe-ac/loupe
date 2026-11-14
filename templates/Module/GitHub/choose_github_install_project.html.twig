@@ -15,13 +15,13 @@
         <div class="flex flex-col gap-2">
             {% for radio in form.project %}
                 {% set option = options[radio.vars.value] ?? null %}
-                <twig:Ds:Choice variant="top">
+                <twig:Ds:Choice variant="top" :data-install-project="option ? option.project.id : null">
                     {{ form_widget(radio) }}
                     {% if option is null %}
                         <span>{{ 'github.install_project.new_project'|trans }}</span>
                     {% else %}
                         <span class="flex flex-col">
-                            <span data-project-name>{{ option.project.name }}</span>
+                            <span>{{ option.project.name }}</span>
                             <span class="text-fg-mute">{{ 'github.install_project.repository_count'|trans({'%count%': option.repositoryCount}) }}</span>
                         </span>
                     {% endif %}

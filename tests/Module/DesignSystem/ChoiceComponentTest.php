@@ -33,4 +33,12 @@ final class ChoiceComponentTest extends KernelTestCase
 
         self::assertStringContainsString('lp-choice--top', (string) $row->attr('class'));
     }
+
+    public function test_a_null_attribute_is_left_out(): void
+    {
+        $row = $this->render('<twig:Ds:Choice :data-x="null" :data-y="\'1\'"><input type="radio"></twig:Ds:Choice>')->filter('label.lp-choice');
+
+        self::assertNull($row->attr('data-x'));
+        self::assertSame('1', $row->attr('data-y'));
+    }
 }
