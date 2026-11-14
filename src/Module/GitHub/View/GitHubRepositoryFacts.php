@@ -12,12 +12,13 @@ final readonly class GitHubRepositoryFacts
     public const string RULES_REFUSED = 'refused';
 
     /**
-     * @param bool    $appInstalled        whether a live installation of the Loupe GitHub App delivers this repository, so Loupe can post checks on it
-     * @param ?string $defaultBranch       null until a read succeeded
-     * @param ?string $rulesRead           ok, plan-limited or refused; null when the app has not read the repository yet
-     * @param ?bool   $reviewRequired      whether the rules of the default branch require an approving review; false when the plan has no rules; null when unknown
-     * @param ?string $mergeApproval       the resolved merge-approval setting, null while unset
-     * @param string  $mergeApprovalSource where that value came from, such as file, stored or unset
+     * @param bool    $appInstalled                whether a live installation of the Loupe GitHub App delivers this repository, so Loupe can post checks on it
+     * @param ?string $defaultBranch               null until a read succeeded
+     * @param ?string $rulesRead                   ok, plan-limited or refused; null when the app has not read the repository yet
+     * @param ?bool   $reviewRequired              whether the rules of the default branch require an approving review; false when the plan has no rules; null when unknown
+     * @param ?string $mergeApproval               the resolved merge-approval setting, null while unset
+     * @param string  $mergeApprovalSource         where that value came from, such as file, stored or unset
+     * @param ?string $mergeApprovalPullRequestUrl the pull request that writes the owner's inbox answer into `.loupe.yaml`, while the setting is not in force on the default branch
      */
     public function __construct(
         public string $path,
@@ -27,6 +28,7 @@ final readonly class GitHubRepositoryFacts
         public ?bool $reviewRequired,
         public ?string $mergeApproval,
         public string $mergeApprovalSource,
+        public ?string $mergeApprovalPullRequestUrl = null,
     ) {
     }
 }

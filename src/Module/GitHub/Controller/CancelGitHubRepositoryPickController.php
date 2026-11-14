@@ -8,6 +8,7 @@ use App\Controller\AppController;
 use App\Module\GitHub\Command\CancelGitHubRepositoryPickCommand;
 use App\Module\GitHub\Command\CancelGitHubRepositoryPickHandler;
 use App\Module\GitHub\Security\GitHubConnectionVoter;
+use App\Module\GitHub\Service\PickerReturn;
 use App\Module\Project\Entity\Project;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -26,6 +27,7 @@ class CancelGitHubRepositoryPickController extends AppController
 {
     public function __construct(
         private readonly CancelGitHubRepositoryPickHandler $cancelPick,
+        private readonly PickerReturn $pickerReturn,
     ) {
     }
 
@@ -33,6 +35,8 @@ class CancelGitHubRepositoryPickController extends AppController
     {
         ($this->cancelPick)(new CancelGitHubRepositoryPickCommand($project));
 
-        return $this->redirectToRoute('app_project_repositories_settings', ['id' => (string) $project->id]);
+        $target = $this->pickerReturn->target($project, null, []);
+
+        return $this->redirectToRoute($target->route, $target->parameters);
     }
 }

@@ -22,4 +22,10 @@ final readonly class OpenInitRuns implements InitRuns
     {
         return $this->workerRuns->hasOpenInit($projectId);
     }
+
+    #[\Override]
+    public function hasClosed(Uuid $projectId): bool
+    {
+        return $this->workerRuns->hasClosedInit($projectId);
+    }
 }

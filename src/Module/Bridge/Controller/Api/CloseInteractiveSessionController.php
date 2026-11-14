@@ -12,6 +12,7 @@ use App\Module\Bridge\Command\CloseInteractiveSessionCommand;
 use App\Module\Bridge\Command\CloseInteractiveSessionHandler;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Uid\Uuid;
 
@@ -20,7 +21,8 @@ use Symfony\Component\Uid\Uuid;
  * plugin asks. The firewall admits agent-scoped tokens alone. The route names
  * no project, because one session can work in several, and it carries no
  * feature flag, because a close needs no push and a session started by hand
- * needs no bridge.
+ * needs no bridge. A body of `{"finished": true}` says the work ended well, and
+ * records the init-finished milestone of every init run of the session.
  */
 #[OA\Post(
     operationId: 'closeInteractiveSession',
@@ -31,12 +33,14 @@ use Symfony\Component\Uid\Uuid;
     ],
     responses: [
         new OA\Response(response: 200, description: 'How many runs closed.', content: new OA\JsonContent(ref: '#/components/schemas/SessionClosed')),
+        new OA\Response(response: 400, description: 'Refused: `invalid_json`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
         new OA\Response(response: 401, description: 'Refused: `invalid_credentials`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
         new OA\Response(response: 402, description: 'Refused: `subscription_required`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
         new OA\Response(response: 403, description: 'Refused: `credential_not_allowed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
         new OA\Response(response: 404, description: 'Refused: `route_not_found`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
         new OA\Response(response: 405, description: 'Refused: `method_not_allowed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
-        new OA\Response(response: 422, description: 'Refused: `invalid_session_id`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 415, description: 'Refused: `unsupported_media_type`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+        new OA\Response(response: 422, description: 'Refused: `invalid_session_id`, `invalid_finished`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
         new RateLimitedResponse(),
     ],
 )]
@@ -52,7 +56,7 @@ final class CloseInteractiveSessionController extends AppController
     ) {
     }
 
-    public function __invoke(string $sessionId): JsonResponse
+    public function __invoke(string $sessionId, #[MapRequestPayload] ?CloseInteractiveSessionRequest $payload = null): JsonResponse
     {
         $user = $this->getUser();
         if (!$user instanceof User) {
@@ -63,7 +67,11 @@ final class CloseInteractiveSessionController extends AppController
             throw ApiProblemException::refused(JsonResponse::HTTP_UNPROCESSABLE_ENTITY, 'invalid_session_id', 'The session id is not a valid id.');
         }
 
-        $closed = ($this->closeInteractiveSession)(new CloseInteractiveSessionCommand($user, Uuid::fromString($sessionId)));
+        if (null !== $payload && !$payload->isValid()) {
+            throw ApiProblemException::refused(JsonResponse::HTTP_UNPROCESSABLE_ENTITY, 'invalid_finished', 'The finished field is not a boolean.');
+        }
+
+        $closed = ($this->closeInteractiveSession)(new CloseInteractiveSessionCommand($user, Uuid::fromString($sessionId), $payload?->finished() ?? false));
 
         return new JsonResponse(['closed' => $closed]);
     }

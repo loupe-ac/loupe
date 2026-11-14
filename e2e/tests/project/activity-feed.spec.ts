@@ -1,5 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 import { createTest, suppressWidget } from '../fixtures';
+import { skipProjectSetup } from '../helpers';
 
 const test = createTest({
     email: `e2e-activity-events-${crypto.randomUUID()}@example.com`,
@@ -18,6 +19,7 @@ async function seedProject(page: Page, name: string): Promise<string> {
         .click();
     await page.getByLabel('Project name').fill(name);
     await page.getByRole('button', { name: 'Add project' }).click();
+    await skipProjectSetup(page);
     await expect(page.locator('.lp-sidebar__switcher-name')).toHaveText(
         name,
         NAVIGATION,

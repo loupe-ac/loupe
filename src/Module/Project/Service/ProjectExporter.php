@@ -6,12 +6,14 @@ namespace App\Module\Project\Service;
 
 use App\Module\Account\Entity\User;
 use App\Module\Account\Export\UserDataExporterInterface;
+use App\Module\Project\Repository\ProjectMilestoneRepository;
 use App\Module\Project\Repository\ProjectRepository;
 
 final readonly class ProjectExporter implements UserDataExporterInterface
 {
     public function __construct(
         private ProjectRepository $projects,
+        private ProjectMilestoneRepository $projectMilestones,
     ) {
     }
 
@@ -24,6 +26,14 @@ final readonly class ProjectExporter implements UserDataExporterInterface
     #[\Override]
     public function export(User $user): iterable
     {
+        $milestones = [];
+        foreach ($this->projectMilestones->findOfOwner($user) as $milestone) {
+            $milestones[(string) $milestone->project->id][] = [
+                'key' => $milestone->key,
+                'reachedAt' => $milestone->reachedAt->format(\DateTimeInterface::ATOM),
+            ];
+        }
+
         foreach ($this->projects->findByOwner($user) as $project) {
             yield [
                 'id' => (string) $project->id,
@@ -37,6 +47,8 @@ final readonly class ProjectExporter implements UserDataExporterInterface
                 'readinessGuideHiddenAt' => $project->readinessGuideHiddenAt?->format(\DateTimeInterface::ATOM),
                 'agentFirstSeenAt' => $project->agentFirstSeenAt?->format(\DateTimeInterface::ATOM),
                 'agentGitHubLogin' => $project->agentGitHubLogin,
+                'setUp' => $project->setUp,
+                'milestones' => $milestones[(string) $project->id] ?? [],
             ];
         }
     }

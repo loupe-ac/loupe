@@ -5,7 +5,7 @@
  */
 
 import { expect, type Locator, type Page } from '@playwright/test';
-import { submitRedirectingForm } from '../helpers';
+import { skipProjectSetup, submitRedirectingForm } from '../helpers';
 import {
     hubStubbedTest as base,
     suppressToolbar,
@@ -73,6 +73,7 @@ const test = base.extend<{ boardUrl: string }>({
                 page.getByRole('button', { name: 'Add project', exact: true }),
                 '/projects?page=1',
             );
+            await skipProjectSetup(page);
             await expect(page.locator('[data-workshop]')).toBeVisible({
                 timeout: 30_000,
             });

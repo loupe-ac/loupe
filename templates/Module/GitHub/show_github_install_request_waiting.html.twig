@@ -1,0 +1,17 @@
+{% extends '@Account/auth_base.html.twig' %}
+
+{% block title %}{{ 'github.install_request.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% block auth_body %}
+<div class="lp-consent" data-testid="github-install-request-waiting">
+    <div class="auth-icon-badge">
+        <twig:ux:icon name="lucide:clock" class="lp-icon lp-icon--lg" aria-hidden="true" />
+    </div>
+    <div>
+        <h1 class="lp-consent__title">{{ 'github.install_request.heading'|trans }}</h1>
+        <p class="lp-consent__lead">{{ 'github.install_request.lead'|trans }}</p>
+        <p class="lp-consent__footnote">{{ 'github.install_request.hint'|trans }}</p>
+    </div>
+    <twig:Ds:Button variant="ghost" href="{{ path('app_projects') }}">{{ 'github.install_request.open_projects'|trans }}</twig:Ds:Button>
+</div>
+{% endblock %}

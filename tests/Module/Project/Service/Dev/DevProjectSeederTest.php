@@ -11,8 +11,10 @@ use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Project\Service\Dev\DevProjectSeeder;
 use App\Tests\DevSeed\SeedContextFactory;
+use App\Tests\Support\MarkNewProjectsSetUp;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Uid\Uuid;
 
 final class DevProjectSeederTest extends KernelTestCase
 {
@@ -43,7 +45,43 @@ final class DevProjectSeederTest extends KernelTestCase
         $this->runSeeder($owner);
         $this->runSeeder($owner);
 
-        self::assertCount(2, $this->projects()->findBy(['owner' => $owner]));
+        self::assertCount(11, $this->projects()->findBy(['owner' => $owner]));
+    }
+
+    public function test_every_seeded_project_is_set_up_except_the_one_made_for_it(): void
+    {
+        $owner = $this->owner();
+        MarkNewProjectsSetUp::$enabled = false;
+        try {
+            $this->runSeeder($owner);
+        } finally {
+            MarkNewProjectsSetUp::$enabled = true;
+        }
+
+        $notSetUp = $this->projects()->find(DevProjectSeeder::notSetUpProjectId());
+        self::assertInstanceOf(Project::class, $notSetUp);
+        self::assertSame(DevProjectSeeder::NOT_SET_UP_PROJECT_NAME, $notSetUp->name);
+        self::assertFalse($notSetUp->setUp);
+        self::assertTrue($this->projects()->find(DevProjectSeeder::devProjectId())?->setUp);
+        self::assertTrue($this->projects()->find(DevProjectSeeder::lifecycleProjectId())?->setUp);
+        self::assertTrue($this->projects()->find(DevProjectSeeder::keysProjectId())?->setUp);
+        $expected = array_map(static fn (Uuid $id): string => $id->toRfc4122(), [
+            DevProjectSeeder::notSetUpProjectId(),
+            DevProjectSeeder::setupNoRepositoryProjectId(),
+            DevProjectSeeder::setupInitRunningProjectId(),
+            DevProjectSeeder::setupInitStoppedProjectId(),
+            DevProjectSeeder::setupBridgePendingProjectId(),
+            DevProjectSeeder::setupInitRunningEmptyProjectId(),
+            DevProjectSeeder::setupInitStoppedEmptyProjectId(),
+            DevProjectSeeder::setupBridgePendingEmptyProjectId(),
+        ]);
+        $actual = array_values(array_map(
+            static fn (Project $project): ?string => $project->id?->toRfc4122(),
+            array_filter($this->projects()->findAll(), static fn (Project $project): bool => !$project->setUp && str_starts_with($project->name, 'Dev Project')),
+        ));
+        sort($expected);
+        sort($actual);
+        self::assertSame($expected, $actual);
     }
 
     public function test_it_renames_an_old_dev_project_that_has_another_id(): void

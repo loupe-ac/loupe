@@ -524,6 +524,18 @@ readonly class Catalog
                 viewport: '700x200',
             ),
             new ComponentEntry(
+                name: 'Choice',
+                rootClass: 'lp-choice',
+                template: 'components/Ds/Choice.html.twig',
+                variants: ['top'],
+                states: ['checked', 'focus'],
+                enforced: true,
+                group: 'core',
+                summary: 'A checkbox or radio with its label, framed like a field so the whole row is the target.',
+                element: 'label',
+                viewport: '700x170',
+            ),
+            new ComponentEntry(
                 name: 'RangeStrip',
                 rootClass: 'lp-range-strip',
                 template: 'components/Ds/RangeStrip.html.twig',

@@ -23,9 +23,20 @@ use Symfony\Component\Uid\Uuid;
 final readonly class DevProjectSeeder implements DevSeederInterface
 {
     public const string KEY = 'projects';
+    public const string INSTALLER_WEB_PROJECT_NAME = 'Acme web';
+    public const string INSTALLER_API_PROJECT_NAME = 'Acme api';
     public const string DEV_PROJECT_NAME = 'Dev Project';
     public const string KEYS_PROJECT_NAME = 'API key records';
     public const string LIFECYCLE_PROJECT_NAME = 'Dev Project (lifecycle)';
+    public const string NOT_SET_UP_PROJECT_NAME = 'Dev Project (not set up)';
+    public const string SETUP_NO_REPOSITORY_PROJECT_NAME = 'Dev Project (setup: no repository)';
+    public const string SETUP_INIT_RUNNING_PROJECT_NAME = 'Dev Project (setup: init running)';
+    public const string SETUP_INIT_STOPPED_PROJECT_NAME = 'Dev Project (setup: init stopped)';
+    public const string SETUP_BRIDGE_PENDING_PROJECT_NAME = 'Dev Project (setup: bridge pending)';
+    public const string SETUP_INIT_RUNNING_EMPTY_PROJECT_NAME = 'Dev Project (setup: init running, no repository)';
+    public const string SETUP_INIT_STOPPED_EMPTY_PROJECT_NAME = 'Dev Project (setup: init stopped, no repository)';
+    public const string SETUP_BRIDGE_PENDING_EMPTY_PROJECT_NAME = 'Dev Project (setup: bridge pending, no repository)';
+    public const string SETUP_DONE_PROJECT_NAME = 'Dev Project (setup: done, with repository)';
 
     public function __construct(
         private ProjectRepository $projects,
@@ -40,6 +51,18 @@ final readonly class DevProjectSeeder implements DevSeederInterface
         return DevSeedId::of('project/project/dev-project');
     }
 
+    /** The first of the two projects that the installer account owns, for the project choice after an install from github.com. */
+    public static function installerWebProjectId(): Uuid
+    {
+        return DevSeedId::of('project/project/installer-web');
+    }
+
+    /** The second project of the installer account. */
+    public static function installerApiProjectId(): Uuid
+    {
+        return DevSeedId::of('project/project/installer-api');
+    }
+
     /** The project of the keys account, which holds the records that API keys wrote. */
     public static function keysProjectId(): Uuid
     {
@@ -50,6 +73,60 @@ final readonly class DevProjectSeeder implements DevSeederInterface
     public static function lifecycleProjectId(): Uuid
     {
         return DevSeedId::of('project/project/lifecycle-project');
+    }
+
+    /** The project that has no init run and no bridge yet, so it shows the state of a new project. */
+    public static function notSetUpProjectId(): Uuid
+    {
+        return DevSeedId::of('project/project/not-set-up-project');
+    }
+
+    /** The project that is not set up and has no repository, so its setup page shows the first state. */
+    public static function setupNoRepositoryProjectId(): Uuid
+    {
+        return DevSeedId::of('project/project/setup-no-repository');
+    }
+
+    /** The project that is not set up and has an open init run. */
+    public static function setupInitRunningProjectId(): Uuid
+    {
+        return DevSeedId::of('project/project/setup-init-running');
+    }
+
+    /** The project that is not set up and whose init run closed with no finish. */
+    public static function setupInitStoppedProjectId(): Uuid
+    {
+        return DevSeedId::of('project/project/setup-init-stopped');
+    }
+
+    /** The project that is not set up, finished its init and waits for the bridge. */
+    public static function setupBridgePendingProjectId(): Uuid
+    {
+        return DevSeedId::of('project/project/setup-bridge-pending');
+    }
+
+    /** The twin of the init running project, with no repository, so the page shows no merge line. */
+    public static function setupInitRunningEmptyProjectId(): Uuid
+    {
+        return DevSeedId::of('project/project/setup-init-running-empty');
+    }
+
+    /** The twin of the init stopped project, with no repository. */
+    public static function setupInitStoppedEmptyProjectId(): Uuid
+    {
+        return DevSeedId::of('project/project/setup-init-stopped-empty');
+    }
+
+    /** The twin of the bridge pending project, with no repository. */
+    public static function setupBridgePendingEmptyProjectId(): Uuid
+    {
+        return DevSeedId::of('project/project/setup-bridge-pending-empty');
+    }
+
+    /** The set-up project that holds a repository, so the done page shows a merge line. */
+    public static function setupDoneProjectId(): Uuid
+    {
+        return DevSeedId::of('project/project/setup-done');
     }
 
     #[\Override]
@@ -74,15 +151,29 @@ final readonly class DevProjectSeeder implements DevSeederInterface
         $keysUser = $this->users->find(DevSeedId::of(DevAccountSeeder::KEYS_USER))
             ?? throw new \LogicException('The keys account does not exist.');
         $this->project($context, $keysUser, self::keysProjectId(), self::KEYS_PROJECT_NAME);
+        $installer = $this->users->find(DevSeedId::of(DevAccountSeeder::INSTALLER_USER))
+            ?? throw new \LogicException('The installer account does not exist.');
+        $this->project($context, $installer, self::installerWebProjectId(), self::INSTALLER_WEB_PROJECT_NAME, secondsAgo: 490);
+        $this->project($context, $installer, self::installerApiProjectId(), self::INSTALLER_API_PROJECT_NAME, secondsAgo: 500);
+        $this->project($context, $context->devUser(), self::notSetUpProjectId(), self::NOT_SET_UP_PROJECT_NAME, secondsAgo: 400, setUp: false);
+        $this->project($context, $context->devUser(), self::setupNoRepositoryProjectId(), self::SETUP_NO_REPOSITORY_PROJECT_NAME, secondsAgo: 410, setUp: false);
+        $this->project($context, $context->devUser(), self::setupInitRunningProjectId(), self::SETUP_INIT_RUNNING_PROJECT_NAME, secondsAgo: 420, setUp: false);
+        $this->project($context, $context->devUser(), self::setupInitStoppedProjectId(), self::SETUP_INIT_STOPPED_PROJECT_NAME, secondsAgo: 430, setUp: false);
+        $this->project($context, $context->devUser(), self::setupBridgePendingProjectId(), self::SETUP_BRIDGE_PENDING_PROJECT_NAME, secondsAgo: 440, setUp: false);
+        $this->project($context, $context->devUser(), self::setupInitRunningEmptyProjectId(), self::SETUP_INIT_RUNNING_EMPTY_PROJECT_NAME, secondsAgo: 450, setUp: false);
+        $this->project($context, $context->devUser(), self::setupInitStoppedEmptyProjectId(), self::SETUP_INIT_STOPPED_EMPTY_PROJECT_NAME, secondsAgo: 460, setUp: false);
+        $this->project($context, $context->devUser(), self::setupBridgePendingEmptyProjectId(), self::SETUP_BRIDGE_PENDING_EMPTY_PROJECT_NAME, secondsAgo: 470, setUp: false);
+        $this->project($context, $context->devUser(), self::setupDoneProjectId(), self::SETUP_DONE_PROJECT_NAME, secondsAgo: 480);
     }
 
-    private function project(SeedContext $context, User $owner, Uuid $id, string $name, string $workflowTemplate = 'simple', int $secondsAgo = 0): void
+    private function project(SeedContext $context, User $owner, Uuid $id, string $name, string $workflowTemplate = 'simple', int $secondsAgo = 0, bool $setUp = true): void
     {
         if ($this->projects->find($id) instanceof Project) {
             return;
         }
 
         $project = new Project($owner, $name, createdAt: $context->at($secondsAgo));
+        $project->setUp = $setUp;
 
         $this->renameOldProject($owner, $name);
 

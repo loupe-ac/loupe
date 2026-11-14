@@ -35,7 +35,8 @@ use Symfony\Contracts\Translation\TranslatorInterface;
  * never trusts an event, so a late or repeated trigger changes nothing. The owner's answer keeps the row open
  * until the setting is stated, so the same case opens no second question.
  *
- * While `loupe init` runs on the project, it opens no question and closes none. A repository whose open
+ * A project that is not set up yet opens no question, because `loupe init` asks it in the terminal and `ProjectSetUp`
+ * runs the reconcile once. While `loupe init` runs on the project, it opens no question and closes none. A repository whose open
  * init pull request sets the merge setting is not asked, because the setting counts once that pull request merges.
  */
 final readonly class MergeApprovalQuestionReconciler
@@ -65,7 +66,7 @@ final readonly class MergeApprovalQuestionReconciler
     {
         // A cheap read to skip the forge call. The hold that counts is the one read under the lock.
         $heldBefore = $this->initRuns->isOpen($project->requireId());
-        $answeredByInitPullRequest = $heldBefore || !$this->inbox->isEnabled() ? [] : $this->answeredByInitPullRequest($project);
+        $answeredByInitPullRequest = $heldBefore || !$project->setUp || !$this->inbox->isEnabled() ? [] : $this->answeredByInitPullRequest($project);
 
         $changed = $this->reconcileUnderLock($project, $answeredByInitPullRequest, $heldBefore);
         if (null === $changed) {
@@ -135,7 +136,7 @@ final readonly class MergeApprovalQuestionReconciler
             $this->em->flush();
 
             $created = [];
-            foreach ($held ? [] : $wanted as $repositoryId => $repository) {
+            foreach ($held || !$project->setUp ? [] : $wanted as $repositoryId => $repository) {
                 if (!isset($open[$repositoryId])) {
                     $created[] = $this->open($project, $repository, $now);
                     $changed = true;

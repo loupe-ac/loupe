@@ -1,0 +1,14 @@
+{#
+  Props:  @comment-budget-ignore
+    variant   string   top aligns the control with the first line of a row that wraps. Optional.
+    as        string   label or div. Use div when the row holds its own label, as a row with a text field does. Defaults to label.
+  The content holds the input and the text of the row.
+  Any other attribute, class included, is passed to the element. A null attribute is left out.
+#}
+{%- props variant = null, as = 'label' -%}
+{%- for attributeName, attributeValue in attributes.all -%}
+    {%- if attributeValue is null -%}
+        {%- set attributes = attributes.remove(attributeName) -%}
+    {%- endif -%}
+{%- endfor -%}
+<{{ as }}{{ attributes.defaults({class: 'lp-choice' ~ (variant ? ' lp-choice--' ~ variant : ''), 'data-ds-choice': ''}) }}>{% block content %}{% endblock %}</{{ as }}>

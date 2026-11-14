@@ -5,14 +5,21 @@ namespace App\Module\Account\EventListener;
 use App\Module\Account\Entity\User;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\HttpFoundation\RedirectResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
+use Symfony\Component\Security\Http\Util\TargetPathTrait;
+use Symfony\UX\Turbo\TurboBundle;
 
 // Priority 5: run after the security firewall (priority 8) so the token is already populated.
 #[AsEventListener(priority: 5)]
 final readonly class RedirectUnverifiedUserListener
 {
+    use TargetPathTrait;
+
+    private const string FIREWALL = 'main';
+
     // Routes that unverified users may access freely
     private const array ALLOWED_ROUTES = [
         // A liveness probe must answer with its own verdict whoever is asking;
@@ -79,8 +86,29 @@ final readonly class RedirectUnverifiedUserListener
             return;
         }
 
+        $request = $event->getRequest();
+        // The confirmation signs the person in through the form sign-in, which returns to this address.
+        if ($this->isPageLoad($request) && $request->hasSession()) {
+            $this->saveTargetPath($request->getSession(), self::FIREWALL, $request->getUri());
+        }
+
         $event->setResponse(
             new RedirectResponse($this->urlGenerator->generate('app_register_check_email'))
         );
+    }
+
+    private function isPageLoad(Request $request): bool
+    {
+        if (!$request->isMethod(Request::METHOD_GET) || $request->isXmlHttpRequest()) {
+            return false;
+        }
+
+        $path = $request->getPathInfo();
+        if ('/mcp' === $path || str_starts_with($path, '/mcp/') || str_starts_with($path, '/api/') || str_starts_with($path, '/_')) {
+            return false;
+        }
+
+        return !str_contains((string) $request->headers->get('Accept', ''), TurboBundle::STREAM_MEDIA_TYPE)
+            && 'html' === $request->getPreferredFormat();
     }
 }

@@ -18,7 +18,9 @@ use Symfony\Component\Uid\Uuid;
 
 /**
  * Trades the code for the owner's token and keeps it in the picker session.
- * After a fresh install, one free repository is added at once.
+ * After a fresh install, one free repository is added at once. A sign-in that
+ * started on github.com has no project: it keeps the session only when the
+ * owner's own installation list holds the installation that GitHub named.
  */
 final readonly class SignInGitHubPickerHandler
 {
@@ -38,6 +40,10 @@ final readonly class SignInGitHubPickerHandler
     public function __invoke(SignInGitHubPickerCommand $command): GitHubPickerSignIn
     {
         $pending = $command->pending;
+        if (null === $pending->projectId) {
+            return $this->signInForChoice($command);
+        }
+
         $project = Uuid::isValid($pending->projectId) ? $this->projects->find(Uuid::fromString($pending->projectId)) : null;
         if (null === $project || !$this->authorization->isGranted(GitHubConnectionVoter::MANAGE, $project)) {
             throw new DomainErrors(['project' => 'github.app.flash.project_unavailable']);
@@ -89,5 +95,40 @@ final readonly class SignInGitHubPickerHandler
         $added = ($this->addRepositories)(new AddGitHubRepositoriesCommand($project, [new GitHubRepositoryPick($pending->installationId, $repository->id, $repository->fullName)]));
 
         return new GitHubPickerSignIn($added->added[0] ?? null, $added->refused);
+    }
+
+    /** @throws DomainErrors with the session cleared, when GitHub lists no such installation for the owner */
+    private function signInForChoice(SignInGitHubPickerCommand $command): GitHubPickerSignIn
+    {
+        $pending = $command->pending;
+        $hint = $pending->installationId;
+
+        try {
+            $token = $this->gitHubUserApi->exchangeCode($command->code, $pending->codeVerifier ?? throw new \LogicException('A sign-in holds its verifier'), $command->redirectUri)->accessToken;
+            $listed = null === $hint ? [] : $this->gitHubUserApi->installations($token);
+        } catch (GitHubUserApiFailed $e) {
+            $this->logger->warning('github.user_api_failed', [
+                'installationId' => $hint,
+                'reason' => $e->reason,
+                'status' => $e->status,
+            ]);
+            $this->installSession->clear();
+
+            throw new DomainErrors(['installation' => 'github.app.flash.github_unavailable']);
+        }
+
+        if (null === $hint || !array_any($listed, static fn ($installation): bool => $installation->id === $hint)) {
+            $this->logger->info('github.installation_refused', [
+                'installationId' => $hint,
+                'reason' => 'not_listed_for_user',
+            ]);
+            $this->installSession->clear();
+
+            throw new DomainErrors(['installation' => 'github.app.flash.installation_unknown']);
+        }
+
+        $this->installSession->signIn($pending, $token);
+
+        return new GitHubPickerSignIn(null, choose: true);
     }
 }

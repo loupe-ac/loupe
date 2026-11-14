@@ -79,5 +79,5 @@ var closeInteractiveSession = func(ctx context.Context, sessionID string) (int, 
 
 		return 0, err
 	}
-	return apiClient(cfg).CloseInteractiveSession(ctx, sessionID)
+	return apiClient(cfg).CloseInteractiveSession(ctx, sessionID, false)
 }

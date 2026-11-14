@@ -982,6 +982,7 @@ when@dev: &generator
                                                                 - reviewRequired
                                                                 - mergeApproval
                                                                 - mergeApprovalSource
+                                                                - mergeApprovalPullRequestUrl
                                                                 properties:
                                                                     path:
                                                                         type: string
@@ -1014,6 +1015,10 @@ when@dev: &generator
                                                                     mergeApprovalSource:
                                                                         type: string
                                                                         description: Where the value came from, one of file, invalid, stored, default, unset, conflict or template.
+                                                                    mergeApprovalPullRequestUrl:
+                                                                      type: string
+                                                                      nullable: true
+                                                                      description: The pull request that writes the owner's answer to the merge question into .loupe.yaml, or null when the question has no such pull request or the file already holds the setting.
                             ArtifactStored:
                                 type: object
                                 required:

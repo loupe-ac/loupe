@@ -5,6 +5,7 @@
 
 import { expect } from '@playwright/test';
 import { createTest, suppressWidget } from '../fixtures';
+import { skipProjectSetup } from '../helpers';
 
 const test = createTest({
     email: `e2e-card-internal-values-${Date.now()}@example.com`,
@@ -28,6 +29,7 @@ test('the internal values open read-only, and a direct write is refused', async 
     await page
         .getByRole('button', { name: 'Add project', exact: true })
         .click();
+    await skipProjectSetup(page);
     await expect(page.locator('[data-workshop]')).toBeVisible();
     const projectId = new URL(page.url()).pathname.split('/')[2];
 

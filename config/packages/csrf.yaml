@@ -45,6 +45,7 @@ framework:
             - billing-portal
             - wizard-skip
             - wizard-continue
+            - project-setup-skip
             - readiness-guide-hide
             - readiness-discovery-start
             - request-data-export

@@ -25,7 +25,7 @@ var initBridgeID = config.EnsureBridgeID
 // initRunClient is what the hold needs from the Loupe API.
 type initRunClient interface {
 	ReportInteractiveLaunch(ctx context.Context, handle, sessionID string, report api.InteractiveLaunchReport) (bool, error)
-	CloseInteractiveSession(ctx context.Context, sessionID string) (int, error)
+	CloseInteractiveSession(ctx context.Context, sessionID string, finished bool) (int, error)
 }
 
 // initRun is the interactive run that tells Loupe that `loupe init` works on a
@@ -86,7 +86,7 @@ func startInitRun(ctx context.Context, out io.Writer, client initRunClient, proj
 		if launched {
 			// The server may have opened the run and lost the response.
 			closeCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			_, _ = client.CloseInteractiveSession(closeCtx, r.sessionID)
+			_, _ = client.CloseInteractiveSession(closeCtx, r.sessionID, false)
 			cancel()
 		}
 		fmt.Fprintln(out, "This Loupe server cannot hold the onboarding inbox items. They may appear while init runs.")
@@ -216,7 +216,7 @@ func (r *initRun) renew() {
 
 // exitOn closes the run and ends the process the way the signal would have.
 func (r *initRun) exitOn(sig os.Signal) {
-	r.closeRun()
+	r.closeRun(false)
 	initTerminate(sig)
 }
 
@@ -255,10 +255,19 @@ func (r *initRun) Close() {
 	if r == nil {
 		return
 	}
-	r.closeRun()
+	r.closeRun(false)
 }
 
-func (r *initRun) closeRun() {
+// Finish ends the run on the server and marks the init as finished. Call it
+// only when init returns with no error.
+func (r *initRun) Finish() {
+	if r == nil {
+		return
+	}
+	r.closeRun(true)
+}
+
+func (r *initRun) closeRun(finished bool) {
 	r.mu.Lock()
 	if r.finished {
 		r.mu.Unlock()
@@ -279,5 +288,5 @@ func (r *initRun) closeRun() {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	_, _ = r.client.CloseInteractiveSession(ctx, r.sessionID)
+	_, _ = r.client.CloseInteractiveSession(ctx, r.sessionID, finished)
 }

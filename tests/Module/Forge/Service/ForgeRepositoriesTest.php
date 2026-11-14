@@ -7,6 +7,8 @@ namespace App\Tests\Module\Forge\Service;
 use App\Module\Account\Entity\User;
 use App\Module\Forge\Entity\ForgeRepository;
 use App\Module\Forge\Entity\ForgeRepositorySource;
+use App\Module\Forge\Event\ForgeRepositoryJoined;
+use App\Module\Forge\Event\ForgeRepositoryLeft;
 use App\Module\Forge\Repository\ForgeRepositoryCheckRepository;
 use App\Module\Forge\Repository\ForgeRepositoryRepository;
 use App\Module\Forge\Service\ForgeClaim;
@@ -14,6 +16,7 @@ use App\Module\Forge\Service\ForgeClaimOutcome;
 use App\Module\Forge\Service\ForgeRepositories;
 use App\Module\Forge\Service\RepositoryHoldSummaries;
 use App\Module\Project\Entity\Project;
+use App\Tests\Support\DispatchedEvents;
 use App\Tests\Support\RecordingLogger;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -54,6 +57,32 @@ final class ForgeRepositoriesTest extends KernelTestCase
         self::assertSame(ForgeRepositorySource::Hook, $row->source);
         self::assertNull($row->sourceRef);
         self::assertNull($row->lastAcceptedAt);
+    }
+
+    public function test_a_first_claim_announces_the_join_once_and_a_repeat_announces_nothing(): void
+    {
+        $project = $this->project('joined-event');
+        $joined = DispatchedEvents::of(self::getContainer(), ForgeRepositoryJoined::class);
+
+        $this->hook($project, '1031', 'acme/widgets');
+        $this->hook($project, '1031', 'acme/widgets');
+
+        self::assertCount(1, $joined->events());
+        self::assertTrue($project->requireId()->equals($joined->events()[0]->projectId));
+        self::assertSame([0], $joined->transactionDepths());
+    }
+
+    public function test_a_release_announces_the_leave_and_a_release_of_nothing_announces_nothing(): void
+    {
+        $project = $this->project('left-event');
+        $this->hook($project, '1032', 'acme/widgets');
+        $left = DispatchedEvents::of(self::getContainer(), ForgeRepositoryLeft::class);
+
+        $this->repositories->release($project, 'github', '1032');
+        $this->repositories->release($project, 'github', '1032');
+
+        self::assertCount(1, $left->events());
+        self::assertTrue($project->requireId()->equals($left->events()[0]->projectId));
     }
 
     public function test_a_second_claim_by_the_same_project_is_already_owned(): void
@@ -323,7 +352,7 @@ final class ForgeRepositoriesTest extends KernelTestCase
 
     private function withLogger(RecordingLogger $logger): ForgeRepositories
     {
-        return new ForgeRepositories($this->forgeRepositoryRepository(), $this->em, $logger, $this->summaries(), $this->checkRepository());
+        return new ForgeRepositories($this->forgeRepositoryRepository(), $this->em, $logger, $this->summaries(), $this->checkRepository(), new \Symfony\Component\EventDispatcher\EventDispatcher());
     }
 
     private function checkRepository(): ForgeRepositoryCheckRepository

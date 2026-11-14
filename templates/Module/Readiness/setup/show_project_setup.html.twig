@@ -1,0 +1,15 @@
+{% extends '@Account/auth_base.html.twig' %}
+
+{% block title %}{{ 'readiness.setup.page.title'|trans({'%project%': setup.project.name}) }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% block auth_body %}
+{% do mercure_subscribe(board_topic(setup.project)) %}
+{% include '_flash_messages.html.twig' with {flashes: app.flashes(['success', 'error', 'warning', 'info'])} only %}
+<div class="lp-live-frame"
+     data-controller="worker-run-refresh"
+     data-worker-run-refresh-url-value="{{ path('app_project_setup_list', {id: setup.project.id}) }}"
+     data-worker-run-refresh-project-value="{{ setup.project.id }}"
+     data-worker-run-refresh-events-value="{{ ['project.setup_changed']|json_encode }}">
+    {% include '@Readiness/setup/_project_setup_card.html.twig' with {setup: setup} only %}
+</div>
+{% endblock %}

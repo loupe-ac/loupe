@@ -1785,6 +1785,27 @@
                         }
                     }
                 ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "oneOf": [
+                                    {
+                                        "$ref": "#/components/schemas/CloseInteractiveSessionRequest"
+                                    },
+                                    {
+                                        "type": "object",
+                                        "nullable": true,
+                                        "enum": [
+                                            null
+                                        ]
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                },
                 "responses": {
                     "200": {
                         "description": "How many runs closed.",
@@ -1792,6 +1813,16 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/SessionClosed"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_json`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
                                 }
                             }
                         }
@@ -1846,8 +1877,18 @@
                             }
                         }
                     },
+                    "415": {
+                        "description": "Refused: `unsupported_media_type`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
                     "422": {
-                        "description": "Refused: `invalid_session_id`.",
+                        "description": "Refused: `invalid_session_id`, `invalid_finished`.",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -13459,7 +13500,8 @@
                                                     "rulesRead",
                                                     "reviewRequired",
                                                     "mergeApproval",
-                                                    "mergeApprovalSource"
+                                                    "mergeApprovalSource",
+                                                    "mergeApprovalPullRequestUrl"
                                                 ],
                                                 "properties": {
                                                     "path": {
@@ -13501,6 +13543,11 @@
                                                     "mergeApprovalSource": {
                                                         "description": "Where the value came from, one of file, invalid, stored, default, unset, conflict or template.",
                                                         "type": "string"
+                                                    },
+                                                    "mergeApprovalPullRequestUrl": {
+                                                        "description": "The pull request that writes the owner's answer to the merge question into .loupe.yaml, or null when the question has no such pull request or the file already holds the setting.",
+                                                        "type": "string",
+                                                        "nullable": true
                                                     }
                                                 },
                                                 "type": "object"
@@ -14963,6 +15010,16 @@
                         "type": "string",
                         "nullable": true,
                         "default": null
+                    }
+                },
+                "type": "object"
+            },
+            "CloseInteractiveSessionRequest": {
+                "properties": {
+                    "finished": {
+                        "description": "True when the work of the session ended well. Any other value answers 422 `invalid_finished`.",
+                        "type": "boolean",
+                        "default": false
                     }
                 },
                 "type": "object"

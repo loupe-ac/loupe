@@ -1,0 +1,23 @@
+/* The choice row: a checkbox or radio with its label, framed like a field so the whole row is the target.
+   `templates/components/Ds/Choice.html.twig` renders it. */
+@layer components {
+    .lp-choice {
+        @apply flex items-center gap-3 min-h-10 rounded-lg border border-line-field bg-field px-3 py-2.5 text-sm text-ink cursor-pointer;
+    }
+    .lp-choice input:is([type='checkbox'], [type='radio']) {
+        @apply w-4 h-4 shrink-0 cursor-pointer accent-accent-ink;
+    }
+    .lp-choice:has(input:checked) {
+        @apply bg-accent-soft border-accent-border;
+    }
+    .lp-choice:has(input:focus-visible) {
+        @apply outline-2 outline-offset-1 outline-accent-ink;
+    }
+    /* Aligns the control with the first line, for a row whose text wraps or holds several lines. */
+    .lp-choice--top {
+        @apply items-start;
+    }
+    .lp-choice--top input:is([type='checkbox'], [type='radio']) {
+        @apply mt-0.5;
+    }
+}

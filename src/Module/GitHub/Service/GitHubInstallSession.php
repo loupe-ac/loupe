@@ -40,10 +40,11 @@ final readonly class GitHubInstallSession
     }
 
     /** Mints the state and the PKCE verifier of a sign-in. */
-    public function beginSignIn(Project $project, ?string $repository, ?string $startedFrom = null, ?string $init = null): PendingGitHubInstall
+    public function beginSignIn(?Project $project, ?string $repository, ?string $startedFrom = null, ?string $init = null, ?int $installationHint = null): PendingGitHubInstall
     {
         $pending = new PendingGitHubInstall(
-            (string) $project->id,
+            null === $project ? null : (string) $project->id,
+            installationId: $installationHint,
             authorizeState: bin2hex(random_bytes(16)),
             codeVerifier: self::newVerifier(),
             repository: $repository,
@@ -58,12 +59,12 @@ final readonly class GitHubInstallSession
     public function pending(): ?PendingGitHubInstall
     {
         $data = $this->requestStack->getSession()->get(self::KEY);
-        if (!\is_array($data) || !\is_string($data['projectId'] ?? null)) {
+        if (!\is_array($data) || !\array_key_exists('projectId', $data)) {
             return null;
         }
 
         return new PendingGitHubInstall(
-            $data['projectId'],
+            \is_string($data['projectId']) ? $data['projectId'] : null,
             \is_string($data['installState'] ?? null) ? $data['installState'] : null,
             \is_int($data['installationId'] ?? null) ? $data['installationId'] : null,
             \is_string($data['authorizeState'] ?? null) ? $data['authorizeState'] : null,
@@ -99,6 +100,7 @@ final readonly class GitHubInstallSession
     {
         $this->store(new PendingGitHubInstall(
             $pending->projectId,
+            installationId: null === $pending->projectId ? $pending->installationId : null,
             repository: $pending->repository,
             encryptedToken: $this->encryptor->encrypt($token),
             signedInAt: $this->clock->now()->getTimestamp(),
@@ -110,18 +112,53 @@ final readonly class GitHubInstallSession
     /**
      * The token of a live sign-in for this project. After 30 minutes, or when
      * the key cannot open it, the token is refused and removed with the rest of
-     * the session, so the owner signs in again.
+     * the session, so the owner signs in again. A session with no project
+     * yields no token here.
      */
     public function token(string $projectId): ?string
     {
         $pending = $this->pending();
-        if (null === $pending || $pending->projectId !== $projectId || null === $pending->encryptedToken || null === $pending->signedInAt) {
+        if (null === $pending || $pending->projectId !== $projectId) {
+            return null;
+        }
+
+        return $this->liveToken($pending);
+    }
+
+    /** The token of a live sign-in that started on github.com and has no project yet. */
+    public function tokenForChoice(): ?string
+    {
+        $pending = $this->pending();
+        if (null === $pending || null !== $pending->projectId) {
+            return null;
+        }
+
+        return $this->liveToken($pending);
+    }
+
+    /** Binds the project the owner chose to a sign-in that had none. The token stays. */
+    public function bindProject(PendingGitHubInstall $pending, Project $project): void
+    {
+        $this->store(new PendingGitHubInstall(
+            (string) $project->id,
+            installationId: $pending->installationId,
+            repository: $pending->repository,
+            encryptedToken: $pending->encryptedToken,
+            signedInAt: $pending->signedInAt,
+            startedFrom: $pending->startedFrom,
+            init: $pending->init,
+        ));
+    }
+
+    private function liveToken(PendingGitHubInstall $pending): ?string
+    {
+        if (null === $pending->encryptedToken || null === $pending->signedInAt) {
             return null;
         }
 
         if ($this->clock->now()->getTimestamp() - $pending->signedInAt >= self::TOKEN_LIFETIME_SECONDS) {
             $this->clear();
-            $this->logger->info('github.picker_token_expired', ['projectId' => $projectId]);
+            $this->logger->info('github.picker_token_expired', ['projectId' => $pending->projectId]);
 
             return null;
         }
@@ -130,7 +167,7 @@ final readonly class GitHubInstallSession
             return $this->encryptor->decrypt($pending->encryptedToken)->plain;
         } catch (\RuntimeException) {
             $this->clear();
-            $this->logger->warning('github.picker_token_unreadable', ['projectId' => $projectId]);
+            $this->logger->warning('github.picker_token_unreadable', ['projectId' => $pending->projectId]);
 
             return null;
         }

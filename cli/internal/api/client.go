@@ -74,6 +74,9 @@ type GitHubRepository struct {
 	// MergeApproval is "agent" or "person". nil means no source sets it.
 	MergeApproval       *string `json:"mergeApproval"`
 	MergeApprovalSource string  `json:"mergeApprovalSource"`
+	// MergeApprovalPullRequestURL is the pull request that writes the answer
+	// the owner gave in the inbox into .loupe.yaml. nil means there is none.
+	MergeApprovalPullRequestURL *string `json:"mergeApprovalPullRequestUrl"`
 }
 
 // PackagesIn returns the skill packages a worker of the site needs, from the

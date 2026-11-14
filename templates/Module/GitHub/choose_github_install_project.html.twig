@@ -1,0 +1,49 @@
+{% extends '@Account/auth_base.html.twig' %}
+
+{% block title %}{{ 'github.install_project.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% block auth_body %}
+{% set hasProjects = options is not empty %}
+<div class="flex flex-col gap-1.5" data-testid="github-install-project">
+    <h1 class="auth-heading">{{ 'github.install_project.heading'|trans({'%account%': choice.accountLogin}) }}</h1>
+    <p class="auth-subheading">{{ (hasProjects ? 'github.install_project.lead_choose' : 'github.install_project.lead_new')|trans({'%account%': choice.accountLogin}) }}</p>
+</div>
+
+{{ form_start(form, {'attr': {'class': 'lp-form', 'novalidate': 'novalidate'}}) }}
+    {{ form_errors(form) }}
+    {% if hasProjects %}
+        <fieldset class="flex flex-col gap-2 border-0 m-0 p-0">
+            <legend class="mb-2 font-semibold">{{ 'github.install_project.legend'|trans }}</legend>
+            {% for radio in form.project %}
+                {% set option = options[radio.vars.value] ?? null %}
+                {% if option is null %}
+                    <twig:Ds:Choice as="div" variant="top" data-install-new-project data-controller="select-on-input">
+                        {{ form_widget(radio, {attr: {'aria-label': 'github.install_project.new_project'|trans, 'data-select-on-input-target': 'radio'}}) }}
+                        <div class="flex grow flex-col gap-1.5">
+                            {{ form_label(form.name, 'github.install_project.new_project'|trans, {label_attr: {class: ds_label_class()}}) }}
+                            {{ form_widget(form.name, {attr: {class: ds_input_class(), 'data-action': 'focus->select-on-input#select input->select-on-input#select'}}) }}
+                            <twig:Ds:Hint>{{ 'github.install_project.name_hint'|trans }}</twig:Ds:Hint>
+                            <twig:Ds:FieldErrors :fieldView="form.name" />
+                        </div>
+                    </twig:Ds:Choice>
+                {% else %}
+                    <twig:Ds:Choice variant="top" :data-install-project="option.project.id">
+                        {{ form_widget(radio) }}
+                        <span class="flex flex-col">
+                            <span>{{ option.project.name }}</span>
+                            <span class="text-fg-mute">{{ 'github.install_project.repository_count'|trans({'%count%': option.repositoryCount}) }}</span>
+                        </span>
+                    </twig:Ds:Choice>
+                {% endif %}
+            {% endfor %}
+            <twig:Ds:FieldErrors :fieldView="form.project" />
+        </fieldset>
+    {% else %}
+        {% do form.project.setRendered %}
+        <twig:Ds:FormField :fieldView="form.name" :hintText="'github.install_project.name_hint'|trans" data-install-name-only />
+    {% endif %}
+    <twig:Ds:FormActions>
+        <twig:Ds:Button variant="primary" type="submit">{{ (hasProjects ? 'github.install_project.submit_choose' : 'github.install_project.submit_new')|trans }}</twig:Ds:Button>
+    </twig:Ds:FormActions>
+{{ form_end(form) }}
+{% endblock %}

@@ -1199,6 +1199,8 @@ from the stored repository check, so the route makes no call to GitHub.
   when unknown.
 - `mergeApproval` and `mergeApprovalSource`: the resolved `merge-approval`
   setting and where it came from. The value is `null` while no source sets it.
+- `mergeApprovalPullRequestUrl`: the pull request that writes the answer from the
+  inbox into `.loupe.yaml`, or `null`. It is `null` once the file holds the setting.
 
 An app that sends no `github` object reads as unknown, and `loupe init` then
 asks no merge question.

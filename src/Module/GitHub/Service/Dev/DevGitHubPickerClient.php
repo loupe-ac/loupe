@@ -25,6 +25,9 @@ final readonly class DevGitHubPickerClient implements HttpClientInterface
     public const string TOKEN_LISTING = 'dev-picker-listing';
     public const string TOKEN_NONE = 'dev-picker-none';
 
+    /** The installation of the acme account, which the listing token lists first. */
+    public const int LISTED_INSTALLATION = 4242;
+
     public const int FREE_REPOSITORY = 9101;
     public const int HELD_REPOSITORY = 9102;
     public const int OTHER_PROJECT_REPOSITORY = 9103;

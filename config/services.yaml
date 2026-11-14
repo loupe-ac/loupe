@@ -195,6 +195,9 @@ when@test:
         App\Tests\Support\HideDebugErrorPage:
             autoconfigure: true
 
+        App\Tests\Support\MarkNewProjectsSetUp:
+            autoconfigure: true
+
         # In the CLI runtime mode the default renderer dumps the exception, and
         # that dump ignores the listener above. Render the visitor page in
         # every mode, so a test never depends on which mode its process has.

@@ -22,12 +22,30 @@ func TestCloseInteractiveSessionPostsToTheSessionPath(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	n, err := New(server.URL, "tok", server.Client()).CloseInteractiveSession(context.Background(), "a/b")
+	n, err := New(server.URL, "tok", server.Client()).CloseInteractiveSession(context.Background(), "a/b", false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if n != 2 || gotMethod != http.MethodPost || gotPath != "/api/v1/bridge/interactive-sessions/a%2Fb/close" || gotAuth != "Bearer tok" || len(gotBody) != 0 {
 		t.Fatalf("n=%d method=%s path=%s auth=%s body=%q", n, gotMethod, gotPath, gotAuth, gotBody)
+	}
+}
+
+func TestCloseInteractiveSessionSendsFinishedTrue(t *testing.T) {
+	var gotBody map[string]any
+	var gotType string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotType = r.Header.Get("Content-Type")
+		_ = json.NewDecoder(r.Body).Decode(&gotBody)
+		fmt.Fprint(w, `{"closed":1}`)
+	}))
+	t.Cleanup(server.Close)
+
+	if _, err := New(server.URL, "tok", server.Client()).CloseInteractiveSession(context.Background(), "s", true); err != nil {
+		t.Fatal(err)
+	}
+	if gotBody["finished"] != true || gotType != "application/json" {
+		t.Fatalf("body = %v, content type = %q", gotBody, gotType)
 	}
 }
 
@@ -37,7 +55,7 @@ func TestCloseInteractiveSessionReportsARefusal(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	_, err := New(server.URL, "t", server.Client()).CloseInteractiveSession(context.Background(), "s")
+	_, err := New(server.URL, "t", server.Client()).CloseInteractiveSession(context.Background(), "s", false)
 	if err == nil || !strings.Contains(err.Error(), "403") {
 		t.Fatalf("err = %v", err)
 	}

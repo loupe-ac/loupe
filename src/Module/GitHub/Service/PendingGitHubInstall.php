@@ -5,14 +5,16 @@ declare(strict_types=1);
 namespace App\Module\GitHub\Service;
 
 /**
- * The picker session of one owner and one project. It first holds the state of
- * a trip to GitHub, either an App install or a sign-in. After the sign-in it
- * holds the user token, encrypted, with the time of the sign-in.
+ * The picker session of one owner. It first holds the state of a trip to GitHub,
+ * either an App install or a sign-in. After the sign-in it holds the user token,
+ * encrypted, with the time of the sign-in. A sign-in that started on github.com
+ * has no project until the owner picks one, and its installation id is a hint
+ * that the owner's own installation list must confirm.
  */
 final readonly class PendingGitHubInstall
 {
     public function __construct(
-        public string $projectId,
+        public ?string $projectId,
         /** Set while an App install is in progress, and only then. */
         public ?string $installState = null,
         public ?int $installationId = null,

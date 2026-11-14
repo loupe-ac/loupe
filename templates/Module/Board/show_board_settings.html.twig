@@ -73,10 +73,10 @@
                             {% include '@Board/_board_column_tone_field.html.twig' with {field: configureForm.tone} only %}
                             {% for field in [configureForm.terminal] %}
                             <twig:Ds:FormField>
-                                <label class="lp-choice">
+                                <twig:Ds:Choice>
                                     {{ form_widget(field) }}
                                     {{ field.vars.label|trans }}
-                                </label>
+                                </twig:Ds:Choice>
                                 <twig:Ds:FieldErrors :fieldView="field" :data-field-errors="field.vars.name" />
                             </twig:Ds:FormField>
                             {% endfor %}

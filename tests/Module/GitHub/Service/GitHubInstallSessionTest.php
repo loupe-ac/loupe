@@ -130,6 +130,48 @@ final class GitHubInstallSessionTest extends TestCase
         self::assertNull($this->installSession->pending());
     }
 
+    public function test_a_sign_in_with_no_project_keeps_the_installation_hint_and_refuses_token(): void
+    {
+        $pending = $this->installSession->beginSignIn(null, null, installationHint: 4242);
+        $this->installSession->signIn($pending, self::TOKEN);
+
+        $signedIn = $this->installSession->pending();
+        self::assertNotNull($signedIn);
+        self::assertNull($signedIn->projectId);
+        self::assertSame(4242, $signedIn->installationId);
+        self::assertNull($this->installSession->token($this->projectId()), 'token() refuses a session with no project.');
+        self::assertSame(self::TOKEN, $this->installSession->tokenForChoice());
+    }
+
+    public function test_the_choice_token_expires_like_the_project_token(): void
+    {
+        $this->installSession->signIn($this->installSession->beginSignIn(null, null, installationHint: 4242), self::TOKEN);
+        $this->clock->modify('+'.GitHubInstallSession::TOKEN_LIFETIME_SECONDS.' seconds');
+
+        self::assertNull($this->installSession->tokenForChoice());
+        self::assertNull($this->installSession->pending());
+    }
+
+    public function test_binding_a_project_keeps_the_token_and_the_hint_and_ends_the_choice_token(): void
+    {
+        $pending = $this->installSession->beginSignIn(null, null, installationHint: 4242);
+        $this->installSession->signIn($pending, self::TOKEN);
+        $signedIn = $this->installSession->pending();
+        self::assertNotNull($signedIn);
+        $this->installSession->bindProject($signedIn, $this->project);
+
+        self::assertSame(self::TOKEN, $this->installSession->token($this->projectId()));
+        self::assertSame(4242, $this->installSession->pending()?->installationId);
+        self::assertNull($this->installSession->tokenForChoice());
+    }
+
+    public function test_a_sign_in_that_names_a_project_drops_the_installation_hint(): void
+    {
+        $this->signIn();
+
+        self::assertNull($this->installSession->pending()?->installationId);
+    }
+
     private function signIn(): void
     {
         $this->installSession->signIn($this->installSession->beginSignIn($this->project, null), self::TOKEN);

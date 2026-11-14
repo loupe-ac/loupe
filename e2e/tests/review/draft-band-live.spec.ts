@@ -8,6 +8,7 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { signedInPage } from '../fixtures';
+import { skipProjectSetup } from '../helpers';
 import { coverageScaled } from '../timeouts';
 import { seedDraftDesign, type DraftDesign } from './draft-design';
 
@@ -37,6 +38,8 @@ async function setup(
     // Its own browser context: the hub cookie is one per browser, and the author's pages renew it with their own topics.
     const watcher = await signedInPage(browser, email, PASSWORD);
     await watcher.goto(draft.reviewUrl);
+    // The skip lives in the browser session, so this new context meets the setup page too.
+    await skipProjectSetup(watcher);
     await expect(watcher.locator('#draft-band')).toContainText('round 2 of 6');
     // The hub keeps no history, so a change made before this connects is lost.
     await expect(

@@ -19,6 +19,7 @@ type fakeHoldClient struct {
 	mu      sync.Mutex
 	reports []api.InteractiveLaunchReport
 	closes  []string
+	closeFinished []bool
 	failPut error
 }
 
@@ -30,10 +31,11 @@ func (f *fakeHoldClient) ReportInteractiveLaunch(_ context.Context, handle, sess
 	return true, f.failPut
 }
 
-func (f *fakeHoldClient) CloseInteractiveSession(_ context.Context, session string) (int, error) {
+func (f *fakeHoldClient) CloseInteractiveSession(_ context.Context, session string, finished bool) (int, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.closes = append(f.closes, session)
+	f.closeFinished = append(f.closeFinished, finished)
 
 	return 1, nil
 }
@@ -68,6 +70,31 @@ func TestInitRunOpensWithTheBridgeIDAndClosesOnce(t *testing.T) {
 	}
 	if out.Len() != 0 {
 		t.Errorf("a held run prints %q", out.String())
+	}
+}
+
+func TestInitRunFinishMarksTheCloseFinished(t *testing.T) {
+	useBridgeID(t, holdBridgeID, nil)
+	f := &fakeHoldClient{}
+
+	run := startInitRun(context.Background(), &bytes.Buffer{}, f, "proj-1")
+	run.Finish()
+	run.Close()
+
+	if len(f.closes) != 1 || len(f.closeFinished) != 1 || !f.closeFinished[0] {
+		t.Errorf("closes = %v, finished = %v, want one finished close", f.closes, f.closeFinished)
+	}
+}
+
+func TestInitRunCloseDoesNotMarkTheCloseFinished(t *testing.T) {
+	useBridgeID(t, holdBridgeID, nil)
+	f := &fakeHoldClient{}
+
+	run := startInitRun(context.Background(), &bytes.Buffer{}, f, "proj-1")
+	run.Close()
+
+	if len(f.closeFinished) != 1 || f.closeFinished[0] {
+		t.Errorf("finished = %v, want one close that is not finished", f.closeFinished)
 	}
 }
 
@@ -358,6 +385,38 @@ func TestInitHoldsTheInboxFromTheProjectStepToTheEnd(t *testing.T) {
 	}
 }
 
+func TestInitMarksTheCloseFinishedOnASuccessfulExit(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	inRepo(t, w.server.URL)
+
+	out, err := runInitCmd(t, "1\nn\n", "--no-mcp")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+
+	w.launchMu.Lock()
+	defer w.launchMu.Unlock()
+	if len(w.closeBodies) != 1 || w.closeBodies[0] != `{"finished":true}` {
+		t.Errorf("close bodies = %q, want one {\"finished\":true}", w.closeBodies)
+	}
+}
+
+func TestInitSendsNoFinishedWhenItExitsWithAnError(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	inRepo(t, w.server.URL)
+	w.bridgeErr = errors.New("the bridge stopped at start")
+
+	if out, err := runInitCmd(t, "1\nn\n", "--no-mcp"); err == nil {
+		t.Fatalf("init succeeded, want the bridge failure\n%s", out)
+	}
+
+	w.launchMu.Lock()
+	defer w.launchMu.Unlock()
+	if len(w.closeBodies) != 1 || strings.Contains(w.closeBodies[0], "finished") {
+		t.Errorf("close bodies = %q, want one close with no finished", w.closeBodies)
+	}
+}
+
 func TestInitGoesOnWhenTheServerRefusesTheLaunch(t *testing.T) {
 	w := newInitWorld(t, devSite())
 	w.launchStatus = 404
@@ -469,7 +528,7 @@ func (b *blockingHoldClient) ReportInteractiveLaunch(context.Context, string, st
 	return true, nil
 }
 
-func (b *blockingHoldClient) CloseInteractiveSession(context.Context, string) (int, error) {
+func (b *blockingHoldClient) CloseInteractiveSession(context.Context, string, bool) (int, error) {
 	return 0, nil
 }
 
@@ -520,7 +579,7 @@ func (o *orderHoldClient) ReportInteractiveLaunch(_ context.Context, _, _ string
 	return true, nil
 }
 
-func (o *orderHoldClient) CloseInteractiveSession(context.Context, string) (int, error) {
+func (o *orderHoldClient) CloseInteractiveSession(context.Context, string, bool) (int, error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	o.events = append(o.events, "close")

@@ -192,7 +192,7 @@ func newInitCmd() *cobra.Command {
 
 // runInit runs the steps in order. A step that cannot go on returns its
 // error. The bridge is the one step that reports its error after the last.
-func runInit(cmd *cobra.Command, o initOptions) error {
+func runInit(cmd *cobra.Command, o initOptions) (err error) {
 	view := initview.NewWriter(cmd.OutOrStdout(), o.verbose)
 	cmd.SetOut(view)
 	defer view.Finish()
@@ -229,7 +229,14 @@ func runInit(cmd *cobra.Command, o initOptions) error {
 	}
 	client := apiClient(cfg)
 	run := startInitRun(cmd.Context(), cmd.OutOrStdout(), client, site.ID)
-	defer run.Close()
+	defer func() {
+		if err == nil {
+			run.Finish()
+
+			return
+		}
+		run.Close()
+	}()
 	if err := initLink(cmd, dir, site.ID, o); err != nil {
 		return err
 	}
