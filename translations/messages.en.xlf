@@ -7353,6 +7353,14 @@ workflow:
                 <source>board.backlog.live.first_page</source>
                 <target>Show the first page</target>
             </trans-unit>
+            <trans-unit id="board.terminal.live.newer">
+                <source>board.terminal.live.newer</source>
+                <target>{1}One more card finished.|]1,Inf[%count% more cards finished.</target>
+            </trans-unit>
+            <trans-unit id="board.terminal.live.first_page">
+                <source>board.terminal.live.first_page</source>
+                <target>Show the first page</target>
+            </trans-unit>
             <trans-unit id="board.backlog.error.not_in_backlog">
                 <source>board.backlog.error.not_in_backlog</source>
                 <target>A card you chose is no longer in the Backlog. Reload the page and try again.</target>

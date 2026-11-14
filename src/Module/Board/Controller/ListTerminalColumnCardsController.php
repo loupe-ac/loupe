@@ -8,6 +8,7 @@ use App\Controller\AppController;
 use App\Module\Board\Command\ListTerminalColumnCardsCommand;
 use App\Module\Board\Command\ListTerminalColumnCardsHandler;
 use App\Module\Board\Entity\BoardColumn;
+use App\Module\Board\View\LiveCursor;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
@@ -42,6 +43,7 @@ final class ListTerminalColumnCardsController extends AppController
         }
 
         $page = max(1, $request->query->getInt('page', 1));
+        $since = new \DateTimeImmutable();
         $view = ($this->listTerminalColumnCards)(new ListTerminalColumnCardsCommand($column, $page));
 
         $routeParams = ['projectId' => (string) $project->id, 'columnId' => (string) $column->id];
@@ -59,6 +61,7 @@ final class ListTerminalColumnCardsController extends AppController
             'page' => $page,
             'totalPages' => $view->totalPages,
             'pageList' => $view->pageList,
+            'since' => LiveCursor::format($since),
         ]);
     }
 }

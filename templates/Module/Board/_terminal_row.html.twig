@@ -1,0 +1,14 @@
+{#- One row of a terminal column. Props: project (Project), card (Card). -#}
+<div class="lp-done-row" id="terminal-row-{{ card.id }}" data-card-id="{{ card.id }}" data-live-row="{{ card.id }}" data-live-fade>
+    <a class="lp-done-row__title" href="{{ path('app_board_card', {projectId: project.id, cardId: card.id}) }}">{{ card.title|reference_plain }}</a>
+    {% include '@Board/_card_type_tag.html.twig' with {card: card} only %}
+    {% if card.pullRequests|length > 0 %}
+    <span class="lp-board-card__pulls">
+        <twig:ux:icon name="lucide:git-pull-request" class="lp-icon lp-icon--sm" />
+        {{ card.pullRequests|length }}
+    </span>
+    {% endif %}
+    <span class="lp-done-row__when">
+        {% if card.completedAt %}<twig:Ds:RelativeTime :datetime="card.completedAt" />{% else %}{{ 'board.terminal.no_completion'|trans }}{% endif %}
+    </span>
+</div>

@@ -6,6 +6,7 @@ namespace App\Tests\Module\Board\Controller;
 
 use App\Module\Board\Command\ListTerminalColumnCardsHandler;
 use App\Module\Board\Entity\BoardColumn;
+use App\Module\Board\View\LiveCursor;
 use App\Module\Project\Entity\Project;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -159,6 +160,38 @@ final class ListTerminalColumnCardsControllerTest extends WebTestCase
         $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board/done');
 
         self::assertResponseStatusCodeSame(403);
+    }
+
+    public function test_the_first_page_is_a_live_frame_and_a_later_page_reads_its_rows(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+
+        $owner = $this->user($em, 'done-live@example.com');
+        $project = $this->project($em, $owner);
+        for ($index = 0; $index < ListTerminalColumnCardsHandler::PER_PAGE + 1; ++$index) {
+            $card = $this->card($em, $project, 'Finished '.$index, 'done');
+            $card->completedAt = new \DateTimeImmutable(\sprintf('-%d minutes', $index));
+        }
+        $em->flush();
+        $url = $this->historyUrl($project, 'done');
+        $em->clear();
+
+        $client->loginUser($owner);
+        $first = $client->request(Request::METHOD_GET, $url);
+        $region = $first->filter('turbo-frame#terminal-live[data-controller="live-region"]');
+        self::assertCount(1, $region);
+        self::assertSame('frame', $region->attr('data-live-region-mode-value'));
+        self::assertSame('["board.card_changed"]', $region->attr('data-live-region-types-value'));
+        self::assertCount(ListTerminalColumnCardsHandler::PER_PAGE, $region->filter('[data-live-row][data-live-fade]'));
+
+        $later = $client->request(Request::METHOD_GET, $url.'?page=2');
+        $region = $later->filter('div#terminal-live[data-controller="live-region"]');
+        self::assertCount(1, $region);
+        self::assertSame('rows', $region->attr('data-live-region-mode-value'));
+        self::assertSame($url.'/rows?page=2', $region->attr('data-live-region-url-value'));
+        self::assertNotNull(LiveCursor::parse($region->attr('data-live-since')));
+        self::assertCount(1, $region->filter('[data-live-row]'));
     }
 
     private function historyUrl(Project $project, string $slug): string
