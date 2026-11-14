@@ -281,6 +281,7 @@ final class BridgeHeartbeatApiTest extends WebTestCase
             self::hook(['event' => 'stop', 'lastRunAt' => null, 'outcome' => 'never']),
             self::hook(['event' => 'busy', 'lastRunAt' => '2026-09-14T18:00:00+02:00', 'outcome' => 'timeout', 'error' => '  ']),
             self::hook(['event' => 'idle', 'lastRunAt' => '2026-09-14t16:00:00z', 'outcome' => 'failed', 'error' => 'exit 1']),
+            self::hook(['event' => 'tick', 'lastRunAt' => '2026-09-14T16:05:00Z']),
         ]]);
 
         self::assertResponseStatusCodeSame(200);
@@ -289,6 +290,7 @@ final class BridgeHeartbeatApiTest extends WebTestCase
             ['package' => 'github:acme/loupe-hooks', 'ref' => 'v1.2.0', 'event' => 'stop', 'lastRunAt' => null, 'outcome' => 'never', 'error' => null],
             ['package' => 'github:acme/loupe-hooks', 'ref' => 'v1.2.0', 'event' => 'busy', 'lastRunAt' => '2026-09-14T18:00:00+02:00', 'outcome' => 'timeout', 'error' => null],
             ['package' => 'github:acme/loupe-hooks', 'ref' => 'v1.2.0', 'event' => 'idle', 'lastRunAt' => '2026-09-14T16:00:00+00:00', 'outcome' => 'failed', 'error' => 'exit 1'],
+            ['package' => 'github:acme/loupe-hooks', 'ref' => 'v1.2.0', 'event' => 'tick', 'lastRunAt' => '2026-09-14T16:05:00+00:00', 'outcome' => 'ok', 'error' => null],
         ], $this->bridge($owner, $bridgeId)->hooks);
     }
 

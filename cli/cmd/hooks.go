@@ -355,7 +355,7 @@ func newHooksRunCmd(rulesPath *string) *cobra.Command {
 	return &cobra.Command{
 		Use:   "run <owner>/<repo>[/<path>] <event>",
 		Short: "Run one hook of an installed package now",
-		Long: "Runs the hook of the event, start, stop, busy or idle, from this terminal. It " +
+		Long: "Runs the hook of the event, start, stop, busy, idle or tick, from this terminal. It " +
 			"uses the environment and the time limit that the bridge uses, and prints the " +
 			"output of the hook. It exits with status 1 when the hook fails.\n\n" +
 			"On macOS, a hook can cause a permission prompt the first time it runs. A bridge " +

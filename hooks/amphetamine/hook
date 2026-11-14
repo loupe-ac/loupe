@@ -2,7 +2,8 @@
 set -u
 
 quiet="${LOUPE_HOOK_SETTING_QUIET_HOURS-23:00-06:00}"
-away="${LOUPE_HOOK_SETTING_AWAY_MINUTES-30}"
+# bridge holds the last busy or idle the hook got, so tick knows it.
+bridge="${LOUPE_HOOK_STATE_DIR:-.}/bridge"
 
 amph() {
     osascript -e "tell application \"Amphetamine\" to $1"
@@ -28,13 +29,6 @@ if [ -n "$quiet" ]; then
         exit 5
     }
 fi
-case $away in
-    '' | *[!0-9]*)
-        echo "away_minutes must be a whole number, not '$away'" >&2
-        exit 5
-        ;;
-esac
-while [ "${away#0}" != "$away" ] && [ -n "${away#0}" ]; do away=${away#0}; done
 
 stamp=$(date '+%H:%M %s') || exit $?
 epoch=${stamp#* }
@@ -58,21 +52,28 @@ in_quiet_hours() {
     fi
 }
 
-person_away() {
-    [ "$away" -gt 0 ] || return 1
-    idle=$(ioreg -c IOHIDSystem -d 4 | awk '/HIDIdleTime/ { print int($NF / 1000000000); exit }')
-    [ -n "$idle" ] && [ "$idle" -ge $((away * 60)) ]
+# closed_display switches on closed-display mode, so a closed lid keeps the Mac
+# awake, and fails when it stays off.
+closed_display() {
+    amph 'enable closed display mode' >/dev/null || exit $?
+    closed=$(amph 'closed display mode enabled') || exit $?
+    if [ "$closed" != true ]; then
+        echo 'closed-display mode is off' >&2
+        exit 3
+    fi
 }
 
-# The bridge has no work. The session ends in quiet hours or when nobody uses
-# the Mac. Otherwise it becomes a timed session that ends when quiet hours start.
+# The bridge has no work. In quiet hours the session ends. Otherwise the Mac
+# stays awake in a timed session that ends when quiet hours start. With keep,
+# an active session stays as it is.
 release() {
     active=$(amph 'session is active') || exit $?
-    [ "$active" = true ] || return 0
-    if in_quiet_hours || person_away || [ -z "$quiet" ]; then
+    if [ -z "$quiet" ] || in_quiet_hours; then
+        [ "$active" = true ] || return 0
         amph 'end session' >/dev/null || exit $?
         return 0
     fi
+    [ "${1:-}" = keep ] && [ "$active" = true ] && return 0
     # Count by the clock, then correct for a change of UTC offset on the way.
     minute=$((epoch - epoch % 60))
     at=$((minute + (from - now + 1440) % 1440 * 60))
@@ -102,22 +103,43 @@ release() {
     fi
     left=$(((at - epoch) / 60))
     [ "$left" -gt 0 ] || left=1
-    amph "start new session with options {duration:$left, interval:minutes, displaySleepAllowed:true}" >/dev/null || exit $?
+    amph "start new session with options {duration:$left, interval:minutes, displaySleepAllowed:false}" >/dev/null || exit $?
+    closed_display
 }
 
+# The bridge has work. The Mac stays awake with no end, at any hour. With keep,
+# an active session stays as it is.
 hold() {
-    amph 'start new session with options {duration:0, interval:0, displaySleepAllowed:true}' >/dev/null || exit $?
-    amph 'enable closed display mode' >/dev/null || exit $?
-    closed=$(amph 'closed display mode enabled') || exit $?
-    if [ "$closed" != true ]; then
-        echo 'closed-display mode is off' >&2
-        exit 3
+    if [ "${1:-}" = keep ]; then
+        active=$(amph 'session is active') || exit $?
+        [ "$active" = true ] && return 0
     fi
+    amph 'start new session with options {duration:0, interval:0, displaySleepAllowed:false}' >/dev/null || exit $?
+    closed_display
+}
+
+end_session() {
+    active=$(amph 'session is active') || exit $?
+    [ "$active" = true ] || return 0
+    amph 'end session' >/dev/null || exit $?
 }
 
 case "${1:-}" in
-    busy) hold ;;
-    idle | stop | start) release ;;
+    busy)
+        echo busy >"$bridge" || exit $?
+        hold
+        ;;
+    idle | start)
+        echo idle >"$bridge" || exit $?
+        release
+        ;;
+    tick)
+        if [ "$(cat "$bridge" 2>/dev/null)" = busy ]; then hold keep; else release keep; fi
+        ;;
+    stop)
+        echo idle >"$bridge" || exit $?
+        end_session
+        ;;
     *)
         echo "unknown event: ${1:-}" >&2
         exit 2

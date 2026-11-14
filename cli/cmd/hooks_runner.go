@@ -25,7 +25,11 @@ const (
 	hookStop  = "stop"
 	hookBusy  = "busy"
 	hookIdle  = "idle"
+	hookTick  = "tick"
 )
+
+// hookTickInterval is how often the bridge fires tick while it runs.
+const hookTickInterval = 5 * time.Minute
 
 // The outcomes of the last run of a hook.
 const (
@@ -50,6 +54,8 @@ type hookRunner struct {
 	// timeout bounds each run when it is not zero. Zero means the time limit
 	// of the manifest.
 	timeout time.Duration
+	// tick is the time between two tick events.
+	tick time.Duration
 
 	// mu guards the fields below. The router takes it under its own mu, so the
 	// runner never runs a process under mu and never calls the router.
@@ -93,6 +99,7 @@ func newHookRunner(list []hooks.Hook, bridgeID string, log *slog.Logger) *hookRu
 	return &hookRunner{
 		log:      log,
 		bridgeID: bridgeID,
+		tick:     hookTickInterval,
 		hooks:    list,
 		last:     map[hookKey]hookRun{},
 		sent:     map[string]string{},
@@ -101,7 +108,7 @@ func newHookRunner(list []hooks.Hook, bridgeID string, log *slog.Logger) *hookRu
 	}
 }
 
-// start starts the loop and fires start.
+// start starts the loop and the ticker, and fires start.
 func (hr *hookRunner) start() {
 	if hr == nil {
 		return
@@ -111,6 +118,22 @@ func (hr *hookRunner) start() {
 	hr.fireLocked(hookStart)
 	hr.mu.Unlock()
 	go hr.loop()
+	go hr.ticker()
+}
+
+// ticker fires tick on each interval until the loop ends.
+func (hr *hookRunner) ticker() {
+	t := time.NewTicker(hr.tick)
+	defer t.Stop()
+
+	for {
+		select {
+		case <-t.C:
+			hr.fire(hookTick)
+		case <-hr.done:
+			return
+		}
+	}
 }
 
 // fire hands an event to the loop and returns at once. After stop it does
@@ -125,9 +148,14 @@ func (hr *hookRunner) fire(event string) {
 	hr.fireLocked(event)
 }
 
-// fireLocked appends the event and wakes the loop. The caller holds mu.
+// fireLocked appends the event and wakes the loop. A tick is dropped when no
+// hook listens to it or a tick still waits. The caller holds mu.
 func (hr *hookRunner) fireLocked(event string) {
 	if hr.stopped {
+		return
+	}
+	if event == hookTick && (!slices.ContainsFunc(hr.hooks, hasTick) ||
+		slices.ContainsFunc(hr.inbox, func(j hookJob) bool { return j.event == hookTick })) {
 		return
 	}
 	if isStateEvent(event) {
@@ -319,6 +347,12 @@ func (hr *hookRunner) coalesceLocked() {
 	}
 	clear(hr.inbox[len(kept):])
 	hr.inbox = kept
+}
+
+func hasTick(h hooks.Hook) bool {
+	_, ok := h.Events[hookTick]
+
+	return ok
 }
 
 func isStateEvent(event string) bool {

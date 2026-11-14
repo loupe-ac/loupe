@@ -1,11 +1,11 @@
 ---
 title: "Bridge hooks"
-description: "Run a local program when the command-line bridge starts, stops, gets busy or goes idle."
+description: "Run a local program when the command-line bridge starts, stops, gets busy, goes idle, or on a timer."
 ---
 
 A hook package is a directory of a GitHub repository that holds a
 `loupe-hook.yaml` manifest. The [command-line bridge](cli-bridge.md) runs the
-commands of that manifest on four bridge events. A hook can keep a Mac awake
+commands of that manifest on five bridge events. A hook can keep a Mac awake
 while a worker runs, or send a message when the bridge stops.
 
 A hook only observes the bridge. It cannot block, delay or change a worker, and
@@ -20,9 +20,16 @@ line and a row on the Agents page. The bridge keeps running.
 | `stop` | once, as the last step of a shutdown, after every worker has ended |
 | `busy` | when the bridge goes from idle to busy |
 | `idle` | when the bridge goes from busy to idle |
+| `tick` | every 5 minutes while the bridge runs, from `start` until `stop` |
 
 The bridge is busy while a worker runs, or while a request waits in its queue.
 The bridge starts idle.
+
+`tick` lets a hook act on the time of day, such as at the start of a work day.
+It does not tell the hook whether the bridge is busy. A hook that needs that
+state keeps it in its state directory on `busy` and `idle`. At most one `tick`
+waits in the queue, so a slow hook gets no backlog of ticks. A Mac that sleeps
+runs no tick, and the first one comes at most 5 minutes after it wakes.
 
 `stop` also runs when the bridge exits early after `start`, for example when
 `GET /api/v1/bridge/events` fails. A bridge that stops before `start`, such as on a bad
@@ -79,7 +86,7 @@ settings:
 | `name` | required. The name that `install` shows |
 | `os` | optional. The systems the package runs on, as Go names such as `darwin` and `linux`. Empty means any system |
 | `timeout` | optional. The time limit of one run, from 1 to 120 seconds. The default is 30 |
-| `events` | required. Maps `start`, `stop`, `busy` or `idle` to a command. Name at least one event |
+| `events` | required. Maps `start`, `stop`, `busy`, `idle` or `tick` to a command. Name at least one event |
 | `settings` | optional. The values an operator can set, each with a `type`, a `default` and a `description` |
 
 A command is a list. Its first item is a program of the package, and it starts
@@ -96,7 +103,7 @@ bridge, plus these variables, which win over a variable of the same name:
 
 | Variable | Value |
 |---|---|
-| `LOUPE_HOOK_EVENT` | `start`, `stop`, `busy` or `idle` |
+| `LOUPE_HOOK_EVENT` | `start`, `stop`, `busy`, `idle` or `tick` |
 | `LOUPE_HOOK_PACKAGE` | the package, as `owner/repo` or `owner/repo/path` |
 | `LOUPE_BRIDGE_ID` | the id of the bridge |
 | `LOUPE_HOOK_STATE_DIR` | the state directory of the package |
@@ -169,7 +176,7 @@ hooks:
     ref: 4f0c2a1b9d8e7f6a5b4c3d2e1f0a9b8c7d6e5f4a
     sha: 4f0c2a1b9d8e7f6a5b4c3d2e1f0a9b8c7d6e5f4a
     settings:
-      away_minutes: "45"
+      quiet_hours: "22:30-07:00"
 ```
 
 `ref` is the label you typed, and `sha` is the commit the bridge runs. Let the
@@ -203,7 +210,7 @@ logged in, `LOUPE_BRIDGE_ID` is empty.
 
 ## Amphetamine
 
-The Amphetamine package keeps a Mac awake while the bridge is busy. It drives the
+The Amphetamine package keeps a Mac awake for the bridge. It drives the
 Amphetamine app through AppleScript, and it runs on macOS only.
 
 The package is in this repository, and the repository has no tags. Install it
@@ -220,30 +227,31 @@ still name the package that way. The bridge runs it, and logs
 keeps the settings and the state of the package. The `hooks` commands accept
 either name.
 
+The hook keeps the Mac awake all day outside `quiet_hours`, busy or idle. In
+`quiet_hours`, it keeps the Mac awake only while the bridge is busy. Each
+session keeps the display awake and switches on closed-display mode, so a
+closed lid does not sleep the Mac. A Mac with closed-display mode on can still
+sleep with the lid closed once its display sleeps, so the hook keeps the
+display on.
+
 | Event | What the hook does |
 |---|---|
-| `busy` | Starts an Amphetamine session with no end, and switches on closed-display mode. It replaces any active session. The display can still sleep |
-| `idle` | Ends or shortens the active session, as the next table says |
-| `stop` | The same as `idle` |
-| `start` | The same as `idle`, so a session that a crashed bridge left behind ends |
+| `busy` | Starts a session with no end. It replaces any active session |
+| `idle` | Ends the session in `quiet_hours`. Otherwise it replaces the session with a timed one that ends when `quiet_hours` starts |
+| `start` | The same as `idle`, so the Mac stays awake by day from the start, and a session that a crashed bridge left behind ends at night |
+| `tick` | When the bridge is busy, starts a session with no end if none is active. When it is idle, ends the session in `quiet_hours`, or starts a timed one if none is active |
+| `stop` | Ends the session |
 
-At `idle`, the hook acts on any active session, whoever started it:
-
-| When | What the hook does |
-|---|---|
-| The time is inside `quiet_hours` | Ends the session |
-| Nobody used the keyboard or the mouse for `away_minutes` | Ends the session |
-| Neither | Replaces the session with a timed one that ends when `quiet_hours` starts |
-
-A timed session lets the Mac sleep at night even when the bridge fires no more
-events. The next `busy` replaces it with a session that has no end.
+`tick` starts the day: after an idle night, the first tick after the end of
+`quiet_hours` starts the timed session. A timed session lets the Mac sleep at
+night even when the bridge fires no more events. The hook keeps the last
+`busy` or `idle` in its state directory, so `tick` knows which one holds.
 
 ### Settings
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `quiet_hours` | `23:00-06:00` | The hours, as `HH:MM-HH:MM` in local time, when `idle` ends the session. The range can cross midnight. Empty makes every `idle` end the session |
-| `away_minutes` | `30` | The minutes with no keyboard or mouse input after which `idle` ends the session at any hour. `0` turns this off |
+| `quiet_hours` | `23:00-06:00` | The hours, as `HH:MM-HH:MM` in local time, when the Mac stays awake only while the bridge is busy. The range can cross midnight. Empty keeps the Mac awake only while the bridge is busy, at any hour |
 
 ```bash
 loupe bridge hooks set loupe-ac/loupe/hooks/amphetamine quiet_hours=22:30-07:00
@@ -266,23 +274,21 @@ loupe bridge hooks run loupe-ac/loupe/hooks/amphetamine idle
 Amphetamine can also show a warning the first time closed-display mode goes on.
 Dismiss it once.
 
-When the Mac does not support closed-display mode, `busy` fails with exit code
-3 and `closed-display mode is off`. The session stays on, and `idle` ends it as
-usual.
+When the Mac does not support closed-display mode, each event that starts a
+session fails with exit code 3 and `closed-display mode is off`. The session
+stays on, and the hook ends it at night as usual.
 
 
 ### Limits
 
 The hook does not tell your sessions from its own. A session that you start
-while the bridge is busy ends or becomes timed at the next `idle`. The hook
-checks the time and your input only when an event fires. After an `idle` by
-day, the timed session ends at the start of `quiet_hours`, even when you leave
-the Mac earlier.
+while the bridge is busy ends or becomes timed at the next `idle`. By day, a
+session that you end comes back at the next `tick`.
 
 On a night when the clock changes, a `quiet_hours` edge between 01:00 and 03:00
 can put the end of a timed session off by up to an hour. The default window
 has no edge in those hours.
 
 When Amphetamine is not installed, each run that calls it fails and logs
-`hook_failed`. `busy` always calls it. The bridge keeps running, and the Mac can
+`hook_failed`. Every event calls it. The bridge keeps running, and the Mac can
 sleep.

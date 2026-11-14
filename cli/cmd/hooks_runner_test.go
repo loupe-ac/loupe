@@ -81,3 +81,21 @@ func TestANilHookRunnerDoesNothing(t *testing.T) {
 	hr.attach(nil)
 	hr.stop()
 }
+
+// A tick waits at most once in the inbox, so a slow hook gets no backlog of
+// ticks. With no hook that listens to it, a tick waits not at all.
+func TestATickWaitsOnceAndOnlyForAListener(t *testing.T) {
+	hr := newHookRunner([]hooks.Hook{testHook("acme/tool", t.TempDir(), hookTick)}, testBridgeID, newBridgeLogger(&syncBuffer{}))
+	hr.fire(hookTick)
+	hr.fire(hookBusy)
+	hr.fire(hookTick)
+	if got := len(hr.inbox); got != 2 {
+		t.Fatalf("inbox holds %d events, want tick and busy", got)
+	}
+
+	none := newHookRunner([]hooks.Hook{testHook("acme/tool", t.TempDir(), hookBusy)}, testBridgeID, newBridgeLogger(&syncBuffer{}))
+	none.fire(hookTick)
+	if got := len(none.inbox); got != 0 {
+		t.Fatalf("inbox holds %d events, want none", got)
+	}
+}
