@@ -1,5 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 import { createTest, suppressWidget } from '../fixtures';
+import { skipProjectSetup } from '../helpers';
 
 const test = createTest({
     email: `e2e-activity-events-${crypto.randomUUID()}@example.com`,
