@@ -93,7 +93,7 @@ Each row of `hooks` holds these fields:
 |---|---|
 | `package` | required. The package, as `owner/repo` or `owner/repo/path`, at most 300 characters after trimming |
 | `ref` | required. The ref the operator installed, at most 100 characters after trimming |
-| `event` | required. `start`, `stop`, `busy` or `idle` |
+| `event` | required. `start`, `stop`, `busy`, `idle` or `tick` |
 | `lastRunAt` | optional. The time of the last run, as an RFC 3339 date. It is missing for a hook that has not run since the bridge started |
 | `outcome` | required. `ok`, `failed`, `timeout` or `never` |
 | `error` | optional. The end of the output of a failed or timed out run, or the error of a hook that could not start, at most 500 characters after trimming |

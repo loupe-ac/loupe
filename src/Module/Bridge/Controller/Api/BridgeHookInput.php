@@ -15,7 +15,7 @@ final class BridgeHookInput
 
     public const int MAX_ERROR_LENGTH = 500;
 
-    public const array EVENTS = ['start', 'stop', 'busy', 'idle'];
+    public const array EVENTS = ['start', 'stop', 'busy', 'idle', 'tick'];
 
     public const array OUTCOMES = ['ok', 'failed', 'timeout', 'never'];
 
