@@ -303,6 +303,8 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         self::assertStringContainsString('Create a project for the repositories of acme. You pick the repositories next.', $crawler->text());
         self::assertSame('acme', $crawler->filter('input[name$="[name]"]')->attr('value'));
         self::assertCount(0, $crawler->filter('input[type="radio"]'), 'With no project, only the name form shows.');
+        self::assertCount(1, $crawler->filter('[data-install-name-only]'));
+        self::assertCount(0, $crawler->filter('[data-install-new-project]'));
         self::assertSame('Create project and continue', trim($crawler->filter('button[type="submit"]')->text()));
         self::assertStringContainsString('You can rename it later in Project settings.', $crawler->text());
     }
@@ -346,8 +348,14 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         self::assertSame([(string) $project->id, 'new'], $values);
         self::assertNotContains((string) $stranger->id, $values);
         self::assertStringContainsString('1 repository', $crawler->filter('.lp-choice')->first()->text());
-        self::assertSame(2, $crawler->filter('label.lp-choice.lp-choice--top')->count());
-        self::assertStringContainsString('New project', $crawler->filter('label.lp-choice')->last()->text());
+        self::assertSame(1, $crawler->filter('label.lp-choice.lp-choice--top[data-install-project]')->count());
+        self::assertSame(2, $crawler->filter('.lp-choice.lp-choice--top')->count());
+        $newRow = $crawler->filter('[data-install-new-project]');
+        self::assertCount(1, $newRow);
+        self::assertStringContainsString('New project', $newRow->text());
+        self::assertCount(1, $newRow->filter('input[type="radio"][value="new"]'), 'The new project radio sits in its own row.');
+        self::assertCount(1, $newRow->filter('input[name$="[name]"]'), 'The name field sits inside the new project row.');
+        self::assertCount(1, $crawler->filter('input[name$="[name]"]'));
         self::assertSame('Continue', trim($crawler->filter('button[type="submit"]')->text()));
     }
 

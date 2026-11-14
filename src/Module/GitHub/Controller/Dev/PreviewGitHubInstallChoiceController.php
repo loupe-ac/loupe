@@ -12,10 +12,15 @@ use Symfony\Component\DependencyInjection\Attribute\When;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
-/** Signs in to GitHub with a preview token and no project, then shows the project choice. It exists in dev only. */
+/** Signs in to GitHub with a preview token and no project, then shows the project choice. The empty path serves the account with no project, so the same page shows the name-only state. It exists in dev only. */
 #[Route(
     '/dev/github-install-choice',
     name: 'dev_github_install_choice',
+    methods: ['GET'],
+)]
+#[Route(
+    '/dev/github-install-choice/empty',
+    name: 'dev_github_install_choice_empty',
     methods: ['GET'],
 )]
 #[When('dev')]

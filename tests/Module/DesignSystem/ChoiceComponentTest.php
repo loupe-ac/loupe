@@ -24,6 +24,7 @@ final class ChoiceComponentTest extends KernelTestCase
         self::assertCount(1, $row);
         self::assertCount(1, $row->filter('input#c'));
         self::assertNotNull($row->attr('data-x'));
+        self::assertNotNull($row->attr('data-ds-choice'));
         self::assertStringNotContainsString('lp-choice--', (string) $row->attr('class'));
     }
 
@@ -40,5 +41,13 @@ final class ChoiceComponentTest extends KernelTestCase
 
         self::assertNull($row->attr('data-x'));
         self::assertSame('1', $row->attr('data-y'));
+    }
+
+    public function test_the_div_form_draws_the_row_without_a_label(): void
+    {
+        $row = $this->render('<twig:Ds:Choice as="div"><input type="radio"></twig:Ds:Choice>')->filter('div.lp-choice');
+
+        self::assertCount(1, $row);
+        self::assertCount(0, $this->render('<twig:Ds:Choice as="div"><input type="radio"></twig:Ds:Choice>')->filter('label'));
     }
 }
