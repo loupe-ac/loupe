@@ -118,7 +118,7 @@ test('the document review page shows the project-deleted band and hides its cont
     await watcher.context().close();
 });
 
-test('the full-screen artifact page shows the project-deleted band', async ({
+test('both full-screen artifact pages show the project-deleted band and hide the viewer', async ({
     browser,
     request,
 }) => {
@@ -145,17 +145,24 @@ test('the full-screen artifact page shows the project-deleted band', async ({
     expect(stored.status()).toBe(201);
     const { artifactId } = await stored.json();
 
-    const watcher = await openWatcher(
-        browser,
-        email,
-        `/projects/${draft.projectId}/artifacts/${artifactId}/full-screen`,
-    );
-    await expect(watcher.getByText(BAND)).toHaveCount(0);
+    const base = `/projects/${draft.projectId}/artifacts/${artifactId}`;
+    const watchers = [];
+    for (const path of [
+        `${base}/full-screen`,
+        `${base}/versions/1/full-screen`,
+    ]) {
+        const watcher = await openWatcher(browser, email, path);
+        await expect(watcher.locator('[data-live-content]')).toBeVisible();
+        await expect(watcher.getByText(BAND)).toHaveCount(0);
+        watchers.push(watcher);
+    }
 
     await deleteProject(author, draft.projectId);
     await author.context().close();
 
-    await expect(watcher.getByText(BAND)).toBeVisible(LIVE);
-    await expect(watcher.locator('[data-live-content]')).toHaveCount(0);
-    await watcher.context().close();
+    for (const watcher of watchers) {
+        await expect(watcher.getByText(BAND)).toBeVisible(LIVE);
+        await expect(watcher.locator('[data-live-content]')).toBeHidden();
+        await watcher.context().close();
+    }
 });

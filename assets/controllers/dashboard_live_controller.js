@@ -1,7 +1,7 @@
 import { Controller } from '@hotwired/stimulus';
 import { renderStreamMessage } from '@hotwired/turbo';
 import { on } from '../lib/live.js';
-import { handleLostAccess } from '../lib/live_fetch.js';
+import { handleLostAccess, onLostAccess } from '../lib/live_fetch.js';
 
 export const SIGNAL_TYPE = 'dashboard.graph_changed';
 
@@ -42,6 +42,8 @@ export default class extends Controller {
     static values = { url: String, stopped: String };
 
     connect() {
+        // A lost access ends the live part, as a disconnect does.
+        this.removeLostListener = onLostAccess(() => this.disconnect());
         this.sequence = 0;
         this.deadline = null;
         this.staleTiles = new Set();
@@ -56,6 +58,8 @@ export default class extends Controller {
     }
 
     disconnect() {
+        this.removeLostListener?.();
+        this.removeLostListener = undefined;
         document.removeEventListener(
             'turbo:before-stream-render',
             this.onBeforeStream,

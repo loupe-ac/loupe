@@ -1,7 +1,7 @@
 import { Controller } from '@hotwired/stimulus';
 import { renderStreamMessage } from '@hotwired/turbo';
 import { on } from '../lib/live.js';
-import { handleLostAccess } from '../lib/live_fetch.js';
+import { handleLostAccess, onLostAccess } from '../lib/live_fetch.js';
 
 export const SIGNAL_TYPE = 'forge.repository_check_changed';
 
@@ -40,6 +40,8 @@ export default class extends Controller {
     static values = { stopped: String };
 
     connect() {
+        // A lost access ends the live part, as a disconnect does.
+        this.removeLostListener = onLostAccess(() => this.disconnect());
         this.pending = new Set();
         this.retries = new Map();
         this.held = new Set();
@@ -63,6 +65,8 @@ export default class extends Controller {
     }
 
     disconnect() {
+        this.removeLostListener?.();
+        this.removeLostListener = undefined;
         clearTimeout(this.timeout);
         clearTimeout(this.checkingTimeout);
         this.retries.forEach((timer) => clearTimeout(timer));

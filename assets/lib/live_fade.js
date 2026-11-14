@@ -84,14 +84,17 @@ function onBeforeFrameMorph(event) {
         const copy = row.cloneNode(true);
         delete copy.dataset.liveRow;
         copy.classList.add(LEAVING);
-        if (placeCopy(row, copy, freshRows)) {
-            setTimeout(() => copy.remove(), FADE_MILLISECONDS);
-        }
+        placeCopy(row, copy, freshRows, current, fresh);
+        setTimeout(() => copy.remove(), FADE_MILLISECONDS);
     });
 }
 
-/** Puts the copy after the nearest earlier row that stays, or before the nearest later one. */
-function placeCopy(row, copy, freshRows) {
+/**
+ * Puts the copy after the nearest earlier row that stays, or before the nearest
+ * later one. With no row left, it goes into the twin of the parent of the row,
+ * so that a list that empties still fades its last rows.
+ */
+function placeCopy(row, copy, freshRows, current, fresh) {
     for (let sibling = row.previousElementSibling; sibling; ) {
         const twin = freshRows.get(sibling.dataset?.liveRow);
         if (twin) {
@@ -110,8 +113,14 @@ function placeCopy(row, copy, freshRows) {
         }
         sibling = sibling.nextElementSibling;
     }
+    const parent = row.parentElement;
+    const twinParent =
+        parent && parent !== current && parent.id
+            ? fresh.querySelector(`#${CSS.escape(parent.id)}`)
+            : null;
+    (twinParent ?? fresh).append(copy);
 
-    return false;
+    return true;
 }
 
 let registered = false;

@@ -31,6 +31,7 @@ function deleted(change = {}) {
 }
 
 beforeEach(() => {
+    vi.useFakeTimers();
     reset();
     document.body.innerHTML = `<template data-live-band-template="project-deleted"><div class="lp-flash">Deleted</div></template><main id="main-content"><div data-live-content>Content</div></main><div hidden data-live-project="${PROJECT}"></div>`;
     vi.stubGlobal(
@@ -47,6 +48,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
     document.body.replaceChildren();
 });
@@ -59,7 +61,8 @@ it('registers one handler for the deletion signal at load, and only one', () => 
 });
 
 it('reads the current page once with the live header and shows the band', async () => {
-    await deleted();
+    deleted();
+    await vi.advanceTimersByTimeAsync(400);
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(fetch.mock.calls[0][1].headers['X-Loupe-Live-Refresh']).toBe('1');
     expect(document.querySelector('[data-live-content]').hidden).toBe(true);
@@ -67,23 +70,43 @@ it('reads the current page once with the live header and shows the band', async 
 });
 
 it('ignores another project', async () => {
-    await deleted({ projectId: 'other' });
+    deleted({ projectId: 'other' });
+    await vi.advanceTimersByTimeAsync(400);
     expect(fetch).not.toHaveBeenCalled();
 });
 
 it('ignores a page with no project', async () => {
     document.querySelector('[data-live-project]').remove();
-    await deleted();
+    deleted();
+    await vi.advanceTimersByTimeAsync(400);
     expect(fetch).not.toHaveBeenCalled();
 });
 
 it('ignores its own change', async () => {
-    await deleted({ own: true });
+    deleted({ own: true });
+    await vi.advanceTimersByTimeAsync(400);
     expect(fetch).not.toHaveBeenCalled();
 });
 
-it('shows nothing when the read fails', async () => {
+it('retries a failed read and shows the lost band when a retry answers it', async () => {
     fetch.mockRejectedValueOnce(new Error('offline'));
-    await deleted();
+    deleted();
+    await vi.advanceTimersByTimeAsync(400);
+    expect(document.querySelector('[data-live-lost-band]')).toBeNull();
+    await vi.advanceTimersByTimeAsync(1100);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(document.querySelectorAll('[data-live-lost-band]')).toHaveLength(1);
+});
+
+it('shows the stopped band when every retry fails', async () => {
+    document.body.insertAdjacentHTML(
+        'beforeend',
+        '<template data-live-band-template="stopped"><div class="lp-flash">Stopped</div></template>',
+    );
+    fetch.mockRejectedValue(new Error('offline'));
+    deleted();
+    await vi.advanceTimersByTimeAsync(20000);
+    expect(fetch).toHaveBeenCalledTimes(4);
+    expect(document.querySelector('[data-live-stopped-band]')).not.toBeNull();
     expect(document.querySelector('[data-live-lost-band]')).toBeNull();
 });

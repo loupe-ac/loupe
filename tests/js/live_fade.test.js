@@ -117,6 +117,26 @@ it('places a leaving first row before the next row that stays', () => {
     ]);
 });
 
+it('fades every row when the new frame holds none, and drops them after the fade', () => {
+    const current = document.createElement('turbo-frame');
+    current.innerHTML = rows(['a', 'b']);
+    document.body.append(current);
+    const fresh = morph(current, '<p>Nothing here</p>');
+    const leaving = fresh.querySelectorAll('.lp-live-row--leaving');
+    expect([...leaving].map((item) => item.textContent)).toEqual(['a', 'b']);
+    vi.advanceTimersByTime(FADE_MILLISECONDS);
+    expect(fresh.querySelectorAll('.lp-live-row--leaving')).toHaveLength(0);
+    expect(fresh.textContent).toBe('Nothing here');
+});
+
+it('puts the leaving rows of an emptied list into the twin list of the new frame', () => {
+    const current = document.createElement('turbo-frame');
+    current.innerHTML = `<ul id="rows">${rows(['a'])}</ul>`;
+    document.body.append(current);
+    const fresh = morph(current, '<ul id="rows"></ul>');
+    expect(fresh.querySelector('#rows').children).toHaveLength(1);
+});
+
 it('marks a new row as entering', () => {
     const current = document.createElement('turbo-frame');
     current.innerHTML = rows(['a']);

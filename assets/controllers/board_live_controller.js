@@ -1,7 +1,7 @@
 import { Controller } from '@hotwired/stimulus';
 import { renderStreamMessage } from '@hotwired/turbo';
 import { on, status } from '../lib/live.js';
-import { handleLostAccess } from '../lib/live_fetch.js';
+import { handleLostAccess, onLostAccess } from '../lib/live_fetch.js';
 
 /**
  * Shows each card change on the board as it happens. A burst of messages for
@@ -79,6 +79,8 @@ export default class extends Controller {
     }
 
     connect() {
+        // A lost access ends the live part, as a disconnect does.
+        this.removeLostListener = onLostAccess(() => this.disconnect());
         this.pending = new Map();
         this.expected = new Map();
         this.flashes = new Map();
@@ -122,9 +124,14 @@ export default class extends Controller {
     }
 
     disconnect() {
+        this.removeLostListener?.();
+        this.removeLostListener = undefined;
         this.unsubscribe?.();
         this.stopColumns?.();
+        this.stopColumns = undefined;
         this.stopStatus?.();
+        this.stopStatus = undefined;
+        this.unsubscribe = undefined;
         this.manifestAbort?.abort();
         this.manifestAbort = undefined;
         this.structureAbort?.abort();
