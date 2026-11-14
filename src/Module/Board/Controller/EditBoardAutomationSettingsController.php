@@ -37,7 +37,8 @@ final class EditBoardAutomationSettingsController extends AppController
 
     public function __invoke(Request $request, Project $project): Response
     {
-        $data = SaveBoardAutomationSettingsRequest::fromSettings($this->automation->settingsOf($project));
+        $settings = $this->automation->settingsOf($project);
+        $data = SaveBoardAutomationSettingsRequest::fromSettings($settings);
         $form = $this->createForm(SaveBoardAutomationSettingsFormType::class, $data);
         $form->handleRequest($request);
 
@@ -60,6 +61,7 @@ final class EditBoardAutomationSettingsController extends AppController
 
         return $this->renderFormResponse('@Board/edit_board_automation_settings.html.twig', $form, [
             'project' => $project,
+            'settingsFingerprint' => $settings->fingerprint(),
             'failedComment' => $this->automation->newestFailedComment($project),
         ]);
     }
