@@ -2631,6 +2631,11 @@
         @apply bg-status-danger;
     }
 
+    /* A live frame holds blocks, and a custom element is inline by default. */
+    turbo-frame[refresh='morph'] {
+        @apply block;
+    }
+
     /* A row that another actor removed fades out before it goes, and a row that
        another actor added fades in. The animations are opacity only. */
     .lp-live-row--leaving {
