@@ -19,6 +19,7 @@ use App\Module\Review\Entity\DocumentVersion;
 use App\Module\Review\Entity\Review;
 use App\Module\Review\Entity\Verdict;
 use App\Module\Review\Repository\DocumentRepository;
+use App\Module\Review\Repository\ReviewRepository;
 use App\Module\Review\Service\DocumentTagApplier;
 use App\Module\Review\ValueObject\Anchor;
 use Doctrine\ORM\EntityManagerInterface;
@@ -50,7 +51,7 @@ final readonly class DevDocumentSeeder implements DevSeederInterface
         private DocumentRepository $documents,
         private DocumentTagApplier $tagApplier,
         private UserRepository $users,
-        private readonly \App\Module\Review\Repository\ReviewRepository $reviewRepository,
+        private ReviewRepository $reviews,
     ) {
     }
 
@@ -175,7 +176,7 @@ final readonly class DevDocumentSeeder implements DevSeederInterface
         $history = $this->documents->find(self::documentId('worker-run-history'))
             ?? throw new \LogicException('The worker run history document does not exist.');
         $version = $history->versions->first();
-        if (!$version instanceof DocumentVersion || null !== $this->reviewRepository->findOneBy(['version' => $version])) {
+        if (!$version instanceof DocumentVersion || null !== $this->reviews->findOneBy(['version' => $version])) {
             return;
         }
 

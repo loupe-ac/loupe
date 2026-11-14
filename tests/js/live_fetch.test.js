@@ -29,7 +29,7 @@ function lostResponse(status, cause) {
 }
 
 function band(name, text) {
-    return `<template data-live-band-template="${name}"><div class="lp-flash">${text}</div></template>`;
+    return `<script type="text/html" data-live-band-template="${name}"><div class="lp-flash">${text}</div></script>`;
 }
 
 function page() {

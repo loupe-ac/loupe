@@ -73,6 +73,20 @@ export function handleLostAccess(response) {
     return true;
 }
 
+/** Builds a fresh element from the band script of a name, or null. */
+function bandOf(name) {
+    const source = document.querySelector(
+        `script[data-live-band-template="${name}"]`,
+    );
+    if (!source) {
+        return null;
+    }
+    const holder = document.createElement('template');
+    holder.innerHTML = source.textContent;
+
+    return holder.content.firstElementChild;
+}
+
 /**
  * Puts the band of a template in the page, before the first hidden content
  * element, or at the top of the main area. A band that is already there stays.
@@ -81,12 +95,7 @@ function showBand(name, fallbackName) {
     if (document.querySelector(`[${LOST_BAND_ATTRIBUTE}]`)) {
         return;
     }
-    const template =
-        document.querySelector(`template[data-live-band-template="${name}"]`) ??
-        document.querySelector(
-            `template[data-live-band-template="${fallbackName}"]`,
-        );
-    const band = template?.content.firstElementChild?.cloneNode(true);
+    const band = bandOf(name) ?? bandOf(fallbackName);
     if (!band) {
         return;
     }
@@ -109,9 +118,7 @@ export function showStoppedBand(region) {
     if (region.querySelector('[data-live-stopped-band]')) {
         return;
     }
-    const band = document
-        .querySelector('template[data-live-band-template="stopped"]')
-        ?.content.firstElementChild?.cloneNode(true);
+    const band = bandOf('stopped');
     if (band) {
         band.setAttribute('data-live-stopped-band', '');
         region.prepend(band);

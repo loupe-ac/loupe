@@ -72,7 +72,7 @@ function onBeforeFrameMorph(event) {
     );
 
     freshRows.forEach((row, id) => {
-        if (!currentIds.has(id) && currentIds.size > 0) {
+        if (!currentIds.has(id)) {
             row.classList.add(ENTERING);
         }
     });

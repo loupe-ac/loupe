@@ -40,7 +40,7 @@ function answer(status, body = '', headers = {}) {
 }
 
 const BANDS =
-    '<template data-live-band-template="stopped"><div class="lp-flash" data-testid="stopped">Stopped</div></template><template data-live-band-template="signed-out"><div class="lp-flash">Signed out</div></template>';
+    '<script type="text/html" data-live-band-template="stopped"><div class="lp-flash" data-testid="stopped">Stopped</div></script><script type="text/html" data-live-band-template="signed-out"><div class="lp-flash">Signed out</div></script>';
 
 const TYPES = 'data-live-region-types-value=\'["artifact.changed"]\'';
 const STREAM = `${TYPES} data-live-region-url-value="/x" data-live-region-mode-value="stream"`;

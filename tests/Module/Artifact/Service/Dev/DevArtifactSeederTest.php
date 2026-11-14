@@ -31,7 +31,9 @@ final class DevArtifactSeederTest extends KernelTestCase
         $twin = self::getContainer()->get(ArtifactRepository::class)->find(DevArtifactSeeder::twinId());
         self::assertNotNull($twin);
         self::assertCount(1, $twin->versions);
-        $artifacts = [self::getContainer()->get(ArtifactRepository::class)->find(DevArtifactSeeder::artifactId())];
+        $artifact = self::getContainer()->get(ArtifactRepository::class)->find(DevArtifactSeeder::artifactId());
+        self::assertNotNull($artifact);
+        $artifacts = [$artifact];
         self::assertEquals(DevSeedId::of('artifact/artifact/pricing-page-prototype'), $artifacts[0]->id);
         self::assertCount(2, $artifacts[0]->versions);
         $latest = $this->versionNumbered($artifacts[0], 2);

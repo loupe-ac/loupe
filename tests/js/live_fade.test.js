@@ -147,6 +147,15 @@ it('marks a new row as entering', () => {
     expect(added.classList.contains('lp-live-row--entering')).toBe(true);
 });
 
+it('marks the first row of an empty frame as entering', () => {
+    const current = document.createElement('turbo-frame');
+    document.body.append(current);
+    const fresh = morph(current, rows(['a']));
+    expect(fresh.children[0].classList.contains('lp-live-row--entering')).toBe(
+        true,
+    );
+});
+
 it('changes nothing under reduced motion', () => {
     reduceMotion(true);
     const current = document.createElement('turbo-frame');

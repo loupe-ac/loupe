@@ -33,7 +33,7 @@ function deleted(change = {}) {
 beforeEach(() => {
     vi.useFakeTimers();
     reset();
-    document.body.innerHTML = `<template data-live-band-template="project-deleted"><div class="lp-flash">Deleted</div></template><main id="main-content"><div data-live-content>Content</div></main><div hidden data-live-project="${PROJECT}"></div>`;
+    document.body.innerHTML = `<script type="text/html" data-live-band-template="project-deleted"><div class="lp-flash">Deleted</div></script><main id="main-content"><div data-live-content>Content</div></main><div hidden data-live-project="${PROJECT}"></div>`;
     vi.stubGlobal(
         'fetch',
         vi.fn(async () => ({
@@ -101,7 +101,7 @@ it('retries a failed read and shows the lost band when a retry answers it', asyn
 it('shows the stopped band when every retry fails', async () => {
     document.body.insertAdjacentHTML(
         'beforeend',
-        '<template data-live-band-template="stopped"><div class="lp-flash">Stopped</div></template>',
+        '<script type="text/html" data-live-band-template="stopped"><div class="lp-flash">Stopped</div></script>',
     );
     fetch.mockRejectedValue(new Error('offline'));
     deleted();
