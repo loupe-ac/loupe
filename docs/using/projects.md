@@ -154,6 +154,18 @@ Loupe keeps your GitHub sign-in in your session, encrypted, for 30 minutes at mo
 If a repository is missing from the list, select Adjust access on GitHub. It opens the page of the installation on GitHub. When the operator turned on "Redirect on update" on the App, GitHub sends you back to the Repositories tab after the change. Otherwise return to the tab and select Refresh list.
 Select Install on another account to install the App on a GitHub account that has no installation yet. When GitHub sends you back and the new installation offers exactly one repository that no project holds, Loupe adds it at once and says "Connected acme/api. Add more from Repositories." With more than one, the picker opens on the Repositories tab.
 
+#### Install from github.com
+
+You can install the Loupe App on GitHub before you open a project in Loupe. GitHub sends you back to Loupe with the install. Loupe then signs you in to GitHub, and checks that your own GitHub user can see the installation. Loupe lists the installations of your user with your own sign-in. A link that names an installation your user does not see opens nothing, and Loupe says "Loupe cannot find this install on your GitHub account."
+
+After the sign-in, the page "Loupe is installed on acme" asks for a project. It lists the projects you own, each with its number of repositories, and a New project row with a name field. The field holds the name of the GitHub account, and you can change it. When you own no project, only the name field shows. You can rename the project later in Project settings.
+
+Select Continue, or Create project and continue. When the installation offers exactly one repository that no project holds, Loupe adds it at once. Otherwise the picker opens on the Repositories tab, and the account you just installed on comes first. A new project then opens the [setup page](#the-setup-page).
+
+When the install was a request to an organization owner, Loupe shows "Your install request waits for an organization owner". The owner approves it on GitHub. Then open a project and select Add repositories.
+
+When you sign up on the way, confirm your email in the same browser. Loupe then returns you to the install. A confirmation in another browser, or a sign-up that goes to the waitlist, loses the install. Add the repositories from a project with Add repositories, and the picker lists the installation.
+
 #### Repositories you have not picked
 
 `loupe init` says "Shared with Loupe, not in this project." for the repository of your folder when the App reaches it and no project holds it. Its link signs you in to GitHub and opens the picker with that repository ticked. It needs [CLI 2.6.0](../reference/cli.md#loupe-init) and a server that has the lookup route.
