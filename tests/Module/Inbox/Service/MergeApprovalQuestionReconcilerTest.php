@@ -367,6 +367,12 @@ final class MergeApprovalQuestionReconcilerTest extends WorkflowSettingsTestCase
             {
                 return array_shift($this->reads) ?? false;
             }
+
+            #[\Override]
+            public function hasClosed(Uuid $projectId): bool
+            {
+                return false;
+            }
         };
         $reconciler = new MergeApprovalQuestionReconciler(
             $this->em(),

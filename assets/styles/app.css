@@ -2390,6 +2390,36 @@
         @apply w-12 h-12 rounded-full bg-accent-soft text-accent inline-flex items-center justify-center;
     }
 
+    /* The setup page of a project that is not set up: a heading, a command, a status list and the actions. */
+    .lp-project-setup {
+        @apply flex flex-col gap-5;
+    }
+    .lp-project-setup__header {
+        @apply flex flex-col items-center gap-3 text-center;
+    }
+    .lp-project-setup__icon {
+        @apply size-10;
+    }
+    .lp-project-setup__title {
+        @apply m-0 text-2xl font-semibold tracking-tight text-fg;
+    }
+    .lp-project-setup__lead {
+        @apply m-0 text-fg-mute;
+    }
+    .lp-project-setup__waiting {
+        @apply m-0 flex items-center justify-center gap-2 text-sm text-fg-mute;
+    }
+    .lp-project-setup__list {
+        @apply m-0 grid list-none items-baseline gap-x-3 gap-y-2.5 p-0 text-left;
+        grid-template-columns: max-content minmax(0, 1fr);
+    }
+    .lp-project-setup__line {
+        @apply contents;
+    }
+    .lp-project-setup__actions {
+        @apply flex items-center justify-center gap-3;
+    }
+
     /* OAuth consent card: who asks, for what, and where the answer goes. */
     .lp-consent {
         @apply flex flex-col items-center gap-4 py-2 text-center;

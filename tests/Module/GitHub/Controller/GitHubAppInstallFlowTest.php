@@ -21,6 +21,7 @@ use App\Module\GitHub\Service\GitHubUserApi;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Project\Service\InitInstallWaits;
+use App\Tests\Support\NotSetUp;
 use App\Tests\Support\RecordingAuditor;
 use App\Tests\Support\RecordingLogger;
 use Psr\Clock\ClockInterface;
@@ -949,6 +950,42 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         self::assertNotNull($this->installationRow());
         $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/settings/repositories');
         $this->assertNotSignedIn($crawler, $project);
+    }
+
+    public function test_a_project_that_is_not_set_up_returns_to_the_setup_page_after_a_submit_a_cancel_and_a_fresh_install(): void
+    {
+        $this->repositories[self::INSTALLATION_ID] = [['id' => 101, 'full_name' => 'acme/api'], ['id' => 202, 'full_name' => 'acme/web']];
+        $owner = $this->signedUpUser('gated-returns');
+        $project = $this->projectOf($owner);
+        NotSetUp::mark($this->em(), $project);
+        $this->em()->clear();
+        $setup = '/projects/'.$project->id.'/setup';
+
+        $this->client->loginUser($owner);
+        $this->signIn($project);
+        $this->postAction($this->client, '/projects/'.$project->id.'/github/repositories/cancel');
+        self::assertResponseRedirects($setup);
+
+        $this->signIn($project);
+        $this->submitPicks($project, ['101:acme/api']);
+        self::assertResponseRedirects($setup);
+        self::assertSame(['acme/api'], $this->pathsOf($project));
+        self::assertStringContainsString('Loupe added 1 repository', $this->followedText());
+    }
+
+    public function test_a_fresh_install_into_a_project_that_is_not_set_up_ends_on_the_setup_page(): void
+    {
+        $this->repositories[self::INSTALLATION_ID] = [['id' => 101, 'full_name' => 'acme/api']];
+        $owner = $this->signedUpUser('gated-fresh');
+        $project = $this->projectOf($owner);
+        NotSetUp::mark($this->em(), $project);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->completeInstall($project);
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/setup');
+        self::assertSame(['acme/api'], $this->pathsOf($project));
     }
 
     public function test_a_fresh_install_that_init_started_ends_on_the_hand_off_page_while_init_waits(): void

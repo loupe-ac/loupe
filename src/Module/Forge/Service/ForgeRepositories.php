@@ -6,11 +6,14 @@ namespace App\Module\Forge\Service;
 
 use App\Module\Forge\Entity\ForgeRepository;
 use App\Module\Forge\Entity\ForgeRepositorySource;
+use App\Module\Forge\Event\ForgeRepositoryJoined;
+use App\Module\Forge\Event\ForgeRepositoryLeft;
 use App\Module\Forge\Repository\ForgeRepositoryCheckRepository;
 use App\Module\Forge\Repository\ForgeRepositoryRepository;
 use App\Module\Project\Entity\Project;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
  * The one entry point a forge module uses to write repository ownership. Each
@@ -27,6 +30,7 @@ final readonly class ForgeRepositories
         private LoggerInterface $logger,
         private RepositoryHoldSummaries $summaries,
         private ForgeRepositoryCheckRepository $forgeRepositoryChecks,
+        private EventDispatcherInterface $events,
     ) {
     }
 
@@ -40,7 +44,7 @@ final readonly class ForgeRepositories
     {
         // Two first claims of one repository would otherwise both miss the read
         // and one would trip the unique key.
-        return $this->em->wrapInTransaction(function () use ($project, $forge, $externalId, $path, $source, $sourceRef): ForgeClaim {
+        $claim = $this->em->wrapInTransaction(function () use ($project, $forge, $externalId, $path, $source, $sourceRef): ForgeClaim {
             $this->forgeRepositories->lockForClaim($forge, $externalId);
 
             if (ForgeRepositorySource::Installation === $source) {
@@ -93,6 +97,12 @@ final readonly class ForgeRepositories
 
             return ForgeClaim::alreadyOwned($existing, $movedFrom, $tookOver);
         });
+
+        if (ForgeClaimOutcome::Owned === $claim->outcome) {
+            $this->events->dispatch(new ForgeRepositoryJoined($project->requireId()));
+        }
+
+        return $claim;
     }
 
     /** Removes this project's row, whatever its source. */
@@ -106,6 +116,7 @@ final readonly class ForgeRepositories
         $this->summaries->change($project, function (RepositoryChange $change) use ($existing): void {
             $this->remove($existing, $change);
         });
+        $this->events->dispatch(new ForgeRepositoryLeft($project->requireId()));
     }
 
     /**

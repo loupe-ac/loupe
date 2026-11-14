@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Project\Service;
 
+use App\Module\Project\Contract\Event\ProjectMilestoneReached;
 use App\Module\Project\Contract\Event\ProjectSetUp;
 use App\Module\Project\Contract\ProjectMilestones;
 use App\Module\Project\Entity\Project;
@@ -33,14 +34,15 @@ final readonly class DatabaseProjectMilestones implements ProjectMilestones
     #[\Override]
     public function reach(Uuid $projectId, string $key): void
     {
-        $turnedOn = $this->em->wrapInTransaction(function () use ($projectId, $key): bool {
+        $inserted = false;
+        $turnedOn = $this->em->wrapInTransaction(function () use ($projectId, $key, &$inserted): bool {
             // The lock makes two writers take turns, so the second check sees the first insert.
             if (!$this->projects->lockIdForWrite($projectId)) {
                 return false;
             }
 
             $connection = $this->em->getConnection();
-            $connection->executeStatement(
+            $inserted = 1 === $connection->executeStatement(
                 'INSERT INTO project_milestones (id, project_id, "key", reached_at) VALUES (:id, :project, :key, :at) ON CONFLICT (project_id, "key") DO NOTHING',
                 ['id' => Uuid::v7(), 'project' => $projectId, 'key' => $key, 'at' => $this->clock->now()],
                 ['id' => UuidType::NAME, 'project' => UuidType::NAME, 'key' => Types::STRING, 'at' => Types::DATETIME_IMMUTABLE],
@@ -53,6 +55,10 @@ final readonly class DatabaseProjectMilestones implements ProjectMilestones
                 ['project' => UuidType::NAME, 'keys' => ArrayParameterType::STRING, 'required' => Types::INTEGER],
             );
         });
+
+        if ($inserted) {
+            $this->events->dispatch(new ProjectMilestoneReached($projectId, $key));
+        }
 
         if ($turnedOn) {
             // The update bypasses the unit of work, so a project loaded earlier still reads the old flag.

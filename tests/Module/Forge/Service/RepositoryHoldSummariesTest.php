@@ -375,7 +375,10 @@ final class RepositoryHoldSummariesTest extends KernelTestCase
     /** @return list<string> */
     private function signalledRepositories(): array
     {
-        return array_map(static fn (Update $update): string => json_decode($update->getData(), true)['repositoryId'], $this->published);
+        $payloads = array_map(static fn (Update $update): array => json_decode($update->getData(), true), $this->published);
+        $checks = array_filter($payloads, static fn (array $payload): bool => 'forge.repository_check_changed' === $payload['type']);
+
+        return array_values(array_map(static fn (array $payload): string => $payload['repositoryId'], $checks));
     }
 
     private function terminate(): void

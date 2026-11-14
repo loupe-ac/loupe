@@ -1,5 +1,6 @@
 import { expect } from '@playwright/test';
 import { createTest } from '../fixtures';
+import { skipProjectSetup } from '../helpers';
 
 const test = createTest({
     email: 'e2e-project-switcher@example.com',
@@ -63,6 +64,7 @@ test('project switching marks context, clears search, and returns keyboard focus
         await page
             .getByRole('button', { name: 'Add project', exact: true })
             .click();
+        await skipProjectSetup(page);
         await expect(page.locator('[data-workshop]')).toBeVisible();
         await expect(page.locator('.lp-sidebar__switcher-name')).toHaveText(
             name,
