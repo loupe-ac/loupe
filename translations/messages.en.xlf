@@ -8262,6 +8262,7 @@ workflow:
             <trans-unit id="board.card.drawer.loading"><source>board.card.drawer.loading</source><target>Loading card…</target></trans-unit>
             <trans-unit id="board.card.drawer.failed"><source>board.card.drawer.failed</source><target>The card could not load. Try again.</target></trans-unit>
             <trans-unit id="board.card.drawer.retry"><source>board.card.drawer.retry</source><target>Retry</target></trans-unit>
+            <trans-unit id="board.card.deleted_band.back"><source>board.card.deleted_band.back</source><target>Back to the board</target></trans-unit>
             <trans-unit id="board.card.drawer.deleted"><source>board.card.drawer.deleted</source><target>This card was deleted.</target></trans-unit>
             <trans-unit id="nav.global_actions.label"><source>nav.global_actions.label</source><target>Global tools</target></trans-unit>
             <trans-unit id="nav.new_work"><source>nav.new_work</source><target>New work</target></trans-unit>

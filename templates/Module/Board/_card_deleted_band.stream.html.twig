@@ -1,0 +1,9 @@
+{#- The deleted band of the full card page. Props: project (Project). -#}
+<turbo-stream action="update" target="card-deleted-band">
+    <template>
+        <twig:Ds:Flash severity="warning" data-card-deleted-band>
+            {{ 'board.card.drawer.deleted'|trans }}
+            <twig:block name="actions"><a href="{{ path('app_project_board', {id: project.id}) }}">{{ 'board.card.deleted_band.back'|trans }}</a></twig:block>
+        </twig:Ds:Flash>
+    </template>
+</turbo-stream>
