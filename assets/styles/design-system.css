@@ -47,6 +47,7 @@
 @import './components/disclosure.css';
 @import './components/value-row.css';
 @import './components/range-strip.css';
+@import './components/choice.css';
 
 @source "../../templates/components/Ds";
 

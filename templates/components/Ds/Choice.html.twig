@@ -1,0 +1,8 @@
+{#
+  Props:  @comment-budget-ignore
+    variant   string   top aligns the control with the first line of a row that wraps. Optional.
+  The content holds the input and the text of the row.
+  Any other attribute, class included, is passed to the element.
+#}
+{%- props variant = null -%}
+<label{{ attributes.defaults({class: 'lp-choice' ~ (variant ? ' lp-choice--' ~ variant : '')}) }}>{% block content %}{% endblock %}</label>

@@ -66,10 +66,10 @@
                 <twig:Ds:FieldErrors :fieldView="settingsForm.subcommandPrograms" data-field-errors="subcommandPrograms" />
             </twig:Ds:FormField>
             <twig:Ds:FormField>
-                <label class="lp-choice">
+                <twig:Ds:Choice>
                     {{ form_widget(settingsForm.collectFullText) }}
                     {{ settingsForm.collectFullText.vars.label|trans }}
-                </label>
+                </twig:Ds:Choice>
                 {% if settingsForm.collectFullText.vars.help %}<twig:Ds:Hint as="div" id="{{ settingsForm.collectFullText.vars.id }}_help">{{ settingsForm.collectFullText.vars.help|trans(settingsForm.collectFullText.vars.help_translation_parameters, settingsForm.collectFullText.vars.translation_domain) }}</twig:Ds:Hint>{% endif %}
                 <twig:Ds:FieldErrors :fieldView="settingsForm.collectFullText" data-field-errors="collectFullText" />
             </twig:Ds:FormField>
