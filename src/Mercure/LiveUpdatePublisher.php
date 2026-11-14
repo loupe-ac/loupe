@@ -39,6 +39,7 @@ final class LiveUpdatePublisher implements ResetInterface
      */
     public function __construct(
         private readonly RequestStack $requests,
+        private readonly LiveUpdateTransactionBuffer $transactions,
         private readonly FeatureFlagService $featureFlags,
         private readonly LoggerInterface $logger,
 
@@ -48,7 +49,8 @@ final class LiveUpdatePublisher implements ResetInterface
     }
 
     /**
-     * Call it after the change commits, so a rollback signals nothing.
+     * Inside a transaction the signal waits for the commit, so a rollback
+     * signals nothing.
      *
      * @param array<string, scalar|list<scalar>|null> $payload
      */
@@ -59,7 +61,13 @@ final class LiveUpdatePublisher implements ResetInterface
         }
 
         $data = json_encode($payload, \JSON_THROW_ON_ERROR);
-        $this->pending[$topic."\n".$data] = ['topic' => $topic, 'data' => $data];
+        if ($this->transactions->isOpen()) {
+            $this->transactions->hold($topic, $data);
+
+            return;
+        }
+
+        $this->add($topic, $data);
     }
 
     /**
@@ -71,6 +79,10 @@ final class LiveUpdatePublisher implements ResetInterface
     #[AsEventListener(ConsoleEvents::TERMINATE)]
     public function publish(): void
     {
+        foreach ($this->transactions->takeCommitted() as $update) {
+            $this->add($update['topic'], $update['data']);
+        }
+
         $pending = $this->pending;
         $this->pending = [];
         if ([] === $pending || !$this->featureFlags->isEnabled(LiveUpdates::FLAG)) {
@@ -93,6 +105,12 @@ final class LiveUpdatePublisher implements ResetInterface
     public function reset(): void
     {
         $this->pending = [];
+        $this->transactions->reset();
+    }
+
+    private function add(string $topic, string $data): void
+    {
+        $this->pending[$topic."\n".$data] = ['topic' => $topic, 'data' => $data];
     }
 
     private function origin(): ?string

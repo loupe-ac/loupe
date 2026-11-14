@@ -90,6 +90,19 @@ final class RequireSubscriptionListenerTest extends TestCase
         self::assertSame(self::SUBSCRIBE_URL, $response->headers->get('Location'));
     }
 
+    public function test_a_live_refresh_of_a_blocked_user_gets_a_402_instead_of_the_redirect(): void
+    {
+        $user = $this->user();
+        $event = $this->event('app_project_list');
+        $event->getRequest()->headers->set('X-Loupe-Live-Refresh', '1');
+
+        $this->listener($user, $this->expiredProfile($user))($event);
+
+        $response = $event->getResponse();
+        self::assertNotNull($response);
+        self::assertSame(Response::HTTP_PAYMENT_REQUIRED, $response->getStatusCode());
+    }
+
     public function test_user_within_trial_is_not_redirected(): void
     {
         $user = $this->user();

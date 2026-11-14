@@ -63,6 +63,7 @@ final class DrainOutboxHandlerTest extends KernelTestCase
         $this->signals = [];
         $this->live = new LiveUpdatePublisher(
             new RequestStack(),
+            new \App\Mercure\LiveUpdateTransactionBuffer(),
             FeatureFlags::service([LiveUpdates::FLAG => true]),
             new NullLogger(),
             fn (): HubInterface => new MockHub('http://mercure/.well-known/mercure', new StaticTokenProvider('token'), function (Update $update): string {

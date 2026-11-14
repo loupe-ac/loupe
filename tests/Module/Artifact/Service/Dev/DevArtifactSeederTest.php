@@ -26,8 +26,14 @@ final class DevArtifactSeederTest extends KernelTestCase
         self::getContainer()->get(DevArtifactSeeder::class)->seed($context);
 
         $this->em()->clear();
-        $artifacts = self::getContainer()->get(ArtifactRepository::class)->findByProject($project);
-        self::assertCount(1, $artifacts);
+        $found = self::getContainer()->get(ArtifactRepository::class)->findByProject($project);
+        self::assertCount(2, $found);
+        $twin = self::getContainer()->get(ArtifactRepository::class)->find(DevArtifactSeeder::twinId());
+        self::assertNotNull($twin);
+        self::assertCount(1, $twin->versions);
+        $artifact = self::getContainer()->get(ArtifactRepository::class)->find(DevArtifactSeeder::artifactId());
+        self::assertNotNull($artifact);
+        $artifacts = [$artifact];
         self::assertEquals(DevSeedId::of('artifact/artifact/pricing-page-prototype'), $artifacts[0]->id);
         self::assertCount(2, $artifacts[0]->versions);
         $latest = $this->versionNumbered($artifacts[0], 2);
@@ -51,7 +57,7 @@ final class DevArtifactSeederTest extends KernelTestCase
 
         $this->em()->clear();
         $artifacts = self::getContainer()->get(ArtifactRepository::class)->findByProject($project, includeArchived: true);
-        self::assertCount(1, $artifacts);
+        self::assertCount(2, $artifacts);
         self::assertContainsOnlyInstancesOf(Artifact::class, $artifacts);
     }
 }

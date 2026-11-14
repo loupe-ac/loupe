@@ -46,6 +46,7 @@ final class WorkRequestAnnouncerTest extends KernelTestCase
         $published = [];
         $live = new LiveUpdatePublisher(
             new RequestStack(),
+            new \App\Mercure\LiveUpdateTransactionBuffer(),
             FeatureFlags::service([LiveUpdates::FLAG => true]),
             new NullLogger(),
             static function () use (&$published): HubInterface {
@@ -80,7 +81,7 @@ final class WorkRequestAnnouncerTest extends KernelTestCase
         $events->addListener(WorkRequestChanged::class, static function () use (&$dispatched): void {
             ++$dispatched;
         });
-        $live = new LiveUpdatePublisher(new RequestStack(), FeatureFlags::service(), new NullLogger(), fn (): HubInterface => $this->createStub(HubInterface::class));
+        $live = new LiveUpdatePublisher(new RequestStack(), new \App\Mercure\LiveUpdateTransactionBuffer(), FeatureFlags::service(), new NullLogger(), fn (): HubInterface => $this->createStub(HubInterface::class));
 
         new WorkRequestAnnouncer($events, new WorkerRunChangedPublisher(new ProjectTopicBuilder('https://loupe.test'), $live))->announce();
 

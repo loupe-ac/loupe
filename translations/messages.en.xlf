@@ -11043,6 +11043,11 @@ workflow:
             <trans-unit id="openrouter.flash.saved"><source>openrouter.flash.saved</source><target>The OpenRouter key is saved.</target></trans-unit>
             <trans-unit id="openrouter.flash.removed"><source>openrouter.flash.removed</source><target>The OpenRouter key is removed.</target></trans-unit>
             <trans-unit id="openrouter.live_stopped"><source>openrouter.live_stopped</source><target>Live updates stopped. Reload the page to see the current state.</target></trans-unit>
+            <trans-unit id="live.band.stopped"><source>live.band.stopped</source><target>Live updates stopped. Reload the page to see the current state.</target></trans-unit>
+            <trans-unit id="live.band.signed_out"><source>live.band.signed_out</source><target>You are signed out, so this page no longer updates.</target></trans-unit>
+            <trans-unit id="live.band.sign_in"><source>live.band.sign_in</source><target>Sign in</target></trans-unit>
+            <trans-unit id="live.band.project_deleted"><source>live.band.project_deleted</source><target>This project was deleted, so this page no longer updates.</target></trans-unit>
+            <trans-unit id="live.band.generic"><source>live.band.generic</source><target>You can no longer see this page, so it no longer updates.</target></trans-unit>
         </body>
     </file>
 </xliff>

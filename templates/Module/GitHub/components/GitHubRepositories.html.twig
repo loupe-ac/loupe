@@ -1,7 +1,7 @@
 {% if visible %}
 {% do mercure_subscribe(topic) %}
 {% set offerAdd = appConfigured and picker is null %}
-<twig:Ds:Panel as="section" id="repositories" data-testid="github-repositories" data-controller="repository-checks-live" data-repository-checks-live-stopped-value="{{ 'github.repositories.live_stopped'|trans }}">
+<twig:Ds:Panel as="section" id="repositories" data-testid="github-repositories" data-live-content data-controller="repository-checks-live" data-repository-checks-live-stopped-value="{{ 'github.repositories.live_stopped'|trans }}">
     <twig:Ds:SectionHeading>{{ 'github.repositories.title'|trans }}</twig:Ds:SectionHeading>
     <p class="lp-live-stopped" role="status" data-repository-checks-live-target="status" data-testid="forge-repositories-live-stopped"></p>
 

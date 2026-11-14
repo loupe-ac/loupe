@@ -140,7 +140,7 @@ final class ImmediateOutboxPublisherTest extends TestCase
             new UserTopicBuilder('https://loupe.test'),
             new ActivityChangedPublisher(
                 new ProjectTopicBuilder('https://loupe.test'),
-                new LiveUpdatePublisher(new RequestStack(), $flags, new NullLogger(), fn (): HubInterface => $this->createStub(HubInterface::class)),
+                new LiveUpdatePublisher(new RequestStack(), new \App\Mercure\LiveUpdateTransactionBuffer(), $flags, new NullLogger(), fn (): HubInterface => $this->createStub(HubInterface::class)),
             ),
         );
     }

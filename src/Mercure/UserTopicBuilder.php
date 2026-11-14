@@ -68,6 +68,18 @@ final readonly class UserTopicBuilder
         return $this->userIdFromTopic($topic, '/openrouter');
     }
 
+    /** The topic the account pages of one user listen on. The message names an area, never a value. */
+    public function forAccount(Uuid $userId): string
+    {
+        return rtrim($this->appUrl, '/').'/users/'.$userId.'/account';
+    }
+
+    /** The user a forAccount() topic names, or null for any other string. */
+    public function userIdFromAccountTopic(string $topic): ?Uuid
+    {
+        return $this->userIdFromTopic($topic, '/account');
+    }
+
     private function userIdFromTopic(string $topic, string $suffix): ?Uuid
     {
         $prefix = rtrim($this->appUrl, '/').'/users/';

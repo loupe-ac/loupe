@@ -18,6 +18,7 @@
     {% set placeholderCardId = '00000000-0000-7000-8000-000000000000' %}
     <div class="lp-split-region"
          data-controller="board-live"
+         data-live-content
          data-board-live-placement-value="{{ path('app_board_card_placement', {projectId: board.project.id, cardId: placeholderCardId}) }}"
          data-board-live-placeholder-value="{{ placeholderCardId }}"
          data-board-live-manifest-value="{{ path('app_board_manifest', {projectId: board.project.id}) }}"

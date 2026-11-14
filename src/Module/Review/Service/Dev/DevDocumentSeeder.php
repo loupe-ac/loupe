@@ -19,6 +19,7 @@ use App\Module\Review\Entity\DocumentVersion;
 use App\Module\Review\Entity\Review;
 use App\Module\Review\Entity\Verdict;
 use App\Module\Review\Repository\DocumentRepository;
+use App\Module\Review\Repository\ReviewRepository;
 use App\Module\Review\Service\DocumentTagApplier;
 use App\Module\Review\ValueObject\Anchor;
 use Doctrine\ORM\EntityManagerInterface;
@@ -50,6 +51,7 @@ final readonly class DevDocumentSeeder implements DevSeederInterface
         private DocumentRepository $documents,
         private DocumentTagApplier $tagApplier,
         private UserRepository $users,
+        private ReviewRepository $reviews,
     ) {
     }
 
@@ -109,6 +111,7 @@ final readonly class DevDocumentSeeder implements DevSeederInterface
         }
 
         $this->seedHistoryComment($context, $owner);
+        $this->seedHistoryReview($context);
 
         if (!$this->documents->find(self::documentId('first-handoff')) instanceof Document) {
             $onboarding = new Document($owner, $project, 'Tech design: First handoff guide', $context->at(1_800));
@@ -165,6 +168,19 @@ final readonly class DevDocumentSeeder implements DevSeederInterface
         $comment = $this->comment($context, $history->currentVersion(), $owner, false);
         $context->ids->assign($comment, $commentId);
         $this->em->persist($comment);
+        $this->em->flush();
+    }
+
+    private function seedHistoryReview(SeedContext $context): void
+    {
+        $history = $this->documents->find(self::documentId('worker-run-history'))
+            ?? throw new \LogicException('The worker run history document does not exist.');
+        $version = $history->versions->first();
+        if (!$version instanceof DocumentVersion || null !== $this->reviews->findOneBy(['version' => $version])) {
+            return;
+        }
+
+        $this->em->persist(new Review($version, Verdict::ChangesRequested, $context->devUser(), submittedAt: $context->at(500), note: 'Answer the failure question first.'));
         $this->em->flush();
     }
 

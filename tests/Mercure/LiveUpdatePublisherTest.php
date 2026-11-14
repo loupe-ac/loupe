@@ -6,6 +6,7 @@ namespace App\Tests\Mercure;
 
 use App\Mercure\LiveUpdatePublisher;
 use App\Mercure\LiveUpdates;
+use App\Mercure\LiveUpdateTransactionBuffer;
 use App\Tests\Support\FeatureFlags;
 use Monolog\Handler\TestHandler;
 use Monolog\Logger;
@@ -50,6 +51,7 @@ final class LiveUpdatePublisherTest extends TestCase
     {
         $publisher = new LiveUpdatePublisher(
             $this->requests,
+            new LiveUpdateTransactionBuffer(),
             FeatureFlags::service([LiveUpdates::FLAG => false]),
             new Logger('test', [$this->log]),
             static fn (): HubInterface => throw new \LogicException('the hub must not be built with live updates off'),
@@ -165,6 +167,7 @@ final class LiveUpdatePublisherTest extends TestCase
     {
         $publisher = new LiveUpdatePublisher(
             $this->requests,
+            new LiveUpdateTransactionBuffer(),
             FeatureFlags::service([LiveUpdates::FLAG => true]),
             new Logger('test', [$this->log]),
             fn (): HubInterface => new MockHub(
@@ -203,10 +206,70 @@ final class LiveUpdatePublisherTest extends TestCase
         self::assertSame([], $this->published);
     }
 
-    private function publisher(): LiveUpdatePublisher
+    public function test_a_signal_queued_in_an_open_transaction_waits_for_the_commit(): void
+    {
+        $buffer = new LiveUpdateTransactionBuffer();
+        $publisher = $this->publisher($buffer);
+        $buffer->begin();
+
+        $publisher->queue('https://loupe.test/board/1', ['type' => 'a']);
+        $publisher->publish();
+        self::assertSame([], $this->published);
+
+        $buffer->commit();
+        $publisher->publish();
+
+        self::assertSame([[['https://loupe.test/board/1'], '{"type":"a","origin":null}']], $this->sent());
+    }
+
+    public function test_a_signal_queued_in_a_rolled_back_transaction_is_never_sent(): void
+    {
+        $buffer = new LiveUpdateTransactionBuffer();
+        $publisher = $this->publisher($buffer);
+        $buffer->begin();
+        $publisher->queue('https://loupe.test/board/1', ['type' => 'a']);
+        $buffer->rollBack();
+
+        $publisher->publish();
+
+        self::assertSame([], $this->published);
+    }
+
+    public function test_a_signal_queued_with_no_transaction_is_pending_at_once(): void
+    {
+        $buffer = new LiveUpdateTransactionBuffer();
+        $publisher = $this->publisher($buffer);
+        $publisher->queue('https://loupe.test/board/1', ['type' => 'a']);
+        $buffer->begin();
+        $buffer->rollBack();
+
+        $publisher->publish();
+
+        self::assertCount(1, $this->published);
+    }
+
+    public function test_a_reset_drops_the_held_and_the_committed_signals(): void
+    {
+        $buffer = new LiveUpdateTransactionBuffer();
+        $publisher = $this->publisher($buffer);
+        $buffer->begin();
+        $publisher->queue('https://loupe.test/board/1', ['type' => 'a']);
+        $buffer->commit();
+        $buffer->begin();
+        $publisher->queue('https://loupe.test/board/2', ['type' => 'a']);
+
+        $publisher->reset();
+        $buffer->commit();
+        $publisher->publish();
+
+        self::assertSame([], $this->published);
+    }
+
+    private function publisher(?LiveUpdateTransactionBuffer $buffer = null): LiveUpdatePublisher
     {
         return new LiveUpdatePublisher(
             $this->requests,
+            $buffer ?? new LiveUpdateTransactionBuffer(),
             FeatureFlags::service([LiveUpdates::FLAG => true]),
             new Logger('test', [$this->log]),
             fn (): HubInterface => new MockHub(
