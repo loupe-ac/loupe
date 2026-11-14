@@ -59,7 +59,7 @@ func TestParseManifestRefuses(t *testing.T) {
 		"no name":         {"events:\n  busy: [./hook]\n", "name is required"},
 		"unknown key":     {"name: x\nevents:\n  busy: [./hook]\nurl: y\n", "field url not found"},
 		"no events":       {"name: x\n", "events lists no event"},
-		"unknown event":   {"name: x\nevents:\n  wake: [./hook]\n", `event "wake" is not start, stop, busy or idle`},
+		"unknown event":   {"name: x\nevents:\n  wake: [./hook]\n", `event "wake" is not start, stop, busy, idle or tick`},
 		"empty command":   {"name: x\nevents:\n  busy: []\n", "event busy: the command is empty"},
 		"bare name":       {"name: x\nevents:\n  busy: [hook]\n", `event busy: the command "hook" does not start with ./`},
 		"absolute":        {"name: x\nevents:\n  busy: [/bin/sh]\n", `event busy: the command "/bin/sh" does not start with ./`},

@@ -559,3 +559,24 @@ func TestAPackageWithoutStopRemovedAndAddedBackGetsTheNextIdle(t *testing.T) {
 		})
 	}
 }
+
+// The bridge fires tick on each interval while it runs, and no tick after stop.
+func TestTheBridgeFiresTickUntilItStops(t *testing.T) {
+	h := scriptHook(t, "acme/tool", "echo \"$1\" >> \"$LOUPE_HOOK_STATE_DIR/journal\"\n", hookTick)
+	journal := filepath.Join(h.StateDir, "journal")
+	hr := newHookRunner([]hooks.Hook{h}, testBridgeID, newBridgeLogger(&syncBuffer{}))
+	hr.tick = 10 * time.Millisecond
+
+	hr.start()
+	eventually(t, "two ticks", func() bool {
+		data, _ := os.ReadFile(journal)
+
+		return strings.Count(string(data), "tick\n") >= 2
+	})
+	hr.stop()
+	after := readFile(t, journal)
+	time.Sleep(50 * time.Millisecond)
+	if got := readFile(t, journal); got != after {
+		t.Fatalf("a tick ran after stop:\n%s", got)
+	}
+}

@@ -27,7 +27,7 @@ const DefaultTimeout = 30 * time.Second
 const MaxTimeout = 120 * time.Second
 
 // Events are the bridge events a hook can listen to, in the order they fire.
-var Events = []string{"start", "stop", "busy", "idle"}
+var Events = []string{"start", "stop", "busy", "idle", "tick"}
 
 // The setting types a manifest can declare.
 const (
@@ -102,7 +102,7 @@ func ParseManifest(data []byte) (Manifest, error) {
 	}
 	for _, name := range slices.Sorted(maps.Keys(raw.Events)) {
 		if !slices.Contains(Events, name) {
-			errs = append(errs, fmt.Errorf("event %q is not start, stop, busy or idle", name))
+			errs = append(errs, fmt.Errorf("event %q is not start, stop, busy, idle or tick", name))
 
 			continue
 		}
