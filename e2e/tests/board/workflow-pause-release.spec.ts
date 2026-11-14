@@ -5,6 +5,7 @@
 
 import { expect } from '@playwright/test';
 import { createTest, suppressToolbar, suppressWidget } from '../fixtures';
+import { skipProjectSetup } from '../helpers';
 
 const test = createTest({
     email: `e2e-workflow-pause-${Date.now()}@example.com`,
@@ -31,6 +32,7 @@ test('Retry now ends a retries pause, and the history records the release', asyn
         .click();
     await page.getByLabel('Project name').fill(`pause-${Date.now()}`);
     await page.getByRole('button', { name: 'Add project' }).click();
+    await skipProjectSetup(page);
     await expect(page.locator('[data-workshop]')).toBeVisible();
     const projectId = /\/projects\/([0-9a-f-]{36})/.exec(page.url())?.[1];
     expect(projectId).toBeTruthy();

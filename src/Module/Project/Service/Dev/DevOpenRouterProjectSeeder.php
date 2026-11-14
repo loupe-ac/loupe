@@ -61,6 +61,7 @@ final readonly class DevOpenRouterProjectSeeder implements DevSeederInterface
 
         // Older than the edge projects, because a project keeps its own creation time.
         $project = new Project($context->devUser(), self::NAME, createdAt: $context->at(240));
+        $project->setUp = true;
 
         $this->devProjects->renameOldProject($context->devUser(), self::NAME);
 

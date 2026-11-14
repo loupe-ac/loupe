@@ -35,6 +35,7 @@ use App\Module\Bridge\ValueObject\BridgeSessionReading;
 use App\Module\Bridge\ValueObject\SkippedWorkRequest;
 use App\Module\Bridge\ValueObject\WorkerRunCloseReason;
 use App\Module\Bridge\ValueObject\WorkRequestState;
+use App\Module\Project\Contract\ProjectMilestones;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Security\LoginLivenessInterface;
 use Doctrine\ORM\EntityManagerInterface;
@@ -86,6 +87,7 @@ final readonly class RecordBridgeHeartbeatHandler
         private ClockInterface $clock,
         private HeldProjects $heldProjects,
         private LoginLivenessInterface $logins,
+        private ProjectMilestones $milestones,
     ) {
     }
 
@@ -246,6 +248,11 @@ final readonly class RecordBridgeHeartbeatHandler
                 $readingsStored,
             ];
         });
+
+        // After the commit, because reach() takes the project write lock. A set-up project costs one query.
+        foreach ($this->projects->findIdsNotSetUp($projects) as $projectId) {
+            $this->milestones->reach(Uuid::fromString($projectId), ProjectMilestones::BRIDGE_CONNECTED);
+        }
 
         // After the commit, because the writer locks run rows and the bridge lock must not wait on them.
         // A resent batch inserts nothing and still recomputes, so a failed recompute gets a retry.

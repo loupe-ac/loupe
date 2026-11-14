@@ -34,7 +34,9 @@ final readonly class ShowGitHubRepositoryPickerHandler
         }
 
         try {
-            return $this->listing->list($command->project, $token, $this->installSession->pending()?->repository);
+            $pending = $this->installSession->pending();
+
+            return $this->listing->list($command->project, $token, $pending?->repository, $pending?->installationId);
         } catch (GitHubUserApiFailed $e) {
             $this->logger->warning('github.user_api_failed', [
                 'projectId' => $projectId,

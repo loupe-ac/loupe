@@ -31,10 +31,10 @@
     {% endif %}
     {{ form_start(form, {attr: {class: 'lp-form'}}) }}
         <twig:Ds:FormField>
-            <label class="lp-choice">
+            <twig:Ds:Choice>
                 {{ form_widget(form.enabled) }}
                 {{ form.enabled.vars.label|trans }}
-            </label>
+            </twig:Ds:Choice>
             <twig:Ds:Hint :id="form.enabled.vars.id ~ '_help'">{{ form.enabled.vars.help|trans }}</twig:Ds:Hint>
             <twig:Ds:FieldErrors :fieldView="form.enabled" data-field-errors="enabled" />
         </twig:Ds:FormField>

@@ -718,6 +718,8 @@ that nobody answered closes as **resolved** when `.loupe.yaml` gets a valid valu
 repository no longer fits the case. The question has no **Dismiss**, because merges wait until it
 has an answer. With the inbox off, Loupe opens no question, and the held merge still applies.
 
+A project that is not set up yet opens no merge question. It is set up once `loupe init` finished and a bridge connected. Loupe checks its repositories once when that happens, so `loupe init` asks the question in the terminal first. When you answered in the inbox and Loupe opened the pull request, `loupe init` skips its own question, and prints the link to merge.
+
 While `loupe init` runs, the project holds its onboarding items. Init opens a run of the kind `init`
 on the project, and the Runs page shows it. While that run is open, Loupe opens no new merge question
 and no new "does not fit the workflow" notice. An item that was already open stays open and gets no

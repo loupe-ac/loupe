@@ -110,6 +110,7 @@ final readonly class DevInternalValueSeeder implements DevSeederInterface
         $this->devProjects->renameOldProject($context->devUser(), self::PROJECT_NAME);
 
         $project = new Project($context->devUser(), self::PROJECT_NAME, createdAt: $context->at(330));
+        $project->setUp = true;
         $context->ids->assign($project, self::projectId());
         $this->em->persist($project);
         $this->events->dispatch(new ProjectCreating($project, 'lifecycle'));

@@ -35,14 +35,15 @@ final readonly class GitHubPickerListing
     }
 
     /**
-     * @param ?string $tick the path to tick when a free repository has it
+     * @param ?string $tick                the path to tick when a free repository has it
+     * @param ?int    $firstInstallationId the installation whose account group comes first, such as the one a person just installed
      *
      * @throws GitHubUserApiFailed
      */
-    public function list(Project $project, #[\SensitiveParameter] string $token, ?string $tick = null): GitHubRepositoryPickerView
+    public function list(Project $project, #[\SensitiveParameter] string $token, ?string $tick = null, ?int $firstInstallationId = null): GitHubRepositoryPickerView
     {
         $installations = $this->userApi->installations($token);
-        usort($installations, static fn (GitHubUserInstallation $a, GitHubUserInstallation $b): int => strcasecmp($a->accountLogin, $b->accountLogin) ?: $a->id <=> $b->id);
+        usort($installations, static fn (GitHubUserInstallation $a, GitHubUserInstallation $b): int => (($b->id === $firstInstallationId) <=> ($a->id === $firstInstallationId)) ?: strcasecmp($a->accountLogin, $b->accountLogin) ?: $a->id <=> $b->id);
 
         $lists = [];
         $ids = [];

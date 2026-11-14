@@ -35,7 +35,7 @@ The `inbox:` list of the workflow template decides which card waits open an item
 See [Choosing which waits open an item](inbox.md#choosing-which-waits-open-an-item).
 
 The first-project setup form also accepts a description.
-Account data exports include descriptions in `projects.json`.
+Account data exports include descriptions, the set-up state and the reached milestones in `projects.json`.
 
 Open Agents to see the project's reported bridge connections, CLI versions, and latest heartbeats.
 Connection details and setup buttons wrap to fit narrow screens and enlarged text.
@@ -43,6 +43,25 @@ Workshop's Your crew section shows these connections and their health. Select a 
 When the project has no reported connections, Your crew links to connection setup.
 Each connection shows its own health. This does not report whether an individual agent is available or running.
 Agent configuration and rules remain read-only in Loupe. Configure them through the CLI and its rule file.
+
+## The setup page
+
+A new project is not set up. A project is set up when `loupe init` has finished once and a bridge has connected once. Both facts stay true, so a project that is set up stays set up.
+
+While a project is not set up, each page of the project opens the setup page instead. This is the setup gate. Only the setup page, the repository picker and the hand-off page of `loupe init` open as normal. Every project that existed before the gate shipped counts as set up.
+
+The setup page shows the next step and updates by itself:
+
+- With no repository, it shows the `loupe init --project <id>` command, **Add repositories** and **Skip for now**. **Add repositories** opens the repository picker. When you add or cancel, the picker returns you to the setup page.
+- When repositories have joined, it names them and shows the same command.
+- While `loupe init` runs, it says so. It shows a list of the setup steps, each marked Done or Waiting.
+- When `loupe init` stopped before it finished, it says so and shows the command again. A Ctrl-C or an error counts as stopped.
+- When `loupe init` finished and no bridge has connected, it shows the command `loupe bridge run`.
+- When the project is set up, it shows every step as Done and a link to open the project.
+
+The last line of the list is the merge line. It shows who approves a merge in each repository: **Not asked yet**, **In the init pull request**, or the value that is set. The merge line never holds the setup.
+
+Select **Skip for now** to open the project pages for the rest of the browser session. The gate comes back in a new browser session until the project is set up. Only the project owner can skip. A person who can view the project but cannot manage it sees the setup page with the list, and has no command and no button. Projects have no members today, so nobody sees that view yet.
 
 ## Create a project through the API
 
@@ -134,6 +153,18 @@ Loupe keeps your GitHub sign-in in your session, encrypted, for 30 minutes at mo
 
 If a repository is missing from the list, select Adjust access on GitHub. It opens the page of the installation on GitHub. When the operator turned on "Redirect on update" on the App, GitHub sends you back to the Repositories tab after the change. Otherwise return to the tab and select Refresh list.
 Select Install on another account to install the App on a GitHub account that has no installation yet. When GitHub sends you back and the new installation offers exactly one repository that no project holds, Loupe adds it at once and says "Connected acme/api. Add more from Repositories." With more than one, the picker opens on the Repositories tab.
+
+#### Install from github.com
+
+You can install the Loupe App on GitHub before you open a project in Loupe. GitHub sends you back to Loupe with the install. Loupe then signs you in to GitHub, and checks that your own GitHub user can see the installation. Loupe lists the installations of your user with your own sign-in. A link that names an installation your user does not see opens nothing, and Loupe says "Loupe cannot find this install on your GitHub account."
+
+After the sign-in, the page "Loupe is installed on acme" asks for a project. It lists the projects you own, each with its number of repositories, and a New project row with a name field. The field holds the name of the GitHub account, and you can change it. When you own no project, only the name field shows. You can rename the project later in Project settings.
+
+Select Continue, or Create project and continue. When the installation offers exactly one repository that no project holds, Loupe adds it at once. Otherwise the picker opens on the Repositories tab, and the account you just installed on comes first. A new project then opens the [setup page](#the-setup-page).
+
+When the install was a request to an organization owner, Loupe shows "Your install request waits for an organization owner". The owner approves it on GitHub. Then open a project and select Add repositories.
+
+When you sign up on the way, confirm your email in the same browser. Loupe then returns you to the install. A confirmation in another browser, or a sign-up that goes to the waitlist, loses the install. Add the repositories from a project with Add repositories, and the picker lists the installation.
 
 #### Repositories you have not picked
 

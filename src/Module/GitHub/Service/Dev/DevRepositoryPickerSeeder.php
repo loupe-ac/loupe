@@ -20,7 +20,9 @@ use Symfony\Component\Uid\Uuid;
 /**
  * Holds two repositories of the preview picker: one in the lifecycle project and
  * one in the project of another account. The third stays free, and the dev
- * project holds none, so its Repositories tab is empty.
+ * project holds none, so its Repositories tab is empty. The project that is not
+ * set up holds one more. The two projects of the installer account hold two and
+ * one, for the project choice after an install from github.com.
  */
 #[When('dev')]
 #[When('test')]
@@ -52,7 +54,25 @@ final readonly class DevRepositoryPickerSeeder implements DevSeederInterface
     {
         $this->hold($context, DevProjectSeeder::lifecycleProjectId(), DevGitHubPickerClient::HELD_REPOSITORY, 'acme/held-app');
         $this->hold($context, DevProjectSeeder::keysProjectId(), DevGitHubPickerClient::OTHER_PROJECT_REPOSITORY, 'acme/elsewhere-app');
+        $this->holdNotSetUp($context);
+        $this->hold($context, DevProjectSeeder::installerWebProjectId(), 9301, 'acme/web-shop');
+        $this->hold($context, DevProjectSeeder::installerWebProjectId(), 9302, 'acme/web-admin');
+        $this->hold($context, DevProjectSeeder::installerApiProjectId(), 9303, 'acme/api');
         $this->em->flush();
+    }
+
+    /** The project that is not set up holds one repository and no init run. */
+    private function holdNotSetUp(SeedContext $context): void
+    {
+        $project = $this->projects->find(DevProjectSeeder::notSetUpProjectId());
+        $id = DevSeedId::of('github-picker/not-set-up');
+        if (!$project instanceof Project || $this->forgeRepositories->find($id) instanceof ForgeRepository) {
+            return;
+        }
+
+        $repository = new ForgeRepository($project, 'github', 'github-picker/not-set-up', 'acme/new-app', ForgeRepositorySource::Installation, (string) DevRepositoryCheckSeeder::INSTALLATION_ID);
+        $context->ids->assign($repository, $id);
+        $this->em->persist($repository);
     }
 
     private function hold(SeedContext $context, Uuid $projectId, int $repositoryId, string $path): void

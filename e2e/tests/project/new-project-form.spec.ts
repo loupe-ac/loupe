@@ -1,5 +1,9 @@
 import { expect } from '@playwright/test';
-import { registerAndVerify, submitRedirectingForm } from '../helpers';
+import {
+    registerAndVerify,
+    skipProjectSetup,
+    submitRedirectingForm,
+} from '../helpers';
 import {
     hubStubbedTest as test,
     suppressToolbar,
@@ -75,6 +79,7 @@ test('project descriptions persist on tiles and can be edited or cleared', async
         page.getByRole('button', { name: 'Add project', exact: true }),
         '/projects?page=1',
     );
+    await skipProjectSetup(page);
     await expect(page.locator('[data-workshop]')).toBeVisible();
     await expect(page.locator('.lp-sidebar__switcher-name')).toHaveText(name);
     await expect(page).toHaveURL(/\/projects\/[^/]+$/);

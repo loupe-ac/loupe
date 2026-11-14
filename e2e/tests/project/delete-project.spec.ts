@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
 import { createTest } from '../fixtures';
-import { submitRedirectingForm } from '../helpers';
+import { skipProjectSetup, submitRedirectingForm } from '../helpers';
 
 const test = createTest({
     email: 'e2e-delete-project@example.com',
@@ -19,6 +19,7 @@ test('deleting a project requires typing its exact name', async ({ page }) => {
         .click();
     await page.getByLabel('Project name').fill(projectName);
     await page.getByRole('button', { name: 'Add project' }).click();
+    await skipProjectSetup(page);
 
     await expect(page.locator('[data-workshop]')).toBeVisible();
     await expect(page.locator('.lp-sidebar__switcher-name')).toHaveText(

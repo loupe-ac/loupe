@@ -800,6 +800,32 @@ class WorkerRunRepository extends ServiceEntityRepository
             ->getResult());
     }
 
+    /**
+     * The projects of the owner in which the session ran init, whether the run is open or closed.
+     *
+     * @return list<Uuid>
+     */
+    public function findInitProjectIdsOfSession(User $owner, Uuid $sessionId): array
+    {
+        /** @var list<Uuid|string> $ids */
+        $ids = $this->createQueryBuilder('r')
+            ->select('DISTINCT IDENTITY(r.project)')
+            ->join('r.project', 'p')
+            ->andWhere('p.owner = :owner')
+            ->andWhere('r.sessionId = :sessionId')
+            ->andWhere('r.kind = :interactive')
+            ->andWhere(self::INIT_RUN_CONDITION)
+            ->setParameter('owner', $owner)
+            ->setParameter('sessionId', $sessionId, UuidType::NAME)
+            ->setParameter('interactive', WorkerRunKind::Interactive->value)
+            ->setParameter('initKind', InitRuns::WORK_KIND)
+            ->setParameter('initSubject', WorkSubject::PROJECT)
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return array_map(static fn (Uuid|string $id): Uuid => $id instanceof Uuid ? $id : Uuid::fromString($id), $ids);
+    }
+
     /** Whether the project has an open init run. */
     public function hasOpenInit(Uuid $projectId): bool
     {
@@ -807,6 +833,25 @@ class WorkerRunRepository extends ServiceEntityRepository
             ->select('1')
             ->andWhere('r.project = :projectId')
             ->andWhere(self::INIT_RUN_CONDITION)
+            ->setParameter('projectId', $projectId, UuidType::NAME)
+            ->setParameter('initKind', InitRuns::WORK_KIND)
+            ->setParameter('initSubject', WorkSubject::PROJECT)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    /** Whether the project has an init run that is not open. */
+    public function hasClosedInit(Uuid $projectId): bool
+    {
+        return null !== $this->createQueryBuilder('r')
+            ->select('1')
+            ->andWhere('r.kind = :interactive')
+            ->andWhere('r.state != :running')
+            ->andWhere('r.project = :projectId')
+            ->andWhere(self::INIT_RUN_CONDITION)
+            ->setParameter('interactive', WorkerRunKind::Interactive->value)
+            ->setParameter('running', WorkerRunState::Running->value)
             ->setParameter('projectId', $projectId, UuidType::NAME)
             ->setParameter('initKind', InitRuns::WORK_KIND)
             ->setParameter('initSubject', WorkSubject::PROJECT)

@@ -317,6 +317,12 @@ paths:
       description: No feature flag gates this route.
       parameters:
       - $ref: '#/components/parameters/SessionId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionCloseBody'
       responses:
         '200':
           description: How many runs closed.
@@ -324,6 +330,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SessionClosed'
+        '400':
+          $ref: '#/components/responses/E400InvalidJson'
         '401':
           $ref: '#/components/responses/E401Unauthorized'
         '402':
@@ -334,8 +342,10 @@ paths:
           $ref: '#/components/responses/E404RouteNotFound'
         '405':
           $ref: '#/components/responses/E405MethodNotAllowed'
+        '415':
+          $ref: '#/components/responses/E415UnsupportedMediaType'
         '422':
-          $ref: '#/components/responses/E422InvalidSessionId'
+          $ref: '#/components/responses/E422InvalidSessionIdInvalidFinished'
         '429':
           $ref: '#/components/responses/E429RateLimited'
   /api/v1/bridge/interactive-sessions/{sessionId}/card-run:
@@ -2014,6 +2024,7 @@ components:
                       - reviewRequired
                       - mergeApproval
                       - mergeApprovalSource
+                      - mergeApprovalPullRequestUrl
                       properties:
                         path:
                           type: string
@@ -2046,6 +2057,10 @@ components:
                         mergeApprovalSource:
                           type: string
                           description: Where the value came from, one of file, invalid, stored, default, unset, conflict or template.
+                        mergeApprovalPullRequestUrl:
+                          type: string
+                          nullable: true
+                          description: The pull request that writes the owner's answer to the merge question into .loupe.yaml, or null when the question has no such pull request or the file already holds the setting.
     ProjectColumns:
       type: object
       required:
@@ -3123,6 +3138,13 @@ components:
           nullable: true
           maxLength: 100
           pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$
+    SessionCloseBody:
+      type: object
+      properties:
+        finished:
+          type: boolean
+          default: false
+          description: True when the work of the session ended well. Any other value answers 422 `invalid_finished`.
     SessionClosed:
       type: object
       required:
@@ -4371,6 +4393,13 @@ components:
         title: Ambiguous start order
         status: 409
         code: ambiguous_start_order
+    InvalidFinished:
+      summary: invalid_finished
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#invalid_finished
+        title: Invalid finished
+        status: 422
+        code: invalid_finished
     InvalidSessionId:
       summary: invalid_session_id
       value:
@@ -4921,6 +4950,17 @@ components:
               $ref: '#/components/examples/InvalidSessionId'
             validation_failed:
               $ref: '#/components/examples/ValidationFailed'
+    E422InvalidSessionIdInvalidFinished:
+      description: 'Refused: `invalid_session_id`, `invalid_finished`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            invalid_session_id:
+              $ref: '#/components/examples/InvalidSessionId'
+            invalid_finished:
+              $ref: '#/components/examples/InvalidFinished'
     E422InvalidSessionId:
       description: 'Refused: `invalid_session_id`.'
       content:

@@ -14,6 +14,10 @@ use App\Module\Forge\Settings\RepositoryRules;
 use App\Module\Forge\Settings\RepositorySettings;
 use App\Module\GitHub\Entity\GitHubInstallation;
 use App\Module\GitHub\Entity\GitHubRepositorySelection;
+use App\Module\Inbox\Entity\InboxAskOrigin;
+use App\Module\Inbox\Entity\InboxItem;
+use App\Module\Inbox\Entity\InboxItemKind;
+use App\Module\Inbox\Entity\InboxMergeApprovalQuestion;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Command\BindWorkflowTemplateCommand;
 use App\Module\Workflow\Command\BindWorkflowTemplateHandler;
@@ -80,7 +84,7 @@ final class ListSitesGitHubFactsTest extends WebTestCase
         self::assertTrue($site['github']['appInstalled']);
         $byPath = array_column($site['github']['repositories'], null, 'path');
         self::assertSame(
-            ['path' => 'acme/read', 'appInstalled' => true, 'defaultBranch' => 'trunk', 'rulesRead' => 'ok', 'reviewRequired' => true, 'mergeApproval' => 'agent', 'mergeApprovalSource' => 'stored'],
+            ['path' => 'acme/read', 'appInstalled' => true, 'defaultBranch' => 'trunk', 'rulesRead' => 'ok', 'reviewRequired' => true, 'mergeApproval' => 'agent', 'mergeApprovalSource' => 'stored', 'mergeApprovalPullRequestUrl' => null],
             $byPath['acme/read'],
         );
         self::assertSame('plan-limited', $byPath['acme/limited']['rulesRead']);
@@ -92,6 +96,39 @@ final class ListSitesGitHubFactsTest extends WebTestCase
         self::assertNull($byPath['acme/unread']['rulesRead']);
         self::assertNull($byPath['acme/unread']['defaultBranch']);
         self::assertCount(4, $byPath);
+    }
+
+    public function test_the_pull_request_of_an_inbox_answer_shows_until_the_file_holds_the_setting(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $em = $this->em();
+        $owner = $this->user($em, 'github-facts-pending@example.com');
+        $project = new Project($owner, 'github-facts-pending');
+        $em->persist($project);
+        $installation = new GitHubInstallation(random_int(1, \PHP_INT_MAX), 'acme', GitHubRepositorySelection::All);
+        $em->persist($installation);
+        $em->flush();
+        $this->installationId = (string) $installation->installationId;
+        $settings = new RepositorySettings('main', ['squash'], null, new RepositoryRules(false, false, null, [], [], false, false), [], [], false);
+        $answered = $this->repository($em, $project, 'acme/answered', $settings);
+        $open = $this->repository($em, $project, 'acme/open', $settings);
+        $em->persist(new WorkflowRepositorySetting($project, $answered->id ?? throw new \LogicException('flushed'), 'merge-approval', '"agent"'));
+        foreach ([[$answered, 'agent', 'https://github.com/acme/answered/pull/7'], [$open, null, null]] as $n => [$repository, $answer, $url]) {
+            $item = new InboxItem($project, $n + 1, InboxItemKind::Question, 'May Loupe merge?', false, InboxAskOrigin::Loupe, createdAt: new \DateTimeImmutable());
+            $question = new InboxMergeApprovalQuestion($project, $repository->id ?? throw new \LogicException('flushed'), $item, new \DateTimeImmutable());
+            $question->answer = $answer;
+            $question->pullRequestUrl = $url;
+            $em->persist($item);
+            $em->persist($question);
+        }
+        $em->flush();
+
+        $site = $this->onlySite($client, $owner);
+
+        $byPath = array_column($site['github']['repositories'], null, 'path');
+        self::assertSame('https://github.com/acme/answered/pull/7', $byPath['acme/answered']['mergeApprovalPullRequestUrl']);
+        self::assertNull($byPath['acme/open']['mergeApprovalPullRequestUrl']);
     }
 
     public function test_a_removed_installation_is_not_installed_and_another_forge_is_left_out(): void

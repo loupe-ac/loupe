@@ -58,6 +58,7 @@
 @import './feature-pages/live-review.css';
 @import './feature-pages/analytics.css';
 @import './components/range-strip.css';
+@import './components/choice.css';
 @plugin "@tailwindcss/typography";
 
 /* Structural admin-* CSS shipped by the admin bundle, compiled in this app's
@@ -2390,6 +2391,36 @@
         @apply w-12 h-12 rounded-full bg-accent-soft text-accent inline-flex items-center justify-center;
     }
 
+    /* The setup page of a project that is not set up: a heading, a command, a status list and the actions. */
+    .lp-project-setup {
+        @apply flex flex-col gap-5;
+    }
+    .lp-project-setup__header {
+        @apply flex flex-col items-center gap-3 text-center;
+    }
+    .lp-project-setup__icon {
+        @apply size-10;
+    }
+    .lp-project-setup__title {
+        @apply m-0 text-2xl font-semibold tracking-tight text-fg;
+    }
+    .lp-project-setup__lead {
+        @apply m-0 text-fg-mute;
+    }
+    .lp-project-setup__waiting {
+        @apply m-0 flex items-center justify-center gap-2 text-sm text-fg-mute;
+    }
+    .lp-project-setup__list {
+        @apply m-0 grid list-none items-baseline gap-x-3 gap-y-2.5 p-0 text-left;
+        grid-template-columns: max-content minmax(0, 1fr);
+    }
+    .lp-project-setup__line {
+        @apply contents;
+    }
+    .lp-project-setup__actions {
+        @apply flex items-center justify-center gap-3;
+    }
+
     /* OAuth consent card: who asks, for what, and where the answer goes. */
     .lp-consent {
         @apply flex flex-col items-center gap-4 py-2 text-center;
@@ -3265,19 +3296,6 @@
     }
     .ts-dropdown [data-selectable] .highlight {
         @apply rounded-sm bg-accent-soft;
-    }
-    /* A checkbox or radio with its label, framed like a field so the whole row is the target. */
-    .lp-choice {
-        @apply flex items-center gap-3 min-h-10 rounded-lg border border-line-field bg-field px-3 py-2.5 text-sm text-ink cursor-pointer;
-    }
-    .lp-choice input {
-        @apply w-4 h-4 shrink-0 cursor-pointer accent-accent-ink;
-    }
-    .lp-choice:has(input:checked) {
-        @apply bg-accent-soft border-accent-border;
-    }
-    .lp-choice:has(input:focus-visible) {
-        @apply outline-2 outline-offset-1 outline-accent-ink;
     }
     /* A field with one action beside it, such as a read-only value and its Copy button. */
     .lp-input-with-action {

@@ -15,6 +15,8 @@ use App\Module\GitHub\GitHubDelivery;
 use App\Module\GitHub\Repository\GitHubInstallationRepository;
 use App\Module\GitHub\View\GitHubRepositoryFacts;
 use App\Module\GitHub\View\GitHubSiteFacts;
+use App\Module\Project\Contract\PendingMergeApprovalPullRequests;
+use App\Module\Workflow\Contract\SettingSource;
 use App\Module\Workflow\Contract\WorkflowSettings;
 use Symfony\Component\Uid\Uuid;
 
@@ -32,6 +34,7 @@ final readonly class ProjectGitHubFacts
         private ForgeRepositoryRepository $forgeRepositories,
         private ForgeRepositoryCheckRepository $forgeRepositoryChecks,
         private WorkflowSettings $settings,
+        private PendingMergeApprovalPullRequests $pendingPullRequests,
     ) {
     }
 
@@ -57,10 +60,15 @@ final readonly class ProjectGitHubFacts
         }
         $checks = $this->forgeRepositoryChecks->findByRepositories($repositories);
 
+        $pending = $this->pendingPullRequests->forProjects(array_values(array_unique(array_map(
+            static fn (ForgeRepository $repository): Uuid => $repository->project->id ?? throw new \LogicException('The project is not flushed.'),
+            $repositories,
+        ), SORT_REGULAR)));
+
         $byProject = [];
         foreach ($repositories as $repository) {
             $id = $repository->id ?? throw new \LogicException('The repository is not flushed.');
-            $byProject[(string) $repository->project->id][] = $this->facts($repository, $id, $checks[(string) $id] ?? null, $live);
+            $byProject[(string) $repository->project->id][] = $this->facts($repository, $id, $checks[(string) $id] ?? null, $live, $pending[(string) $id] ?? null);
         }
 
         $facts = [];
@@ -72,7 +80,7 @@ final readonly class ProjectGitHubFacts
     }
 
     /** @param array<array-key, true> $live the ids of the installations that are neither suspended nor removed */
-    private function facts(ForgeRepository $repository, Uuid $id, ?ForgeRepositoryCheck $check, array $live): GitHubRepositoryFacts
+    private function facts(ForgeRepository $repository, Uuid $id, ?ForgeRepositoryCheck $check, array $live, ?string $pendingPullRequestUrl): GitHubRepositoryFacts
     {
         $settings = null;
         if (null !== $check?->settings) {
@@ -103,6 +111,7 @@ final readonly class ProjectGitHubFacts
             },
             \is_string($merge->value) ? $merge->value : null,
             $merge->source->value,
+            SettingSource::File === $merge->source ? null : $pendingPullRequestUrl,
         );
     }
 }

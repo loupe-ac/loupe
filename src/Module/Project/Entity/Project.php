@@ -88,6 +88,10 @@ class Project implements ProjectScopedSubject
     #[ORM\Column(options: ['default' => true])]
     public bool $gitIdentityManaged = true;
 
+    /** On once the project reached both milestones of ProjectMilestones. It never turns off. */
+    #[ORM\Column(options: ['default' => false])]
+    public bool $setUp = false;
+
     public function __construct(
         #[ORM\JoinColumn(nullable: false)]
         #[ORM\ManyToOne(targetEntity: User::class)]
