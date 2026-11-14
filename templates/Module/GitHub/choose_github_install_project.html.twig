@@ -16,11 +16,11 @@
             {% for radio in form.project %}
                 {% set option = options[radio.vars.value] ?? null %}
                 {% if option is null %}
-                    <twig:Ds:Choice as="div" variant="top" data-install-new-project>
-                        {{ form_widget(radio, {attr: {'aria-label': 'github.install_project.new_project'|trans}}) }}
+                    <twig:Ds:Choice as="div" variant="top" data-install-new-project data-controller="select-on-input">
+                        {{ form_widget(radio, {attr: {'aria-label': 'github.install_project.new_project'|trans, 'data-select-on-input-target': 'radio'}}) }}
                         <div class="flex grow flex-col gap-1.5">
                             {{ form_label(form.name, 'github.install_project.new_project'|trans, {label_attr: {class: ds_label_class()}}) }}
-                            {{ form_widget(form.name, {attr: {class: ds_input_class()}}) }}
+                            {{ form_widget(form.name, {attr: {class: ds_input_class(), 'data-action': 'focus->select-on-input#select input->select-on-input#select'}}) }}
                             <twig:Ds:Hint>{{ 'github.install_project.name_hint'|trans }}</twig:Ds:Hint>
                             <twig:Ds:FieldErrors :fieldView="form.name" />
                         </div>

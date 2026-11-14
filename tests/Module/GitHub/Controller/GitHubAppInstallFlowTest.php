@@ -355,6 +355,9 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         self::assertStringContainsString('New project', $newRow->text());
         self::assertCount(1, $newRow->filter('input[type="radio"][value="new"]'), 'The new project radio sits in its own row.');
         self::assertCount(1, $newRow->filter('input[name$="[name]"]'), 'The name field sits inside the new project row.');
+        self::assertCount(1, $newRow->filter('input[type="radio"][data-select-on-input-target="radio"]'));
+        self::assertStringContainsString('focus->select-on-input#select', (string) $newRow->filter('input[name$="[name]"]')->attr('data-action'));
+        self::assertStringContainsString('input->select-on-input#select', (string) $newRow->filter('input[name$="[name]"]')->attr('data-action'));
         self::assertCount(1, $crawler->filter('input[name$="[name]"]'));
         self::assertSame('Continue', trim($crawler->filter('button[type="submit"]')->text()));
     }
