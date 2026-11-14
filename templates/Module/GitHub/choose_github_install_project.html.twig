@@ -1,0 +1,40 @@
+{% extends '@Account/auth_base.html.twig' %}
+
+{% block title %}{{ 'github.install_project.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% block auth_body %}
+{% set hasProjects = options is not empty %}
+<div class="flex flex-col gap-1.5" data-testid="github-install-project">
+    <h1 class="auth-heading">{{ 'github.install_project.heading'|trans({'%account%': choice.accountLogin}) }}</h1>
+    <p class="auth-subheading">{{ (hasProjects ? 'github.install_project.lead_choose' : 'github.install_project.lead_new')|trans({'%account%': choice.accountLogin}) }}</p>
+</div>
+
+{{ form_start(form, {'attr': {'class': 'lp-form', 'novalidate': 'novalidate'}}) }}
+    {{ form_errors(form) }}
+    {% if hasProjects %}
+        <div class="flex flex-col gap-2">
+            {% for radio in form.project %}
+                {% set option = options[radio.vars.value] ?? null %}
+                <twig:Ds:Choice variant="top">
+                    {{ form_widget(radio) }}
+                    {% if option is null %}
+                        <span>{{ 'github.install_project.new_project'|trans }}</span>
+                    {% else %}
+                        <span class="flex flex-col">
+                            <span data-project-name>{{ option.project.name }}</span>
+                            <span class="text-fg-mute">{{ 'github.install_project.repository_count'|trans({'%count%': option.repositoryCount}) }}</span>
+                        </span>
+                    {% endif %}
+                </twig:Ds:Choice>
+            {% endfor %}
+            <twig:Ds:FieldErrors :fieldView="form.project" />
+        </div>
+    {% else %}
+        {% do form.project.setRendered %}
+    {% endif %}
+    <twig:Ds:FormField :fieldView="form.name" :hintText="'github.install_project.name_hint'|trans" />
+    <twig:Ds:FormActions>
+        <twig:Ds:Button variant="primary" type="submit">{{ (hasProjects ? 'github.install_project.submit_choose' : 'github.install_project.submit_new')|trans }}</twig:Ds:Button>
+    </twig:Ds:FormActions>
+{{ form_end(form) }}
+{% endblock %}

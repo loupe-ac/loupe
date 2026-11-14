@@ -136,8 +136,10 @@ final class InstallReturnThroughSignInTest extends WebTestCase
     {
         $owner = new readonly class($providerUserId, $data) implements ResourceOwnerInterface {
             /** @param array<string, mixed> $data */
-            public function __construct(private string $id, private array $data)
-            {
+            public function __construct(
+                private string $id,
+                private array $data,
+            ) {
             }
 
             public function getId(): string
