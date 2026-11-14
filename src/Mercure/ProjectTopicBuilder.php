@@ -101,6 +101,18 @@ final readonly class ProjectTopicBuilder
         return $this->projectIdFrom($topic, '/openrouter');
     }
 
+    /** The topic the artifact pages of a project listen on. The message names an artifact id and a version number only. */
+    public function forArtifacts(Uuid $projectId): string
+    {
+        return rtrim($this->appUrl, '/').'/projects/'.$projectId.'/artifacts';
+    }
+
+    /** The project a forArtifacts() topic names, or null for any other string. */
+    public function projectIdFromArtifactsTopic(string $topic): ?Uuid
+    {
+        return $this->projectIdFrom($topic, '/artifacts');
+    }
+
     /** The topic the review page of one document listens on. */
     public function forDocument(Uuid $projectId, Uuid $documentId): string
     {

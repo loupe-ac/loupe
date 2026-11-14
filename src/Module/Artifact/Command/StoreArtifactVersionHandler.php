@@ -7,6 +7,8 @@ namespace App\Module\Artifact\Command;
 use App\Exception\DomainErrors;
 use App\Module\Artifact\Entity\Artifact;
 use App\Module\Artifact\Entity\ArtifactVersion;
+use App\Module\Artifact\Event\ArtifactChange;
+use App\Module\Artifact\Event\ArtifactChanged;
 use App\Module\Artifact\Install\ArtifactInstallFlags;
 use App\Module\Artifact\Repository\ArtifactBlobRepository;
 use App\Module\Artifact\Repository\ArtifactRepository;
@@ -15,6 +17,7 @@ use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Project\Repository\ProjectRepository;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Uid\Uuid;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
@@ -38,6 +41,7 @@ final readonly class StoreArtifactVersionHandler
         private ArtifactCardLinksInterface $cardLinks,
         private EntityManagerInterface $em,
         private Auditor $auditor,
+        private EventDispatcherInterface $events,
     ) {
     }
 
@@ -134,6 +138,13 @@ final readonly class StoreArtifactVersionHandler
             ],
             new AuditSubject('artifact', (string) $version->artifact->id),
         );
+
+        $this->events->dispatch(new ArtifactChanged(
+            $project->id ?? throw new \LogicException('A persisted project has an id.'),
+            $version->artifact->id ?? throw new \LogicException('A persisted artifact has an id.'),
+            ArtifactChange::Stored,
+            $version->number,
+        ));
 
         return $version;
     }

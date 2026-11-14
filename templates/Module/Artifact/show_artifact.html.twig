@@ -17,6 +17,13 @@
 {% set versionParams = {id: project.id, artifactId: artifact.id, number: version.number} %}
 {% set fileParams = (file is not null and not mainFile) ? {file: file.path} : {} %}
 {% set shareLink = pinned ? url('app_project_artifact_version', versionParams|merge(fileParams)) : url('app_project_artifact', {id: project.id, artifactId: artifact.id}|merge(fileParams)) %}
+{% do mercure_subscribe(artifacts_topic(project)) %}
+<div hidden data-controller="live-region"
+     data-live-region-types-value="{{ ['artifact.changed']|json_encode }}"
+     data-live-region-mode-value="stream"
+     data-live-region-match-value="{{ {artifactId: '' ~ artifact.id}|json_encode }}"
+     data-live-region-url-value="{{ path('app_project_artifact_live_band', {id: project.id, artifactId: artifact.id, shown: version.number, archived: artifact.archivedAt is not null ? 1 : 0, full: fullScreen ? 1 : 0}) }}"
+     data-live-shown-version="{{ version.number }}" data-live-pinned="{{ pinned ? 1 : 0 }}"></div>
 <div class="lp-artifact-viewer{% if fullScreen %} lp-artifact-viewer--full{% endif %}" data-artifact-viewer data-live-content>
     <div class="lp-artifact-bar">
         <h1 class="lp-artifact-bar__name" data-artifact-name>{{ artifact.name }}</h1>
@@ -163,6 +170,8 @@
             </twig:Ds:Menu>
         </div>
     </div>
+
+    <div id="live-band"></div>
 
     {% if not ownContentOrigin %}
     <twig:Ds:Flash severity="warning" :dismissLabel="'artifact.viewer.band.dismiss'|trans" class="lp-artifact-band" data-artifact-band>{{ 'artifact.viewer.band.text'|trans }}</twig:Ds:Flash>

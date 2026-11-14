@@ -133,4 +133,16 @@ final class ProjectTopicBuilderTest extends KernelTestCase
         self::assertNull($builder->projectIdFromBoardTopic($topic));
         self::assertNull($builder->projectIdFromActivityTopic($topic));
     }
+
+    public function test_the_artifacts_topic_round_trips_its_project(): void
+    {
+        $builder = new ProjectTopicBuilder('https://loupe.example');
+        $projectId = Uuid::v7();
+
+        $topic = $builder->forArtifacts($projectId);
+
+        self::assertSame('https://loupe.example/projects/'.$projectId.'/artifacts', $topic);
+        self::assertTrue($projectId->equals($builder->projectIdFromArtifactsTopic($topic) ?? throw new \LogicException('No project.')));
+        self::assertNull($builder->projectIdFromArtifactsTopic($builder->forBoard($projectId)));
+    }
 }
