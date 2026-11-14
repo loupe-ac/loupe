@@ -91,3 +91,26 @@ it('follows the rows a stream removes', async () => {
     expect(bar().hidden).toBe(true);
     expect(all().checked).toBe(false);
 });
+
+function morphAttribute(target, attributeName) {
+    const event = new CustomEvent('turbo:before-morph-attribute', {
+        bubbles: true,
+        cancelable: true,
+        detail: { attributeName, mutationType: 'update' },
+    });
+    target.dispatchEvent(event);
+
+    return event;
+}
+
+it('keeps a tick through a live morph', () => {
+    expect(morphAttribute(box('a'), 'checked').defaultPrevented).toBe(true);
+});
+
+it('lets a live morph change the other attributes of a box', () => {
+    expect(morphAttribute(box('a'), 'class').defaultPrevented).toBe(false);
+    expect(
+        morphAttribute(document.getElementById('all'), 'checked')
+            .defaultPrevented,
+    ).toBe(false);
+});

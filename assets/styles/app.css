@@ -2622,19 +2622,13 @@
     .lp-backlog-bulk .lp-btn--ghost {
         @apply text-chrome-mute hover:bg-chrome-control hover:text-chrome-fg;
     }
-    /* A one-line status above the list: a confirmation, or the live notice. */
+    /* A one-line status above the list: a confirmation. */
     .lp-backlog-notice {
         @apply mt-4 flex items-center gap-2.5 rounded-lg bg-sunken px-3.5 py-2.5 text-sm font-medium text-ink;
         animation: lp-appear 120ms ease-out both;
     }
-    .lp-backlog-notice[hidden] {
-        @apply hidden;
-    }
     .lp-backlog-notice--error .lp-flash__dot {
         @apply bg-status-danger;
-    }
-    .lp-backlog-notice__link {
-        @apply font-bold text-accent-ink underline;
     }
 
     /* A row that another actor removed fades out before it goes, and a row that

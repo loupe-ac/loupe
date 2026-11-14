@@ -13,16 +13,20 @@
 {% set backlogPath = path('app_project_board_backlog', {projectId: project.id}) %}
 {% set bulkName = constant('App\\Module\\Board\\Form\\BulkMoveBacklogCardsFormType::NAME') %}
 {% do mercure_subscribe(board_topic(project)) %}
-<twig:Ds:Workspace class="lp-core-prototype-page lp-core-documents" data-controller="backlog-select backlog-live card-drawer">
+<twig:Ds:Workspace class="lp-core-prototype-page lp-core-documents" data-controller="backlog-select card-drawer">
     <twig:Ds:PageHeader :title="backlog.label|trans" :description="'board.backlog.page.description'|trans" titleClass="lp-workspace-title--doc" />
 
-    {# Shown when another person or an agent changes the board. The page does not reload by itself. #}
-    <p class="lp-backlog-notice" role="status" data-backlog-live-target="notice" hidden>
-        <span class="lp-flash__dot"></span>{{ 'board.backlog.live.changed'|trans }}
-        <a class="lp-backlog-notice__link" href="{{ app.request.requestUri }}">{{ 'board.backlog.live.reload'|trans }}</a>
-    </p>
     <div id="backlog-confirmation" aria-live="polite"></div>
 
+    {% set liveRows = listQuery.page > 1 %}
+    {% set liveTag = liveRows ? 'div' : 'turbo-frame' %}
+    <{{ liveTag }} id="backlog-live"{{ liveRows ? '' : ' refresh="morph" target="_top"' }}
+        data-controller="live-region"
+        data-live-region-types-value="{{ ['board.card_changed', 'board.columns_changed']|json_encode }}"
+        data-live-region-mode-value="{{ liveRows ? 'rows' : 'frame' }}"
+        data-live-region-url-value="{{ path(liveRows ? 'app_project_board_backlog_rows' : 'app_project_board_backlog', {projectId: project.id}|merge(listQuery.routeParams)) }}"
+        {% if liveRows %}data-live-since="{{ since }}"{% endif %}>
+    {% if liveRows %}<div id="backlog-live-band" aria-live="polite"></div>{% endif %}
     {% if view.total > 0 or listQuery.isNarrowed %}
     {% set backlogCount %}<span id="backlog-filter-count">{% include '@Board/_backlog_count.html.twig' with {view: view, listQuery: listQuery} only %}</span>{% endset %}
     {# A GET form, so the filters land in the URL. `page` is not a field, so a changed filter starts at page one. #}
@@ -62,6 +66,7 @@
     <div id="backlog-results">
         {% include '@Board/_backlog_results.html.twig' with {project: project, view: view, listQuery: listQuery} only %}
     </div>
+    </{{ liveTag }}>
 
     {# The row checkboxes join this form through their form attribute. #}
     <form id="backlog-bulk-form"

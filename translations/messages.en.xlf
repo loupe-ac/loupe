@@ -7345,13 +7345,13 @@ workflow:
                 <source>board.backlog.bulk.clear</source>
                 <target>Clear</target>
             </trans-unit>
-            <trans-unit id="board.backlog.live.changed">
-                <source>board.backlog.live.changed</source>
-                <target>The board changed.</target>
+            <trans-unit id="board.backlog.live.newer">
+                <source>board.backlog.live.newer</source>
+                <target>{1}One new card matches this list.|]1,Inf[%count% new cards match this list.</target>
             </trans-unit>
-            <trans-unit id="board.backlog.live.reload">
-                <source>board.backlog.live.reload</source>
-                <target>Reload</target>
+            <trans-unit id="board.backlog.live.first_page">
+                <source>board.backlog.live.first_page</source>
+                <target>Show the first page</target>
             </trans-unit>
             <trans-unit id="board.backlog.error.not_in_backlog">
                 <source>board.backlog.error.not_in_backlog</source>

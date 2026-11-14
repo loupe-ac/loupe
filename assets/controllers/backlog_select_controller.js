@@ -4,12 +4,32 @@ import { Controller } from '@hotwired/stimulus';
  * Drives the row checkboxes of the Backlog page: the bulk bar shows while a
  * row is ticked, and the header box selects every row of the page. A row that
  * a stream removes takes its checkbox with it, so the count follows.
+ * A live morph leaves the ticks as the reader set them.
  */
 export default class extends Controller {
     static targets = ['box', 'all', 'bar', 'count'];
 
     connect() {
+        this.keepTicks = (event) => {
+            if (
+                event.detail?.attributeName === 'checked' &&
+                event.target.matches?.('[data-backlog-select-target="box"]')
+            ) {
+                event.preventDefault();
+            }
+        };
+        this.element.addEventListener(
+            'turbo:before-morph-attribute',
+            this.keepTicks,
+        );
         this.update();
+    }
+
+    disconnect() {
+        this.element.removeEventListener(
+            'turbo:before-morph-attribute',
+            this.keepTicks,
+        );
     }
 
     boxTargetConnected() {

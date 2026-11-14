@@ -1518,6 +1518,74 @@ class CardRepository extends ServiceEntityRepository
     }
 
     /**
+     * The cards of a terminal column that stay in it, from a list of ids, newest
+     * completion first. A card that left the column is absent.
+     *
+     * @param list<string> $ids
+     *
+     * @return list<Card>
+     */
+    public function findCompletedByIds(BoardColumn $column, array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        return array_values($this->withPullRequests($this->completedQuery($column))
+            ->andWhere('c.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->getResult());
+    }
+
+    /** How many cards of a terminal column completed after the moment. */
+    public function countCompletedAfter(BoardColumn $column, \DateTimeImmutable $since): int
+    {
+        return (int) $this->createQueryBuilder('c')
+            ->select('COUNT(c.id)')
+            ->andWhere('c.column = :column')
+            ->andWhere('c.completedAt > :since')
+            ->setParameter('column', $column)
+            ->setParameter('since', $since)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
+     * The Backlog cards from a list of ids that still match the filters, with
+     * the epic of each. A card that left the Backlog or the filter is absent.
+     *
+     * @param list<string> $ids
+     *
+     * @return list<Card>
+     */
+    public function findBacklogMatchingByIds(BoardColumn $backlog, BacklogListQuery $listQuery, array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        return array_values($this->backlogMatching($backlog, $listQuery)
+            ->leftJoin('c.parent', 'parent')
+            ->addSelect('parent')
+            ->andWhere('c.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->getResult());
+    }
+
+    /** How many Backlog cards that match the filters were created after the moment. */
+    public function countBacklogMatchingCreatedAfter(BoardColumn $backlog, BacklogListQuery $listQuery, \DateTimeImmutable $since): int
+    {
+        return (int) $this->backlogMatching($backlog, $listQuery)
+            ->select('COUNT(c.id)')
+            ->andWhere('c.createdAt > :since')
+            ->setParameter('since', $since)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
      * One page of the Backlog cards that match the filters, in the order the
      * query asks for, with the epic of each card.
      *
