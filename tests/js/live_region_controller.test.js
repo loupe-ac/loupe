@@ -291,7 +291,7 @@ it('reads again after a reconnect', async () => {
 
 it('rows mode names the shown rows and the cursor', async () => {
     await mount(
-        `data-live-region-types-value='["activity.changed"]' data-live-region-url-value="/rows" data-live-region-mode-value="rows" data-live-since="2026-01-01T00:00:00Z"`,
+        `data-live-region-types-value='["activity.changed"]' data-live-region-url-value="/rows" data-live-region-mode-value="rows" data-live-since="2026-01-01T00:00:00Z" data-live-since-id="abc" data-live-total="42"`,
         '<li data-live-row="r1"></li><li data-live-row="r2"></li>',
     );
     answer(200, '<turbo-stream action="remove" target="r2"></turbo-stream>');
@@ -300,10 +300,25 @@ it('rows mode names the shown rows and the cursor', async () => {
     const url = new URL(fetch.mock.calls[0][0]);
     expect(url.searchParams.get('ids')).toBe('r1,r2');
     expect(url.searchParams.get('since')).toBe('2026-01-01T00:00:00Z');
+    expect(url.searchParams.get('sinceId')).toBe('abc');
+    expect(url.searchParams.get('total')).toBe('42');
     expect(fetch.mock.calls[0][1].headers.Accept).toBe(
         'text/vnd.turbo-stream.html',
     );
     expect(turbo.streams).toHaveLength(1);
+});
+
+it('rows mode posts the ids the page knew at load', async () => {
+    await mount(
+        `data-live-region-types-value='["activity.changed"]' data-live-region-url-value="/rows" data-live-region-mode-value="rows" data-live-since="1" data-live-known='["k1","k2"]'`,
+        '<li data-live-row="r1"></li>',
+    );
+    answer(200, '<turbo-stream></turbo-stream>');
+    signal({ type: 'activity.changed' });
+    await settle();
+    expect(fetch.mock.calls[0][1].method).toBe('POST');
+    expect(fetch.mock.calls[0][1].body.get('known')).toBe('k1,k2');
+    expect(new URL(fetch.mock.calls[0][0]).searchParams.get('ids')).toBe('r1');
 });
 
 it('band mode unhides its band at once, even while a field holds typed text', async () => {

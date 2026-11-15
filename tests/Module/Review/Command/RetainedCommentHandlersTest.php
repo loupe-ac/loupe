@@ -27,6 +27,7 @@ use App\Tests\Support\RecordingAuditor;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 // Direct SQL models stale entity state. DAMA's single connection cannot
 // simulate overlapping transactions.
@@ -46,7 +47,7 @@ final class RetainedCommentHandlersTest extends KernelTestCase
         $this->em = self::getContainer()->get(EntityManagerInterface::class);
         $this->comments = self::getContainer()->get(CommentRepository::class);
         $this->audit = RecordingAuditor::installedIn(self::getContainer());
-        $this->restore = new RestoreCommentHandler($this->em, $this->comments, $this->audit->auditor);
+        $this->restore = new RestoreCommentHandler($this->em, $this->comments, $this->audit->auditor, self::getContainer()->get(EventDispatcherInterface::class));
         $owner = new User('Thread owner', 'thread-'.uniqid().'@example.com', 'x');
         $project = new Project($owner, 'Thread lifecycle');
         $document = new Document($owner, $project, 'Document');

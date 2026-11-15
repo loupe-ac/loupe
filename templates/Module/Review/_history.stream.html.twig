@@ -1,0 +1,13 @@
+{# Props: document, versions. The history page of a document, as the targets of a live read. #}
+<turbo-stream action="replace" method="morph" target="history-topbar-count">
+    <template>{% include '@Review/_history_count.html.twig' with {versions: versions} only %}</template>
+</turbo-stream>
+<turbo-stream action="replace" method="morph" target="history-topbar-actions">
+    <template>{% include '@Review/_history_topbar_actions.html.twig' with {document: document} only %}</template>
+</turbo-stream>
+<turbo-stream action="replace" method="morph" target="history-compare">
+    <template>{% include '@Review/_history_compare.html.twig' with {document: document, versions: versions} only %}</template>
+</turbo-stream>
+<turbo-stream action="replace" method="morph" target="document-history-live">
+    <template>{% include '@Review/_history_frame.html.twig' with {document: document, versions: versions} only %}</template>
+</turbo-stream>

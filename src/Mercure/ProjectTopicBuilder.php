@@ -113,6 +113,18 @@ final readonly class ProjectTopicBuilder
         return $this->projectIdFrom($topic, '/openrouter');
     }
 
+    /** The topic the documents list of a project listens on. The message names a document, never a title. */
+    public function forDocuments(Uuid $projectId): string
+    {
+        return rtrim($this->appUrl, '/').'/projects/'.$projectId.'/documents';
+    }
+
+    /** The project a forDocuments() topic names, or null for any other string. */
+    public function projectIdFromDocumentsTopic(string $topic): ?Uuid
+    {
+        return $this->projectIdFrom($topic, '/documents');
+    }
+
     /** The topic the artifact pages of a project listen on. The message names an artifact id and a version number only. */
     public function forArtifacts(Uuid $projectId): string
     {

@@ -1,0 +1,24 @@
+{# A plain GET form, so the picker works with no JavaScript. The diff route
+   carries its two versions as path segments, which a GET form cannot build,
+   so the action is the redirect route that turns the pair into that path. #}
+<section id="history-compare" class="lp-history-compare">
+{% set latestVersion = versions|first.versionNumber %}
+{% if versions|length > 1 %}
+    <form class="lp-version-compare" method="GET" action="{{ path('app_document_review_compare', {projectId: document.project.id, documentId: document.id}) }}">
+        <label class="lp-version-compare__label" for="history-compare-from">{{ 'review.document.diff.picker.from'|trans }}</label>
+        <twig:Ds:Select id="history-compare-from" name="from" compact aria-label="{{ 'review.document.diff.picker.from_label'|trans }}">
+            {% for meta in versions %}
+            <option value="{{ meta.versionNumber }}"{{ meta.versionNumber == latestVersion - 1 ? ' selected' : '' }}>{{ 'v' ~ meta.versionNumber }}</option>
+            {% endfor %}
+        </twig:Ds:Select>
+        <twig:ux:icon name="lucide:arrow-right" class="lp-version-compare__arrow" aria-hidden="true" />
+        <label class="lp-version-compare__label" for="history-compare-to">{{ 'review.document.diff.picker.to'|trans }}</label>
+        <twig:Ds:Select id="history-compare-to" name="to" compact aria-label="{{ 'review.document.diff.picker.to_label'|trans }}">
+            {% for meta in versions %}
+            <option value="{{ meta.versionNumber }}"{{ meta.versionNumber == latestVersion ? ' selected' : '' }}>{{ 'v' ~ meta.versionNumber }}</option>
+            {% endfor %}
+        </twig:Ds:Select>
+        <twig:Ds:Button type="submit">{{ 'review.document.diff.picker.submit'|trans }}</twig:Ds:Button>
+    </form>
+{% endif %}
+</section>

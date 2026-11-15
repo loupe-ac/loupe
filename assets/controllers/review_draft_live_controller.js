@@ -1,5 +1,5 @@
 import { Controller } from '@hotwired/stimulus';
-import { morphBodyElements, renderStreamMessage } from '@hotwired/turbo';
+import { renderStreamMessage } from '@hotwired/turbo';
 import { on } from '../lib/live.js';
 import { handleLostAccess, onLostAccess } from '../lib/live_fetch.js';
 
@@ -16,34 +16,13 @@ const STREAM_TYPE = 'text/vnd.turbo-stream.html';
 const STATUS = '[data-review-draft-live-status]';
 const CONNECTED_ATTRIBUTE = 'data-review-draft-live-connected';
 
-const TEXT_FIELDS =
-    'textarea, input:not([type="hidden"], [type="checkbox"], [type="radio"], [type="button"], [type="submit"])';
-
-/**
- * A form that holds text the reader typed, or that a script opened, is not the
- * server's to redraw: the new page renders it empty and hidden.
- */
-function keepLocalForm(event) {
-    const { currentElement, newElement } = event.detail;
-    if (!(currentElement instanceof HTMLFormElement) || !newElement) {
-        return;
-    }
-    const typed = [...currentElement.querySelectorAll(TEXT_FIELDS)].some(
-        (field) => field.value !== field.defaultValue,
-    );
-    const opened = newElement.hidden && !currentElement.hidden;
-    if (typed || opened) {
-        event.preventDefault();
-    }
-}
-
 /**
  * Keeps the band of a draft and the warning of Finish review current. A signal
  * on the document topic, and a reconnect, fetch the two fragments as a Turbo
- * stream. A fetch that no longer finds a draft loads the page again with a
- * morph. An open dialog holds the update until it closes, but the Finish
- * review dialog takes the warning at once, because the stream replaces none
- * of its fields. A published draft clears that warning at once too.
+ * stream. A document that is no longer a draft gets streams that remove the
+ * band and empty the warning, and the page keeps the rest. An open dialog
+ * holds the update until it closes, but the Finish review dialog takes the
+ * warning at once, because the stream replaces none of its fields.
  */
 export default class extends Controller {
     static values = { url: String, stopped: String };
@@ -52,7 +31,6 @@ export default class extends Controller {
         // A lost access ends the live part, as a disconnect does.
         this.removeLostListener = onLostAccess(() => this.disconnect());
         this.held = false;
-        this.pendingReload = false;
         this.onDialogClose = () => {
             if (this.held) {
                 this.held = false;
@@ -125,56 +103,9 @@ export default class extends Controller {
 
             return;
         }
-        if (fetched.status === 204) {
-            this.withdrawWarning();
-            await this.reload(attempt);
-
-            return;
-        }
-
         this.syncSecondConfirmation(fetched.body);
         renderStreamMessage(fetched.body);
         this.clearStopped();
-    }
-
-    async reload(attempt) {
-        if (document.querySelector('dialog[open]')) {
-            this.held = true;
-
-            return;
-        }
-        const request = this.begin();
-        const fetched = await this.read(
-            window.location.href,
-            'text/html',
-            request,
-        );
-        if (fetched === null) {
-            return;
-        }
-        if (fetched.failure) {
-            this.fail(fetched, attempt);
-
-            return;
-        }
-        if (document.querySelector('dialog[open]')) {
-            this.held = true;
-
-            return;
-        }
-        const fresh = new DOMParser().parseFromString(
-            fetched.body,
-            'text/html',
-        );
-        document.addEventListener('turbo:before-morph-element', keepLocalForm);
-        try {
-            morphBodyElements(document.body, fresh.body);
-        } finally {
-            document.removeEventListener(
-                'turbo:before-morph-element',
-                keepLocalForm,
-            );
-        }
     }
 
     begin() {
@@ -249,14 +180,6 @@ export default class extends Controller {
                 '#draft-band dialog[open], #review-stop-confirm dialog[open]',
             ) !== null
         );
-    }
-
-    /** A published draft has no agent review to warn about, so an open Finish review dialog drops the warning before the page loads again. */
-    withdrawWarning() {
-        this.element.querySelector('#draft-review-warning')?.replaceChildren();
-        this.element
-            .querySelector('form[data-controller~="review-stop-confirm"]')
-            ?.setAttribute('data-review-stop-confirm-active-value', 'false');
     }
 
     /** Whether the second confirmation asks comes with the warning, as an attribute of its stream. */

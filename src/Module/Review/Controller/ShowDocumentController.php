@@ -138,6 +138,7 @@ final class ShowDocumentController extends AppController
             'diffCommenting' => false,
             'diffDocumentUrl' => null,
             'readOnly' => $view->readOnly,
+            'pinnedVersion' => null !== $versionNumber,
             'verdictAvailable' => !$view->readOnly,
             'draftReviewLoop' => $this->draftReviewLoops->of($document),
             'comments' => $view->comments,
