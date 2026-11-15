@@ -9,7 +9,7 @@ use App\Module\Account\Entity\User;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFunction;
 
-/** An account page passes this topic to mercure_subscribe() to hear the account.changed signals of its user. */
+/** A page that follows the account of the signed-in user passes this topic to mercure_subscribe(). */
 final class AccountTopicExtension extends AbstractExtension
 {
     public function __construct(
@@ -21,11 +21,11 @@ final class AccountTopicExtension extends AbstractExtension
     public function getFunctions(): array
     {
         return [
-            new TwigFunction('account_topic', $this->topic(...)),
+            new TwigFunction('account_topic', $this->accountTopic(...)),
         ];
     }
 
-    public function topic(User $user): string
+    public function accountTopic(User $user): string
     {
         return $this->topics->forAccount($user->id ?? throw new \LogicException('User has no id.'));
     }

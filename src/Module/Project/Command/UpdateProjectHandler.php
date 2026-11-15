@@ -10,6 +10,7 @@ use App\Mercure\AccountArea;
 use App\Mercure\AccountChangedPublisher;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Event\ProjectRenamed;
+use App\Module\Project\Event\ProjectSettingsChanged;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Project\Service\AllowedOriginsInput;
 use App\Utils\Slug;
@@ -131,6 +132,8 @@ final readonly class UpdateProjectHandler
         if ($renamed) {
             $this->accountChanged->changed($project->owner->id ?? throw new \LogicException('a persisted user always has an id'), AccountArea::PROJECTS);
         }
+
+        $this->events->dispatch(new ProjectSettingsChanged($project->id ?? throw new \LogicException('Project has no id.')));
 
         $this->auditor->record(
             'project.updated',

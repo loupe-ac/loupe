@@ -410,6 +410,10 @@ final class WorkerRunChangedPublisherTest extends KernelTestCase
                     if ([$this->runTopic($this->project)] === $update->getTopics()) {
                         throw new \RuntimeException('hub unreachable');
                     }
+                    // A project written in setup also signals the projects list, which this test does not cover.
+                    if (str_contains($update->getData(), '"account.changed"')) {
+                        return 'id';
+                    }
                     $this->published[] = $update;
 
                     return 'id';
@@ -541,6 +545,10 @@ final class WorkerRunChangedPublisherTest extends KernelTestCase
             'http://mercure/.well-known/mercure',
             new StaticTokenProvider('token'),
             function (Update $update): string {
+                // A project written in setup also signals the projects list, which this test does not cover.
+                if (str_contains($update->getData(), '"account.changed"')) {
+                    return 'id';
+                }
                 $this->published[] = $update;
 
                 return 'id';

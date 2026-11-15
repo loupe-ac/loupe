@@ -11064,6 +11064,12 @@ workflow:
             <trans-unit id="live.band.sign_in"><source>live.band.sign_in</source><target>Sign in</target></trans-unit>
             <trans-unit id="live.band.project_deleted"><source>live.band.project_deleted</source><target>This project was deleted, so this page no longer updates.</target></trans-unit>
             <trans-unit id="live.band.generic"><source>live.band.generic</source><target>You can no longer see this page, so it no longer updates.</target></trans-unit>
+            <trans-unit id="project.live.form_changed"><source>project.live.form_changed</source><target>Someone or an agent changed this project. What you typed stays here until you save.</target></trans-unit>
+            <trans-unit id="project.live.form_open"><source>project.live.form_open</source><target>Open the current settings in a new tab</target></trans-unit>
+            <trans-unit id="readiness.live.form_changed"><source>readiness.live.form_changed</source><target>Someone or an agent changed these settings. What you typed stays here until you save.</target></trans-unit>
+            <trans-unit id="readiness.live.form_open"><source>readiness.live.form_open</source><target>Open the current settings in a new tab</target></trans-unit>
+            <trans-unit id="project.list.live.newer"><source>project.list.live.newer</source><target>{0}No newer projects.|{1}One newer project is on the first page.|]1,Inf[%count% newer projects are on the first page.</target></trans-unit>
+            <trans-unit id="project.list.live.first_page"><source>project.list.live.first_page</source><target>Go to the first page</target></trans-unit>
         </body>
     </file>
 </xliff>
