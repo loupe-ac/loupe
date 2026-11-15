@@ -55,7 +55,7 @@
          data-live-region-match-type-value="{{ {'analytics.changed': {area: 'experiments'}}|json_encode }}"
          data-live-region-url-value="{{ path('app_project_analytics_experiment_cards_rows', routeParams|merge(query.withPage(1).routeParams)) }}"
          data-live-region-mode-value="rows"
-         data-live-since="{{ since|date('c') }}"
+         data-live-since="{{ since|date('Y-m-d\\TH:i:s.vP') }}"
          data-live-content>
         <div id="experiment-cards-newer" data-experiment-cards-newer></div>
         {% include '@Insights/_experiment_cards_list.html.twig' with {report: report, project: project} only %}

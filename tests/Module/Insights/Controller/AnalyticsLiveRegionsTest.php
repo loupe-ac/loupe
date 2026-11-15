@@ -98,7 +98,7 @@ final class AnalyticsLiveRegionsTest extends WebTestCase
         $region = $crawler->filter('[data-live-region-mode-value="rows"]');
         self::assertCount(1, $region);
         self::assertSame($this->base($project).'/experiments/model-test/cards/rows', $region->attr('data-live-region-url-value'));
-        self::assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/', (string) $region->attr('data-live-since'));
+        self::assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}[+-]\d{2}:\d{2}$/', (string) $region->attr('data-live-since'));
         self::assertSame([$ids[20]], $region->filter('[data-live-row]')->each(static fn (Crawler $row): ?string => $row->attr('data-live-row')));
         self::assertCount(0, $crawler->filter('turbo-frame#analytics-experiment-cards'));
         self::assertCount(1, $region->filter('#experiment-cards-newer'));

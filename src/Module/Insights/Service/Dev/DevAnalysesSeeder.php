@@ -79,10 +79,10 @@ final readonly class DevAnalysesSeeder implements DevSeederInterface
         1. Put the `make` calls in a bucket of their own.
         MARKDOWN;
 
-    /** @var list<array{string, string}> pattern and bucket */
     /** Enough finished reports, with the four others, to fill page 1 of the list (50 rows) and put rows on page 2. */
     private const int OLDER_REPORTS = 50;
 
+    /** @var list<array{string, string}> pattern and bucket */
     private const array RULES = [['git *', 'git'], ['grep', 'search'], ['Agent', 'subagent']];
 
     /** @var list<array{string, int, int, list<string>}> tool, start offset in seconds, duration in milliseconds, signatures */

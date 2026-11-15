@@ -117,7 +117,7 @@
          data-live-region-match-type-value="{{ {'analytics.changed': {area: 'reports'}}|json_encode }}"
          data-live-region-url-value="{{ path('app_project_analytics_reports_rows', {id: project.id, page: page}) }}"
          data-live-region-mode-value="rows"
-         data-live-since="{{ since|date('c') }}"
+         data-live-since="{{ since|date('Y-m-d\\TH:i:s.vP') }}"
          data-live-content>
         <div id="analysis-newer" data-analyses-newer></div>
         {% include '@Insights/_reports_list.html.twig' with {analyses: analyses, project: project, page: page, costMetric: costMetric, refusedDismissForm: refusedDismissForm} only %}

@@ -43,7 +43,8 @@ final readonly class LiveRowsQuery
         $sinceText = trim($query->getString('since'));
         $since = null;
         if ('' !== $sinceText) {
-            $parsed = \DateTimeImmutable::createFromFormat(\DATE_ATOM, $sinceText);
+            $parsed = \DateTimeImmutable::createFromFormat(\DATE_RFC3339_EXTENDED, $sinceText)
+                ?: \DateTimeImmutable::createFromFormat(\DATE_ATOM, $sinceText);
             if (false === $parsed) {
                 throw new BadRequestException('The time is not valid.');
             }
