@@ -14,6 +14,7 @@ use App\Tests\Support\DirectLogging;
 use App\Tests\Support\RecordingAuditor;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Ubermuda\AuditBundle\AuditActorProviderInterface;
 use Ubermuda\AuditBundle\AuditOutcome;
@@ -33,7 +34,9 @@ final class UpdateProjectAllowedOriginsHandlerTest extends KernelTestCase
         $actors = self::getContainer()->get(AuditActorProviderInterface::class);
         self::assertInstanceOf(AuditActorProviderInterface::class, $actors);
         $this->audit = new RecordingAuditor($actors);
-        $this->handler = new UpdateProjectAllowedOriginsHandler($this->em, $this->audit->auditor);
+        $events = self::getContainer()->get(EventDispatcherInterface::class);
+        self::assertInstanceOf(EventDispatcherInterface::class, $events);
+        $this->handler = new UpdateProjectAllowedOriginsHandler($this->em, $this->audit->auditor, $events);
     }
 
     public function test_it_stores_one_normalised_origin_per_line_without_duplicates(): void

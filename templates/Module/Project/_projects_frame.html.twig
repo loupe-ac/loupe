@@ -1,0 +1,19 @@
+{# The first page of the projects list. It morphs when an owned project changes. Props: items (list of ProjectListItem), page (int), totalPages (int), pageList (list). #}
+<turbo-frame id="projects-frame" class="lp-live-frame" target="_top" refresh="morph" data-controller="live-region"
+             data-live-region-types-value="{{ ['account.changed']|json_encode }}"
+             data-live-region-match-value="{{ {area: 'projects'}|json_encode }}"
+             data-live-region-url-value="{{ path('app_projects_frame') }}"
+             data-live-region-mode-value="frame">
+    <div class="lp-project-list lp-project-tile-grid">
+        {% for item in items %}
+        {% include '@Project/_project_row.html.twig' with {item: item} only %}
+        {% endfor %}
+
+        <button type="button" class="lp-project-new" data-action="click->modal#open">
+            <span class="lp-project-new__plus"><twig:ux:icon name="lucide:plus" /></span>
+            <span class="lp-project-new__label">{{ 'project.list.new'|trans }}</span>
+        </button>
+    </div>
+
+    <twig:Ds:Pagination route="app_projects" :page="page" :totalPages="totalPages" :pageList="pageList" />
+</turbo-frame>

@@ -1,0 +1,33 @@
+{# One project of the projects list. The id and data-live-row let a live read replace or remove the row in place. Props: item (ProjectListItem). #}
+{% set project = item.project %}
+<twig:Ds:Panel as="article" class="lp-project-tile" id="project-row-{{ project.id }}" data-project-id="{{ project.id }}" data-live-row="{{ project.id }}" data-live-fade>
+    <a href="{{ path('app_project_workshop', {id: project.id}) }}"
+       class="lp-project-row__link" aria-label="{{ project.name }}"></a>
+    <twig:Ds:Avatar :name="project.name" shape="square" tone="ink" />
+    <div class="lp-project-row__main">
+        <div class="lp-project-row__head">
+            <span class="lp-project-row__name">{{ project.name }}</span>
+            {% if project.domain %}<span class="lp-project-row__domain">{{ project.domain }}</span>{% endif %}
+        </div>
+        {% if project.description is not null %}<p class="lp-project-row__description">{{ project.description }}</p>{% endif %}
+        <div class="lp-project-row__meta">
+            <span>{{ 'project.list.meta.documents'|trans({'%count%': item.documentCount}) }}</span>
+            <span class="lp-project-row__sep">·</span>
+            <span>{{ 'project.list.meta.comments'|trans({'%count%': item.commentCount}) }}</span>
+            <span class="lp-project-row__sep">·</span>
+            <span class="lp-project-row__open">{{ 'project.list.meta.open'|trans({'%count%': item.openCount}) }}</span>
+            <span class="lp-project-row__sep">·</span>
+            <span class="lp-project-row__cards">{{ 'project.list.meta.cards'|trans({'%count%': item.openCardCount}) }}</span>
+            {% if is_feature_enabled('inbox.enabled') %}
+            <span class="lp-project-row__sep">·</span>
+            <span data-project-inbox-count>{{ 'inbox.project_list.open_items'|trans({'%count%': item.openInboxItemCount}) }}</span>
+            {% endif %}
+        </div>
+    </div>
+    <a href="{{ path('app_project_edit', {id: project.id}) }}"
+       class="lp-project-row__edit"
+       aria-label="{{ 'project.list.edit'|trans({'%name%': project.name}) }}">
+        <twig:ux:icon name="lucide:pencil" class="lp-icon lp-icon--md" />
+    </a>
+    <twig:ux:icon name="lucide:chevron-right" class="lp-project-tile__arrow" />
+</twig:Ds:Panel>
