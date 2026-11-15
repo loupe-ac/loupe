@@ -125,6 +125,9 @@ export default class extends Controller {
                 'sinceId',
                 this.element.dataset.liveSinceId ?? '',
             );
+            if (this.element.dataset.liveTotal !== undefined) {
+                url.searchParams.set('total', this.element.dataset.liveTotal);
+            }
         }
 
         return liveRequest(url.toString(), { headers, signal });

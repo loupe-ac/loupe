@@ -39,20 +39,29 @@ final readonly class ListDocumentRowsHandler
         );
         $keptIds = array_map(static fn ($document): string => (string) $document->id, $matching);
 
+        $removedIds = array_values(array_diff($ids, $keptIds));
+        $newerCount = $this->documents->countMatchingCreatedSince(
+            $command->project,
+            $command->since,
+            $command->sinceId,
+            $ids,
+            $query->includeArchived,
+            $query->search,
+            $query->status,
+            $query->tagName,
+            $query->seriesName,
+        );
+        if (null !== $command->loadedTotal) {
+            // A document that changed into the filters is older than the cursor, so only the
+            // growth of the total shows it. Each shown row that left hides one entry of that growth.
+            $total = $this->documents->countMatching($command->project, $query->includeArchived, $query->search, $query->status, $query->tagName, $query->seriesName);
+            $newerCount = max($newerCount, $total - $command->loadedTotal + \count($removedIds));
+        }
+
         return new ListDocumentRowsView(
             items: $this->items->of($matching),
-            removedIds: array_values(array_diff($ids, $keptIds)),
-            newerCount: $this->documents->countMatchingCreatedSince(
-                $command->project,
-                $command->since,
-                $command->sinceId,
-                $ids,
-                $query->includeArchived,
-                $query->search,
-                $query->status,
-                $query->tagName,
-                $query->seriesName,
-            ),
+            removedIds: $removedIds,
+            newerCount: $newerCount,
         );
     }
 }

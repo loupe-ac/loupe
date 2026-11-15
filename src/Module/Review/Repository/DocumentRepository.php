@@ -247,6 +247,24 @@ class DocumentRepository extends ServiceEntityRepository
         return (int) $qb->getQuery()->getSingleScalarResult();
     }
 
+    /** How many documents the filters keep, the whole list across its pages. */
+    public function countMatching(
+        Project $project,
+        bool $includeArchived,
+        ?string $search,
+        ?DocumentStatus $status,
+        ?string $tagName,
+        ?string $seriesName,
+    ): int {
+        $qb = $this->createQueryBuilder('d')
+            ->select('COUNT(DISTINCT d.id)')
+            ->andWhere('d.project = :project')
+            ->setParameter('project', $project);
+        $this->applyListFilters($qb, $includeArchived, $search, $status, $tagName, $seriesName);
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
     /**
      * One keyset page of a project's documents. Every order ends in the id, so rows that share
      * a creation second (the column holds whole seconds) walk in a fixed order. The page starts

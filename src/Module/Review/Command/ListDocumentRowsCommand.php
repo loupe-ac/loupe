@@ -10,13 +10,17 @@ use Symfony\Component\Uid\Uuid;
 
 final readonly class ListDocumentRowsCommand
 {
-    /** @param list<string> $ids the documents the page shows */
+    /**
+     * @param list<string> $ids         the documents the page shows
+     * @param ?int         $loadedTotal how many documents the filters kept when the page loaded
+     */
     public function __construct(
         public Project $project,
         public DocumentListQuery $listQuery,
         public array $ids,
         public \DateTimeImmutable $since,
         public ?Uuid $sinceId,
+        public ?int $loadedTotal = null,
     ) {
     }
 }

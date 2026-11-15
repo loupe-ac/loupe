@@ -147,6 +147,32 @@ final class DocumentsLiveListTest extends WebTestCase
         self::assertSame('', $this->bandText());
     }
 
+    public function test_an_older_document_that_changes_into_the_filter_counts_as_new(): void
+    {
+        $shown = $this->create('Shown');
+        $shown->status = DocumentStatus::Approved;
+        $old = $this->create('Old');
+        $old->status = DocumentStatus::Draft;
+        $this->em->flush();
+        $this->em->getConnection()->executeStatement('UPDATE documents SET created_at = ? WHERE id = ?', [new \DateTimeImmutable('-2 days')->format('Y-m-d H:i:s'), (string) $old->id]);
+        $since = time() + 3600;
+        $query = ['status' => 'approved'];
+
+        $this->rows([$shown], $since, query: $query, total: 1);
+        self::assertSame('', $this->bandText());
+
+        $old->status = DocumentStatus::Approved;
+        $this->em->flush();
+
+        $this->rows([$shown], $since, query: $query, total: 1);
+        self::assertStringContainsString('1 new document.', $this->bandText());
+
+        $shown->status = DocumentStatus::Draft;
+        $this->em->flush();
+        $this->rows([$shown], $since, query: $query, total: 1);
+        self::assertStringContainsString('1 new document.', $this->bandText(), 'a row that left the filter does not hide the one that entered');
+    }
+
     public function test_a_document_created_in_the_cursor_second_counts_after_the_cursor_id(): void
     {
         $cursor = $this->create('Cursor');
@@ -219,10 +245,10 @@ final class DocumentsLiveListTest extends WebTestCase
      * @param list<Document>        $shown
      * @param array<string, string> $query
      */
-    private function rows(array $shown, int $since, string $extraId = '', array $query = [], string $sinceId = ''): void
+    private function rows(array $shown, int $since, string $extraId = '', array $query = [], string $sinceId = '', ?int $total = null): void
     {
         $ids = implode(',', array_filter([...array_map(static fn (Document $d): string => (string) $d->id, $shown), $extraId]));
-        $this->client->request(Request::METHOD_GET, $this->list().'/live-rows', ['ids' => $ids, 'since' => $since, 'sinceId' => $sinceId, ...$query], server: ['HTTP_X_LOUPE_LIVE_REFRESH' => '1', 'HTTP_ACCEPT' => 'text/vnd.turbo-stream.html']);
+        $this->client->request(Request::METHOD_GET, $this->list().'/live-rows', ['ids' => $ids, 'since' => $since, 'sinceId' => $sinceId, ...(null === $total ? [] : ['total' => $total]), ...$query], server: ['HTTP_X_LOUPE_LIVE_REFRESH' => '1', 'HTTP_ACCEPT' => 'text/vnd.turbo-stream.html']);
     }
 
     private function bandText(): string
