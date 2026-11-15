@@ -13,6 +13,16 @@
     .lp-dialog--document {
         @apply max-w-3xl;
     }
+    /** Full-window dialog. A margin of 4 spacing units stays on each side. */
+    .lp-dialog--full {
+        @apply flex max-w-none flex-col overflow-hidden p-0;
+        width: calc(100% - calc(var(--spacing) * 8));
+        height: calc(100dvh - calc(var(--spacing) * 8));
+        max-height: none;
+    }
+    .lp-dialog--full:not([open]) {
+        display: none;
+    }
     .lp-dialog::backdrop {
         @apply bg-ink/40 backdrop-blur-xs;
         animation: lp-dialog-backdrop-in 220ms ease-out;
@@ -22,5 +32,31 @@
     }
     .lp-dialog-desc {
         @apply text-sm text-fg-mute mt-2 mb-4 leading-relaxed;
+    }
+}
+
+/* The diagram viewer: a full-window dialog with a header of zoom buttons, a
+   stage that holds the diagram, and a hint line. */
+@layer components {
+    .lp-mermaid-viewer__header {
+        @apply flex items-center gap-1 border-b border-line px-3 py-2;
+    }
+    .lp-mermaid-viewer__percent {
+        @apply min-w-12 text-center text-sm tabular-nums text-fg-mute;
+    }
+    .lp-mermaid-viewer__close {
+        @apply ml-auto;
+    }
+    .lp-mermaid-viewer__stage {
+        @apply min-h-0 flex-1 overflow-hidden bg-surface-2;
+        touch-action: none;
+        overscroll-behavior: contain;
+        cursor: grab;
+    }
+    .lp-mermaid-viewer__stage.is-dragging {
+        cursor: grabbing;
+    }
+    .lp-mermaid-viewer__hint {
+        @apply m-0 border-t border-line px-3 py-2 text-xs text-fg-mute;
     }
 }

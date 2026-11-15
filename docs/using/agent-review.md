@@ -30,6 +30,9 @@ The review checks two things.
 
 A choice that the implementer made on purpose, with a reason in the "Departures"
 section of the build notes, gets no finding. A departure with no record does.
+A departure that follows your own answer in the inbox, or a site-review note that
+does not change a link target, a sign-in, a secret or outside code, is accepted
+with no question to you.
 
 An epic gets its review only when all its children are finished, because the
 review compares the pull request with the whole tech design.

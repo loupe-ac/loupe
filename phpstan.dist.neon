@@ -1,5 +1,9 @@
 parameters:
     level: 8
+    # One result cache per checkout. The default, a folder in the system temp
+    # dir, is shared by every worktree: each run then finds the cache of
+    # another worktree, analyses everything again, and overwrites it.
+    tmpDir: var/phpstan
     paths:
         - bin/
         - config/

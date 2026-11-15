@@ -164,7 +164,7 @@ CI catches the rest. `DeploymentConfigParityCheck` cross-checks a new environmen
 
 Invoke the `working-with-prs` skill before you open, gate or merge a pull request. It carries the full gate, the merge protocol, the ruleset facts and the wave rules. This is the irreducible summary, so that a session which skips the skill still does the right thing:
 
-- The local gate is `just cs`, then `just phpstan`, `just arkitect` and `just gamache`. Then run PHPUnit on the tests for what changed, with `just phpunit tests/<path>` or `just phpunit --filter <name>`. Run `just js-test` when JavaScript changed, and `just cli-test` when `cli/` or `hooks/` changed. Run no Codex review. Open the pull request as a draft, and push. A review worker reviews it, and Loupe marks it ready when the review passes and the checks are green. CI's required checks, e2e included, are the full gate: read them on the pull request, and fix every failure, including pre-existing ones. Never run `just ci` or a full PHPUnit run.
+- The local gate is `just cs-changed <base>`, then `just phpstan`, `just arkitect` and `just gamache`. Then run PHPUnit on the test files that cover the change, with `just phpunit tests/<path>/<Name>Test.php` or `just phpunit --filter <name>`. Do not sweep whole test folders: CI runs the full suite. Run each check once for each change, write its output to a log, and read the log. Never run a check again only to read another part of its output. Run `just js-test` when JavaScript changed, and `just cli-test` when `cli/` or `hooks/` changed. Run no Codex review. Open the pull request as a draft, and push. A review worker reviews it, and Loupe marks it ready when the review passes and the checks are green. CI's required checks, e2e included, are the full gate: read them on the pull request, and fix every failure, including pre-existing ones. Never run `just ci` or a full PHPUnit run.
 - A branch whose every changed file ends in `.md` runs `just cs` and pushes, and says so in the body. Verify with `git diff --name-only origin/main...HEAD | grep -v '\.md$'`. Any output means the full gate applies.
 - Name a card branch `card-<number>-<slug>`, such as `card-1465-move-repo-values`. The slug is two to four lowercase words from the card title.
 - `main` is protected and takes `--squash` only. **Put the reasoning in the commit messages, not only in the PR body.** GitHub's squash default concatenates the branch's commit messages, so what survives in `git log` is what the commits said; the body survives only on the pull request page unless you pass `gh pr merge <n> --squash --body-file <file>`. A branch with substantive commit messages loses only the body's framing. A branch with thin ones loses everything. It requires no approving review. It requires a list of checks, and one of them is `Loupe / Approval`. Loupe posts that check on the head commit when the agent review passes, or when a person approves the head on GitHub. Read the list from the ruleset, because nothing in the repository fails when it goes stale. `working-with-prs` carries the command. An approval in chat is not an approval.
@@ -239,10 +239,11 @@ This sits in tension with the instruction not to capitulate under pressure, and 
 ```bash
 just shell                    # Open bash in php-fpm container
 just cs                       # Write-mode fixer pipeline: prettier, lint, rector, cs-fix, twig-cs-fix
+just cs-changed <base>        # The same fixers on the files the branch changed against origin/<base>
 just phpstan                  # Run static analysis (level 8)
 just arkitect                 # Check module boundary rules (phparkitect)
 just gamache                  # Run Gamache convention checker
-just phpunit tests/<path>     # Run the PHPUnit tests under one path; a hook refuses a full run for an agent
+just phpunit tests/<path>     # Run the PHPUnit tests under one path, such as one test file; a hook refuses a full run for an agent
 just phpunit --filter <name>  # Run one PHPUnit test
 just js-test                  # Run Vitest over tests/js, or one file with tests/js/<name>.test.js
 just cli-test                 # Run the Go CLI and hook tests

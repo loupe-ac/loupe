@@ -528,8 +528,30 @@ flowchart LR
 ````
 
 The review page draws the block as a diagram. The Mermaid source stays in the
-document, under the diagram. Select **Show source** to see it and to comment on
+document, above the diagram. Select **Show source** to see it and to comment on
 it, and select **Hide source** to hide it again.
+
+### Zoom and move a diagram
+
+A large diagram shrinks to the width of the page. To read it, click the
+diagram, select **Expand**, or focus it and press Enter or Space. The diagram
+opens in a viewer that fills the window.
+
+In the viewer you zoom from 25% to 400%. A diagram so large that it opens below
+25% zooms out as far as its opening size. The percentage shows between the zoom
+buttons. 100% is the natural size of the diagram, and the text stays sharp at
+every zoom.
+
+1. Scroll the mouse wheel, or pinch on a trackpad or a touch screen, to zoom
+   around the pointer.
+2. Drag the diagram with the mouse or one finger to move it.
+3. Press `+` and `-` to zoom, `0` to fit the diagram to the window, and the
+   arrow keys to move it.
+4. Use the buttons in the header to zoom out, zoom in, fit to the window, and
+   close the viewer.
+
+Select **Close**, press Esc, or click outside the diagram to close the viewer.
+Focus returns to the diagram, and the page keeps its scroll position.
 
 A block that Mermaid cannot parse shows its source with a notice. The other
 diagrams on the page still render. The comparison view always shows the source.

@@ -28,10 +28,14 @@ final readonly class DevFeatureFlagSeeder implements DevSeederInterface
     /** A literal, because Admin may not import Billing. */
     public const string BILLING_FLAG = 'billing.enabled';
 
+    /** A literal, because Admin may not import Review. */
+    public const string MERMAID_FLAG = 'review.mermaid.enabled';
+
     public const array FLAGS = [
         InboxInstallFlags::FLAG_INBOX_ENABLED,
         ArtifactInstallFlags::FLAG_ENABLED,
         self::BILLING_FLAG,
+        self::MERMAID_FLAG,
     ];
 
     public function __construct(
