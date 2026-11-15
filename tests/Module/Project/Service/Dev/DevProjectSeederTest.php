@@ -45,7 +45,7 @@ final class DevProjectSeederTest extends KernelTestCase
         $this->runSeeder($owner);
         $this->runSeeder($owner);
 
-        self::assertCount(11, $this->projects()->findBy(['owner' => $owner]));
+        self::assertCount(13, $this->projects()->findBy(['owner' => $owner]));
     }
 
     public function test_every_seeded_project_is_set_up_except_the_one_made_for_it(): void

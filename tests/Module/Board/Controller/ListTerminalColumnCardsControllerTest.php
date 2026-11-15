@@ -184,6 +184,7 @@ final class ListTerminalColumnCardsControllerTest extends WebTestCase
         self::assertSame('frame', $region->attr('data-live-region-mode-value'));
         self::assertSame('["board.card_changed"]', $region->attr('data-live-region-types-value'));
         self::assertCount(ListTerminalColumnCardsHandler::PER_PAGE, $region->filter('[data-live-row][data-live-fade]'));
+        self::assertCount(1, $region->filter('#terminal-total'));
 
         $later = $client->request(Request::METHOD_GET, $url.'?page=2');
         $region = $later->filter('div#terminal-live[data-controller="live-region"]');
@@ -192,6 +193,7 @@ final class ListTerminalColumnCardsControllerTest extends WebTestCase
         self::assertSame($url.'/rows?page=2', $region->attr('data-live-region-url-value'));
         self::assertNotNull(LiveCursor::parse($region->attr('data-live-since')));
         self::assertCount(1, $region->filter('[data-live-row]'));
+        self::assertCount(1, $region->filter('#terminal-total'));
     }
 
     private function historyUrl(Project $project, string $slug): string

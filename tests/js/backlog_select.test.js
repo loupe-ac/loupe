@@ -114,3 +114,28 @@ it('lets a live morph change the other attributes of a box', () => {
             .defaultPrevented,
     ).toBe(false);
 });
+
+it('shows the bar and the count again after a morph resets them', () => {
+    box('a').click();
+    box('b').click();
+    bar().hidden = true;
+    document.getElementById('count').textContent = '0';
+
+    bar().dispatchEvent(
+        new CustomEvent('turbo:morph-element', { bubbles: true }),
+    );
+
+    expect(bar().hidden).toBe(false);
+    expect(document.getElementById('count').textContent).toBe('2');
+});
+
+it('ignores the morph of another element', () => {
+    box('a').click();
+    bar().hidden = true;
+
+    box('b').dispatchEvent(
+        new CustomEvent('turbo:morph-element', { bubbles: true }),
+    );
+
+    expect(bar().hidden).toBe(true);
+});

@@ -41,6 +41,27 @@ final class ListBacklogRowsControllerTest extends WebTestCase
         self::assertStringContainsString('target="backlog-filter-count"', $body);
     }
 
+    public function test_the_read_refreshes_the_bulk_bar_with_the_current_next_column(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+
+        $owner = $this->user($em, 'backlog-rows-bulk@example.com');
+        $project = $this->project($em, $owner);
+        $this->card($em, $project, 'Shown');
+        $next = $this->column($project, 'next');
+        $url = $this->rowsUrl($project, '', LiveCursor::format(new \DateTimeImmutable('+1 minute')));
+        $em->clear();
+
+        $client->loginUser($owner);
+        $client->request(Request::METHOD_GET, $url);
+
+        self::assertResponseIsSuccessful();
+        $body = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('<turbo-stream action="replace" method="morph" target="backlog-bulk-form">', $body);
+        self::assertStringContainsString('name="backlog_bulk_move[column]" value="'.$next->id.'">Move to Next', $body);
+    }
+
     public function test_a_row_that_stops_matching_the_filter_is_removed(): void
     {
         $client = static::createClient();
@@ -59,7 +80,7 @@ final class ListBacklogRowsControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $body = (string) $client->getResponse()->getContent();
         self::assertStringContainsString('<turbo-stream action="remove" target="backlog-row-'.$card->id.'">', $body);
-        self::assertStringNotContainsString('action="replace"', $body);
+        self::assertStringNotContainsString('method="morph" target="backlog-row-', $body);
         self::assertStringNotContainsString('new cards match', $body);
     }
 

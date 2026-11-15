@@ -9,10 +9,6 @@
     ]" />
 {% endblock %}
 
-{% block topbar_meta %}
-    <span class="lp-topbar__meta">{{ 'board.terminal.meta.total'|trans({'%count%': total}) }}</span>
-{% endblock %}
-
 {% block body %}
 <twig:Ds:Workspace>
     <h1 class="lp-workspace-title lp-workspace-title--doc">{{ column.label|trans }}</h1>
@@ -27,6 +23,7 @@
         data-live-region-url-value="{{ path(liveRows ? 'app_project_board_terminal_column_rows' : 'app_project_board_terminal_column', routeParams|merge({page: page})) }}"
         {% if liveRows %}data-live-since="{{ since }}"{% endif %}>
     {% if liveRows %}<div id="terminal-live-band" aria-live="polite"></div>{% endif %}
+    <p id="terminal-total" class="lp-workspace-desc">{{ 'board.terminal.meta.total'|trans({'%count%': total}) }}</p>
     {% if items|length > 0 %}
     <div class="lp-done-list">
         {% for card in items %}

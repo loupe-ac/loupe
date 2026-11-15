@@ -17,6 +17,8 @@ final readonly class ListTerminalColumnRowsView
         public array $goneIds,
         /** Cards that completed after the page rendered. */
         public int $newerCount,
+        /** Every card the column holds now. */
+        public int $total,
     ) {
     }
 }

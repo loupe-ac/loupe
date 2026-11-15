@@ -36,6 +36,8 @@ final class ListTerminalColumnRowsControllerTest extends WebTestCase
         self::assertStringContainsString('<turbo-stream action="replace" method="morph" target="terminal-row-'.$stays->id.'">', $body);
         self::assertStringContainsString('<turbo-stream action="remove" target="terminal-row-'.$reopened->id.'">', $body);
         self::assertStringContainsString('One more card finished.', $body);
+        self::assertStringContainsString('<turbo-stream action="update" target="terminal-total">', $body);
+        self::assertStringContainsString('<template>1 card</template>', $body);
     }
 
     public function test_a_column_that_is_not_terminal_is_not_found(): void

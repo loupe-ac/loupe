@@ -1538,17 +1538,26 @@ class CardRepository extends ServiceEntityRepository
             ->getResult());
     }
 
-    /** How many cards of a terminal column completed after the moment. */
-    public function countCompletedAfter(BoardColumn $column, \DateTimeImmutable $since): int
+    /**
+     * How many cards of a terminal column arrived after the moment: first
+     * completed, or moved into this column.
+     *
+     * @param list<string> $movedIds the cards with a move into the column after the moment
+     */
+    public function countCompletedAfter(BoardColumn $column, \DateTimeImmutable $since, array $movedIds = []): int
     {
-        return (int) $this->createQueryBuilder('c')
+        $qb = $this->createQueryBuilder('c')
             ->select('COUNT(c.id)')
             ->andWhere('c.column = :column')
-            ->andWhere('c.completedAt > :since')
             ->setParameter('column', $column)
-            ->setParameter('since', $since)
-            ->getQuery()
-            ->getSingleScalarResult();
+            ->setParameter('since', $since);
+        if ([] === $movedIds) {
+            $qb->andWhere('c.completedAt > :since');
+        } else {
+            $qb->andWhere('c.completedAt > :since OR c.id IN (:moved)')->setParameter('moved', $movedIds);
+        }
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
     }
 
     /**
@@ -1574,15 +1583,24 @@ class CardRepository extends ServiceEntityRepository
             ->getResult());
     }
 
-    /** How many Backlog cards that match the filters were created after the moment. */
-    public function countBacklogMatchingCreatedAfter(BoardColumn $backlog, BacklogListQuery $listQuery, \DateTimeImmutable $since): int
+    /**
+     * How many Backlog cards that match the filters arrived after the moment:
+     * created, or moved into the Backlog.
+     *
+     * @param list<string> $movedIds the cards with a move into the Backlog after the moment
+     */
+    public function countBacklogMatchingArrivedAfter(BoardColumn $backlog, BacklogListQuery $listQuery, \DateTimeImmutable $since, array $movedIds = []): int
     {
-        return (int) $this->backlogMatching($backlog, $listQuery)
+        $qb = $this->backlogMatching($backlog, $listQuery)
             ->select('COUNT(c.id)')
-            ->andWhere('c.createdAt > :since')
-            ->setParameter('since', $since)
-            ->getQuery()
-            ->getSingleScalarResult();
+            ->setParameter('since', $since);
+        if ([] === $movedIds) {
+            $qb->andWhere('c.createdAt > :since');
+        } else {
+            $qb->andWhere('c.createdAt > :since OR c.id IN (:moved)')->setParameter('moved', $movedIds);
+        }
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
     }
 
     /**

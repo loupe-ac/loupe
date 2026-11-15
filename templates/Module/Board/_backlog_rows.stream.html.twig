@@ -7,6 +7,9 @@
 {% for goneId in view.goneIds %}
 <turbo-stream action="remove" target="backlog-row-{{ goneId }}"></turbo-stream>
 {% endfor %}
+<turbo-stream action="replace" method="morph" target="backlog-bulk-form">
+    <template>{% include '@Board/_backlog_bulk.html.twig' with {project: project, listQuery: listQuery, nextColumn: view.nextColumn, boardColumns: view.boardColumns} only %}</template>
+</turbo-stream>
 <turbo-stream action="update" target="backlog-filter-count">
     <template>{% include '@Board/_backlog_count.html.twig' with {view: view, listQuery: listQuery} only %}</template>
 </turbo-stream>

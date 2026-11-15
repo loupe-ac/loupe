@@ -20,6 +20,7 @@ final readonly class ListBacklogRowsView
         public array $goneIds,
         public array $pendingComments,
         public array $boardColumns,
+        public ?BoardColumn $nextColumn,
         /** Cards that match the filters and are newer than the page. */
         public int $newerCount,
         public int $total,

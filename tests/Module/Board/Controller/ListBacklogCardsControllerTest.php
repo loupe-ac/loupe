@@ -245,6 +245,7 @@ final class ListBacklogCardsControllerTest extends WebTestCase
         self::assertSame($url.'?page=1&type=feature', $region->attr('data-live-region-url-value'));
         self::assertCount(1, $region->filter('#backlog-row-'.$card->id.'[data-live-row="'.$card->id.'"][data-live-fade]'));
         self::assertCount(0, $crawler->filter('[data-backlog-live-target]'));
+        self::assertCount(1, $region->filter('form#backlog-bulk-form'));
     }
 
     public function test_a_later_page_reads_its_own_rows_with_the_moment_it_rendered(): void
@@ -271,6 +272,7 @@ final class ListBacklogCardsControllerTest extends WebTestCase
         self::assertNotNull(LiveCursor::parse($region->attr('data-live-since')));
         self::assertCount(1, $region->filter('#backlog-live-band'));
         self::assertCount(1, $region->filter('[data-live-row]'));
+        self::assertCount(1, $region->filter('form#backlog-bulk-form'));
     }
 
     public function test_a_title_opens_the_card_drawer_and_the_row_shows_no_source_tag(): void
