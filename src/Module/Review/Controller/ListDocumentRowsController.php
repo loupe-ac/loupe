@@ -15,6 +15,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Component\Uid\Uuid;
 use Symfony\UX\Turbo\TurboBundle;
 
 /**
@@ -44,6 +45,7 @@ final class ListDocumentRowsController extends AppController
             $listQuery,
             $ids,
             new \DateTimeImmutable()->setTimestamp(max(0, $request->query->getInt('since'))),
+            Uuid::isValid($request->query->getString('sinceId')) ? Uuid::fromString($request->query->getString('sinceId')) : null,
         ));
 
         $html = $this->renderView('@Review/_document_rows.stream.html.twig', [

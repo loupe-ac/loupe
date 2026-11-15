@@ -95,6 +95,7 @@ final class DocumentsLiveListTest extends WebTestCase
         self::assertSame('rows', $region->attr('data-live-region-mode-value'));
         self::assertSame($this->list().'/live-rows?page=2', $region->attr('data-live-region-url-value'));
         self::assertMatchesRegularExpression('/^\d{10}$/', (string) $region->attr('data-live-since'));
+        self::assertMatchesRegularExpression('/^[0-9a-f-]{36}$/', (string) $region->attr('data-live-since-id'));
         self::assertCount(1, $region->filter('#documents-live-band'));
         self::assertCount(1, $region->filter('[data-live-row]'));
     }
@@ -144,6 +145,22 @@ final class DocumentsLiveListTest extends WebTestCase
 
         $this->rows([$shown], time() + 3600);
         self::assertSame('', $this->bandText());
+    }
+
+    public function test_a_document_created_in_the_cursor_second_counts_after_the_cursor_id(): void
+    {
+        $cursor = $this->create('Cursor');
+        $later = $this->create('Later');
+        $at = '2026-01-01 10:00:00';
+        $this->em->getConnection()->executeStatement('UPDATE documents SET created_at = ? WHERE id IN (?, ?)', [$at, (string) $cursor->id, (string) $later->id]);
+        $since = new \DateTimeImmutable($at.' UTC')->getTimestamp();
+        self::assertGreaterThan((string) $cursor->id, (string) $later->id);
+
+        $this->rows([$cursor], $since, sinceId: (string) $cursor->id);
+        self::assertStringContainsString('1 new document.', $this->bandText());
+
+        $this->rows([$cursor, $later], $since, sinceId: (string) $later->id);
+        self::assertSame('', $this->bandText(), 'a document that the cursor covers is not new');
     }
 
     public function test_a_row_that_a_status_filter_no_longer_keeps_is_removed(): void
@@ -202,10 +219,10 @@ final class DocumentsLiveListTest extends WebTestCase
      * @param list<Document>        $shown
      * @param array<string, string> $query
      */
-    private function rows(array $shown, int $since, string $extraId = '', array $query = []): void
+    private function rows(array $shown, int $since, string $extraId = '', array $query = [], string $sinceId = ''): void
     {
         $ids = implode(',', array_filter([...array_map(static fn (Document $d): string => (string) $d->id, $shown), $extraId]));
-        $this->client->request(Request::METHOD_GET, $this->list().'/live-rows', ['ids' => $ids, 'since' => $since, ...$query], server: ['HTTP_X_LOUPE_LIVE_REFRESH' => '1', 'HTTP_ACCEPT' => 'text/vnd.turbo-stream.html']);
+        $this->client->request(Request::METHOD_GET, $this->list().'/live-rows', ['ids' => $ids, 'since' => $since, 'sinceId' => $sinceId, ...$query], server: ['HTTP_X_LOUPE_LIVE_REFRESH' => '1', 'HTTP_ACCEPT' => 'text/vnd.turbo-stream.html']);
     }
 
     private function bandText(): string

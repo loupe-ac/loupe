@@ -185,7 +185,7 @@ it('reads again after a reconnect', async () => {
 
 it('rows mode names the shown rows and the cursor', async () => {
     await mount(
-        `data-live-region-types-value='["activity.changed"]' data-live-region-url-value="/rows" data-live-region-mode-value="rows" data-live-since="2026-01-01T00:00:00Z"`,
+        `data-live-region-types-value='["activity.changed"]' data-live-region-url-value="/rows" data-live-region-mode-value="rows" data-live-since="2026-01-01T00:00:00Z" data-live-since-id="abc"`,
         '<li data-live-row="r1"></li><li data-live-row="r2"></li>',
     );
     answer(200, '<turbo-stream action="remove" target="r2"></turbo-stream>');
@@ -194,6 +194,7 @@ it('rows mode names the shown rows and the cursor', async () => {
     const url = new URL(fetch.mock.calls[0][0]);
     expect(url.searchParams.get('ids')).toBe('r1,r2');
     expect(url.searchParams.get('since')).toBe('2026-01-01T00:00:00Z');
+    expect(url.searchParams.get('sinceId')).toBe('abc');
     expect(fetch.mock.calls[0][1].headers.Accept).toBe(
         'text/vnd.turbo-stream.html',
     );

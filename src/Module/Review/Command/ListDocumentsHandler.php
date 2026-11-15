@@ -57,6 +57,7 @@ final readonly class ListDocumentsHandler
             projectTags: $this->tags->findByProject($command->project),
             projectSeries: $this->series->findByProject($command->project),
             clampedPage: PageList::clampedPage($listQuery->page, $total, $perPage),
+            newest: $this->documents->findNewestPosition($command->project),
         );
     }
 }

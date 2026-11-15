@@ -6,6 +6,7 @@ namespace App\Module\Review\Command;
 
 use App\Module\Project\Entity\Project;
 use App\Module\Review\View\DocumentListQuery;
+use Symfony\Component\Uid\Uuid;
 
 final readonly class ListDocumentRowsCommand
 {
@@ -15,6 +16,7 @@ final readonly class ListDocumentRowsCommand
         public DocumentListQuery $listQuery,
         public array $ids,
         public \DateTimeImmutable $since,
+        public ?Uuid $sinceId,
     ) {
     }
 }

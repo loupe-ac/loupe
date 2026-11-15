@@ -7,6 +7,7 @@ namespace App\Module\Review\Command;
 use App\Module\Review\Entity\Series;
 use App\Module\Review\Entity\Tag;
 use App\Module\Review\View\DocumentListItem;
+use App\Module\Review\View\DocumentPosition;
 
 final readonly class ListDocumentsView
 {
@@ -24,6 +25,7 @@ final readonly class ListDocumentsView
         public array $projectTags,
         public array $projectSeries,
         public ?int $clampedPage,
+        public ?DocumentPosition $newest = null,
     ) {
     }
 }

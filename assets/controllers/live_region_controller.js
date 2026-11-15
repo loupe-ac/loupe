@@ -121,6 +121,10 @@ export default class extends Controller {
         if (this.modeValue === 'rows') {
             url.searchParams.set('ids', this.rowIds().join(','));
             url.searchParams.set('since', this.element.dataset.liveSince ?? '');
+            url.searchParams.set(
+                'sinceId',
+                this.element.dataset.liveSinceId ?? '',
+            );
         }
 
         return liveRequest(url.toString(), { headers, signal });

@@ -196,8 +196,23 @@ class DocumentRepository extends ServiceEntityRepository
         return $qb->getQuery()->getResult();
     }
 
+    /** The newest document of a project, in the order that the count of new documents reads. */
+    public function findNewestPosition(Project $project): ?DocumentPosition
+    {
+        $document = $this->createQueryBuilder('d')
+            ->andWhere('d.project = :project')
+            ->setParameter('project', $project)
+            ->orderBy('d.createdAt', 'DESC')
+            ->addOrderBy('d.id', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        return $document instanceof Document ? DocumentPosition::of(new DocumentPageRow($document)) : null;
+    }
+
     /**
-     * How many documents that the filters keep were created after the cursor,
+     * How many documents that the filters keep sort after the cursor,
      * not counting the named ids. The list sorts new documents to its front.
      *
      * @param list<string> $excludedIds
@@ -205,6 +220,7 @@ class DocumentRepository extends ServiceEntityRepository
     public function countMatchingCreatedSince(
         Project $project,
         \DateTimeImmutable $since,
+        ?Uuid $sinceId,
         array $excludedIds,
         bool $includeArchived,
         ?string $search,
@@ -215,9 +231,14 @@ class DocumentRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('d')
             ->select('COUNT(DISTINCT d.id)')
             ->andWhere('d.project = :project')
-            ->andWhere('d.createdAt > :since')
             ->setParameter('project', $project)
             ->setParameter('since', $since, Types::DATETIME_IMMUTABLE);
+        if (null === $sinceId) {
+            $qb->andWhere('d.createdAt > :since');
+        } else {
+            $qb->andWhere('(d.createdAt > :since OR (d.createdAt = :since AND d.id > :sinceId))')
+                ->setParameter('sinceId', $sinceId, UuidType::NAME);
+        }
         if ([] !== $excludedIds) {
             $qb->andWhere('d.id NOT IN (:excluded)')->setParameter('excluded', $excludedIds);
         }

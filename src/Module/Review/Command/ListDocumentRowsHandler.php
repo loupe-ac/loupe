@@ -45,6 +45,7 @@ final readonly class ListDocumentRowsHandler
             newerCount: $this->documents->countMatchingCreatedSince(
                 $command->project,
                 $command->since,
+                $command->sinceId,
                 $ids,
                 $query->includeArchived,
                 $query->search,
