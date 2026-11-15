@@ -18,6 +18,7 @@ use DoctrineMigrations\Version20260830152618;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 
 require_once dirname(__DIR__, 4).'/migrations/Version20260830152618.php';
 
@@ -235,6 +236,7 @@ final class BackfillSubscriptionsTest extends KernelTestCase
                 FeatureFlags::service(),
                 $container->get(EntityManagerInterface::class),
                 SilentAuditor::create(),
+                new EventDispatcher(),
             ),
         );
     }

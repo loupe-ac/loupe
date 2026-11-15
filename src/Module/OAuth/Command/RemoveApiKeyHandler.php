@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Module\OAuth\Command;
 
 use App\Exception\DomainErrors;
+use App\Mercure\AccountArea;
+use App\Mercure\AccountChangedPublisher;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 
@@ -14,6 +16,7 @@ final readonly class RemoveApiKeyHandler
     public function __construct(
         private EntityManagerInterface $em,
         private ClockInterface $clock,
+        private AccountChangedPublisher $accountChanged,
     ) {
     }
 
@@ -24,7 +27,9 @@ final readonly class RemoveApiKeyHandler
             throw new DomainErrors(['key' => 'oauth.api_key.error.remove_active']);
         }
 
+        $ownerId = $key->owner->id ?? throw new \LogicException('a persisted user always has an id');
         $this->em->remove($key);
         $this->em->flush();
+        $this->accountChanged->changed($ownerId, AccountArea::API_KEYS);
     }
 }

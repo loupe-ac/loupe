@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Account\EventListener;
 
+use App\Mercure\AccountArea;
 use App\Module\Account\Entity\DataExport;
 use App\Module\Account\Entity\DataExportStatus;
 use App\Module\Account\Entity\User;
@@ -11,6 +12,7 @@ use App\Module\Account\EventListener\MarkExportFailedOnFinalFailure;
 use App\Module\Account\Messenger\GenerateDataExportMessage;
 use App\Module\Account\Repository\DataExportRepository;
 use App\Tests\Support\DirectLogging;
+use App\Tests\Support\RecordedAccountSignals;
 use App\Tests\Support\RecordingAuditor;
 use Doctrine\ORM\EntityManagerInterface;
 use League\Flysystem\Filesystem;
@@ -31,9 +33,11 @@ final class MarkExportFailedOnFinalFailureTest extends TestCase
     private array $rootsToRemove = [];
 
     private RecordingAuditor $audit;
+    private RecordedAccountSignals $signals;
 
     protected function setUp(): void
     {
+        $this->signals = new RecordedAccountSignals();
         $this->audit = new RecordingAuditor(new NullAuditActorProvider());
     }
 
@@ -52,7 +56,7 @@ final class MarkExportFailedOnFinalFailureTest extends TestCase
 
     private function persistedExport(): DataExport
     {
-        $user = new User('Alice A', 'alice@example.com', 'x');
+        $user = RecordedAccountSignals::withId(new User('Alice A', 'alice@example.com', 'x'));
         $export = new DataExport($user);
         $ref = new \ReflectionProperty(DataExport::class, 'id');
         $ref->setValue($export, Uuid::v7());
@@ -80,7 +84,7 @@ final class MarkExportFailedOnFinalFailureTest extends TestCase
         $em = $this->createMock(EntityManagerInterface::class);
         $em->expects(self::once())->method('flush');
 
-        $listener = new MarkExportFailedOnFinalFailure($exports, $em, $this->audit->auditor, $this->localStorage());
+        $listener = new MarkExportFailedOnFinalFailure($exports, $em, $this->audit->auditor, $this->signals->publisher, $this->localStorage());
 
         $event = new WorkerMessageFailedEvent(
             new Envelope(new GenerateDataExportMessage((string) $export->id)),
@@ -99,6 +103,7 @@ final class MarkExportFailedOnFinalFailureTest extends TestCase
         self::assertSame('data_export', $record->subject->type);
         self::assertSame((string) $export->id, $record->subject->id);
         self::assertSame(['account.data_export_failed'], $this->audit->operations());
+        $this->signals->assertSignalled($export->user->id, AccountArea::EXPORTS);
     }
 
     /**
@@ -121,6 +126,7 @@ final class MarkExportFailedOnFinalFailureTest extends TestCase
             $exports,
             $this->createStub(EntityManagerInterface::class),
             $this->audit->auditor,
+            $this->signals->publisher,
             $storage,
         );
 
@@ -162,7 +168,7 @@ final class MarkExportFailedOnFinalFailureTest extends TestCase
         /** @var EntityManagerInterface&Stub $em */
         $em = $this->createStub(EntityManagerInterface::class);
 
-        $listener = new MarkExportFailedOnFinalFailure($exports, $em, $this->audit->auditor, $storage);
+        $listener = new MarkExportFailedOnFinalFailure($exports, $em, $this->audit->auditor, $this->signals->publisher, $storage);
 
         $event = new WorkerMessageFailedEvent(
             new Envelope(new GenerateDataExportMessage((string) $export->id)),
@@ -187,7 +193,7 @@ final class MarkExportFailedOnFinalFailureTest extends TestCase
         $em = $this->createMock(EntityManagerInterface::class);
         $em->expects(self::never())->method('flush');
 
-        $listener = new MarkExportFailedOnFinalFailure($exports, $em, $this->audit->auditor, $this->localStorage());
+        $listener = new MarkExportFailedOnFinalFailure($exports, $em, $this->audit->auditor, $this->signals->publisher, $this->localStorage());
 
         $event = new WorkerMessageFailedEvent(
             new Envelope(new GenerateDataExportMessage((string) $export->id)),
@@ -212,7 +218,7 @@ final class MarkExportFailedOnFinalFailureTest extends TestCase
         $em = $this->createMock(EntityManagerInterface::class);
         $em->expects(self::never())->method('flush');
 
-        $listener = new MarkExportFailedOnFinalFailure($exports, $em, $this->audit->auditor, $this->localStorage());
+        $listener = new MarkExportFailedOnFinalFailure($exports, $em, $this->audit->auditor, $this->signals->publisher, $this->localStorage());
 
         $listener(new WorkerMessageFailedEvent(
             new Envelope(new GenerateDataExportMessage((string) Uuid::v7())),
@@ -236,7 +242,7 @@ final class MarkExportFailedOnFinalFailureTest extends TestCase
         $em = $this->createMock(EntityManagerInterface::class);
         $em->expects(self::never())->method('flush');
 
-        $listener = new MarkExportFailedOnFinalFailure($exports, $em, $this->audit->auditor, $this->localStorage());
+        $listener = new MarkExportFailedOnFinalFailure($exports, $em, $this->audit->auditor, $this->signals->publisher, $this->localStorage());
 
         $listener(new WorkerMessageFailedEvent(
             new Envelope(new GenerateDataExportMessage((string) $export->id)),
@@ -256,7 +262,7 @@ final class MarkExportFailedOnFinalFailureTest extends TestCase
         $em = $this->createMock(EntityManagerInterface::class);
         $em->expects(self::never())->method('flush');
 
-        $listener = new MarkExportFailedOnFinalFailure($exports, $em, $this->audit->auditor, $this->localStorage());
+        $listener = new MarkExportFailedOnFinalFailure($exports, $em, $this->audit->auditor, $this->signals->publisher, $this->localStorage());
 
         $event = new WorkerMessageFailedEvent(
             new Envelope(new \stdClass()),

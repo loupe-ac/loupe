@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Module\OAuth\Security;
 
 use App\Api\Problem\ApiProblem;
+use App\Mercure\AccountArea;
+use App\Mercure\AccountChangedPublisher;
 use App\Module\Account\Entity\User;
 use App\Module\OAuth\Entity\ApiKey;
 use App\Module\OAuth\Repository\ApiKeyRepository;
@@ -46,6 +48,7 @@ final class ApiKeyAuthenticator extends AbstractAuthenticator
         private readonly ApiKeyRepository $apiKeys,
         private readonly ClockInterface $clock,
         private readonly Auditor $auditor,
+        private readonly AccountChangedPublisher $accountChanged,
     ) {
     }
 
@@ -106,7 +109,11 @@ final class ApiKeyAuthenticator extends AbstractAuthenticator
         $keyId = $token->getAttribute(self::KEY_ATTRIBUTE);
         if ($keyId instanceof Uuid) {
             $now = $this->clock->now();
-            $this->apiKeys->recordUse($keyId, $now, $now->modify('-'.self::USE_INTERVAL));
+            $recorded = $this->apiKeys->recordUse($keyId, $now, $now->modify('-'.self::USE_INTERVAL));
+            $user = $token->getUser();
+            if ($recorded && $user instanceof User && null !== $user->id) {
+                $this->accountChanged->changed($user->id, AccountArea::API_KEYS);
+            }
         }
 
         return null;

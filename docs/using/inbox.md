@@ -1022,3 +1022,9 @@ migration writes it on an instance that upgrades. A missing row reads as off.
 The `inbox.session_prompt_max_length` flag sets the longest prompt that an agent
 can suggest for a session, and the longest prompt that Loupe writes. It is an
 integer, and it defaults to 2000. A value below 400 reads as 400.
+
+## Account inbox
+
+The account inbox at `/account/inbox` lists each of your projects that has open
+items, with the count and the oldest wait. The list updates live when an item
+opens or closes in any project, so the counts match the pill in the sidebar.

@@ -10,6 +10,7 @@ use App\Module\Account\Command\UpdateProfileHandler;
 use App\Module\Account\Entity\User;
 use App\Module\Account\Form\ProfileFormType;
 use App\Module\Account\Form\ProfileRequest;
+use App\Module\Account\Service\ProfileFingerprint;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -52,6 +53,6 @@ class EditProfileController extends AppController
             return $this->redirectToRoute('app_account_profile');
         }
 
-        return $this->renderFormResponse('@Account/edit_profile.html.twig', $form);
+        return $this->renderFormResponse('@Account/edit_profile.html.twig', $form, ['fingerprint' => ProfileFingerprint::of($user->fullName)]);
     }
 }

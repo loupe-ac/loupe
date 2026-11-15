@@ -4324,7 +4324,15 @@
             </trans-unit>
             <trans-unit id="billing.checkout_success.hint">
                 <source>billing.checkout_success.hint</source>
-                <target>Activation usually takes a few seconds. Reload the page if the app still asks you to subscribe.</target>
+                <target>Activation usually takes a few seconds. This page shows the result when it is done.</target>
+            </trans-unit>
+            <trans-unit id="billing.checkout_success.status.chip.pending">
+                <source>billing.checkout_success.status.chip.pending</source>
+                <target>Confirming</target>
+            </trans-unit>
+            <trans-unit id="billing.checkout_success.status.pending">
+                <source>billing.checkout_success.status.pending</source>
+                <target>Stripe has not confirmed your payment yet. This page changes when it does.</target>
             </trans-unit>
             <trans-unit id="billing.beta_invite.page.title">
                 <source>billing.beta_invite.page.title</source>
@@ -8734,6 +8742,8 @@ workflow:
             <trans-unit id="account.settings.profile.description"><source>account.settings.profile.description</source><target>Your identity in the workshop.</target></trans-unit>
             <trans-unit id="account.settings.profile.email_label"><source>account.settings.profile.email_label</source><target>Email</target></trans-unit>
             <trans-unit id="account.settings.profile.email_hint"><source>account.settings.profile.email_hint</source><target>Contact support to change your sign-in email.</target></trans-unit>
+            <trans-unit id="account.settings.profile.changed_band.message"><source>account.settings.profile.changed_band.message</source><target>Your profile changed somewhere else. This form still shows the older version.</target></trans-unit>
+            <trans-unit id="account.settings.profile.changed_band.open"><source>account.settings.profile.changed_band.open</source><target>Open the current profile</target></trans-unit>
             <trans-unit id="account.settings.nav.label">
                 <source>account.settings.nav.label</source>
                 <target>Account sections</target>

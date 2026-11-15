@@ -83,6 +83,24 @@ final readonly class GrantRepository
     }
 
     /**
+     * The users whose pages may still show a token that has expired. Read it
+     * before deleteExpired(), which removes the rows.
+     *
+     * @return list<Uuid>
+     */
+    public function findUserIdsWithExpiredTokens(): array
+    {
+        $identifiers = $this->connection->fetchFirstColumn(
+            'SELECT DISTINCT user_identifier FROM oauth2_access_token WHERE expiry < NOW() AND user_identifier IS NOT NULL',
+        );
+
+        return array_values(array_map(
+            static fn (mixed $identifier): Uuid => Uuid::fromString((string) $identifier),
+            array_filter($identifiers, static fn (mixed $identifier): bool => Uuid::isValid((string) $identifier)),
+        ));
+    }
+
+    /**
      * Deletes expired rows. The bundle's own clearExpired() deletes an expired
      * access token even while a live refresh token points at it, which leaves
      * that refresh token with no user to revoke it by.

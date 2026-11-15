@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\OAuth\Command;
 
 use App\Exception\DomainErrors;
+use App\Mercure\AccountArea;
 use App\Module\Account\Entity\User;
 use App\Module\OAuth\Command\CreateApiKeyCommand;
 use App\Module\OAuth\Command\CreateApiKeyHandler;
@@ -20,6 +21,7 @@ use App\Module\OAuth\Entity\ApiKeyExpiry;
 use App\Module\OAuth\Event\ApiKeyCreated;
 use App\Module\OAuth\Repository\ApiKeyRepository;
 use App\Tests\Support\OAuthScenario;
+use App\Tests\Support\RecordedAccountSignals;
 use App\Tests\Support\RecordingAuditor;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
@@ -35,6 +37,7 @@ final class ApiKeyHandlersTest extends KernelTestCase
     private EntityManagerInterface $em;
     private MockClock $clock;
     private RecordingAuditor $audit;
+    private RecordedAccountSignals $signals;
     private User $owner;
 
     protected function setUp(): void
@@ -44,6 +47,7 @@ final class ApiKeyHandlersTest extends KernelTestCase
         $this->clock = new MockClock(self::NOW);
         $container->set(ClockInterface::class, $this->clock);
         $this->audit = RecordingAuditor::installedIn($container);
+        $this->signals = new RecordedAccountSignals();
         $em = $container->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
         $this->em = $em;
@@ -244,24 +248,63 @@ final class ApiKeyHandlersTest extends KernelTestCase
         self::assertSame([$short], $view->keys);
     }
 
+    public function test_create_signals_the_api_keys_area_of_the_owner_after_the_flush(): void
+    {
+        $this->createFor($this->owner, 'CI server', ApiKeyExpiry::Never);
+
+        $this->signals->assertSignalled($this->owner->id, AccountArea::API_KEYS);
+    }
+
+    public function test_create_that_the_name_refuses_signals_nothing(): void
+    {
+        try {
+            $this->createFor($this->owner, '', ApiKeyExpiry::Never);
+            self::fail('A blank name must be refused.');
+        } catch (DomainErrors) {
+            $this->signals->assertNothingSignalled();
+        }
+    }
+
+    public function test_revoke_signals_the_owner_of_the_key_and_not_the_admin_who_revoked_it(): void
+    {
+        $key = $this->createFor($this->owner, 'CI server', ApiKeyExpiry::Never)->key;
+        $admin = new OAuthScenario(static::getContainer())->createUser('api-key-admin@example.com');
+        $this->signals = new RecordedAccountSignals();
+
+        $this->revoke($key, $admin);
+
+        $this->signals->assertSignalled($this->owner->id, AccountArea::API_KEYS);
+    }
+
+    public function test_remove_signals_the_owner_with_the_id_it_read_before_the_delete(): void
+    {
+        $key = $this->createFor($this->owner, 'CI server', ApiKeyExpiry::Never)->key;
+        $this->revoke($key, $this->owner);
+        $this->signals = new RecordedAccountSignals();
+
+        $this->remove($key);
+
+        $this->signals->assertSignalled($this->owner->id, AccountArea::API_KEYS);
+    }
+
     private function createFor(User $owner, string $name, ApiKeyExpiry $expiry): CreateApiKeyView
     {
         $dispatcher = static::getContainer()->get(EventDispatcherInterface::class);
         self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
-        $handler = new CreateApiKeyHandler($this->em, $this->clock, $dispatcher, $this->audit->auditor);
+        $handler = new CreateApiKeyHandler($this->em, $this->clock, $dispatcher, $this->audit->auditor, $this->signals->publisher);
 
         return $handler(new CreateApiKeyCommand($owner, $name, $expiry));
     }
 
     private function revoke(ApiKey $key, User $actor): void
     {
-        $handler = new RevokeApiKeyHandler($this->em, $this->clock, $this->audit->auditor);
+        $handler = new RevokeApiKeyHandler($this->em, $this->clock, $this->audit->auditor, $this->signals->publisher);
         $handler(new RevokeApiKeyCommand($key, $actor));
     }
 
     private function remove(ApiKey $key): void
     {
-        $handler = new RemoveApiKeyHandler($this->em, $this->clock);
+        $handler = new RemoveApiKeyHandler($this->em, $this->clock, $this->signals->publisher);
         $handler(new RemoveApiKeyCommand($key));
     }
 }

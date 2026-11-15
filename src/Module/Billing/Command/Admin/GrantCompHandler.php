@@ -7,9 +7,11 @@ namespace App\Module\Billing\Command\Admin;
 use App\Exception\DomainErrors;
 use App\Module\Billing\Entity\Subscription;
 use App\Module\Billing\Entity\SubscriptionKind;
+use App\Module\Billing\Event\BillingStateChanged;
 use App\Module\Billing\Service\TrialProvisioner;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
@@ -20,6 +22,7 @@ final readonly class GrantCompHandler
         private TrialProvisioner $trialProvisioner,
         private EntityManagerInterface $em,
         private Auditor $auditor,
+        private EventDispatcherInterface $events,
     ) {
     }
 
@@ -62,6 +65,8 @@ final readonly class GrantCompHandler
                 return [$comp, $reenabled];
             },
         );
+
+        $this->events->dispatch(new BillingStateChanged($command->target->id ?? throw new \LogicException('a persisted user always has an id')));
 
         if ($reenabled) {
             $this->record('billing.account_reenabled', $command);

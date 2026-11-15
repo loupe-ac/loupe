@@ -104,6 +104,15 @@ Revoke a key at once when you think it leaked:
 
 An administrator can also revoke any key. See [The admin area](admin.md).
 
+## Live updates
+
+The list of keys follows your account live. A key that you create, revoke or
+remove in another browser, and a new *Last used* time, appear on the open page.
+Loupe writes the *Last used* time at most once in five minutes for each key,
+so the list changes at most that often for a busy key. While the create dialog
+is open, the list waits, so a change never moves under your typing. It updates
+when you close the dialog.
+
 ## Data export and deletion
 
 The [data export](data-exports.md) lists each key with its name, the start of

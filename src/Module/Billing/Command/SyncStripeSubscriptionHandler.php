@@ -9,12 +9,14 @@ use App\Module\Billing\Entity\BillingProfile;
 use App\Module\Billing\Entity\BillingStatus;
 use App\Module\Billing\Entity\Subscription;
 use App\Module\Billing\Entity\SubscriptionKind;
+use App\Module\Billing\Event\BillingStateChanged;
 use App\Module\Billing\Repository\BillingProfileRepository;
 use App\Module\Billing\Repository\SubscriptionRepository;
 use App\Module\Billing\Service\StripeGatewayInterface;
 use App\Module\Billing\Service\SubscriptionView;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use Ubermuda\AuditBundle\Auditor;
@@ -31,6 +33,7 @@ final readonly class SyncStripeSubscriptionHandler
         private EntityManagerInterface $em,
         private LoggerInterface $logger,
         private Auditor $auditor,
+        private EventDispatcherInterface $events,
     ) {
     }
 
@@ -127,6 +130,9 @@ final readonly class SyncStripeSubscriptionHandler
         };
 
         $this->record($operation, $userId, $outcome, $context);
+        if (StripeSyncDecision::Applied === $result->decision) {
+            $this->events->dispatch(new BillingStateChanged($profile->user->id ?? throw new \LogicException('a persisted user always has an id')));
+        }
 
         // Support traces a sync by the Stripe event id, which never reaches the
         // trail: another system's identifiers have no erasure path there.

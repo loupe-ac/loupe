@@ -7,12 +7,15 @@ namespace App\Tests\Module\Billing\Service;
 use App\Module\Account\Entity\User;
 use App\Module\Billing\Entity\BillingProfile;
 use App\Module\Billing\Entity\SubscriptionKind;
+use App\Module\Billing\Event\BillingStateChanged;
 use App\Module\Billing\Repository\BillingProfileRepository;
 use App\Module\Billing\Service\TrialProvisioner;
 use App\Tests\Support\FeatureFlags;
+use App\Tests\Support\RecordedEvents;
 use App\Tests\Support\RecordingAuditor;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\NullAuditActorProvider;
@@ -20,16 +23,22 @@ use Ubermuda\AuditBundle\NullAuditActorProvider;
 final class TrialProvisionerTest extends KernelTestCase
 {
     private RecordingAuditor $audit;
+    private EventDispatcher $events;
+    private RecordedEvents $billingChanges;
 
     private function provisioner(int $trialDays): TrialProvisioner
     {
         $this->audit = new RecordingAuditor(new NullAuditActorProvider());
+        $this->events = new EventDispatcher();
+        $this->billingChanges = new RecordedEvents();
+        $this->events->addListener(BillingStateChanged::class, $this->billingChanges);
 
         return new TrialProvisioner(
             static::getContainer()->get(BillingProfileRepository::class),
             FeatureFlags::service(['billing.trial_days' => $trialDays]),
             static::getContainer()->get(EntityManagerInterface::class),
             $this->audit->auditor,
+            $this->events,
         );
     }
 
@@ -58,6 +67,9 @@ final class TrialProvisionerTest extends KernelTestCase
         self::assertLessThan(new \DateTimeImmutable('+31 days'), $trialEndsAt);
         self::assertSame(1, $this->countProfiles());
         self::assertSame(1, $this->countSubscriptions());
+        $changes = $this->billingChanges->of(BillingStateChanged::class);
+        self::assertCount(1, $changes);
+        self::assertEquals($user->id, $changes[0]->userId);
     }
 
     public function test_second_call_returns_the_same_profile_and_creates_no_row(): void
@@ -71,6 +83,7 @@ final class TrialProvisionerTest extends KernelTestCase
 
         self::assertSame((string) $first->id, (string) $second->id);
         self::assertSame(1, $this->countProfiles());
+        self::assertCount(1, $this->billingChanges->of(BillingStateChanged::class), 'a second call signals nothing');
     }
 
     public function test_trial_length_falls_back_to_the_default_when_the_flag_is_unset(): void
@@ -83,6 +96,7 @@ final class TrialProvisionerTest extends KernelTestCase
             FeatureFlags::service(),
             static::getContainer()->get(EntityManagerInterface::class),
             (new RecordingAuditor(new NullAuditActorProvider()))->auditor,
+            new EventDispatcher(),
         );
         $profile = $provisioner->ensureProfile($user);
 
