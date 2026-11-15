@@ -71,6 +71,43 @@ class AnalysisRepository extends ServiceEntityRepository
     }
 
     /**
+     * The analyses of the project with these ids, newest first. An id of another project or of no analysis gives no row.
+     *
+     * @param list<Uuid> $ids
+     *
+     * @return list<Analysis>
+     */
+    public function findByProjectAndIds(Project $project, array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        return array_values($this->createQueryBuilder('a')
+            ->andWhere('a.project = :project')
+            ->andWhere('a.id IN (:ids)')
+            ->setParameter('project', $project)
+            ->setParameter('ids', array_map(static fn (Uuid $id): string => $id->toRfc4122(), $ids), ArrayParameterType::STRING)
+            ->orderBy('a.createdAt', 'DESC')
+            ->addOrderBy('a.id', 'DESC')
+            ->getQuery()
+            ->getResult());
+    }
+
+    /** How many analyses of the project were created after the time. */
+    public function countCreatedAfter(Project $project, \DateTimeImmutable $since): int
+    {
+        return (int) $this->createQueryBuilder('a')
+            ->select('COUNT(a.id)')
+            ->andWhere('a.project = :project')
+            ->andWhere('a.createdAt > :since')
+            ->setParameter('project', $project)
+            ->setParameter('since', $since, 'datetime_immutable')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
      * One keyset page, newest first. The page starts after the analysis at `$after`.
      *
      * @param array{\DateTimeImmutable, Uuid}|null $after the creation time and the id of the last row of the previous page

@@ -18,12 +18,14 @@ use App\Module\Insights\Entity\Analysis;
 use App\Module\Insights\Entity\AnalysisScope;
 use App\Module\Insights\Entity\AnalysisState;
 use App\Module\Insights\Entity\AnalysisTopic;
+use App\Module\Insights\Event\AnalysisChanged;
 use App\Module\Insights\Service\AnalysisSettings;
 use App\Module\Workflow\Template\AppRules;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
@@ -52,6 +54,7 @@ final readonly class StartAnalysisHandler
         private Auditor $auditor,
         private ListExperimentsHandler $listExperiments,
         private AppRules $appRules,
+        private EventDispatcherInterface $events,
     ) {
     }
 
@@ -100,6 +103,8 @@ final readonly class StartAnalysisHandler
         $this->em->persist($analysis);
         $this->em->flush();
         $analysisId = $analysis->id ?? throw new \LogicException('A stored analysis has an id.');
+        $projectId = (string) $command->project->id;
+        $this->events->dispatch(new AnalysisChanged($projectId, (string) $analysisId));
 
         // Not inside a transaction of ours: Bridge announces the request after its own commit.
         try {
@@ -118,23 +123,26 @@ final readonly class StartAnalysisHandler
         } catch (DomainErrors|WorkRequestAlreadyLive $e) {
             $analysis->fail(self::REQUEST_REFUSED, $this->clock->now());
             $this->em->flush();
+            $this->events->dispatch(new AnalysisChanged($projectId, (string) $analysisId));
 
             throw $e;
         } catch (\Throwable $e) {
             $this->failUnflushed($analysisId);
+            $this->events->dispatch(new AnalysisChanged($projectId, (string) $analysisId));
 
             throw $e;
         }
 
         $analysis->workRequestId = $request->id;
         $this->em->flush();
+        $this->events->dispatch(new AnalysisChanged($projectId, (string) $analysisId));
 
         $this->auditor->record(
             'insights.analysis_started',
             AuditOutcome::Success,
             [
                 'analysisId' => (string) $analysisId,
-                'projectId' => (string) $command->project->id,
+                'projectId' => $projectId,
                 'workRequestId' => (string) $request->id,
                 'topic' => $analysis->topic->value,
                 'range' => $analysis->scope->range->value,

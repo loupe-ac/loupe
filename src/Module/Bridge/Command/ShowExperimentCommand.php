@@ -10,6 +10,7 @@ use Symfony\Component\Uid\Uuid;
 
 final readonly class ShowExperimentCommand
 {
+    /** @param list<Uuid>|null $onlyCards */
     public function __construct(
         public Project $project,
         public string $experiment,
@@ -31,6 +32,10 @@ final readonly class ShowExperimentCommand
         public ?Uuid $onlyCard = null,
         /** Narrows the Cards tab to the cards the report keeps. */
         public bool $keptOnly = false,
+        /** Narrows the Cards tab to these cards, all on one page. The page number is then ignored. Null shows every card. */
+        public ?array $onlyCards = null,
+        /** Counts the cards that match the filter and have a run that reached Loupe after this time. */
+        public ?\DateTimeImmutable $newerSince = null,
     ) {
     }
 }

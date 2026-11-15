@@ -7,6 +7,8 @@ namespace App\Module\Insights\Command;
 use App\Module\Insights\Entity\PublicLinkTakedown;
 use App\Module\Insights\Repository\PublicLinkRepository;
 use App\Module\Insights\Repository\PublicLinkTakedownRepository;
+use App\Module\Insights\Service\AnalyticsArea;
+use App\Module\Insights\Service\AnalyticsChangedPublisher;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Ubermuda\AuditBundle\Auditor;
@@ -24,6 +26,7 @@ final readonly class TakeDownPublicLinksHandler
         private PublicLinkTakedownRepository $publicLinkTakedowns,
         private PublicLinkRepository $publicLinks,
         private Auditor $auditor,
+        private AnalyticsChangedPublisher $analyticsChanged,
     ) {
     }
 
@@ -50,5 +53,7 @@ final readonly class TakeDownPublicLinksHandler
             ['projectId' => $projectId, 'items' => $items],
             new AuditSubject('project', $projectId),
         );
+
+        $this->analyticsChanged->changed($project->requireId(), AnalyticsArea::EXPERIMENTS);
     }
 }

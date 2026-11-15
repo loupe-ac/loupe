@@ -91,6 +91,12 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
     /** An experiment with one pin and no run: the empty twin of the Comparison tab. */
     public const string EMPTY_EXPERIMENT = 'implement-no-runs';
 
+    /** An experiment with more cards than one page of the Cards tab holds, so page 2 shows rows. */
+    public const string MANY_CARDS_EXPERIMENT = 'implement-many-cards';
+
+    /** The cards of that experiment: one page of 20, and two more. */
+    private const int MANY_CARDS = 22;
+
     /** An archived experiment with one pin and no run, whose share dialog asks the owner to confirm the unarchive. */
     public const string ARCHIVED_EXPERIMENT = 'implement-archived';
 
@@ -198,6 +204,7 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
         $this->seedBaselineExperiment($context, $project);
         $this->seedBaselineExperiment($context, $project, self::SIX_VARIANTS_EXPERIMENT, self::SIX_VARIANT_COSTS, ['goal' => ['metric' => 'cost', 'better' => 'lower']]);
         $this->seedBaselineExperiment($context, $project, self::SIX_NO_BASELINE_EXPERIMENT, \array_slice(self::SIX_VARIANT_COSTS, 0, 6, true), ['goal' => ['metric' => 'cost', 'better' => 'lower']], baseline: false);
+        $this->seedManyCardsExperiment($context, $project, self::MANY_CARDS_EXPERIMENT);
         $this->seedPinnedExperiment($context, $project, self::EMPTY_EXPERIMENT);
         $this->seedPinnedExperiment($context, $project, self::ARCHIVED_EXPERIMENT);
         $this->seedArchive($project, self::ARCHIVED_EXPERIMENT, $context->now->modify('-1 hour'));
@@ -286,6 +293,52 @@ final readonly class DevExperimentSeeder implements DevSeederInterface
                     $this->runCardLinks->relink($project, $cardId, $card->number);
                     $card->completedAt = $at->modify('+2 hours');
                 }
+            }
+        }
+        $this->em->flush();
+    }
+
+    private function seedManyCardsExperiment(SeedContext $context, Project $project, string $experiment): void
+    {
+        $definitionId = DevSeedId::of('bridge/experiment/'.$experiment);
+        if (!$this->experimentDefinitions->find($definitionId) instanceof ExperimentDefinition) {
+            if ($this->experimentDefinitions->findOneBy(['project' => $project, 'experiment' => $experiment]) instanceof ExperimentDefinition) {
+                return;
+            }
+
+            $definition = new ExperimentDefinition($project, $experiment, [['name' => 'opus', 'weight' => 1], ['name' => 'sonnet', 'weight' => 1]]);
+            $definition->baseline = 'opus';
+            $context->ids->assign($definition, $definitionId);
+            $this->em->persist($definition);
+        }
+
+        $column = null;
+        foreach ($this->boardColumns->findForProject($project) as $candidate) {
+            if ('done' === $candidate->slug) {
+                $column = $candidate;
+            }
+        }
+        $column ?? throw new \LogicException('The project has a done column.');
+
+        for ($index = 1; $index <= self::MANY_CARDS; ++$index) {
+            $title = \sprintf('Long experiment card %02d', $index);
+            $variant = 0 === $index % 2 ? 'sonnet' : 'opus';
+            $key = $experiment.'/'.Slug::fromName($title);
+            $at = $context->now->modify(\sprintf('-%d hours', 3 + $index));
+            $stored = $this->cards->find(DevSeedId::of('board/card/'.$key));
+            $card = $stored ?? $this->card($context, $project, $column, $title, 'feature', $this->cards->nextNumber($project), $at->modify('-1 day'), DevSeedId::of('board/card/'.$key));
+            $cardId = $card->id ?? throw new \LogicException('A stored card has an id.');
+            if (!$this->experimentPins->findOneBy(['project' => $project, 'cardId' => $cardId, 'experiment' => $experiment]) instanceof ExperimentPin) {
+                $this->em->persist(new ExperimentPin($project, $cardId, $experiment, $variant, $at, $at));
+            }
+
+            $runId = DevSeedId::of(\sprintf('bridge/run/%s/0', $key));
+            $run = $this->workerRuns->find($runId) ?? $this->run($context, $project, $card, $experiment, $variant, $at, 30, $runId);
+            $tokens = 100_000;
+            $this->runUsage->record($context, $run, self::MODELS[$variant], $tokens, intdiv($tokens, 20), $tokens * 6, intdiv($tokens, 3), 'opus' === $variant ? '4.000000' : '1.500000');
+            if (!$stored instanceof Card) {
+                $this->runCardLinks->relink($project, $cardId, $card->number);
+                $card->completedAt = $at->modify('+2 hours');
             }
         }
         $this->em->flush();

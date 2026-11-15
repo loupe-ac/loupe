@@ -9,6 +9,8 @@ use App\Module\Bridge\Messenger\RecomputeBucketTimes;
 use App\Module\Insights\Entity\Proposal;
 use App\Module\Insights\Entity\ProposalKind;
 use App\Module\Insights\Entity\ProposalState;
+use App\Module\Insights\Event\AnalysisChanged;
+use App\Module\Insights\Event\BucketRulesChanged;
 use App\Module\Insights\Proposal\ProposalCard;
 use App\Module\Insights\Proposal\ProposalCardCreatorInterface;
 use App\Module\Insights\Repository\ProposalRepository;
@@ -16,6 +18,7 @@ use App\Module\Insights\Service\BucketRuleWriter;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
@@ -39,6 +42,7 @@ final readonly class AcceptProposalHandler
         private BucketRuleWriter $ruleWriter,
         private MessageBusInterface $bus,
         private Auditor $auditor,
+        private EventDispatcherInterface $events,
     ) {
     }
 
@@ -85,7 +89,9 @@ final readonly class AcceptProposalHandler
             ],
             new AuditSubject('proposal', (string) $proposalId),
         );
+        $this->events->dispatch(new AnalysisChanged($projectId, (string) $accepted->analysis->id));
         if (ProposalKind::BucketRule === $accepted->kind) {
+            $this->events->dispatch(new BucketRulesChanged($projectId, null));
             $this->bus->dispatch(new RecomputeBucketTimes($projectId));
         }
 

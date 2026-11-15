@@ -18,6 +18,7 @@ final readonly class ListActivityPageView
         public int $totalPages,
         public array $pageList,
         public ?int $clampedPage,
+        public int $highestSequence,
     ) {
     }
 }

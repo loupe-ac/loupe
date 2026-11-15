@@ -17,6 +17,7 @@ use App\Module\Insights\Form\StartAnalysisFormType;
 use App\Module\Insights\Form\StartAnalysisRequest;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
+use App\Session\ReadOnlyAwareSessionHandler;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -26,6 +27,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[Route(
     '/projects/{id:project}/analytics/reports',
     name: 'app_project_analytics_reports',
+    defaults: [ReadOnlyAwareSessionHandler::READ_ONLY => 'analytics-reports'],
     methods: ['GET'],
 )]
 class ListReportsController extends AppController
@@ -42,6 +44,7 @@ class ListReportsController extends AppController
 
     public function __invoke(Project $project, Request $request): Response
     {
+        $loadedAt = new \DateTimeImmutable();
         $view = ($this->listReports)(new ListReportsCommand($project, $request->query->getInt('page', 1)));
         $startForm = $this->getInjectedFormView($request, self::START_FORM);
         if (null === $startForm) {
@@ -62,6 +65,7 @@ class ListReportsController extends AppController
             'pageList' => $view->pageList,
             'settings' => $view->settings,
             'costMetric' => Metric::Cost->valueType(),
+            'since' => $loadedAt,
             'startForm' => $startForm,
             'settingsForm' => $this->getInjectedFormView($request, self::SETTINGS_FORM)
                 ?? $this->createForm(AnalyticsSettingsFormType::class, AnalyticsSettingsRequest::fromView($view->settings))->createView(),

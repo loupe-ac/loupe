@@ -1,0 +1,8 @@
+{% for id in ids %}
+{% if rows[id] is defined %}
+<turbo-stream action="replace" method="morph" target="analysis-{{ id }}"><template>{% include '@Insights/_report_row.html.twig' with {row: rows[id], project: project, page: page, costMetric: costMetric, refusedDismissForm: null} only %}</template></turbo-stream>
+{% else %}
+<turbo-stream action="remove" target="analysis-{{ id }}"></turbo-stream>
+{% endif %}
+{% endfor %}
+<turbo-stream action="update" target="analysis-newer"><template>{% include '@Insights/_newer_band.html.twig' with {count: newer, label: 'insights.live.newer_reports', href: path('app_project_analytics_reports', {id: project.id})} only %}</template></turbo-stream>

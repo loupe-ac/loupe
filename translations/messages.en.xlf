@@ -8494,6 +8494,8 @@ workflow:
             <trans-unit id="activity.filter.search_placeholder"><source>activity.filter.search_placeholder</source><target>Search event type or data</target></trans-unit>
             <trans-unit id="activity.filter.family_label"><source>activity.filter.family_label</source><target>Filter by event family</target></trans-unit>
             <trans-unit id="activity.filter.all_families"><source>activity.filter.all_families</source><target>All event types</target></trans-unit>
+            <trans-unit id="activity.live.newer"><source>activity.live.newer</source><target>{0}No newer event was recorded.|{1}One newer event was recorded.|]1,Inf[%count% newer events were recorded.</target></trans-unit>
+            <trans-unit id="activity.live.show_first_page"><source>activity.live.show_first_page</source><target>Show the first page</target></trans-unit>
             <trans-unit id="activity.filter.clear"><source>activity.filter.clear</source><target>Clear</target></trans-unit>
             <trans-unit id="activity.filter.empty"><source>activity.filter.empty</source><target>No activity matches these filters.</target></trans-unit>
             <trans-unit id="activity.column.event"><source>activity.column.event</source><target>Event</target></trans-unit>
@@ -11064,6 +11066,11 @@ workflow:
             <trans-unit id="live.band.sign_in"><source>live.band.sign_in</source><target>Sign in</target></trans-unit>
             <trans-unit id="live.band.project_deleted"><source>live.band.project_deleted</source><target>This project was deleted, so this page no longer updates.</target></trans-unit>
             <trans-unit id="live.band.generic"><source>live.band.generic</source><target>You can no longer see this page, so it no longer updates.</target></trans-unit>
+            <trans-unit id="insights.live.newer_reports"><source>insights.live.newer_reports</source><target>{0} No newer reports.|{1} 1 newer report is on the first page.|]1,Inf[ %count% newer reports are on the first page.</target></trans-unit>
+            <trans-unit id="insights.live.newer_cards"><source>insights.live.newer_cards</source><target>{0} No newer cards.|{1} 1 card ran again and is now on the first page.|]1,Inf[ %count% cards ran again and are now on the first page.</target></trans-unit>
+            <trans-unit id="insights.live.show_first_page"><source>insights.live.show_first_page</source><target>Show the first page</target></trans-unit>
+            <trans-unit id="insights.live.settings_changed"><source>insights.live.settings_changed</source><target>Someone changed these settings. The values you typed stay in this form.</target></trans-unit>
+            <trans-unit id="insights.live.settings_open"><source>insights.live.settings_open</source><target>Open the current settings in a new tab</target></trans-unit>
             <trans-unit id="project.live.form_changed"><source>project.live.form_changed</source><target>Someone or an agent changed this project. What you typed stays here until you save.</target></trans-unit>
             <trans-unit id="project.live.form_open"><source>project.live.form_open</source><target>Open the current settings in a new tab</target></trans-unit>
             <trans-unit id="readiness.live.form_changed"><source>readiness.live.form_changed</source><target>Someone or an agent changed these settings. What you typed stays here until you save.</target></trans-unit>

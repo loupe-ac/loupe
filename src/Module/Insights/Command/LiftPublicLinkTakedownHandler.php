@@ -6,6 +6,8 @@ namespace App\Module\Insights\Command;
 
 use App\Module\Insights\Repository\PublicLinkRepository;
 use App\Module\Insights\Repository\PublicLinkTakedownRepository;
+use App\Module\Insights\Service\AnalyticsArea;
+use App\Module\Insights\Service\AnalyticsChangedPublisher;
 use Doctrine\ORM\EntityManagerInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
@@ -22,6 +24,7 @@ final readonly class LiftPublicLinkTakedownHandler
         private PublicLinkTakedownRepository $publicLinkTakedowns,
         private PublicLinkRepository $publicLinks,
         private Auditor $auditor,
+        private AnalyticsChangedPublisher $analyticsChanged,
     ) {
     }
 
@@ -44,5 +47,7 @@ final readonly class LiftPublicLinkTakedownHandler
             ['projectId' => $projectId, 'items' => $items],
             new AuditSubject('project', $projectId),
         );
+
+        $this->analyticsChanged->changed($project->requireId(), AnalyticsArea::EXPERIMENTS);
     }
 }
