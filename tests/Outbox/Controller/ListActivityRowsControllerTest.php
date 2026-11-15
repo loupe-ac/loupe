@@ -50,6 +50,7 @@ final class ListActivityRowsControllerTest extends WebTestCase
         self::assertStringNotContainsString('not-a-uuid', $body);
         self::assertStringContainsString('target="activity-live-band"', $body);
         self::assertStringContainsString('2 newer events were recorded.', $body);
+        self::assertMatchesRegularExpression('~targets="\[data-activity-count\]">\s*<template>\s*3 events\s*</template>~', $body);
     }
 
     public function test_the_filters_decide_which_shown_rows_stay_and_which_events_count_as_newer(): void

@@ -26,6 +26,7 @@ final readonly class ListActivityRowsHandler
             entries: $this->entries->entriesFor($command->project, $events),
             removedIds: array_values(array_diff($ids, $kept)),
             newerCount: $this->outboxEvents->countAboveForProject($command->project, $command->since, $listQuery->search, $listQuery->family),
+            filteredTotal: $this->outboxEvents->countAboveForProject($command->project, 0, $listQuery->search, $listQuery->family),
         );
     }
 }

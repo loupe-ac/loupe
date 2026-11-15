@@ -4,7 +4,8 @@
     :search="{id: 'activity-search', name: 'search', value: listQuery.search, label: 'activity.filter.search_label'|trans, placeholder: 'activity.filter.search_placeholder'|trans}"
     :clearHref="path('app_project_activity', {id: project.id})"
     :clearLabel="'activity.filter.clear'|trans"
-    :count="'activity.count'|trans({'%count%': filteredTotal})">
+    :count="'activity.count'|trans({'%count%': filteredTotal})"
+    :countAttributes="{'data-activity-count': true}">
     <label class="sr-only" for="activity-family">{{ 'activity.filter.family_label'|trans }}</label>
     <twig:Ds:Select id="activity-family"
             name="family"

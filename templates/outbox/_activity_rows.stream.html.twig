@@ -6,6 +6,9 @@
 {% for id in view.removedIds %}
 <turbo-stream action="remove" target="activity-row-{{ id }}"></turbo-stream>
 {% endfor %}
+<turbo-stream action="update" targets="[data-activity-count]">
+    <template>{{ 'activity.count'|trans({'%count%': view.filteredTotal}) }}</template>
+</turbo-stream>
 <turbo-stream action="update" target="activity-live-band">
     <template>
         {% if view.newerCount > 0 %}

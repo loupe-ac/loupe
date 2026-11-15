@@ -18,11 +18,6 @@ const PASSWORD = 'E2eActivityLive1!';
 
 test.setTimeout(150_000);
 
-// The flag is global, so it goes back off for the specs that run after this one.
-test.afterAll(async ({ request }) => {
-    await setLiveUpdates(request, false);
-});
-
 async function setLiveUpdates(
     request: APIRequestContext,
     enabled: boolean,
@@ -114,6 +109,9 @@ test('page one follows a new event, and page two shows a band and keeps its rows
         'One newer event was recorded.',
         { timeout: 15_000 },
     );
+    await expect(second.locator('.lp-filter-count')).toHaveText('26 events', {
+        timeout: 15_000,
+    });
     await expect(
         second.locator('[data-activity-live-first-page]'),
     ).toBeVisible();
@@ -128,7 +126,6 @@ test('page one follows a new event, and page two shows a band and keeps its rows
 
     await second.locator('[data-activity-live-first-page]').click();
     await expect(second).not.toHaveURL(/page=2/, { timeout: 30_000 });
-    await expect(second.locator('.lp-filter-count')).toHaveText('26 events');
 
     await actor.context().close();
     await first.context().close();
