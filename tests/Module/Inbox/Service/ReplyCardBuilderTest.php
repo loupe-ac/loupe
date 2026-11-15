@@ -203,6 +203,21 @@ final class ReplyCardBuilderTest extends KernelTestCase
         self::assertSame('inbox.thread.note_hint_retry', $card->hintKey);
     }
 
+    public function test_a_wait_whose_main_action_is_open_keeps_the_hint_that_the_note_stays_in_loupe(): void
+    {
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Wait, title: '#3 Ship it', blocking: true, origin: InboxAskOrigin::Loupe);
+        $this->em->persist($item);
+        $watch = new InboxCardWatch($item, $this->card->id ?? throw new \LogicException('Stored.'), $this->card->number);
+        $this->em->persist($watch);
+        $watch->waits->add(new InboxCardWait($watch, 'card-open', InboxCardWaitType::Card, 'marker.card_open', spellStartedAt: new \DateTimeImmutable()));
+        $this->em->flush();
+
+        $card = $this->builder->build($item);
+
+        self::assertSame(InboxActionKind::Open, $card?->main?->action->kind);
+        self::assertSame('inbox.thread.note_hint', $card->hintKey);
+    }
+
     public function test_a_closed_item_has_no_card_and_a_late_response_gets_the_refusal(): void
     {
         $item = $this->agentItem(InboxItemKind::Question, ['JSON']);
