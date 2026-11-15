@@ -1,7 +1,7 @@
 {# The export list of the data page, in a live region. The page and the fragment route render it. Props: view (ShowAccountSettingsView). #}
 <turbo-frame id="account-exports" class="lp-live-stack" refresh="morph" data-live-content data-controller="live-region" data-live-region-types-value="{{ ['account.changed']|json_encode }}" data-live-region-match-value="{{ {area: 'exports'}|json_encode }}" data-live-region-url-value="{{ path('app_account_data_frame') }}" data-live-region-mode-value="frame">
     {% for export in view.exports %}
-    <div class="lp-identity-row">
+    <div class="lp-identity-row" data-account-export="{{ export.id }}">
         <twig:ux:icon name="lucide:package" class="lp-icon lp-icon--md lp-identity-row__glyph" />
         <span class="lp-identity-row__text">
             <span class="lp-identity-row__name lp-identity-row__name--mono">{{ export.requestedAt|date('j M Y, H:i') }}</span>

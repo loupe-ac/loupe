@@ -12,6 +12,7 @@ final class AccountArea
     public const string API_KEYS = 'api_keys';
     public const string APPS = 'apps';
     public const string PROFILE = 'profile';
+    public const string PROJECTS = 'projects';
 
     private function __construct()
     {

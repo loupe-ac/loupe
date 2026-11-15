@@ -73,11 +73,13 @@ final class AccountLiveRegionsTest extends WebTestCase
         self::assertSame('morph', $inPage->attr('refresh'));
         self::assertNotNull($inPage->attr('data-live-content'));
         if (null === $area) {
-            self::assertSame('["inbox.open_count_changed"]', $inPage->attr('data-live-region-types-value'));
+            self::assertSame('["inbox.open_count_changed","account.changed"]', $inPage->attr('data-live-region-types-value'));
+            self::assertSame('{"area":["projects",null]}', $inPage->attr('data-live-region-match-value'));
             self::assertContains($this->topics()->forInbox($this->id($user)), $topics);
+            self::assertContains($this->topics()->forAccount($this->id($user)), $topics);
         } else {
             self::assertSame('["account.changed"]', $inPage->attr('data-live-region-types-value'));
-            self::assertSame(json_encode(['area' => $area]), $inPage->attr('data-live-region-match-value'));
+            self::assertSame(json_encode(['area' => 'apps' === $area ? ['apps', 'projects'] : $area]), $inPage->attr('data-live-region-match-value'));
             self::assertContains($this->topics()->forAccount($this->id($user)), $topics);
         }
 

@@ -6,6 +6,8 @@ namespace App\Module\Project\Command;
 
 use App\Doctrine\SearchLanguage;
 use App\Exception\DomainErrors;
+use App\Mercure\AccountArea;
+use App\Mercure\AccountChangedPublisher;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Event\ProjectRenamed;
 use App\Module\Project\Repository\ProjectRepository;
@@ -25,6 +27,7 @@ final readonly class UpdateProjectHandler
         private EntityManagerInterface $em,
         private Auditor $auditor,
         private EventDispatcherInterface $events,
+        private AccountChangedPublisher $accountChanged,
     ) {
     }
 
@@ -102,6 +105,7 @@ final readonly class UpdateProjectHandler
             throw new DomainErrors(['name' => 'project.error.slug_taken']);
         }
 
+        $renamed = $project->name !== $name;
         // Read before the name is assigned, because the name's set hook rewrites the slug.
         $fromSlug = $project->slug;
         $project->name = $name;
@@ -122,6 +126,10 @@ final readonly class UpdateProjectHandler
         } catch (UniqueConstraintViolationException $e) {
             // A concurrent rename won the race with the checks above, and a unique index caught it.
             throw new DomainErrors(['name' => str_contains($e->getMessage(), Project::SLUG_CONSTRAINT) ? 'project.error.slug_taken' : 'project.error.name_taken']);
+        }
+
+        if ($renamed) {
+            $this->accountChanged->changed($project->owner->id ?? throw new \LogicException('a persisted user always has an id'), AccountArea::PROJECTS);
         }
 
         $this->auditor->record(

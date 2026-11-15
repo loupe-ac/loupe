@@ -14,6 +14,7 @@
     <twig:Ds:PageHeader :title="'inbox.account.page.title'|trans" :description="'inbox.account.page.description'|trans" />
 
     {% do mercure_subscribe(inbox_topic(app.user)) %}
+    {% do mercure_subscribe(account_topic(app.user)) %}
     {% include '@Inbox/_account_inbox_frame.html.twig' with {inbox: inbox} only %}
 </twig:Ds:Workspace>
 {% endblock %}
