@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Board\Entity;
 
+use App\Doctrine\Type\MicrosecondDateTimeImmutableType;
 use App\Module\Artifact\Entity\Artifact;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Project\Entity\Project;
@@ -43,14 +44,15 @@ class Card implements ProjectScopedSubject
      * a column that is not terminal. A terminal column sorts on this rather
      * than on $position, which it does not maintain.
      */
-    #[ORM\Column(nullable: true)]
+    #[ORM\Column(type: MicrosecondDateTimeImmutableType::NAME, nullable: true, columnDefinition: 'TIMESTAMP(6) WITHOUT TIME ZONE DEFAULT NULL')]
     public ?\DateTimeImmutable $completedAt = null;
 
     /** Counts each entry into a terminal column from outside one, so two completions in one second still differ. */
     #[ORM\Column(options: ['default' => 0])]
     public int $completions = 0;
 
-    #[ORM\Column]
+    /** Kept to the microsecond, so a live page compares it with its cursor at the same precision. */
+    #[ORM\Column(type: MicrosecondDateTimeImmutableType::NAME, columnDefinition: 'TIMESTAMP(6) WITHOUT TIME ZONE NOT NULL')]
     public \DateTimeImmutable $updatedAt;
 
     /**
@@ -215,7 +217,7 @@ class Card implements ProjectScopedSubject
         #[ORM\Column]
         public int $position = 0,
 
-        #[ORM\Column]
+        #[ORM\Column(type: MicrosecondDateTimeImmutableType::NAME, columnDefinition: 'TIMESTAMP(6) WITHOUT TIME ZONE NOT NULL')]
         public readonly \DateTimeImmutable $createdAt = new \DateTimeImmutable(),
         /* Null derives the source from $origin. */
         ?CardSource $source = null,

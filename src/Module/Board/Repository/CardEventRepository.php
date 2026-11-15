@@ -295,7 +295,7 @@ class CardEventRepository extends ServiceEntityRepository
                 'column' => (string) $column->id,
                 'since' => $since,
             ],
-            ['since' => Types::DATETIME_IMMUTABLE],
+            ['since' => MicrosecondDateTimeImmutableType::NAME],
         );
 
         return array_map(strval(...), $ids);

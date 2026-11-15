@@ -89,6 +89,30 @@ final class CardRepositoryLiveRowsTest extends KernelTestCase
         self::assertSame(0, $this->cards->countCompletedAfter($column, new \DateTimeImmutable('+1 hour')));
     }
 
+    public function test_a_later_page_compares_arrivals_with_the_cursor_to_the_microsecond(): void
+    {
+        $project = $this->project($this->em, $this->user($this->em, 'rows-micro@example.com'));
+        $card = $this->card($this->em, $project, 'Moved in');
+        $backlog = $this->column($project, 'backlog');
+        $base = new \DateTimeImmutable('+1 hour');
+        $second = $base->setTime((int) $base->format('H'), (int) $base->format('i'), (int) $base->format('s'), 0);
+        $cursor = $second->modify('+500000 microseconds');
+        $this->events()->record($card, CardEventKind::Moved, Actor::System, null, ['from' => CardEvent::columnDetail($this->column($project, 'next')), 'to' => CardEvent::columnDetail($backlog), 'cause' => null], $second->modify('+200000 microseconds'));
+        $this->em->flush();
+
+        self::assertSame([], $this->events()->findCardIdsMovedIntoColumnAfter($backlog, $cursor));
+        self::assertSame([(string) $card->id], $this->events()->findCardIdsMovedIntoColumnAfter($backlog, $second->modify('+100000 microseconds')));
+
+        $done = $this->card($this->em, $project, 'Done card', 'done');
+        $done->completedAt = $second->modify('+700000 microseconds');
+        $this->em->flush();
+        $this->em->clear();
+        $column = $this->column($project, 'done');
+
+        self::assertSame(1, $this->cards->countCompletedAfter($column, $cursor));
+        self::assertSame(0, $this->cards->countCompletedAfter($column, $second->modify('+800000 microseconds')));
+    }
+
     public function test_the_backlog_counts_a_card_moved_back_in_after_the_moment(): void
     {
         $project = $this->project($this->em, $this->user($this->em, 'rows-moved-back@example.com'));

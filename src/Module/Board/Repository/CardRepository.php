@@ -6,6 +6,7 @@ namespace App\Module\Board\Repository;
 
 use App\Doctrine\SearchQuery;
 use App\Doctrine\SubstringSearch;
+use App\Doctrine\Type\MicrosecondDateTimeImmutableType;
 use App\Module\Account\Entity\User;
 use App\Module\Board\Entity\BoardColumn;
 use App\Module\Board\Entity\Card;
@@ -1550,7 +1551,7 @@ class CardRepository extends ServiceEntityRepository
             ->select('COUNT(c.id)')
             ->andWhere('c.column = :column')
             ->setParameter('column', $column)
-            ->setParameter('since', $since);
+            ->setParameter('since', $since, MicrosecondDateTimeImmutableType::NAME);
         if ([] === $movedIds) {
             $qb->andWhere('c.completedAt > :since');
         } else {
@@ -1597,7 +1598,7 @@ class CardRepository extends ServiceEntityRepository
     {
         $qb = $this->backlogMatching($backlog, $listQuery)
             ->select('COUNT(c.id)')
-            ->setParameter('since', $since);
+            ->setParameter('since', $since, MicrosecondDateTimeImmutableType::NAME);
         $arrivedAt = $listQuery->isNarrowed() ? 'c.updatedAt' : 'c.createdAt';
         if ([] === $movedIds) {
             $qb->andWhere($arrivedAt.' > :since');
