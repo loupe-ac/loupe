@@ -116,10 +116,19 @@ test('a new version shows a band with a link and keeps the open prototype, and t
     const base = `/projects/${draft.projectId}/artifacts`;
 
     const page = await openWatcher(browser, email, `${base}/${artifactId}`);
+    const full = await openWatcher(
+        browser,
+        email,
+        `${base}/${artifactId}/full-screen`,
+    );
     const list = await openWatcher(browser, email, base);
     await expect(list.locator('[data-artifact-id]')).toHaveCount(1);
     await expect(page.locator('[data-artifact-live-version]')).toHaveCount(0);
     const frameSource = await page
+        .locator('iframe[data-artifact-frame]')
+        .getAttribute('src');
+
+    const fullSource = await full
         .locator('iframe[data-artifact-frame]')
         .getAttribute('src');
 
@@ -137,6 +146,15 @@ test('a new version shows a band with a link and keeps the open prototype, and t
         'src',
         frameSource ?? '',
     );
+    const fullBand = full.locator('[data-artifact-live-version]');
+    await expect(fullBand).toContainText('Version 2 is out.', LIVE);
+    await expect(full.locator('iframe[data-artifact-frame]')).toHaveAttribute(
+        'src',
+        fullSource ?? '',
+    );
+    await expect(
+        fullBand.getByRole('link', { name: 'Show version 2' }),
+    ).toHaveAttribute('href', `${base}/${artifactId}/versions/2/full-screen`);
     await band.getByRole('link', { name: 'Show version 2' }).click();
     await expect(page).toHaveURL(
         new RegExp(`${base}/${artifactId}/versions/2$`),
@@ -154,5 +172,6 @@ test('a new version shows a band with a link and keeps the open prototype, and t
 
     await author.context().close();
     await page.context().close();
+    await full.context().close();
     await list.context().close();
 });
