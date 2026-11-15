@@ -37,7 +37,7 @@ analysis pages show.
 - An old "Dev Project" is renamed to `Dev Project (old <8 characters of its id>)`.
   The new "Dev Project" gets the fixed id.
 - The seed switches on the flags of `DevFeatureFlagSeeder`, which are
-  `inbox.enabled`, `artifacts.enabled` and `billing.enabled`. It tags each flag
+  `inbox.enabled`, `artifacts.enabled`, `billing.enabled` and `review.mermaid.enabled`. It tags each flag
   row `dev-seed`.
   A flag row with that tag stays as a person left it, so the seed never switches
   it on again.

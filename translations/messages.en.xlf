@@ -2040,6 +2040,38 @@
                 <source>review.document.mermaid.hide_source</source>
                 <target>Hide source</target>
             </trans-unit>
+            <trans-unit id="review.document.mermaid.expand">
+                <source>review.document.mermaid.expand</source>
+                <target>Expand</target>
+            </trans-unit>
+            <trans-unit id="review.document.mermaid.open_diagram">
+                <source>review.document.mermaid.open_diagram</source>
+                <target>Open the diagram to zoom and move it</target>
+            </trans-unit>
+            <trans-unit id="review.document.mermaid.viewer.title">
+                <source>review.document.mermaid.viewer.title</source>
+                <target>Diagram</target>
+            </trans-unit>
+            <trans-unit id="review.document.mermaid.viewer.zoom_in">
+                <source>review.document.mermaid.viewer.zoom_in</source>
+                <target>Zoom in</target>
+            </trans-unit>
+            <trans-unit id="review.document.mermaid.viewer.zoom_out">
+                <source>review.document.mermaid.viewer.zoom_out</source>
+                <target>Zoom out</target>
+            </trans-unit>
+            <trans-unit id="review.document.mermaid.viewer.fit">
+                <source>review.document.mermaid.viewer.fit</source>
+                <target>Fit to window</target>
+            </trans-unit>
+            <trans-unit id="review.document.mermaid.viewer.close">
+                <source>review.document.mermaid.viewer.close</source>
+                <target>Close</target>
+            </trans-unit>
+            <trans-unit id="review.document.mermaid.viewer.hint">
+                <source>review.document.mermaid.viewer.hint</source>
+                <target>Scroll to zoom. Drag to move. Press + and - to zoom, 0 to fit, arrow keys to move.</target>
+            </trans-unit>
             <trans-unit id="review.document.reference.from">
                 <source>review.document.reference.from</source>
                 <target>From %title%</target>

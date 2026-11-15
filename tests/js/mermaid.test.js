@@ -18,6 +18,7 @@ const page = (enabled) => `<div data-controller="mermaid"
 <p>After.</p></div>
     <template data-mermaid-target="disabledNotice"><p class="lp-mermaid__notice" data-notice="disabled">Diagrams are off.</p></template>
     <template data-mermaid-target="errorNotice"><p class="lp-mermaid__notice" data-notice="error">Could not render.</p></template>
+    <template data-mermaid-target="expand" data-open-label="Open the diagram"><button type="button" class="lp-mermaid__toggle" data-expand><span>Expand</span></button></template>
     <template data-mermaid-target="toggle"><button type="button" class="lp-mermaid__toggle" aria-expanded="false" data-label-show="Show source" data-label-hide="Hide source"><span data-label>Show source</span></button></template>
 </div>`;
 
@@ -121,7 +122,8 @@ it('renders each diagram into a shadow root and isolates a failing one', async (
 it('flips the source and its own label from the toggle', async () => {
     const { before } = await start(true, async () => fakeMermaid());
     const [rendered] = mermaidPres();
-    const toggle = hostAfter(rendered).shadowRoot.querySelector('button');
+    const toggle =
+        hostAfter(rendered).shadowRoot.querySelector('[aria-expanded]');
 
     toggle.click();
     expect(rendered.hidden).toBe(false);
@@ -176,4 +178,51 @@ it('adds no second host when it reconnects on a restored snapshot', async () => 
     expect(doc().querySelectorAll('.lp-mermaid')).toHaveLength(2);
     expect(mermaidPres()[0].hidden).toBe(true);
     expect(doc().textContent).toBe(before);
+});
+
+it('adds Expand and a focusable figure to a drawn block, and none to a failed one', async () => {
+    await start(true, async () => fakeMermaid());
+    const [drawn, failed] = mermaidPres().map((pre) => hostAfter(pre));
+
+    expect(drawn.shadowRoot.querySelector('[data-expand]')).not.toBeNull();
+    const figure = drawn.shadowRoot.querySelector('.lp-mermaid__figure');
+    expect(figure.tabIndex).toBe(0);
+    expect(figure.getAttribute('role')).toBe('button');
+    expect(figure.getAttribute('aria-label')).toBe('Open the diagram');
+    expect(failed.shadowRoot.querySelector('[data-expand]')).toBeNull();
+    expect(failed.shadowRoot.querySelector('.lp-mermaid__figure')).toBeNull();
+});
+
+it('dispatches expand with the svg and the figure for a click, Expand, Enter and Space', async () => {
+    await start(true, async () => fakeMermaid());
+    const root = hostAfter(mermaidPres()[0]).shadowRoot;
+    const figure = root.querySelector('.lp-mermaid__figure');
+    const details = [];
+    window.addEventListener('mermaid:expand', (event) =>
+        details.push(event.detail),
+    );
+
+    figure.click();
+    root.querySelector('[data-expand]').click();
+    figure.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    figure.dispatchEvent(new KeyboardEvent('keydown', { key: ' ' }));
+    figure.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
+
+    expect(details).toHaveLength(4);
+    for (const detail of details) {
+        expect(detail.figure).toBe(figure);
+        expect(detail.svg).toBe(figure.querySelector('svg'));
+    }
+});
+
+it('keeps Show source working beside Expand', async () => {
+    await start(true, async () => fakeMermaid());
+    const [pre] = mermaidPres();
+    const root = hostAfter(pre).shadowRoot;
+    const toggle = root.querySelector('[aria-expanded]');
+
+    toggle.click();
+
+    expect(pre.hidden).toBe(false);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
 });

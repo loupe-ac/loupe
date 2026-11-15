@@ -207,7 +207,7 @@ readonly class Catalog
                 name: 'Dialog',
                 rootClass: 'lp-dialog',
                 template: 'components/Ds/Dialog.html.twig',
-                variants: ['document', 'search'],
+                variants: ['document', 'search', 'full'],
                 states: ['open'],
                 enforced: true,
                 group: 'core',

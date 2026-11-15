@@ -56,7 +56,7 @@ A building block is a Twig component under `templates/components/Ds/`. Its CSS l
 | StatusChip | A state with a coloured dot and an optional reason tooltip | pending, addressed, resolved, ok, failed, neutral |
 | StateMark | An icon that names what a card needs now, with its reason in an interactive tooltip | stuck, needs-you, working, waiting |
 | StatusBox | The state of a card with its reason, its facts, what clears it, and the other states that apply | stuck, needs-you, working, waiting |
-| Dialog | A modal that the `modal` Stimulus controller opens | document, search |
+| Dialog | A modal that the `modal` Stimulus controller opens | document, search, full |
 | Sheet | A panel that slides up from the bottom of the screen at every width, with a grab handle, a title, a back button and a close button. From the `lg` width it is a centred panel. The `sheet` controller opens it | none |
 | Tabs | A strip of links or tab buttons with an underline, or a pill group that switches a view or a setting. A strip that overflows draws arrows, set by the `arrows` prop | segmented |
 | Pagination | The previous, next and page-number control of a list | none |
