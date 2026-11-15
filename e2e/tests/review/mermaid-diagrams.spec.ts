@@ -124,3 +124,59 @@ test('the toggle shows and hides the source of a rendered diagram', async ({
         host.getByRole('button', { name: 'Show source' }),
     ).toBeVisible();
 });
+
+test('a click or Enter opens the viewer, the wheel zooms, and Esc returns focus to the diagram', async ({
+    page,
+}) => {
+    await setMermaidFlag(page.request, true);
+    await openDocument(page);
+
+    const host = page.locator('.lp-mermaid').nth(0);
+    const figure = host.locator('.lp-mermaid__figure');
+    const viewer = page.locator('dialog.lp-dialog--full');
+    await expect(host.getByTestId('stub-diagram')).toBeVisible();
+
+    await figure.click();
+    await expect(viewer).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(viewer).toBeHidden();
+    await expect(figure).toBeFocused();
+
+    await figure.press('Enter');
+    await expect(viewer).toBeVisible();
+    const percent = viewer.locator('output');
+    const before = parseInt((await percent.textContent()) ?? '0', 10);
+    await viewer.locator('.lp-mermaid-viewer__stage').hover();
+    await page.mouse.wheel(0, -300);
+    await expect
+        .poll(async () => parseInt((await percent.textContent()) ?? '0', 10))
+        .toBeGreaterThan(before);
+
+    const zoomIn = viewer.getByRole('button', { name: 'Zoom in' });
+    for (let step = 0; step < 15; step += 1) {
+        if (await zoomIn.isDisabled()) break;
+        await zoomIn.click();
+    }
+    await expect(percent).toHaveText('400%');
+    await expect(zoomIn).toBeDisabled();
+});
+
+test('Esc after Expand puts focus back on the diagram and keeps the scroll position', async ({
+    page,
+}) => {
+    await setMermaidFlag(page.request, true);
+    await openDocument(page);
+
+    const host = page.locator('.lp-mermaid').nth(0);
+    await expect(host.getByTestId('stub-diagram')).toBeVisible();
+    const scrollBefore = await page.evaluate(() => window.scrollY);
+
+    await host.getByRole('button', { name: 'Expand' }).click();
+    const viewer = page.locator('dialog.lp-dialog--full');
+    await expect(viewer).toBeVisible();
+    await page.keyboard.press('Escape');
+
+    await expect(viewer).toBeHidden();
+    await expect(host.locator('.lp-mermaid__figure')).toBeFocused();
+    expect(await page.evaluate(() => window.scrollY)).toBe(scrollBefore);
+});

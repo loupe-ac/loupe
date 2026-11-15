@@ -26,7 +26,7 @@ use Symfony\Component\DependencyInjection\Attribute\When;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Writes the three documents of the showcase: a plan with two versions, an approved spec and a tech design.
+ * Writes the documents of the showcase: a plan with two versions, an approved spec, a tech design, a wide Mermaid diagram and its empty twin without a diagram.
  * The plan carries one comment, and the spec has none, so it is the empty twin of the Comments panel.
  * It also writes three approved documents in the project of the keys account: one with a verdict that an API
  * key recorded, one with a comment that an API key wrote, and an empty twin where a person did both.
@@ -118,6 +118,26 @@ final readonly class DevDocumentSeeder implements DevSeederInterface
             );
             $this->tagApplier->apply($onboarding, ['tech-design', 'decisions']);
             $this->store($context, $onboarding, 'first-handoff');
+        }
+
+        if (!$this->documents->find(self::documentId('wide-diagram')) instanceof Document) {
+            $nodes = array_map(static fn (int $step): string => \sprintf('S%1$d[Step %1$d of the onboarding flow] --> S%2$d', $step, $step + 1), range(1, 11));
+            $source = "flowchart LR\n  ".implode("\n  ", $nodes).'[Done]';
+            $diagram = new Document($owner, $project, 'Wide onboarding diagram', $context->at(900));
+            $diagram->addVersion(
+                "# Wide onboarding diagram\n\n```mermaid\n".$source."\n```\n",
+                '<h1>Wide onboarding diagram</h1><pre><code class="language-mermaid">'.htmlspecialchars($source).'</code></pre>',
+            );
+            $this->store($context, $diagram, 'wide-diagram');
+        }
+
+        if (!$this->documents->find(self::documentId('wide-diagram-empty')) instanceof Document) {
+            $empty = new Document($owner, $project, 'Onboarding notes without a diagram', $context->at(950));
+            $empty->addVersion(
+                "# Onboarding notes without a diagram\n\nThis document has no Mermaid block, so the page has no diagram viewer.\n",
+                '<h1>Onboarding notes without a diagram</h1><p>This document has no Mermaid block, so the page has no diagram viewer.</p>',
+            );
+            $this->store($context, $empty, 'wide-diagram-empty');
         }
 
         $this->seedApiKeyDocuments($context);

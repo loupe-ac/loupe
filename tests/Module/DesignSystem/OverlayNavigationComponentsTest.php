@@ -35,6 +35,14 @@ final class OverlayNavigationComponentsTest extends KernelTestCase
         self::assertStringContainsString('data-modal-target="dialog"', $html);
     }
 
+    public function test_the_full_dialog_size_adds_its_modifier_and_keeps_a_caller_target(): void
+    {
+        $html = $this->render('<twig:Ds:Dialog size="full" data-mermaid-viewer-target="dialog">Body</twig:Ds:Dialog>');
+
+        self::assertStringContainsString('class="lp-dialog lp-dialog--full"', $html);
+        self::assertStringContainsString('data-mermaid-viewer-target="dialog"', $html);
+    }
+
     public function test_tabs_render_a_nav_with_the_passed_attributes(): void
     {
         $html = $this->render('<twig:Ds:Tabs class="lp-analytics-tabs" aria-label="Sections"><a class="lp-tabs__tab" href="#">One</a></twig:Ds:Tabs>');

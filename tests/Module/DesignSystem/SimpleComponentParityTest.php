@@ -21,6 +21,7 @@ final class SimpleComponentParityTest extends KernelTestCase
         yield 'Tag' => ['Tag', '<twig:Ds:Tag>A</twig:Ds:Tag>', '<twig:Ds:Tag tone="lime" as="li">A</twig:Ds:Tag>', "{ tone, as: Element = 'span',", "'lp-tag--' + modifier"];
         yield 'Avatar' => ['Avatar', '<twig:Ds:Avatar>A</twig:Ds:Avatar>', '<twig:Ds:Avatar tone="tint">A</twig:Ds:Avatar>', "{ tone = 'accent', size = 'md', shape = 'round',", "'lp-avatar--' + tone"];
         yield 'Dialog' => ['Dialog', '<twig:Ds:Dialog>A</twig:Ds:Dialog>', '<twig:Ds:Dialog size="search">A</twig:Ds:Dialog>', '{ size,', "'lp-dialog--' + modifier"];
+        yield 'Dialog full' => ['Dialog', '<twig:Ds:Dialog>A</twig:Ds:Dialog>', '<twig:Ds:Dialog size="full">A</twig:Ds:Dialog>', '{ size,', "'lp-dialog--' + modifier"];
         yield 'Label' => ['Label', '<twig:Ds:Label>A</twig:Ds:Label>', '<twig:Ds:Label as="legend">A</twig:Ds:Label>', "{ as: Element = 'label',", ''];
         yield 'Hint' => ['Hint', '<twig:Ds:Hint>A</twig:Ds:Hint>', '<twig:Ds:Hint as="span">A</twig:Ds:Hint>', "{ as: Element = 'p',", ''];
         yield 'FieldErrors' => ['FieldErrors', '<twig:Ds:FieldErrors>A</twig:Ds:FieldErrors>', '<twig:Ds:FieldErrors as="p">A</twig:Ds:FieldErrors>', "{ as: Element = 'div',", ''];

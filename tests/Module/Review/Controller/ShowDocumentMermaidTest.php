@@ -47,12 +47,19 @@ final class ShowDocumentMermaidTest extends WebTestCase
             $root->attr('data-mermaid-module-url-value'),
         );
         self::assertCount(1, $root->filter('[data-mermaid-target="doc"] pre > code.language-mermaid'));
-        foreach (['disabledNotice', 'errorNotice', 'toggle'] as $target) {
+        foreach (['disabledNotice', 'errorNotice', 'toggle', 'expand'] as $target) {
             self::assertCount(1, $root->filter('template[data-mermaid-target="'.$target.'"]'), $target);
         }
 
         $pane = $crawler->filter('[data-comment-anchor-target="doc"]');
         self::assertSame($document->currentVersion()->plainText(), $pane->text(null, false));
+
+        $viewer = $crawler->filter('[data-controller~="mermaid-viewer"]');
+        self::assertCount($enabled ? 1 : 0, $viewer);
+        if ($enabled) {
+            self::assertCount(1, $viewer->filter('dialog.lp-dialog--full[data-mermaid-viewer-target="dialog"]'));
+            self::assertCount(1, $viewer->filter('[data-mermaid-viewer-target="stage"]'));
+        }
     }
 
     public function test_a_document_without_mermaid_attaches_no_controller(): void
@@ -68,6 +75,7 @@ final class ShowDocumentMermaidTest extends WebTestCase
         self::assertCount(1, $crawler->filter('[data-comment-anchor-target="doc"] pre > code'));
         self::assertCount(0, $crawler->filter('[data-controller~="mermaid"]'));
         self::assertCount(0, $crawler->filter('[data-mermaid-target]'));
+        self::assertCount(0, $crawler->filter('[data-controller~="mermaid-viewer"]'));
     }
 
     private function setFlag(bool $enabled): void

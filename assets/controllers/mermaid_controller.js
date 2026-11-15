@@ -17,11 +17,20 @@ svg { max-width: 100%; height: auto; }
 .lp-mermaid__notice svg { margin-top: 0.2em; }
 .lp-mermaid__toggle { display: flex; align-items: center; gap: calc(var(--spacing) * 1.5); margin: calc(var(--spacing) * 2) 0 0 auto; padding: calc(var(--spacing) * 1) calc(var(--spacing) * 2.5); border: 1px solid transparent; border-radius: calc(var(--spacing) * 1.5); background: transparent; cursor: pointer; transition: background-color 150ms, color 150ms; }
 .lp-mermaid__toggle:hover { color: var(--ink); background: var(--bg-active); }
-.lp-mermaid__toggle:focus-visible { outline: 2px solid var(--accent-ink); outline-offset: 2px; }
+.lp-mermaid__figure { cursor: zoom-in; border-radius: calc(var(--spacing) * 1.5); }
+.lp-mermaid__figure:focus-visible, .lp-mermaid__toggle:focus-visible { outline: 2px solid var(--accent-ink); outline-offset: 2px; }
+.lp-mermaid__actions { display: flex; justify-content: flex-end; gap: calc(var(--spacing) * 1); }
+.lp-mermaid__actions .lp-mermaid__toggle { margin: calc(var(--spacing) * 2) 0 0; }
 `;
 
 export default class extends Controller {
-    static targets = ['doc', 'disabledNotice', 'errorNotice', 'toggle'];
+    static targets = [
+        'doc',
+        'disabledNotice',
+        'errorNotice',
+        'toggle',
+        'expand',
+    ];
     static values = { enabled: Boolean, moduleUrl: String };
 
     connect() {
@@ -87,8 +96,8 @@ export default class extends Controller {
                 }
                 const parsed = document.createElement('template');
                 parsed.innerHTML = svg;
-                block.host.shadowRoot.append(parsed.content);
-                this.addToggle(block);
+                const figure = this.addFigure(block, parsed.content);
+                this.addToggle(block, figure);
                 block.pre.hidden = true;
             } catch {
                 this.append(block.host, this.errorNoticeTarget);
@@ -110,9 +119,44 @@ export default class extends Controller {
         host.shadowRoot.append(template.content.cloneNode(true));
     }
 
-    addToggle(block) {
-        this.append(block.host, this.toggleTarget);
-        const button = block.host.shadowRoot.querySelector('button');
+    // The figure holds the drawn SVG. It opens the viewer on a click, Enter
+    // or Space, and it is where focus returns when the viewer closes.
+    addFigure(block, content) {
+        const figure = document.createElement('div');
+        figure.className = 'lp-mermaid__figure';
+        figure.tabIndex = 0;
+        figure.setAttribute('role', 'button');
+        figure.setAttribute('aria-label', this.expandTarget.dataset.openLabel);
+        figure.append(content);
+        block.host.shadowRoot.append(figure);
+        figure.addEventListener('click', () => this.expand(figure));
+        figure.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                this.expand(figure);
+            }
+        });
+        return figure;
+    }
+
+    expand(figure) {
+        this.dispatch('expand', {
+            detail: { svg: figure.querySelector('svg'), figure },
+        });
+    }
+
+    addToggle(block, figure) {
+        const actions = document.createElement('div');
+        actions.className = 'lp-mermaid__actions';
+        actions.append(
+            this.expandTarget.content.cloneNode(true),
+            this.toggleTarget.content.cloneNode(true),
+        );
+        block.host.shadowRoot.append(actions);
+        actions
+            .querySelector('[data-expand]')
+            .addEventListener('click', () => this.expand(figure));
+        const button = actions.querySelector('[aria-expanded]');
         const label = button.querySelector('[data-label]');
         button.addEventListener('click', () => {
             block.pre.hidden = !block.pre.hidden;
