@@ -106,6 +106,10 @@ minutes, unless the project is dormant. When the kept report is older than
 that, or no report exists yet, the page computes it in its own request. The
 owner's own page stays live.
 
+The visitor's page does not update while it is open. A visitor sees the report
+of the page load until they reload the page. When you turn the link off, an open
+page keeps its report on screen, and the next reload shows "not found".
+
 The page has no tabs, no link to the Cards tab and no **Analyse** button. It
 shows no card, no card number you did not write in the note, no account name,
 no bridge name and no person. It does not list unknown metrics or unknown
