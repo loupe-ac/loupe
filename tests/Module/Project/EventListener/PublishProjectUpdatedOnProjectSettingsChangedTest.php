@@ -13,6 +13,8 @@ use App\Module\Project\Command\UpdateProjectCommand;
 use App\Module\Project\Command\UpdateProjectHandler;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\ProjectEventType;
+use App\Module\Readiness\Command\HideReadinessGuideCommand;
+use App\Module\Readiness\Command\HideReadinessGuideHandler;
 use App\Module\Readiness\Command\RecordAgentGitHubLoginCommand;
 use App\Module\Readiness\Command\RecordAgentGitHubLoginHandler;
 use App\Module\Readiness\Command\UpdateReadinessSettingsCommand;
@@ -68,6 +70,16 @@ final class PublishProjectUpdatedOnProjectSettingsChangedTest extends KernelTest
         self::assertInstanceOf(UpdateReadinessSettingsHandler::class, $handler);
 
         $handler(new UpdateReadinessSettingsCommand($this->project, false));
+
+        self::assertSame([$this->message()], $this->updated());
+    }
+
+    public function test_hiding_the_readiness_guide_publishes_project_updated(): void
+    {
+        $handler = self::getContainer()->get(HideReadinessGuideHandler::class);
+        self::assertInstanceOf(HideReadinessGuideHandler::class, $handler);
+
+        $handler(new HideReadinessGuideCommand($this->project));
 
         self::assertSame([$this->message()], $this->updated());
     }
