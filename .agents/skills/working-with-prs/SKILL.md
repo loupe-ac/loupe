@@ -14,19 +14,31 @@ Name a card branch `card-<number>-<slug>`. The slug is two to four lowercase wor
 
 ## The gate, before you open anything
 
-1. `just cs` applies the formatter and rector fixes. Commit anything it
-   changed. It works from a worktree.
+1. `just cs-changed <base>` applies the formatter and rector fixes to the
+   files that the branch changed. Commit anything it changed. It works from a
+   worktree. `just cs` fixes the whole tree, and it is for `main` after a merge.
 2. Run `just phpstan`, `just arkitect` and `just gamache`. These check the
    whole project. Then run `just prepush <base>`, which fails on a stale
    `openapi/` file or a changed plugin without a greater version.
-3. Run PHPUnit on the tests for what changed: `just phpunit tests/<path>` or
-   `just phpunit --filter <name>`.
+3. Run PHPUnit on the test files that cover the change: `just phpunit
+   tests/<path>/<Name>Test.php` or `just phpunit --filter <name>`. Do not sweep
+   whole test folders to look for breakage elsewhere. CI runs the full suite.
 4. Run `just js-test` when JavaScript changed, and `just cli-test` when `cli/`
    or `hooks/` changed.
 5. Push. Run no Codex review. A separate review worker reviews the pull
    request after the push (see "The agent review"). CI's required checks are
    the full gate. Read them on the pull request, and fix every failure,
    including ones that pre-date your change.
+
+Run each check once for each change, and keep its output in a log. Read the
+log as often as you need. Never run a check again only to read another part
+of its output, with another `grep` or `tail`. Run it again after a change to
+the code it checks.
+
+```bash
+just phpunit tests/Module/Board/Api/BoardAutomationApiTest.php > var/gate-phpunit.log 2>&1; echo "exit $?"
+grep -nE 'FAILURES|Error|Failed' var/gate-phpunit.log
+```
 
 A `PreToolUse` hook, `.agents/hooks/no-full-ci.sh`, refuses `just ci` and a
 full PHPUnit run for an agent. The `audit` workflow runs `just audit` on `main` and each day, so the local
