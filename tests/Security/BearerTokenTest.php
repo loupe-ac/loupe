@@ -10,6 +10,7 @@ use App\Module\OAuth\Security\OAuthAccessTokenAuthenticator;
 use App\Module\OAuth\Service\McpResource;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Security\BearerToken;
+use App\Tests\Support\RecordedAccountSignals;
 use App\Tests\Support\SilentAuditor;
 use League\Bundle\OAuth2ServerBundle\Manager\AccessTokenManagerInterface;
 use PHPUnit\Framework\TestCase;
@@ -56,6 +57,7 @@ final class BearerTokenTest extends TestCase
             self::createStub(PreviewTokenRepository::class),
             new NullLogger(),
             SilentAuditor::create(),
+            new RecordedAccountSignals()->publisher,
         );
     }
 

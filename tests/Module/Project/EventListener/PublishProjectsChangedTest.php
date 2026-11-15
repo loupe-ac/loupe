@@ -166,7 +166,7 @@ final class PublishProjectsChangedTest extends KernelTestCase
     {
         return array_values(array_filter(
             $this->drainLiveUpdates(),
-            static fn (array $update): bool => 'account.changed' === ($update['data']['type'] ?? null),
+            static fn (array $update): bool => 'account.changed' === ($update['data']['type'] ?? null) && 'projects' === ($update['data']['area'] ?? null),
         ));
     }
 }

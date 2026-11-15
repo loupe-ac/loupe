@@ -107,9 +107,20 @@ export default class extends Controller {
             ...Object.entries(this.matchTypeValue[change.type] ?? {}),
         ];
 
-        return expected.every(
-            ([key, value]) => String(change[key]) === String(value),
-        );
+        return expected.every(([key, wanted]) => {
+            const actual = change[key] ?? null;
+            if (Array.isArray(wanted)) {
+                return wanted.some(
+                    (one) =>
+                        (one === null && actual === null) ||
+                        (one !== null &&
+                            actual !== null &&
+                            String(actual) === String(one)),
+                );
+            }
+
+            return String(change[key]) === String(wanted);
+        });
     }
 
     showBand() {

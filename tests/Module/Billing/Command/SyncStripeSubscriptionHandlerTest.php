@@ -14,12 +14,14 @@ use App\Module\Billing\Entity\BillingProfile;
 use App\Module\Billing\Entity\BillingStatus;
 use App\Module\Billing\Entity\Subscription;
 use App\Module\Billing\Entity\SubscriptionKind;
+use App\Module\Billing\Event\BillingStateChanged;
 use App\Module\Billing\Repository\BillingProfileRepository;
 use App\Module\Billing\Repository\SubscriptionRepository;
 use App\Module\Billing\Service\StripeGatewayInterface;
 use App\Module\Billing\Service\SubscriptionView;
 use App\Tests\Support\BillingGrants;
 use App\Tests\Support\DirectLogging;
+use App\Tests\Support\RecordedEvents;
 use App\Tests\Support\RecordingAuditor;
 use App\Tests\Support\RecordingLogger;
 use App\Tests\Support\TransactionalEntityManagerStub;
@@ -31,6 +33,7 @@ use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Uid\Uuid;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
@@ -39,10 +42,15 @@ use Ubermuda\AuditBundle\NullAuditActorProvider;
 final class SyncStripeSubscriptionHandlerTest extends TestCase
 {
     private RecordingAuditor $audit;
+    private EventDispatcher $events;
+    private RecordedEvents $billingChanges;
 
     #[\Override]
     protected function setUp(): void
     {
+        $this->events = new EventDispatcher();
+        $this->billingChanges = new RecordedEvents();
+        $this->events->addListener(BillingStateChanged::class, $this->billingChanges);
         $this->audit = new RecordingAuditor(new NullAuditActorProvider());
     }
 
@@ -108,6 +116,7 @@ final class SyncStripeSubscriptionHandlerTest extends TestCase
             $em ?? TransactionalEntityManagerStub::configure($this->createStub(EntityManagerInterface::class)),
             $logger ?? new NullLogger(),
             $this->audit->auditor,
+            $this->events,
         );
     }
 
@@ -165,6 +174,7 @@ final class SyncStripeSubscriptionHandlerTest extends TestCase
 
         self::assertCount(2, $profile->subscriptions);
         self::assertSame(BillingStatus::PastDue, $this->grant($profile)->stripeStatus);
+        self::assertCount(2, $this->billingChanges->of(BillingStateChanged::class));
     }
 
     /**
@@ -260,7 +270,7 @@ final class SyncStripeSubscriptionHandlerTest extends TestCase
     {
         ($this->handler(null))($this->command('active'));
 
-        $this->expectNotToPerformAssertions();
+        self::assertSame([], $this->billingChanges->events);
     }
 
     public function test_an_out_of_order_event_does_not_resurrect_a_cancelled_subscription(): void
@@ -272,6 +282,7 @@ final class SyncStripeSubscriptionHandlerTest extends TestCase
         $handler($this->command('active', '2026-07-25 12:00:01', 'evt_older_update'));
 
         self::assertSame(BillingStatus::Canceled, $this->grant($profile)->stripeStatus);
+        self::assertCount(1, $this->billingChanges->of(BillingStateChanged::class), 'only the applied event signals');
     }
 
     public function test_a_replayed_event_is_a_no_op(): void
@@ -283,6 +294,8 @@ final class SyncStripeSubscriptionHandlerTest extends TestCase
         $handler($this->command('canceled', '2026-07-25 12:00:05', 'evt_same'));
 
         self::assertSame(BillingStatus::Active, $this->grant($profile)->stripeStatus);
+        self::assertCount(1, $this->billingChanges->of(BillingStateChanged::class), 'a replay signals nothing');
+        self::assertEquals($profile->user->id, $this->billingChanges->of(BillingStateChanged::class)[0]->userId);
     }
 
     /**
@@ -368,6 +381,7 @@ final class SyncStripeSubscriptionHandlerTest extends TestCase
             TransactionalEntityManagerStub::configure($this->createStub(EntityManagerInterface::class)),
             new NullLogger(),
             $this->audit->auditor,
+            $this->events,
         );
 
         $handler($this->command('active', '2026-07-25 12:00:05', 'evt_only'));

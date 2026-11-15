@@ -128,6 +128,7 @@ export default defineConfig({
             },
             { slug: 'using/search' },
             { slug: 'using/admin' },
+            { slug: 'using/profile' },
             { slug: 'using/data-exports' },
             { slug: 'using/billing' },
           ],

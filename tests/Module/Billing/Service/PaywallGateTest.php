@@ -15,6 +15,7 @@ use App\Tests\Support\FeatureFlags;
 use App\Tests\Support\SilentAuditor;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 
 /**
  * TrialProvisioner is final, so the gate is exercised against a real one whose
@@ -34,7 +35,7 @@ final class PaywallGateTest extends TestCase
 
         return new PaywallGate(
             FeatureFlags::service(['billing.enabled' => $billingEnabled]),
-            new TrialProvisioner($profiles, FeatureFlags::service(), $this->createStub(EntityManagerInterface::class), SilentAuditor::create()),
+            new TrialProvisioner($profiles, FeatureFlags::service(), $this->createStub(EntityManagerInterface::class), SilentAuditor::create(), new EventDispatcher()),
         );
     }
 
@@ -46,7 +47,7 @@ final class PaywallGateTest extends TestCase
 
         return new PaywallGate(
             FeatureFlags::service($flags),
-            new TrialProvisioner($profiles, FeatureFlags::service(), $this->createStub(EntityManagerInterface::class), SilentAuditor::create()),
+            new TrialProvisioner($profiles, FeatureFlags::service(), $this->createStub(EntityManagerInterface::class), SilentAuditor::create(), new EventDispatcher()),
         );
     }
 

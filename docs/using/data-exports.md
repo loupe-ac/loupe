@@ -116,3 +116,10 @@ every download 404s. See
 
 Archives need no backup: they are derived data, and a user can ask for a new one
 whenever they want. See [Backing up](../operating/backups.md).
+
+## Live updates
+
+The list of exports on the data page follows your account live. An export that
+you request in another browser appears as *Preparing*, and its row changes to
+*Ready* or *Failed* when the job ends. An export that expires leaves the list
+when Loupe purges it. You do not reload the page.

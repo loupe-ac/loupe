@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Module\Account\Service;
 
+use App\Mercure\AccountArea;
+use App\Mercure\AccountChangedPublisher;
 use App\Module\Account\Entity\DataExport;
 use App\Module\Account\Repository\DataExportRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -18,6 +20,7 @@ readonly class ExpiredExportPurger
         private DataExportRepository $dataExports,
         private EntityManagerInterface $em,
         private LoggerInterface $logger,
+        private AccountChangedPublisher $accountChanged,
 
         #[Target('export.storage')]
         private FilesystemOperator $exportStorage,
@@ -30,6 +33,7 @@ readonly class ExpiredExportPurger
         $expired = $this->dataExports->findExpired();
 
         $purged = 0;
+        $owners = [];
         foreach ($expired as $export) {
             $exportId = $export->id;
             if (null !== $exportId) {
@@ -46,11 +50,16 @@ readonly class ExpiredExportPurger
                 }
             }
 
+            $ownerId = $export->user->id ?? throw new \LogicException('a persisted user always has an id');
+            $owners[$ownerId->toRfc4122()] = $ownerId;
             $this->em->remove($export);
             ++$purged;
         }
 
         $this->em->flush();
+        foreach ($owners as $ownerId) {
+            $this->accountChanged->changed($ownerId, AccountArea::EXPORTS);
+        }
 
         // The one completion line for a purge, whichever caller ran it: the
         // hourly scheduler tick, the console command, or an export's own

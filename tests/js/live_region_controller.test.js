@@ -140,6 +140,27 @@ it('skips a change whose payload does not match', async () => {
     expect(fetch).toHaveBeenCalledTimes(1);
 });
 
+it('a list of match values takes any of them, and null takes a signal without the key', async () => {
+    await mount(
+        `${STREAM} data-live-region-match-value='{"area":["projects",null]}'`,
+    );
+    signal({ area: 'apps' });
+    await settle();
+    expect(fetch).not.toHaveBeenCalled();
+    signal({ area: 'projects' });
+    await settle();
+    expect(fetch).toHaveBeenCalledTimes(1);
+});
+
+it('null in a list of match values takes a signal without the key', async () => {
+    await mount(
+        `${STREAM} data-live-region-match-value='{"area":["projects",null]}'`,
+    );
+    signal({});
+    await settle();
+    expect(fetch).toHaveBeenCalledTimes(1);
+});
+
 it('matchType filters the types it lists and always passes the others', async () => {
     await mount(
         `data-live-region-types-value='["worker_run.changed","analytics.changed"]' data-live-region-url-value="/x" data-live-region-mode-value="stream" data-live-region-match-type-value='{"analytics.changed":{"area":"reports"}}'`,
