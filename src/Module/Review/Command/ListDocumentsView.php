@@ -16,6 +16,7 @@ final readonly class ListDocumentsView
      * @param list<int|null>         $pageList
      * @param list<Tag>              $projectTags
      * @param list<Series>           $projectSeries
+     * @param list<string>|null      $knownIds      the ids the filters keep, for a later page of a list that fits the cap
      */
     public function __construct(
         public array $items,
@@ -26,6 +27,7 @@ final readonly class ListDocumentsView
         public array $projectSeries,
         public ?int $clampedPage,
         public ?DocumentPosition $newest = null,
+        public ?array $knownIds = null,
     ) {
     }
 }

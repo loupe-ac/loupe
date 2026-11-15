@@ -20,6 +20,9 @@ final readonly class ListDocumentsHandler
      */
     public const int MAX_PER_PAGE = 100;
 
+    /** The most matching ids a later page carries to count new matches exactly. */
+    public const int MAX_KNOWN_IDS = 1000;
+
     public function __construct(
         private DocumentRepository $documents,
         private DocumentListItems $items,
@@ -58,6 +61,7 @@ final readonly class ListDocumentsHandler
             projectSeries: $this->series->findByProject($command->project),
             clampedPage: PageList::clampedPage($listQuery->page, $total, $perPage),
             newest: $this->documents->findNewestPosition($command->project),
+            knownIds: $listQuery->page > 1 ? $this->documents->findMatchingIds($command->project, self::MAX_KNOWN_IDS, $listQuery->includeArchived, $listQuery->search, $listQuery->status, $listQuery->tagName, $listQuery->seriesName) : null,
         );
     }
 }

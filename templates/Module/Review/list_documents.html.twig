@@ -46,7 +46,8 @@
          data-live-region-url-value="{{ path('app_project_documents_live_rows', {id: project.id}|merge(listQuery.routeParams)) }}"
          data-live-since="{{ newest ? newest.createdAt|date('U') : 0 }}"
          data-live-since-id="{{ newest ? newest.id : '' }}"
-         data-live-total="{{ filteredTotal }}">
+         data-live-total="{{ filteredTotal }}"{% if knownIds is not null %}
+         data-live-known="{{ knownIds|json_encode|e('html_attr') }}"{% endif %}>
         <div id="documents-live-band"></div>
         {% include '@Review/_documents_list.html.twig' with {project: project, listQuery: listQuery, totalDocuments: totalDocuments, items: items, filteredTotal: filteredTotal, page: page, totalPages: totalPages, pageList: pageList, statuses: statuses, projectTags: projectTags, projectSeries: projectSeries} only %}
     </div>

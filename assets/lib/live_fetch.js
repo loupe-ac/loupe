@@ -147,15 +147,16 @@ export function isHeld(root) {
 }
 
 /**
- * A read-only GET that a live update sends. The refresh header tells the
+ * A read-only request that a live update sends, a GET unless it carries a body. The refresh header tells the
  * server to answer a lost access with a status, and to keep the flashes.
  *
  * @param {string} url
- * @param {{headers?: object, signal?: AbortSignal}} options
+ * @param {{headers?: object, signal?: AbortSignal, body?: BodyInit}} options
  * @returns {Promise<Response>}
  */
-export function liveRequest(url, { headers = {}, signal } = {}) {
+export function liveRequest(url, { headers = {}, signal, body } = {}) {
     return fetch(url, {
+        ...(body === undefined ? {} : { method: 'POST', body }),
         headers: { Accept: 'text/html', [REFRESH_HEADER]: '1', ...headers },
         credentials: 'same-origin',
         signal,

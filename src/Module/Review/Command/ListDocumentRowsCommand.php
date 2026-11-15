@@ -11,8 +11,9 @@ use Symfony\Component\Uid\Uuid;
 final readonly class ListDocumentRowsCommand
 {
     /**
-     * @param list<string> $ids         the documents the page shows
-     * @param ?int         $loadedTotal how many documents the filters kept when the page loaded
+     * @param list<string>      $ids         the documents the page shows
+     * @param ?int              $loadedTotal how many documents the filters kept when the page loaded
+     * @param list<string>|null $knownIds    the ids the filters kept when the page loaded, or null when the list was too long to carry
      */
     public function __construct(
         public Project $project,
@@ -21,6 +22,7 @@ final readonly class ListDocumentRowsCommand
         public \DateTimeImmutable $since,
         public ?Uuid $sinceId,
         public ?int $loadedTotal = null,
+        public ?array $knownIds = null,
     ) {
     }
 }

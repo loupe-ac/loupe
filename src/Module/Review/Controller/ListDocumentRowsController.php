@@ -27,7 +27,7 @@ use Symfony\UX\Turbo\TurboBundle;
     '/projects/{id:project}/documents/live-rows',
     name: 'app_project_documents_live_rows',
     defaults: [ReadOnlyAwareSessionHandler::READ_ONLY => true],
-    methods: ['GET'],
+    methods: ['GET', 'POST'],
 )]
 final class ListDocumentRowsController extends AppController
 {
@@ -47,6 +47,7 @@ final class ListDocumentRowsController extends AppController
             new \DateTimeImmutable()->setTimestamp(max(0, $request->query->getInt('since'))),
             Uuid::isValid($request->query->getString('sinceId')) ? Uuid::fromString($request->query->getString('sinceId')) : null,
             $request->query->has('total') ? max(0, $request->query->getInt('total')) : null,
+            $request->request->has('known') ? array_values(array_filter(explode(',', $request->request->getString('known')), static fn (string $id): bool => '' !== $id)) : null,
         ));
 
         $html = $this->renderView('@Review/_document_rows.stream.html.twig', [

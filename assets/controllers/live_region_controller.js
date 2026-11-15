@@ -130,6 +130,15 @@ export default class extends Controller {
             }
         }
 
+        const known = this.element.dataset.liveKnown;
+        if (this.modeValue === 'rows' && known !== undefined) {
+            const body = new URLSearchParams({
+                known: JSON.parse(known).join(','),
+            });
+
+            return liveRequest(url.toString(), { headers, signal, body });
+        }
+
         return liveRequest(url.toString(), { headers, signal });
     }
 

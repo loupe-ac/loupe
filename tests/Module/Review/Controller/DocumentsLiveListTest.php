@@ -98,6 +98,7 @@ final class DocumentsLiveListTest extends WebTestCase
         self::assertMatchesRegularExpression('/^[0-9a-f-]{36}$/', (string) $region->attr('data-live-since-id'));
         self::assertCount(1, $region->filter('#documents-live-band'));
         self::assertCount(1, $region->filter('[data-live-row]'));
+        self::assertCount(21, json_decode((string) $region->attr('data-live-known'), true));
     }
 
     public function test_the_rows_route_morphs_a_kept_row_and_removes_the_rest_and_counts_new_documents(): void
@@ -173,6 +174,34 @@ final class DocumentsLiveListTest extends WebTestCase
         self::assertStringContainsString('1 new document.', $this->bandText(), 'a row that left the filter does not hide the one that entered');
     }
 
+    public function test_a_document_that_enters_the_filter_while_another_leaves_counts_as_new(): void
+    {
+        $shown = $this->create('Shown');
+        $leaving = $this->create('Leaving');
+        $entering = $this->create('Entering');
+        $shown->status = DocumentStatus::Approved;
+        $leaving->status = DocumentStatus::Approved;
+        $entering->status = DocumentStatus::Draft;
+        $this->em->flush();
+        $known = [(string) $shown->id, (string) $leaving->id];
+        $query = ['status' => 'approved'];
+
+        $this->rows([$shown], time() + 3600, query: $query, total: 2, known: $known);
+        self::assertSame('', $this->bandText());
+
+        $leaving->status = DocumentStatus::Draft;
+        $entering->status = DocumentStatus::Approved;
+        $this->em->flush();
+
+        $this->rows([$shown], time() + 3600, query: $query, total: 2, known: $known);
+        self::assertStringContainsString('1 new document.', $this->bandText(), 'the total stayed at 2, and the swap still counts');
+
+        $shown->status = DocumentStatus::Draft;
+        $this->em->flush();
+        $this->rows([], time() + 3600, query: $query, total: 2, known: $known);
+        self::assertStringContainsString('1 new document.', $this->bandText(), 'a shown row that left does not lower the count');
+    }
+
     public function test_a_document_created_in_the_cursor_second_counts_after_the_cursor_id(): void
     {
         $cursor = $this->create('Cursor');
@@ -244,11 +273,19 @@ final class DocumentsLiveListTest extends WebTestCase
     /**
      * @param list<Document>        $shown
      * @param array<string, string> $query
+     * @param list<string>|null     $known
      */
-    private function rows(array $shown, int $since, string $extraId = '', array $query = [], string $sinceId = '', ?int $total = null): void
+    private function rows(array $shown, int $since, string $extraId = '', array $query = [], string $sinceId = '', ?int $total = null, ?array $known = null): void
     {
         $ids = implode(',', array_filter([...array_map(static fn (Document $d): string => (string) $d->id, $shown), $extraId]));
-        $this->client->request(Request::METHOD_GET, $this->list().'/live-rows', ['ids' => $ids, 'since' => $since, 'sinceId' => $sinceId, ...(null === $total ? [] : ['total' => $total]), ...$query], server: ['HTTP_X_LOUPE_LIVE_REFRESH' => '1', 'HTTP_ACCEPT' => 'text/vnd.turbo-stream.html']);
+        $parameters = ['ids' => $ids, 'since' => $since, 'sinceId' => $sinceId, ...(null === $total ? [] : ['total' => $total]), ...$query];
+        $server = ['HTTP_X_LOUPE_LIVE_REFRESH' => '1', 'HTTP_ACCEPT' => 'text/vnd.turbo-stream.html'];
+        if (null === $known) {
+            $this->client->request(Request::METHOD_GET, $this->list().'/live-rows', $parameters, server: $server);
+
+            return;
+        }
+        $this->client->request(Request::METHOD_POST, $this->list().'/live-rows?'.http_build_query($parameters), ['known' => implode(',', $known)], server: $server);
     }
 
     private function bandText(): string

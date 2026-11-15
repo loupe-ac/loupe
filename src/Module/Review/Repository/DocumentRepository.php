@@ -247,6 +247,32 @@ class DocumentRepository extends ServiceEntityRepository
         return (int) $qb->getQuery()->getSingleScalarResult();
     }
 
+    /**
+     * The ids of the documents the filters keep, or null when more than $limit match.
+     *
+     * @return list<string>|null
+     */
+    public function findMatchingIds(
+        Project $project,
+        int $limit,
+        bool $includeArchived,
+        ?string $search,
+        ?DocumentStatus $status,
+        ?string $tagName,
+        ?string $seriesName,
+    ): ?array {
+        $qb = $this->createQueryBuilder('d')
+            ->select('DISTINCT d.id AS id')
+            ->andWhere('d.project = :project')
+            ->setParameter('project', $project)
+            ->setMaxResults($limit + 1);
+        $this->applyListFilters($qb, $includeArchived, $search, $status, $tagName, $seriesName);
+
+        $ids = array_values(array_map(static fn (array $row): string => strtolower((string) $row['id']), $qb->getQuery()->getArrayResult()));
+
+        return \count($ids) > $limit ? null : $ids;
+    }
+
     /** How many documents the filters keep, the whole list across its pages. */
     public function countMatching(
         Project $project,

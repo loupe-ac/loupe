@@ -75,6 +75,7 @@ class ListDocumentsController extends AppController
             'projectTags' => $view->projectTags,
             'projectSeries' => $view->projectSeries,
             'newest' => $view->newest,
+            'knownIds' => $view->knownIds,
         ]);
     }
 }
