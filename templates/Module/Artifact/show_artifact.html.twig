@@ -18,7 +18,7 @@
 {% set fileParams = (file is not null and not mainFile) ? {file: file.path} : {} %}
 {% set shareLink = pinned ? url('app_project_artifact_version', versionParams|merge(fileParams)) : url('app_project_artifact', {id: project.id, artifactId: artifact.id}|merge(fileParams)) %}
 {% do mercure_subscribe(artifacts_topic(project)) %}
-<div hidden data-controller="live-region"
+<div data-controller="live-region"
      data-live-region-types-value="{{ ['artifact.changed']|json_encode }}"
      data-live-region-mode-value="stream"
      data-live-region-match-value="{{ {artifactId: '' ~ artifact.id}|json_encode }}"

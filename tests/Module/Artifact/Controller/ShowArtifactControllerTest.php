@@ -61,6 +61,7 @@ final class ShowArtifactControllerTest extends WebTestCase
 
         $region = $crawler->filter('[data-controller="live-region"]');
         self::assertCount(1, $region);
+        self::assertNull($region->attr('hidden'), 'The stopped band lands inside the region, so the region must be visible.');
         self::assertSame('stream', $region->attr('data-live-region-mode-value'));
         self::assertSame('{"artifactId":"'.$artifactId.'"}', $region->attr('data-live-region-match-value'));
         self::assertSame('1', $region->attr('data-live-shown-version'));

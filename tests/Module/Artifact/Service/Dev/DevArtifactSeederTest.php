@@ -30,6 +30,8 @@ final class DevArtifactSeederTest extends KernelTestCase
         self::assertCount(2, $found);
         $twin = self::getContainer()->get(ArtifactRepository::class)->find(DevArtifactSeeder::twinId());
         self::assertNotNull($twin);
+        $archived = self::getContainer()->get(ArtifactRepository::class)->find(DevArtifactSeeder::archivedId());
+        self::assertNotNull($archived?->archivedAt);
         self::assertCount(1, $twin->versions);
         $artifact = self::getContainer()->get(ArtifactRepository::class)->find(DevArtifactSeeder::artifactId());
         self::assertNotNull($artifact);
@@ -57,7 +59,7 @@ final class DevArtifactSeederTest extends KernelTestCase
 
         $this->em()->clear();
         $artifacts = self::getContainer()->get(ArtifactRepository::class)->findByProject($project, includeArchived: true);
-        self::assertCount(2, $artifacts);
+        self::assertCount(3, $artifacts);
         self::assertContainsOnlyInstancesOf(Artifact::class, $artifacts);
     }
 }
