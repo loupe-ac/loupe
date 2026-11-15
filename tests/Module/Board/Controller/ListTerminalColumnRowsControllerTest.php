@@ -23,6 +23,7 @@ final class ListTerminalColumnRowsControllerTest extends WebTestCase
         $project = $this->project($em, $owner);
         $stays = $this->card($em, $project, 'Stays done', 'done');
         $reopened = $this->card($em, $project, 'Reopened', 'next');
+        $this->card($em, $project, 'Fresh finish', 'done');
         $since = LiveCursor::format(new \DateTimeImmutable('-1 minute'));
         $url = $this->rowsUrl($project, $stays->id.','.$reopened->id, $since);
         $em->clear();
@@ -37,7 +38,7 @@ final class ListTerminalColumnRowsControllerTest extends WebTestCase
         self::assertStringContainsString('<turbo-stream action="remove" target="terminal-row-'.$reopened->id.'">', $body);
         self::assertStringContainsString('One more card finished.', $body);
         self::assertStringContainsString('<turbo-stream action="update" target="terminal-total">', $body);
-        self::assertStringContainsString('<template>1 card</template>', $body);
+        self::assertStringContainsString('<template>2 cards</template>', $body);
     }
 
     public function test_a_column_that_is_not_terminal_is_not_found(): void
