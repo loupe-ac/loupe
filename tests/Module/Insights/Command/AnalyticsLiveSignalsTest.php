@@ -24,12 +24,18 @@ use App\Module\Insights\Command\DeleteBucketRuleCommand;
 use App\Module\Insights\Command\DeleteBucketRuleHandler;
 use App\Module\Insights\Command\DismissProposalCommand;
 use App\Module\Insights\Command\DismissProposalHandler;
+use App\Module\Insights\Command\LiftPublicLinkTakedownCommand;
+use App\Module\Insights\Command\LiftPublicLinkTakedownHandler;
 use App\Module\Insights\Command\MoveBucketRuleCommand;
 use App\Module\Insights\Command\MoveBucketRuleHandler;
 use App\Module\Insights\Command\PlaceBucketRuleCommand;
 use App\Module\Insights\Command\PlaceBucketRuleHandler;
 use App\Module\Insights\Command\ReportAnalysisCommand;
 use App\Module\Insights\Command\ReportAnalysisHandler;
+use App\Module\Insights\Command\SetExperimentPublicLinkCommand;
+use App\Module\Insights\Command\SetExperimentPublicLinkHandler;
+use App\Module\Insights\Command\TakeDownPublicLinksCommand;
+use App\Module\Insights\Command\TakeDownPublicLinksHandler;
 use App\Module\Insights\Command\UpdateAnalyticsSettingsCommand;
 use App\Module\Insights\Command\UpdateAnalyticsSettingsHandler;
 use App\Module\Insights\Entity\AnalysisState;
@@ -108,6 +114,35 @@ final class AnalyticsLiveSignalsTest extends KernelTestCase
         $this->terminate();
 
         $this->assertSignals($project, []);
+    }
+
+    public function test_a_share_switch_signals_the_experiment_when_it_was_already_active(): void
+    {
+        $project = $this->scenarioProject('analytics-share');
+        $this->seedExperiment($project, 'trial');
+
+        $this->service(SetExperimentPublicLinkHandler::class)(new SetExperimentPublicLinkCommand($project, 'trial', true, null));
+        $this->terminate();
+        $this->assertSignals($project, [['experiments', 'trial']]);
+
+        $this->service(SetExperimentPublicLinkHandler::class)(new SetExperimentPublicLinkCommand($project, 'trial', false, null));
+        $this->terminate();
+        $this->assertSignals($project, [['experiments', 'trial'], ['experiments', 'trial']]);
+    }
+
+    public function test_a_takedown_and_its_lift_each_signal_the_experiments_once(): void
+    {
+        $project = $this->scenarioProject('analytics-takedown');
+
+        $this->service(TakeDownPublicLinksHandler::class)(new TakeDownPublicLinksCommand($project, $project->owner));
+        $this->service(TakeDownPublicLinksHandler::class)(new TakeDownPublicLinksCommand($project, $project->owner));
+        $this->terminate();
+        $this->assertSignals($project, [['experiments', null]]);
+
+        $this->service(LiftPublicLinkTakedownHandler::class)(new LiftPublicLinkTakedownCommand($project));
+        $this->service(LiftPublicLinkTakedownHandler::class)(new LiftPublicLinkTakedownCommand($project));
+        $this->terminate();
+        $this->assertSignals($project, [['experiments', null], ['experiments', null]]);
     }
 
     public function test_a_setup_change_signals_the_experiment(): void
