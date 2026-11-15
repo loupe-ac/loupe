@@ -54,6 +54,7 @@ class ListProjectsController extends AppController
             'items' => $view->items,
             'form' => $form->createView(),
             'page' => $page,
+            'liveSince' => $view->liveSince,
             'totalPages' => $view->totalPages,
             'pageList' => $view->pageList,
         ]);
