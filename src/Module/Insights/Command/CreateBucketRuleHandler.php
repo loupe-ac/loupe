@@ -7,10 +7,12 @@ namespace App\Module\Insights\Command;
 use App\Exception\DomainErrors;
 use App\Module\Bridge\Messenger\RecomputeBucketTimes;
 use App\Module\Insights\Entity\InsightsBucketRule;
+use App\Module\Insights\Event\BucketRulesChanged;
 use App\Module\Insights\Service\BucketRuleWriter;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
@@ -23,6 +25,7 @@ final readonly class CreateBucketRuleHandler
         private BucketRuleWriter $writer,
         private MessageBusInterface $bus,
         private Auditor $auditor,
+        private EventDispatcherInterface $events,
     ) {
     }
 
@@ -52,6 +55,7 @@ final readonly class CreateBucketRuleHandler
             ['projectId' => $projectId, 'ruleId' => (string) $rule->id, 'bucket' => $rule->bucket, 'position' => $rule->position],
             new AuditSubject('project', $projectId),
         );
+        $this->events->dispatch(new BucketRulesChanged($projectId, (string) $rule->id));
         $this->bus->dispatch(new RecomputeBucketTimes($projectId));
 
         return $rule;

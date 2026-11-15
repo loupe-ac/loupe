@@ -44,6 +44,8 @@ final readonly class ExperimentReportView
         public bool $archived = false,
         /** True when a walk by position has rows after the last card of this page. */
         public bool $hasMore = false,
+        /** The cards that match the filter and ran again after the command's `newerSince`. Zero when the command names no time. */
+        public int $newerCards = 0,
     ) {
     }
 }

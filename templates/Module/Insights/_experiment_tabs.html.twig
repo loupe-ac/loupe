@@ -1,3 +1,10 @@
+<turbo-frame id="analytics-experiment-heading" refresh="morph" target="_top" class="lp-live-frame"
+             data-controller="live-region"
+             data-live-region-types-value="{{ ['analytics.changed']|json_encode }}"
+             data-live-region-match-type-value="{{ {'analytics.changed': {area: 'experiments'}}|json_encode }}"
+             data-live-region-url-value="{{ liveUrl }}"
+             data-live-region-mode-value="frame"
+             data-live-content>
 <div class="lp-experiment-heading">
     <a class="lp-experiment-heading__back" href="{{ path('app_project_analytics_experiments', {id: project.id}) }}">{{ 'bridge.experiments.back'|trans }}</a>
     {% set share = experiment_share_state(project, experiment) %}
@@ -23,6 +30,7 @@
     </div>
     {% endif %}
 </div>
+</turbo-frame>
 <twig:Ds:Tabs class="lp-experiment-tabs" aria-label="{{ 'bridge.experiments.tabs.label'|trans }}">
     <a class="lp-tabs__tab"
        href="{{ path('app_project_analytics_experiment', {id: project.id, experiment: experiment}) }}"

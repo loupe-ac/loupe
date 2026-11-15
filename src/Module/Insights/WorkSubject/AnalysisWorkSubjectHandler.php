@@ -8,12 +8,14 @@ use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\WorkSubject\WorkSubjectHandlerInterface;
 use App\Module\Insights\Entity\Analysis;
+use App\Module\Insights\Event\AnalysisChanged;
 use App\Module\Insights\Repository\AnalysisRepository;
 use App\Module\Project\Entity\Project;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
  * Ends an analysis whose work ended without a report. A worker that reported
@@ -30,6 +32,7 @@ final readonly class AnalysisWorkSubjectHandler implements WorkSubjectHandlerInt
         private EntityManagerInterface $em,
         private ClockInterface $clock,
         private LoggerInterface $logger,
+        private EventDispatcherInterface $events,
     ) {
     }
 
@@ -96,6 +99,7 @@ final readonly class AnalysisWorkSubjectHandler implements WorkSubjectHandlerInt
             return;
         }
 
+        $this->events->dispatch(new AnalysisChanged((string) $analysis->project->id, (string) $analysis->id));
         $this->logger->info('insights.analysis_ended', [
             'analysisId' => (string) $analysis->id,
             'projectId' => (string) $analysis->project->id,

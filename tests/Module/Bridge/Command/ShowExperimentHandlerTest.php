@@ -1297,6 +1297,21 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         self::assertSame([(string) $leftOut], array_map(static fn (ExperimentCard $card): string => (string) $card->cardId, $onlyLeftOut->cards));
     }
 
+    public function test_the_newer_count_leaves_out_the_cards_the_page_already_shows(): void
+    {
+        $shown = Uuid::v7();
+        $this->experimentRun($shown, 'a', at: '+1 hour');
+        $this->experimentRun(Uuid::v7(), 'a', at: '+2 hours');
+        $this->outcomes = [];
+        $since = $this->start->modify('+30 minutes');
+
+        $all = $this->show(newerSince: $since);
+        $rows = $this->show(onlyCards: [$shown], newerSince: $since);
+
+        self::assertSame(2, $all?->newerCards);
+        self::assertSame(1, $rows?->newerCards);
+    }
+
     public function test_the_per_card_sample_keeps_the_cards_that_ended_with_the_delivered_outcome(): void
     {
         $this->templateSet = new TemplateMetricSet(
@@ -1597,7 +1612,8 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         $this->em->persist($definition);
     }
 
-    private function show(int $page = 1, ?string $variant = null, bool $leftOutOnly = false, bool $withMetrics = true, ?int $limit = null, ?ExperimentCardPosition $after = null): ?ExperimentReportView
+    /** @param list<Uuid>|null $onlyCards */
+    private function show(int $page = 1, ?string $variant = null, bool $leftOutOnly = false, bool $withMetrics = true, ?int $limit = null, ?ExperimentCardPosition $after = null, ?array $onlyCards = null, ?\DateTimeImmutable $newerSince = null): ?ExperimentReportView
     {
         $this->storeOutcomes();
         $this->em->clear();
@@ -1694,7 +1710,7 @@ final class ShowExperimentHandlerTest extends KernelTestCase
             $this->bucketRuleSources,
         );
 
-        return $handler(new ShowExperimentCommand($this->managedProject(), self::EXPERIMENT, $page, $variant, $leftOutOnly, $withMetrics, $limit, $after));
+        return $handler(new ShowExperimentCommand($this->managedProject(), self::EXPERIMENT, $page, $variant, $leftOutOnly, $withMetrics, $limit, $after, onlyCards: $onlyCards, newerSince: $newerSince));
     }
 
     /** Writes the fix rounds and the pull request times of the declared outcomes where the handler reads them. */

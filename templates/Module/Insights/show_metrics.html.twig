@@ -9,6 +9,8 @@
 {% endblock %}
 
 {% block body %}
+{% do mercure_subscribe(analytics_topic(project)) %}
+{% do mercure_subscribe(board_topic(project)) %}
 {% set metric = query.metric %}
 <twig:Ds:Workspace class="lp-redesign-secondary lp-redesign-runs">
     {% include '@Insights/_header.html.twig' with {} only %}
@@ -156,7 +158,7 @@
         <p class="lp-metric-result__loading" role="status" data-metrics-loading>
             <twig:ux:icon name="lucide:loader-circle" class="lp-icon lp-icon--md lp-metric-result__spinner" />{{ 'analytics.metrics.loading'|trans }}
         </p>
-        {% include '@Insights/_metrics_result.html.twig' with {streams: streams, project: project, query: query, view: view, graph: graph, dirty: dirty, saveForm: saveForm, capReached: capReached, capLimit: capLimit, buckets: buckets, compares: compares, chartTypes: chartTypes} only %}
+        {% include '@Insights/_metrics_result.html.twig' with {liveUrl: app.request.requestUri, streams: streams, project: project, query: query, view: view, graph: graph, dirty: dirty, saveForm: saveForm, capReached: capReached, capLimit: capLimit, buckets: buckets, compares: compares, chartTypes: chartTypes} only %}
     </div>
 </twig:Ds:Workspace>
 {% endblock %}

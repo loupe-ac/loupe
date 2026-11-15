@@ -31,6 +31,7 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface as ContractsEventDispatcher;
 use Ubermuda\AuditBundle\Auditor;
 
 final class AcceptProposalHandlerTest extends KernelTestCase
@@ -170,7 +171,7 @@ final class AcceptProposalHandlerTest extends KernelTestCase
         [$proposal] = $this->reportedProposal($em, 'accept-proposal-board-refuses');
         $creator = $this->createStub(ProposalCardCreatorInterface::class);
         $creator->method('createBacklogCard')->willThrowException(new DomainErrors(['title' => 'board.card.error.title_blank']));
-        $handler = new AcceptProposalHandler($this->service(ProposalRepository::class), $creator, $em, $this->service(BucketRuleWriter::class), $this->service(MessageBusInterface::class), $this->service(Auditor::class));
+        $handler = new AcceptProposalHandler($this->service(ProposalRepository::class), $creator, $em, $this->service(BucketRuleWriter::class), $this->service(MessageBusInterface::class), $this->service(Auditor::class), $this->service(ContractsEventDispatcher::class));
 
         try {
             $handler(new AcceptProposalCommand($proposal));

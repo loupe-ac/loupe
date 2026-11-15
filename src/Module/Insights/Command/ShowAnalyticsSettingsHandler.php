@@ -28,6 +28,7 @@ final readonly class ShowAnalyticsSettingsHandler
             subcommandPrograms: $own?->subcommandPrograms,
             model: $this->settings->modelFor($project),
             effort: $this->settings->effortFor($project),
+            fingerprint: hash('sha256', json_encode([$own?->defaultModel, $own?->defaultEffort, $own->collectFullText ?? false, $own?->subcommandPrograms], \JSON_THROW_ON_ERROR)),
         );
     }
 }

@@ -18,6 +18,8 @@ final readonly class AnalyticsSettingsView
         public ?array $subcommandPrograms,
         public string $model,
         public string $effort,
+        /** Changes when a value of the settings form changes. The form band compares it with the stored one. */
+        public string $fingerprint,
     ) {
     }
 }
