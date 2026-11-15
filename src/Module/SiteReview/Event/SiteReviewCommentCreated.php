@@ -15,8 +15,9 @@ use App\Module\SiteReview\Entity\SiteReviewComment;
  * carries. SiteReview does not know who listens, and a listener must never
  * throw: anything it raises aborts the comment save it was told about.
  *
- * Nothing listens. The caller that saves a comment together with its card
- * writes the link itself, inside the same transaction.
+ * The projects list of the owner listens, to refresh the note count. The caller
+ * that saves a comment together with its card writes the link itself, inside
+ * the same transaction.
  */
 final readonly class SiteReviewCommentCreated
 {
