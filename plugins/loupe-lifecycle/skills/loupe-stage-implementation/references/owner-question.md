@@ -10,7 +10,7 @@ A stop is a question when you can name two or more valid outcomes and only the o
 
 1. Call `inbox_list` with the `cardId` of this card, in every state. Walk each page while `hasMore` is true.
 2. For a card with a `parent`, call `card_list` with `parentCardId`. Call `inbox_list` the same way for each sibling.
-3. Call `inbox_search` with two or three key words. Read each candidate with `inbox_get`, and pass your session id as `readerSessionId`.
+3. Call `inbox_search` with two or three key words. A title can use other words than the question, so search is not enough. Read each item of the lists of steps 1 and 2, and each search hit, with `inbox_get`. Pass your session id as `readerSessionId`. Compare the question of each item, not its title.
 4. List each distinct decision of this stop. Drop a finding that asks the same thing as another. Then settle each decision on its own, with the next four steps, in order. A decision with an answer never settles another decision.
 5. A resolved item of this card, or of a sibling card, that asks the same thing is the answer to that decision. Apply it, also when another open item asks the same thing. The exception is an answer that rests on a fact that differs on this card. Then the decision stays open: name that fact, and link the earlier item.
 6. A declined item is an answer too. Read its note. Apply it when it is clear. The decision stays open when the note leaves the choice open or the facts differ.
