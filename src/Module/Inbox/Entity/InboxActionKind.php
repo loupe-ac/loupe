@@ -38,4 +38,10 @@ enum InboxActionKind: string
     {
         return \in_array($this, [self::Dismiss, self::Answer, self::Complete, self::SubmitReview], true);
     }
+
+    /** Whether the action always starts or resumes an agent that reads the note of the action. */
+    public function sendsAgent(): bool
+    {
+        return \in_array($this, [self::ResumeRun, self::SendAgent, self::StartSession], true);
+    }
 }
