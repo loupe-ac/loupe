@@ -8,6 +8,7 @@ use App\Mercure\LiveUpdatePublisher;
 use App\Mercure\ProjectTopicBuilder;
 use App\Mercure\UserTopicBuilder;
 use App\Module\Project\Entity\Project;
+use App\Module\Project\Service\ProjectsChangedPublisher;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -26,13 +27,14 @@ final readonly class InboxChangedPublisher
         private UserTopicBuilder $userTopics,
         private ProjectTopicBuilder $projectTopics,
         private LiveUpdatePublisher $publisher,
+        private ProjectsChangedPublisher $projectsChanged,
     ) {
     }
 
     /**
      * The open rows of the project changed: an item opened or closed, or a
-     * join added or merged an ask. The topics and payloads are built
-     * now: after a rollback the EntityManager is closed and cannot load the owner.
+     * join added or merged an ask. The projects list counts these items, so
+     * the owner hears of it too. The topics and payloads are built now: after a rollback the EntityManager is closed and cannot load the owner.
      *
      * @param list<Uuid> $askIds the asks that changed, when the caller holds them
      */
@@ -41,6 +43,7 @@ final readonly class InboxChangedPublisher
         $projectId = $project->id ?? throw new \LogicException('Project has no id.');
         $ownerId = $project->owner->id ?? throw new \LogicException('Project owner has no id.');
         $this->publisher->queue($this->userTopics->forInbox($ownerId), ['type' => self::TYPE, 'projectId' => (string) $projectId]);
+        $this->projectsChanged->ownerChanged($ownerId);
         $this->pageChanged($project, $askIds);
     }
 
