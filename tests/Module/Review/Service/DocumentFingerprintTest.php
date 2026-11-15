@@ -7,6 +7,8 @@ namespace App\Tests\Module\Review\Service;
 use App\Module\Account\Entity\User;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
+use App\Module\Review\Entity\DocumentStatus;
+use App\Module\Review\Entity\Tag;
 use App\Module\Review\Service\DocumentFingerprint;
 use PHPUnit\Framework\TestCase;
 
@@ -39,5 +41,21 @@ final class DocumentFingerprintTest extends TestCase
 
         self::assertNotSame($before, $renamed);
         self::assertNotSame($renamed, DocumentFingerprint::of($document));
+    }
+
+    public function test_the_status_and_the_tags_change_the_fingerprint(): void
+    {
+        $owner = new User(fullName: 'Riley Chen', email: 'riley@example.com', password: 'x');
+        $project = new Project($owner, 'fingerprint');
+        $document = new Document($owner, $project, 'Title');
+        $document->addVersion('one', '<p>one</p>');
+        $before = DocumentFingerprint::of($document);
+
+        $document->status = DocumentStatus::Approved;
+        $approved = DocumentFingerprint::of($document);
+        $document->tags->add(new Tag($project, 'plan'));
+
+        self::assertNotSame($before, $approved);
+        self::assertNotSame($approved, DocumentFingerprint::of($document));
     }
 }
