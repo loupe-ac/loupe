@@ -12,6 +12,12 @@
 <twig:Ds:Workspace class="lp-core-prototype-page lp-core-documents">
     <twig:Ds:PageHeader :title="'artifact.list.heading'|trans" :description="'artifact.list.description'|trans" titleClass="lp-workspace-title--doc" />
 
+    {% if not app.request.headers.has('Turbo-Frame') %}{% do mercure_subscribe(artifacts_topic(project)) %}{% endif %}
+    <turbo-frame id="artifacts-frame" class="lp-live-frame" refresh="morph" target="_top" data-live-content
+                 data-controller="live-region"
+                 data-live-region-types-value="{{ ['artifact.changed']|json_encode }}"
+                 data-live-region-mode-value="frame"
+                 data-live-region-url-value="{{ app.request.requestUri }}">
     {% if items is not empty or includeArchived %}
     <twig:Ds:FilterBar
         :action="path('app_project_artifacts', {id: project.id})"
@@ -34,7 +40,7 @@
         {% for item in items %}
         {% set artifact = item.artifact %}
         {% set archived = artifact.archivedAt is not null %}
-        <div class="lp-data-table__row{% if archived %} lp-document-row--archived{% endif %}" role="row" data-artifact-id="{{ artifact.id }}">
+        <div class="lp-data-table__row{% if archived %} lp-document-row--archived{% endif %}" role="row" data-artifact-id="{{ artifact.id }}" data-live-row="{{ artifact.id }}">
             <a href="{{ path('app_project_artifact', {id: project.id, artifactId: artifact.id}) }}" class="lp-data-table__target lp-document-row__link" aria-label="{{ artifact.name }}"></a>
             <div class="lp-data-table__cell lp-document-row__main" role="cell">
                 <div class="lp-document-row__head">
@@ -81,5 +87,6 @@
         {% endfor %}
     </twig:Ds:DataTable>
     {% endif %}
+    </turbo-frame>
 </twig:Ds:Workspace>
 {% endblock %}
