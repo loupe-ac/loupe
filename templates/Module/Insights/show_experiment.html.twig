@@ -16,7 +16,7 @@
 
     {% include '@Insights/_tabs.html.twig' with {project: project, active: 'experiments'} only %}
 
-    {% include '@Insights/_experiment_tabs.html.twig' with {project: project, experiment: report.experiment, active: 'comparison', archived: report.archived} only %}
+    {% include '@Insights/_experiment_tabs.html.twig' with {project: project, experiment: report.experiment, active: 'comparison', archived: report.archived, liveUrl: path('app_project_analytics_experiment', {id: project.id, experiment: report.experiment})} only %}
 
     {# A table the person opened stays open through a refresh. #}
     <turbo-frame id="analytics-experiment" refresh="morph" target="_top" class="lp-live-frame"

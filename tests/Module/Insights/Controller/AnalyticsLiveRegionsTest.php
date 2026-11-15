@@ -61,6 +61,9 @@ final class AnalyticsLiveRegionsTest extends WebTestCase
         self::assertSame('{"analytics.changed":{"area":"experiments"}}', $frame->attr('data-live-region-match-type-value'));
         self::assertSame($this->base($project).'/experiments/model-test', $frame->attr('data-live-region-url-value'));
         self::assertCount(1, $frame->filter('[data-experiment-left-out]'));
+        $heading = $this->frame($crawler, 'analytics-experiment-heading');
+        self::assertSame($this->base($project).'/experiments/model-test', $heading->attr('data-live-region-url-value'));
+        self::assertCount(1, $heading->filter('.lp-experiment-heading'));
         self::assertTrue($this->subscribes($crawler, $project));
     }
 
@@ -78,6 +81,7 @@ final class AnalyticsLiveRegionsTest extends WebTestCase
         self::assertSame($this->base($project).'/experiments/model-test/cards?variant=a', $frame->attr('data-live-region-url-value'));
         self::assertSame((string) $card->id, $frame->filter('[data-live-row]')->attr('data-live-row'));
         self::assertCount(0, $crawler->filter('[data-live-since]'));
+        self::assertSame($this->base($project).'/experiments/model-test/cards?variant=a', $this->frame($crawler, 'analytics-experiment-heading')->attr('data-live-region-url-value'));
         self::assertTrue($this->subscribes($crawler, $project));
     }
 
@@ -102,6 +106,7 @@ final class AnalyticsLiveRegionsTest extends WebTestCase
         self::assertSame([$ids[20]], $region->filter('[data-live-row]')->each(static fn (Crawler $row): ?string => $row->attr('data-live-row')));
         self::assertCount(0, $crawler->filter('turbo-frame#analytics-experiment-cards'));
         self::assertCount(1, $region->filter('#experiment-cards-newer'));
+        self::assertSame($this->base($project).'/experiments/model-test/cards?page=2', $this->frame($crawler, 'analytics-experiment-heading')->attr('data-live-region-url-value'));
     }
 
     public function test_the_first_page_of_the_reports_is_a_frame_and_the_settings_form_is_outside_it(): void
