@@ -1544,8 +1544,9 @@ class CardRepository extends ServiceEntityRepository
      * completed, or moved into this column.
      *
      * @param list<string> $movedIds the cards with a move into the column after the moment
+     * @param list<string> $shownIds the cards the page already shows
      */
-    public function countCompletedAfter(BoardColumn $column, \DateTimeImmutable $since, array $movedIds = []): int
+    public function countCompletedAfter(BoardColumn $column, \DateTimeImmutable $since, array $movedIds = [], array $shownIds = []): int
     {
         $qb = $this->createQueryBuilder('c')
             ->select('COUNT(c.id)')
@@ -1556,6 +1557,9 @@ class CardRepository extends ServiceEntityRepository
             $qb->andWhere('c.completedAt > :since');
         } else {
             $qb->andWhere('c.completedAt > :since OR c.id IN (:moved)')->setParameter('moved', $movedIds);
+        }
+        if ([] !== $shownIds) {
+            $qb->andWhere('c.id NOT IN (:shown)')->setParameter('shown', $shownIds);
         }
 
         return (int) $qb->getQuery()->getSingleScalarResult();

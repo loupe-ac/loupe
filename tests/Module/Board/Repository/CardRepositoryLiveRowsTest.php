@@ -193,6 +193,20 @@ final class CardRepositoryLiveRowsTest extends KernelTestCase
         self::assertSame(1, $this->cards->countCompletedAfter($column, $since, $this->events()->findCardIdsMovedIntoColumnAfter($column, $since)));
     }
 
+    public function test_the_terminal_column_does_not_count_a_shown_card_that_left_and_returned(): void
+    {
+        $project = $this->project($this->em, $this->user($this->em, 'rows-done-shown@example.com'));
+        $card = $this->card($this->em, $project, 'Shown', 'done');
+        $column = $this->column($project, 'done');
+        $since = new \DateTimeImmutable('+1 second');
+        $this->events()->record($card, CardEventKind::Moved, Actor::System, null, ['from' => [], 'to' => CardEvent::columnDetail($column), 'cause' => null], new \DateTimeImmutable('+2 seconds'));
+        $this->em->flush();
+        $moved = $this->events()->findCardIdsMovedIntoColumnAfter($column, $since);
+
+        self::assertSame(1, $this->cards->countCompletedAfter($column, $since, $moved));
+        self::assertSame(0, $this->cards->countCompletedAfter($column, $since, $moved, [(string) $card->id]));
+    }
+
     private function events(): CardEventRepository
     {
         $events = self::getContainer()->get(CardEventRepository::class);

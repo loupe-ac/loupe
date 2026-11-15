@@ -29,6 +29,7 @@ final readonly class ListTerminalColumnRowsHandler
                 $command->column,
                 $command->since,
                 $this->cardEvents->findCardIdsMovedIntoColumnAfter($command->column, $command->since),
+                $command->ids,
             ),
             total: $this->cards->countInColumn($command->column),
         );
