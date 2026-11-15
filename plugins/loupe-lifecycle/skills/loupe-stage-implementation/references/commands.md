@@ -211,7 +211,7 @@ A card can end its implementation with no pull request. The worker reports the f
 2. Delivered without code. The card asks only for a document, such as a measurement or a report, and no code change.
 3. Already delivered. The card links only reference pull requests. A reference pull request was merged or closed before its link, so the workflow does not count it as a work link. The worker proves on the base branch that the requirement of the card already holds, for example with the falsify step of the card body. A reference that names the source of a bug fails that proof, so the worker builds the fix.
 
-Use this section only when the case is clear from the design, its answers and the card body. When some work remains, build it from step 6. When you are not sure, record the block and stop with `STAGE RESULT: blocked: unsure whether the card has code to build`.
+Use this section only when the case is clear from the design, its answers and the card body. When some work remains, build it from step 6. When you are not sure, follow `owner-question.md` and stop with `STAGE RESULT: blocked: unsure whether the card has code to build`.
 
 For a card with nothing to build:
 

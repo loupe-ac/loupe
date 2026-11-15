@@ -92,7 +92,7 @@ Your final message starts with `STAGE RESULT:` as its very first characters. Wri
 
 End the first line with ` [reason: <code>]`. Take the code from the reason table below. An example is `STAGE RESULT: not ready <url>: stacked on main [reason: stacked]`.
 
-After a `not ready` or `blocked:` line, the first sentence says what unblocks the work. Name the next step of a person, such as "Approve the head commit".
+After a `not ready` or `blocked:` line, the first sentence says what unblocks the work. Name the next step of a person, such as "Approve the head commit". That step never asks the owner to edit the build notes, a pull request body or another document that the worker can write. The worker makes that edit after the answer. The one exception is a new version of an approved design.
 
 When an outside command causes the block, the first sentence after `blocked:` names the failure. Use a few words, such as "cannot reach github.com: DNS lookup failed". The `summary` then quotes the failed command and its first error line. It names the kind of failure: network or DNS, authentication, permission or scope, rate limit, or sandbox refusal. Each kind needs a different fix.
 
