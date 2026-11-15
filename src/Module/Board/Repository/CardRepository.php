@@ -481,7 +481,7 @@ class CardRepository extends ServiceEntityRepository
         } else {
             if (null !== $after) {
                 $qb->andWhere(\sprintf('c.updatedAt %1$s :afterTime OR (c.updatedAt = :afterTime AND c.id %1$s :afterId)', $compare))
-                    ->setParameter('afterTime', \DateTimeImmutable::createFromFormat('!Y-m-d H:i:s', $after[0]) ?: throw new \InvalidArgumentException('The cursor time does not parse.'), Types::DATETIME_IMMUTABLE)
+                    ->setParameter('afterTime', \DateTimeImmutable::createFromFormat('!Y-m-d H:i:s.u', $after[0]) ?: throw new \InvalidArgumentException('The cursor time does not parse.'), MicrosecondDateTimeImmutableType::NAME)
                     ->setParameter('afterId', $after[1], UuidType::NAME);
             }
             $qb->orderBy('c.updatedAt', $direction)->addOrderBy('c.id', $direction);
