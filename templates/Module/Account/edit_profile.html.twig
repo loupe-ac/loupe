@@ -3,19 +3,26 @@
 {% block settings_section 'profile' %}
 
 {% block settings_content %}
-<twig:Ds:Panel as="section" class="lp-connect-block" data-testid="profile-section">
-    <twig:Ds:SectionHeading>{{ 'account.settings.profile.heading'|trans }}</twig:Ds:SectionHeading>
-    <p class="lp-connect-hint">{{ 'account.settings.profile.description'|trans }}</p>
-    {{ form_start(form, {'action': path('app_account_profile'), 'attr': {'class': 'lp-form', 'novalidate': 'novalidate'}}) }}
-        <twig:Ds:FormField :fieldView="form.fullName" />
-        <twig:Ds:FormField>
-            <twig:Ds:Label for="account-profile-email">{{ 'account.settings.profile.email_label'|trans }}</twig:Ds:Label>
-            <twig:Ds:Input id="account-profile-email" type="email" value="{{ app.user.email }}" readonly />
-            <twig:Ds:Hint>{{ 'account.settings.profile.email_hint'|trans }}</twig:Ds:Hint>
-        </twig:Ds:FormField>
-        <twig:Ds:FormActions>
-            <twig:Ds:Button variant="primary" type="submit">{{ 'account.profile.save_button'|trans }}</twig:Ds:Button>
-        </twig:Ds:FormActions>
-    {{ form_end(form) }}
-</twig:Ds:Panel>
+{% do mercure_subscribe(account_topic(app.user)) %}
+<div data-live-content data-controller="live-region" data-live-region-types-value="{{ ['account.changed']|json_encode }}" data-live-region-match-value="{{ {area: 'profile'}|json_encode }}" data-live-region-url-value="{{ path('app_account_profile_fingerprint') }}" data-live-region-mode-value="band" data-live-fingerprint="{{ fingerprint }}">
+    <twig:Ds:Flash severity="info" :hidden="true" data-live-region-target="band" data-testid="profile-changed-band">
+        {{ 'account.settings.profile.changed_band.message'|trans }}
+        <twig:block name="actions"><a href="{{ path('app_account_profile') }}" target="_blank" rel="noopener">{{ 'account.settings.profile.changed_band.open'|trans }}</a></twig:block>
+    </twig:Ds:Flash>
+    <twig:Ds:Panel as="section" class="lp-connect-block" data-testid="profile-section">
+        <twig:Ds:SectionHeading>{{ 'account.settings.profile.heading'|trans }}</twig:Ds:SectionHeading>
+        <p class="lp-connect-hint">{{ 'account.settings.profile.description'|trans }}</p>
+        {{ form_start(form, {'action': path('app_account_profile'), 'attr': {'class': 'lp-form', 'novalidate': 'novalidate'}}) }}
+            <twig:Ds:FormField :fieldView="form.fullName" />
+            <twig:Ds:FormField>
+                <twig:Ds:Label for="account-profile-email">{{ 'account.settings.profile.email_label'|trans }}</twig:Ds:Label>
+                <twig:Ds:Input id="account-profile-email" type="email" value="{{ app.user.email }}" readonly />
+                <twig:Ds:Hint>{{ 'account.settings.profile.email_hint'|trans }}</twig:Ds:Hint>
+            </twig:Ds:FormField>
+            <twig:Ds:FormActions>
+                <twig:Ds:Button variant="primary" type="submit">{{ 'account.profile.save_button'|trans }}</twig:Ds:Button>
+            </twig:Ds:FormActions>
+        {{ form_end(form) }}
+    </twig:Ds:Panel>
+</div>
 {% endblock %}

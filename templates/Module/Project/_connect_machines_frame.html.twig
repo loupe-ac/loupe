@@ -1,0 +1,16 @@
+{# The machines of the Connect page. It morphs when a worker run changes. Props: project (Project), machines (list of WorkshopConnection). #}
+<turbo-frame id="connect-machines" class="lp-live-frame" target="_top" refresh="morph" data-controller="live-region"
+             data-live-region-types-value="{{ ['worker_run.changed']|json_encode }}"
+             data-live-region-url-value="{{ path('app_project_connect_machines', {id: project.id}) }}"
+             data-live-region-mode-value="frame">
+    {% for machine in machines %}
+    <a class="lp-connect-machine" href="{{ machine.url }}" data-connect-machine="{{ machine.id }}">
+        <span class="lp-connect-machine__text">
+            <strong data-bridge-label>{{ machine.label }}</strong>
+            <small>{{ 'project.connect.machines.version'|trans({'%version%': machine.cliVersion|short_sha}) }}</small>
+            {%- if machine.quiet %}<small data-connect-machine-hint>{{ (machine.loginExpired ? 'bridge.agents.hint.login_expired' : 'bridge.agents.hint.stale')|trans({'%name%': machine.label})|inline_code }}</small>{% endif -%}
+        </span>
+        <twig:Ds:StatusChip :modifier="machine.loginExpired ? 'failed' : (machine.quiet ? 'pending' : 'ok')" :label="(machine.loginExpired ? 'bridge.agents.status.login_expired' : (machine.quiet ? 'bridge.agents.status.stale' : 'bridge.agents.status.healthy'))|trans" />
+    </a>
+    {% endfor %}
+</turbo-frame>

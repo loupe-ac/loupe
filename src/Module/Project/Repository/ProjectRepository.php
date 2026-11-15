@@ -124,6 +124,20 @@ class ProjectRepository extends ServiceEntityRepository
         return array_values($qb->getQuery()->getResult());
     }
 
+    /** The owner's projects that sort before the cursor in the newest-first list, so each is newer than a list that loaded at it. */
+    public function countNewerThan(User $owner, \DateTimeImmutable $createdAt, Uuid $id): int
+    {
+        return (int) $this->createQueryBuilder('p')
+            ->select('COUNT(p.id)')
+            ->andWhere('p.owner = :owner')
+            ->andWhere('p.createdAt > :at OR (p.createdAt = :at AND p.id > :id)')
+            ->setParameter('owner', $owner)
+            ->setParameter('at', $createdAt)
+            ->setParameter('id', $id, UuidType::NAME)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
     /** @return Paginator<Project> */
     public function findPaginatedByOwner(User $owner, int $page, int $perPage): Paginator
     {

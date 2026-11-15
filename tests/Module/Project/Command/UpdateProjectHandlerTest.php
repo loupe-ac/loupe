@@ -13,6 +13,7 @@ use App\Module\Project\Entity\Project;
 use App\Module\Project\ProjectEventType;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Tests\Support\DirectLogging;
+use App\Tests\Support\RecordedAccountSignals;
 use App\Tests\Support\RecordingAuditor;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -28,6 +29,7 @@ final class UpdateProjectHandlerTest extends KernelTestCase
     private EntityManagerInterface $em;
     private UpdateProjectHandler $handler;
     private RecordingAuditor $audit;
+    private RecordedAccountSignals $signals;
 
     protected function setUp(): void
     {
@@ -40,7 +42,8 @@ final class UpdateProjectHandlerTest extends KernelTestCase
         $actors = self::getContainer()->get(AuditActorProviderInterface::class);
         self::assertInstanceOf(AuditActorProviderInterface::class, $actors);
         $this->audit = new RecordingAuditor($actors);
-        $this->handler = new UpdateProjectHandler($projects, $this->em, $this->audit->auditor, $this->events());
+        $this->signals = new RecordedAccountSignals();
+        $this->handler = new UpdateProjectHandler($projects, $this->em, $this->audit->auditor, $this->events(), $this->signals->publisher);
     }
 
     public function test_an_updated_project_is_recorded_on_the_domain_channel(): void
@@ -238,6 +241,24 @@ final class UpdateProjectHandlerTest extends KernelTestCase
         self::assertSame([], $this->audit->operations());
     }
 
+    public function test_a_rename_tells_the_account_pages_of_the_owner(): void
+    {
+        $project = $this->project('update-project-signal@example.com', 'Before');
+
+        ($this->handler)(new UpdateProjectCommand($project, 'After', null, SearchLanguage::English, ProjectEventType::ACTOR_HUMAN));
+
+        $this->signals->assertSignalled($project->owner->id, 'projects');
+    }
+
+    public function test_a_save_that_keeps_the_name_sends_no_signal(): void
+    {
+        $project = $this->project('update-project-no-signal@example.com', 'Same');
+
+        ($this->handler)(new UpdateProjectCommand($project, 'Same', 'same.example.com', SearchLanguage::English, ProjectEventType::ACTOR_HUMAN));
+
+        $this->signals->assertNothingSignalled();
+    }
+
     public function test_a_slug_taken_by_a_concurrent_rename_is_a_slug_error(): void
     {
         $project = $this->project('update-project-slug-race@example.com', 'Before');
@@ -249,7 +270,7 @@ final class UpdateProjectHandlerTest extends KernelTestCase
             'name' => 'My App',
             'slug' => 'my-app',
             'created_at' => '2026-09-12 00:00:00',
-        ]), $this->audit->auditor, $this->events());
+        ]), $this->audit->auditor, $this->events(), $this->signals->publisher);
 
         try {
             $racing(new UpdateProjectCommand($project, 'my-app', null, SearchLanguage::English, ProjectEventType::ACTOR_HUMAN));
@@ -269,7 +290,7 @@ final class UpdateProjectHandlerTest extends KernelTestCase
             'owner_id' => (string) $project->owner->id,
             'name' => 'After',
             'created_at' => '2026-09-12 00:00:00',
-        ]), $this->audit->auditor, $this->events());
+        ]), $this->audit->auditor, $this->events(), $this->signals->publisher);
 
         try {
             $racing(new UpdateProjectCommand($project, 'After', null, SearchLanguage::English, ProjectEventType::ACTOR_HUMAN));

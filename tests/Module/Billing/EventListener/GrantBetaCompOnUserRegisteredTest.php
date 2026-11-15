@@ -20,6 +20,7 @@ use App\Tests\Support\SilentAuditor;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LogLevel;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 
 /**
  * GrantCompHandler and BetaCompGranter are final, so a failing grant comes
@@ -103,9 +104,10 @@ final class GrantBetaCompOnUserRegisteredTest extends TestCase
         $em = $this->createStub(EntityManagerInterface::class);
 
         $grantComp = new GrantCompHandler(
-            new TrialProvisioner($profiles, FeatureFlags::service(), $em, SilentAuditor::create()),
+            new TrialProvisioner($profiles, FeatureFlags::service(), $em, SilentAuditor::create(), new EventDispatcher()),
             $em,
             SilentAuditor::create(),
+            new EventDispatcher(),
         );
 
         return new GrantBetaCompOnUserRegistered(

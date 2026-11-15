@@ -32,6 +32,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface as ContractsEventDispatcher;
 use Ubermuda\AuditBundle\Auditor;
 
 final class StartAnalysisHandlerTest extends KernelTestCase
@@ -186,7 +187,7 @@ final class StartAnalysisHandlerTest extends KernelTestCase
             new WorkSubjectHandlers([]),
             $this->service(WorkHolds::class),
         );
-        $handler = new StartAnalysisHandler($this->em(), $blind, $this->service(AnalysisSettings::class), new MockClock(self::NOW), $this->service(Auditor::class), $this->service(ListExperimentsHandler::class), $this->service(AppRules::class));
+        $handler = new StartAnalysisHandler($this->em(), $blind, $this->service(AnalysisSettings::class), new MockClock(self::NOW), $this->service(Auditor::class), $this->service(ListExperimentsHandler::class), $this->service(AppRules::class), $this->service(ContractsEventDispatcher::class));
 
         try {
             $handler(new StartAnalysisCommand($project, AnalysisTopic::Cost, MetricRange::All));
@@ -219,7 +220,7 @@ final class StartAnalysisHandlerTest extends KernelTestCase
             $this->service(WorkSubjectHandlers::class),
             $this->service(WorkHolds::class),
         );
-        $handler = new StartAnalysisHandler($this->em(), $opener, $this->service(AnalysisSettings::class), new MockClock(self::NOW), $this->service(Auditor::class), $this->service(ListExperimentsHandler::class), $this->service(AppRules::class));
+        $handler = new StartAnalysisHandler($this->em(), $opener, $this->service(AnalysisSettings::class), new MockClock(self::NOW), $this->service(Auditor::class), $this->service(ListExperimentsHandler::class), $this->service(AppRules::class), $this->service(ContractsEventDispatcher::class));
 
         try {
             $handler(new StartAnalysisCommand($project, AnalysisTopic::Cost, MetricRange::All));
@@ -251,7 +252,7 @@ final class StartAnalysisHandlerTest extends KernelTestCase
             $this->service(WorkSubjectHandlers::class),
             $this->service(WorkHolds::class),
         );
-        $handler = new StartAnalysisHandler($this->em(), $failing, $this->service(AnalysisSettings::class), new MockClock(self::NOW), $this->service(Auditor::class), $this->service(ListExperimentsHandler::class), $this->service(AppRules::class));
+        $handler = new StartAnalysisHandler($this->em(), $failing, $this->service(AnalysisSettings::class), new MockClock(self::NOW), $this->service(Auditor::class), $this->service(ListExperimentsHandler::class), $this->service(AppRules::class), $this->service(ContractsEventDispatcher::class));
 
         try {
             $handler(new StartAnalysisCommand($project, AnalysisTopic::Cost, MetricRange::All));
@@ -290,7 +291,7 @@ final class StartAnalysisHandlerTest extends KernelTestCase
             $this->service(WorkSubjectHandlers::class),
             $this->service(WorkHolds::class),
         );
-        $handler = new StartAnalysisHandler($this->em(), $failing, $this->service(AnalysisSettings::class), new MockClock(self::NOW), $this->service(Auditor::class), $this->service(ListExperimentsHandler::class), $this->service(AppRules::class));
+        $handler = new StartAnalysisHandler($this->em(), $failing, $this->service(AnalysisSettings::class), new MockClock(self::NOW), $this->service(Auditor::class), $this->service(ListExperimentsHandler::class), $this->service(AppRules::class), $this->service(ContractsEventDispatcher::class));
 
         try {
             $handler(new StartAnalysisCommand($project, AnalysisTopic::Cost, MetricRange::All));

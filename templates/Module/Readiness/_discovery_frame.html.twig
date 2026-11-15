@@ -1,0 +1,7 @@
+{# The discovery row of the readiness settings. It morphs when a discovery run changes. Props: project (Project), discovery (readiness row or null). #}
+<turbo-frame id="readiness-discovery" class="lp-live-frame" target="_top" refresh="morph" data-controller="live-region"
+             data-live-region-types-value="{{ ['project.discovery_changed']|json_encode }}"
+             data-live-region-url-value="{{ path('app_readiness_settings_discovery', {id: project.id}) }}"
+             data-live-region-mode-value="frame">
+    {% if discovery is not null %}<p class="lp-connect-hint" data-readiness-discovery-state="{{ discovery.discoveryState }}">{{ discovery.status|trans(discovery.statusParameters) }}</p>{% endif %}
+</turbo-frame>

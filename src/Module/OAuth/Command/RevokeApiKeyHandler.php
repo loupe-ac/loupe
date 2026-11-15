@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Module\OAuth\Command;
 
 use App\Exception\DomainErrors;
+use App\Mercure\AccountArea;
+use App\Mercure\AccountChangedPublisher;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 use Ubermuda\AuditBundle\Auditor;
@@ -18,6 +20,7 @@ final readonly class RevokeApiKeyHandler
         private EntityManagerInterface $em,
         private ClockInterface $clock,
         private Auditor $auditor,
+        private AccountChangedPublisher $accountChanged,
     ) {
     }
 
@@ -30,6 +33,7 @@ final readonly class RevokeApiKeyHandler
 
         $key->revokedAt = $this->clock->now();
         $this->em->flush();
+        $this->accountChanged->changed($key->owner->id ?? throw new \LogicException('a persisted user always has an id'), AccountArea::API_KEYS);
 
         $keyId = (string) $key->id;
         $this->auditor->record(

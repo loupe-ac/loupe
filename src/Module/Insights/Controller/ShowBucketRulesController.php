@@ -15,6 +15,7 @@ use App\Module\Insights\Form\BucketRuleFormType;
 use App\Module\Insights\Form\BucketRuleRequest;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
+use App\Session\ReadOnlyAwareSessionHandler;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -24,6 +25,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[Route(
     '/projects/{id:project}/analytics/time-buckets',
     name: 'app_project_analytics_time_buckets',
+    defaults: [ReadOnlyAwareSessionHandler::READ_ONLY => 'analytics-bucket-rules'],
     methods: ['GET'],
 )]
 class ShowBucketRulesController extends AppController

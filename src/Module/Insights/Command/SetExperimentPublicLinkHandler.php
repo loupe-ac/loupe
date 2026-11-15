@@ -11,6 +11,8 @@ use App\Module\Bridge\Command\UnarchiveExperimentCommand;
 use App\Module\Bridge\Command\UnarchiveExperimentHandler;
 use App\Module\Insights\Entity\PublicLink;
 use App\Module\Insights\Repository\PublicLinkRepository;
+use App\Module\Insights\Service\AnalyticsArea;
+use App\Module\Insights\Service\AnalyticsChangedPublisher;
 use App\Module\Insights\Service\InsightsRefreshRequester;
 use App\Module\Insights\Service\PublicPreviewRequester;
 use App\Module\Insights\Service\PublicShareBlock;
@@ -38,6 +40,7 @@ final readonly class SetExperimentPublicLinkHandler
         private Auditor $auditor,
         private InsightsRefreshRequester $refreshes,
         private PublicPreviewRequester $previews,
+        private AnalyticsChangedPublisher $analyticsChanged,
     ) {
     }
 
@@ -92,6 +95,8 @@ final readonly class SetExperimentPublicLinkHandler
             ['projectId' => $projectId, 'experiment' => $experiment, 'enabled' => $command->enabled, 'hasNote' => null !== $note],
             new AuditSubject('project', $projectId),
         );
+
+        $this->analyticsChanged->changed($project->requireId(), AnalyticsArea::EXPERIMENTS, $experiment);
 
         if ($command->enabled) {
             $this->refreshes->experiment($project, $experiment);

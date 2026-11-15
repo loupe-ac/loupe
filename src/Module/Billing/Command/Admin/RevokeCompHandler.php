@@ -7,9 +7,11 @@ namespace App\Module\Billing\Command\Admin;
 use App\Exception\DomainErrors;
 use App\Module\Billing\Entity\Subscription;
 use App\Module\Billing\Entity\SubscriptionKind;
+use App\Module\Billing\Event\BillingStateChanged;
 use App\Module\Billing\Repository\BillingProfileRepository;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
@@ -20,6 +22,7 @@ final readonly class RevokeCompHandler
         private BillingProfileRepository $billingProfiles,
         private EntityManagerInterface $em,
         private Auditor $auditor,
+        private EventDispatcherInterface $events,
     ) {
     }
 
@@ -64,6 +67,8 @@ final readonly class RevokeCompHandler
                 return [$comp, $disabled];
             },
         );
+
+        $this->events->dispatch(new BillingStateChanged($command->target->id ?? throw new \LogicException('a persisted user always has an id')));
 
         $this->record('billing.comp_revoked', $command);
 

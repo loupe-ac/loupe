@@ -28,7 +28,7 @@ final class PreviewTokenRepositoryTest extends KernelTestCase
         $id = $this->mint('pr-12');
         self::assertNull($this->lastUsedAt($id));
 
-        $this->repository->recordUse($id);
+        self::assertTrue($this->repository->recordUse($id));
 
         self::assertNotNull($this->lastUsedAt($id));
     }
@@ -39,7 +39,7 @@ final class PreviewTokenRepositoryTest extends KernelTestCase
         $this->setLastUsedAt($id, '5 minutes');
         $before = $this->lastUsedAt($id);
 
-        $this->repository->recordUse($id);
+        self::assertFalse($this->repository->recordUse($id));
 
         self::assertSame($before, $this->lastUsedAt($id));
     }
@@ -50,7 +50,7 @@ final class PreviewTokenRepositoryTest extends KernelTestCase
         $this->setLastUsedAt($id, '16 minutes');
         $before = $this->lastUsedAt($id);
 
-        $this->repository->recordUse($id);
+        self::assertTrue($this->repository->recordUse($id));
 
         self::assertNotSame($before, $this->lastUsedAt($id));
         self::assertEqualsWithDelta(time(), new \DateTimeImmutable((string) $this->lastUsedAt($id))->getTimestamp(), 5);
@@ -58,7 +58,7 @@ final class PreviewTokenRepositoryTest extends KernelTestCase
 
     public function test_a_token_with_no_row_is_a_no_op(): void
     {
-        $this->repository->recordUse('no-such-token');
+        self::assertFalse($this->repository->recordUse('no-such-token'));
 
         self::assertSame(0, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM oauth_preview_tokens'));
     }

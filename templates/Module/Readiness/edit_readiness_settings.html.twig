@@ -16,13 +16,15 @@
     <p class="lp-connect-hint">{{ 'readiness.settings.description'|trans }}</p>
 
     <twig:Ds:SectionHeading :level="3">{{ 'readiness.settings.discovery.title'|trans }}</twig:Ds:SectionHeading>
-    {% if discovery is not null %}<p class="lp-connect-hint" data-readiness-discovery-state="{{ discovery.discoveryState }}">{{ discovery.status|trans(discovery.statusParameters) }}</p>{% endif %}
+    {% include '@Readiness/_discovery_frame.html.twig' with {project: project, discovery: discovery} only %}
 
     <twig:Ds:SectionHeading :level="3">{{ 'readiness.settings.agent_account.title'|trans }}</twig:Ds:SectionHeading>
     <p class="lp-connect-hint">{{ 'readiness.settings.agent_account.description'|trans }}</p>
     <a class="lp-workshop-text-link" href="{{ path('app_project_readiness_agent_account', {id: project.id}) }}" data-agent-account-link>{{ 'readiness.settings.agent_account.link'|trans }} <twig:ux:icon name="lucide:chevron-right" /></a>
 
     <twig:Ds:SectionHeading :level="3">{{ 'readiness.settings.guide.title'|trans }}</twig:Ds:SectionHeading>
+    <div data-controller="live-region" data-live-region-types-value="{{ ['project.updated']|json_encode }}" data-live-region-url-value="{{ path('app_project_settings_fingerprint', {id: project.id}) }}" data-live-region-mode-value="band" data-live-fingerprint="{{ project_settings_fingerprint(project) }}">
+    {% include '_live_form_band.html.twig' with {message: 'readiness.live.form_changed'|trans, linkLabel: 'readiness.live.form_open'|trans, url: path('app_readiness_settings', {id: project.id})} only %}
     {{ form_start(form, {attr: {class: 'lp-form'}}) }}
         <twig:Ds:FormField>
             <twig:Ds:Choice>
@@ -38,5 +40,6 @@
             <twig:Ds:Button variant="primary" type="submit">{{ 'readiness.settings.submit'|trans }}</twig:Ds:Button>
         </twig:Ds:FormActions>
     {{ form_end(form) }}
+    </div>
 </twig:Ds:Panel>
 {% endblock %}

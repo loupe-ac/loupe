@@ -6,7 +6,9 @@ namespace App\Module\Readiness\Command;
 
 use App\Exception\DomainErrors;
 use App\Module\GitHub\Repository\GitHubInstallationRepository;
+use App\Module\Project\Event\ProjectSettingsChanged;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
@@ -17,6 +19,7 @@ final readonly class RecordAgentGitHubLoginHandler
         private GitHubInstallationRepository $gitHubInstallations,
         private EntityManagerInterface $em,
         private Auditor $auditor,
+        private EventDispatcherInterface $events,
     ) {
     }
 
@@ -35,6 +38,7 @@ final readonly class RecordAgentGitHubLoginHandler
 
         $project->agentGitHubLogin = $login;
         $this->em->flush();
+        $this->events->dispatch(new ProjectSettingsChanged($project->id ?? throw new \LogicException('Project has no id.')));
 
         $this->auditor->record(
             'readiness.agent_login_recorded',

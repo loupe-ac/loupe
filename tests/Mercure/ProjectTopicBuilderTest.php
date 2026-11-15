@@ -91,6 +91,26 @@ final class ProjectTopicBuilderTest extends KernelTestCase
         self::assertNull($builder->projectIdFromInboxTopic($topic));
     }
 
+    public function test_the_analytics_topic_names_its_project_and_no_other_topic_does(): void
+    {
+        self::bootKernel();
+        $builder = self::getContainer()->get(ProjectTopicBuilder::class);
+        self::assertInstanceOf(ProjectTopicBuilder::class, $builder);
+        $projectId = Uuid::v7();
+
+        $topic = $builder->forAnalytics($projectId);
+
+        self::assertStringEndsWith('/projects/'.$projectId.'/analytics', $topic);
+        self::assertEquals($projectId, $builder->projectIdFromAnalyticsTopic($topic));
+        self::assertNull($builder->projectIdFromAnalyticsTopic($builder->forDashboard($projectId)));
+        self::assertNull($builder->projectIdFromAnalyticsTopic($builder->forWorkerRuns($projectId)));
+        self::assertNull($builder->projectIdFromAnalyticsTopic($builder->forDocument($projectId, Uuid::v7())));
+        self::assertNull($builder->projectIdFromAnalyticsTopic($topic.'/extra'));
+        self::assertNull($builder->projectIdFromAnalyticsTopic('/projects/not-a-uuid/analytics'));
+        self::assertNull($builder->projectIdFromDashboardTopic($topic));
+        self::assertNull($builder->projectIdFromActivityTopic($topic));
+    }
+
     public function test_the_openrouter_topic_names_its_project_and_no_other_topic_does(): void
     {
         self::bootKernel();

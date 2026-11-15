@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Module\OAuth\Security;
 
 use App\Api\Problem\ApiProblem;
+use App\Mercure\AccountArea;
+use App\Mercure\AccountChangedPublisher;
 use App\Module\Account\Entity\User;
 use App\Module\Account\Repository\UserRepository;
 use App\Module\OAuth\Entity\ApiKey;
@@ -68,6 +70,7 @@ final class OAuthAccessTokenAuthenticator extends AbstractAuthenticator implemen
         private readonly PreviewTokenRepository $previewTokens,
         private readonly LoggerInterface $logger,
         private readonly Auditor $auditor,
+        private readonly AccountChangedPublisher $accountChanged,
     ) {
     }
 
@@ -126,7 +129,9 @@ final class OAuthAccessTokenAuthenticator extends AbstractAuthenticator implemen
         }
 
         if (WidgetClient::ID === $clientId && \is_string($tokenId)) {
-            $this->previewTokens->recordUse($tokenId);
+            if ($this->previewTokens->recordUse($tokenId) && null !== $user->id) {
+                $this->accountChanged->changed($user->id, AccountArea::APPS);
+            }
         }
 
         $passport = new SelfValidatingPassport(new UserBadge($user->getUserIdentifier(), static fn (): User => $user));

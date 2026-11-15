@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Module\Bridge\Command;
 
+use App\Module\Bridge\Event\ExperimentUnarchived;
 use App\Module\Bridge\Repository\ExperimentArchiveRepository;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
@@ -17,6 +19,7 @@ final readonly class UnarchiveExperimentHandler
         private ExperimentArchiveRepository $experimentArchives,
         private EntityManagerInterface $em,
         private Auditor $auditor,
+        private EventDispatcherInterface $events,
     ) {
     }
 
@@ -34,6 +37,7 @@ final readonly class UnarchiveExperimentHandler
 
             $this->em->remove($archive);
             $this->em->flush();
+            $this->events->dispatch(new ExperimentUnarchived($command->project, $command->experiment));
 
             return true;
         });

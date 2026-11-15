@@ -24,6 +24,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 
 final class ShowSubscribeHandlerTest extends TestCase
 {
@@ -53,7 +54,7 @@ final class ShowSubscribeHandlerTest extends TestCase
         return new ShowSubscribeHandler(
             $profiles,
             new ActivePriceProvider(FeatureFlags::service($flags), $this->createStub(StripeGatewayInterface::class), new ArrayAdapter(), new NullLogger()),
-            new TrialProvisioner($profiles, FeatureFlags::service($flags), $this->createStub(EntityManagerInterface::class), SilentAuditor::create()),
+            new TrialProvisioner($profiles, FeatureFlags::service($flags), $this->createStub(EntityManagerInterface::class), SilentAuditor::create(), new EventDispatcher()),
             FeatureFlags::service($flags),
             new RegistrationGate(FeatureFlags::service($flags), $users, new InstallationState($users)),
             $waitlistEntries ?? $this->createStub(WaitlistEntryRepository::class),

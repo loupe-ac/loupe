@@ -5251,6 +5251,10 @@
     .lp-identity-row__meta--wrap {
         @apply whitespace-normal overflow-visible;
     }
+    /* A live region that holds a list of rows keeps the gap its rows had in the panel. */
+    .lp-live-stack {
+        @apply flex flex-col gap-2.5;
+    }
     .lp-identity-row > .lp-status-chip {
         @apply shrink-0 whitespace-nowrap;
     }

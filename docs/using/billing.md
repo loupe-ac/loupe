@@ -22,4 +22,13 @@ deletion and the sign-in pages stay open. When the instance is full, the tab
 offers the waitlist in place of the **Subscribe** button, or says that no spot
 is free when the waitlist is closed.
 
+## Live updates
+
+The billing tab and the page that Stripe returns you to follow your account
+live. When the Stripe webhook arrives, an administrator grants or ends a comp, or
+a trial ends, the status changes on the open page. You do not reload it. The
+return page shows **Confirming** until Stripe confirms the payment, and then
+shows **Subscribed**. A change that you start in the same browser tab shows
+after the redirect, as before.
+
 Operators enable billing as [Billing](../extending/billing.md) says.

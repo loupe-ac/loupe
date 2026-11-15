@@ -11,6 +11,7 @@ use App\Module\OAuth\Entity\ApiKey;
 use App\Module\OAuth\Entity\GrantedCredential;
 use App\Security\AuthenticatedCredential;
 use App\Tests\Support\AcceptedTerms;
+use App\Tests\Support\CapturedAccountSignals;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -34,10 +35,12 @@ final class ApiKeyAuthenticatorTest extends WebTestCase
     private KernelBrowser $client;
     private EntityManagerInterface $em;
     private User $owner;
+    private CapturedAccountSignals $signals;
 
     protected function setUp(): void
     {
         $this->client = static::createClient();
+        $this->signals = CapturedAccountSignals::install(static::getContainer());
         $em = static::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
         $this->em = $em;
@@ -146,6 +149,26 @@ final class ApiKeyAuthenticatorTest extends WebTestCase
         $this->call(self::SPEC);
 
         self::assertSame($recent->format('Y-m-d H:i:s'), $this->lastUsedAt($id));
+    }
+
+    public function test_a_use_that_stamps_the_key_signals_the_api_keys_area_of_the_owner(): void
+    {
+        $this->store();
+
+        $this->call(self::SPEC);
+
+        self::assertSame(['api_keys'], $this->signals->areasOf($this->owner->id ?? throw new \LogicException('no id')));
+    }
+
+    public function test_a_use_inside_the_interval_changes_no_row_and_signals_nothing(): void
+    {
+        $key = $this->store();
+        $this->setLastUsedAt((string) $key->id, new \DateTimeImmutable('-1 minute'));
+
+        $this->call(self::SPEC);
+
+        self::assertResponseIsSuccessful();
+        self::assertSame([], $this->signals->areasOf($this->owner->id ?? throw new \LogicException('no id')));
     }
 
     public function test_a_use_after_the_interval_stamps_the_key_again(): void

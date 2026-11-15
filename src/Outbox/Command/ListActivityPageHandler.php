@@ -48,6 +48,7 @@ final readonly class ListActivityPageHandler
             totalPages: $totalPages,
             pageList: PageList::build($page, $totalPages),
             clampedPage: PageList::clampedPage($page, $total, $perPage),
+            highestSequence: $this->outboxEvents->highestSequenceForProject($command->project),
         );
     }
 }

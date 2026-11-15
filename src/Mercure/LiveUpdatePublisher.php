@@ -12,6 +12,7 @@ use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
+use Symfony\Component\Messenger\Event\WorkerMessageFailedEvent;
 use Symfony\Component\Messenger\Event\WorkerMessageHandledEvent;
 use Symfony\Contracts\Service\ResetInterface;
 use Ubermuda\FeatureFlagsBundle\FeatureFlagService;
@@ -72,9 +73,11 @@ final class LiveUpdatePublisher implements ResetInterface
 
     /**
      * The messenger worker resets this service after each message and
-     * terminates only at its time limit, so a worker publishes here.
+     * terminates only at its time limit, so a worker publishes here. A failed
+     * message publishes after its own failure listeners, which may change state.
      */
     #[AsEventListener(WorkerMessageHandledEvent::class)]
+    #[AsEventListener(WorkerMessageFailedEvent::class, priority: -16)]
     #[AsEventListener(KernelEvents::TERMINATE)]
     #[AsEventListener(ConsoleEvents::TERMINATE)]
     public function publish(): void

@@ -182,13 +182,25 @@ export class LiveFetcher {
      * @param {(response: Response) => Promise|void} options.apply
      * @param {() => void} [options.onStopped]
      * @param {(root: Element) => boolean} [options.hold]
+     * @param {number} [options.quietMilliseconds] the quiet time of a burst
+     * @param {number} [options.maxWaitMilliseconds] the longest wait of a steady stream
      */
-    constructor({ root, load, apply, onStopped, hold = isHeld }) {
+    constructor({
+        root,
+        load,
+        apply,
+        onStopped,
+        hold = isHeld,
+        quietMilliseconds = QUIET_MILLISECONDS,
+        maxWaitMilliseconds = MAX_WAIT_MILLISECONDS,
+    }) {
         this.root = root;
         this.load = load;
         this.apply = apply;
         this.onStopped = onStopped;
         this.hold = hold;
+        this.quietMilliseconds = quietMilliseconds;
+        this.maxWaitMilliseconds = maxWaitMilliseconds;
         this.stopped = false;
         this.attempt = 0;
     }
@@ -204,8 +216,8 @@ export class LiveFetcher {
         this.firstRequestAt ??= Date.now();
         const sinceFirst = Date.now() - this.firstRequestAt;
         const wait = Math.min(
-            QUIET_MILLISECONDS,
-            Math.max(0, MAX_WAIT_MILLISECONDS - sinceFirst),
+            this.quietMilliseconds,
+            Math.max(0, this.maxWaitMilliseconds - sinceFirst),
         );
         this.timer = setTimeout(() => this.run(), wait);
     }

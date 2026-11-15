@@ -14,6 +14,7 @@ use App\Tests\Support\FeatureFlags;
 use App\Tests\Support\SilentAuditor;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 
 /**
  * TrialProvisioner is final and cannot be doubled, so the listener is
@@ -64,7 +65,7 @@ final class ProvisionTrialOnUserRegisteredTest extends TestCase
     private function listener(BillingProfileRepository $profiles, array $flags): ProvisionTrialOnUserRegistered
     {
         return new ProvisionTrialOnUserRegistered(
-            new TrialProvisioner($profiles, FeatureFlags::service(), $this->createStub(EntityManagerInterface::class), SilentAuditor::create()),
+            new TrialProvisioner($profiles, FeatureFlags::service(), $this->createStub(EntityManagerInterface::class), SilentAuditor::create(), new EventDispatcher()),
             FeatureFlags::service($flags),
         );
     }

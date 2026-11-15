@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Module\Account\Command;
 
+use App\Mercure\AccountArea;
+use App\Mercure\AccountChangedPublisher;
 use App\Module\Account\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Ubermuda\AuditBundle\Auditor;
@@ -15,6 +17,7 @@ final readonly class UpdateProfileHandler
     public function __construct(
         private EntityManagerInterface $em,
         private Auditor $auditor,
+        private AccountChangedPublisher $accountChanged,
     ) {
     }
 
@@ -31,6 +34,7 @@ final readonly class UpdateProfileHandler
 
         $user->fullName = $fullName;
         $this->em->flush();
+        $this->accountChanged->changed($user->id ?? throw new \LogicException('a persisted user always has an id'), AccountArea::PROFILE);
 
         $this->auditor->record(
             'account.profile_updated',

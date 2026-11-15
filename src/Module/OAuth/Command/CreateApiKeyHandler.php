@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Module\OAuth\Command;
 
 use App\Exception\DomainErrors;
+use App\Mercure\AccountArea;
+use App\Mercure\AccountChangedPublisher;
 use App\Module\OAuth\Entity\ApiKey;
 use App\Module\OAuth\Event\ApiKeyCreated;
 use Doctrine\ORM\EntityManagerInterface;
@@ -21,6 +23,7 @@ final readonly class CreateApiKeyHandler
         private ClockInterface $clock,
         private EventDispatcherInterface $events,
         private Auditor $auditor,
+        private AccountChangedPublisher $accountChanged,
     ) {
     }
 
@@ -43,6 +46,7 @@ final readonly class CreateApiKeyHandler
         );
         $this->em->persist($key);
         $this->em->flush();
+        $this->accountChanged->changed($command->owner->id ?? throw new \LogicException('a persisted user always has an id'), AccountArea::API_KEYS);
 
         $keyId = (string) $key->id;
         $this->auditor->record(
