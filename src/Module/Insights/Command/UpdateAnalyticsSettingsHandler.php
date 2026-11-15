@@ -8,9 +8,11 @@ use App\Exception\DomainErrors;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Service\ToolCallCollectionSettings;
 use App\Module\Insights\Entity\InsightsProjectSettings;
+use App\Module\Insights\Event\AnalysisChanged;
 use App\Module\Insights\Repository\InsightsProjectSettingsRepository;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
@@ -27,6 +29,7 @@ final readonly class UpdateAnalyticsSettingsHandler
         private EntityManagerInterface $em,
         private InsightsProjectSettingsRepository $insightsProjectSettings,
         private Auditor $auditor,
+        private EventDispatcherInterface $events,
     ) {
     }
 
@@ -78,6 +81,7 @@ final readonly class UpdateAnalyticsSettingsHandler
             return $settings;
         });
 
+        $this->events->dispatch(new AnalysisChanged($projectId, null));
         $this->auditor->record(
             'insights.settings_saved',
             AuditOutcome::Success,

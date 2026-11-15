@@ -13,7 +13,9 @@ const STREAM_TYPE = 'text/vnd.turbo-stream.html';
 /**
  * Keeps one region of the page current. A signal of one of its types, which
  * another actor sent and which matches the `match` values, makes the region
- * read its url and apply the answer by its mode:
+ * read its url and apply the answer by its mode. `matchType` maps a signal type
+ * to extra match values, and a type it does not list always matches. `quiet`
+ * and `max` set the wait of the fetcher in milliseconds:
  *
  * - frame: the region is a turbo-frame, and the answer morphs into it.
  * - stream: the answer is a Turbo Stream.
@@ -29,6 +31,9 @@ export default class extends Controller {
         url: String,
         mode: { type: String, default: 'frame' },
         match: Object,
+        matchType: Object,
+        quiet: Number,
+        max: Number,
         stopped: Boolean,
     };
 
@@ -43,6 +48,8 @@ export default class extends Controller {
             apply: (response) => this.apply(response),
             onStopped: () => this.stop(),
             hold: this.modeValue === 'band' ? () => false : undefined,
+            quietMilliseconds: this.quietValue || undefined,
+            maxWaitMilliseconds: this.maxValue || undefined,
         });
         this.unsubscribe = on(
             this.typesValue,
@@ -95,8 +102,13 @@ export default class extends Controller {
     }
 
     matches(change) {
-        return Object.entries(this.matchValue).every(
-            ([key, expected]) => String(change[key]) === String(expected),
+        const expected = [
+            ...Object.entries(this.matchValue),
+            ...Object.entries(this.matchTypeValue[change.type] ?? {}),
+        ];
+
+        return expected.every(
+            ([key, value]) => String(change[key]) === String(value),
         );
     }
 

@@ -8,11 +8,13 @@ use App\Exception\DomainErrors;
 use App\Module\Insights\Entity\Analysis;
 use App\Module\Insights\Entity\Proposal;
 use App\Module\Insights\Entity\ProposalKind;
+use App\Module\Insights\Event\AnalysisChanged;
 use App\Module\Insights\Repository\AnalysisRepository;
 use App\Module\Insights\Service\BucketRuleWriter;
 use App\Module\Review\Repository\DocumentRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
@@ -39,6 +41,7 @@ final readonly class ReportAnalysisHandler
         private EntityManagerInterface $em,
         private ClockInterface $clock,
         private Auditor $auditor,
+        private EventDispatcherInterface $events,
     ) {
     }
 
@@ -89,6 +92,7 @@ final readonly class ReportAnalysisHandler
             throw new DomainErrors(['analysisId' => self::FINISHED]);
         }
 
+        $this->events->dispatch(new AnalysisChanged($projectId, (string) $analysisId));
         $this->auditor->record(
             'insights.analysis_reported',
             AuditOutcome::Success,
