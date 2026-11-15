@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Module\Insights\Command;
 
 use App\Module\Bridge\Messenger\RecomputeBucketTimes;
+use App\Module\Insights\Event\BucketRulesChanged;
 use App\Module\Insights\Repository\InsightsBucketRuleRepository;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
@@ -25,6 +27,7 @@ final readonly class PlaceBucketRuleHandler
         private InsightsBucketRuleRepository $insightsBucketRules,
         private MessageBusInterface $bus,
         private Auditor $auditor,
+        private EventDispatcherInterface $events,
     ) {
     }
 
@@ -71,6 +74,7 @@ final readonly class PlaceBucketRuleHandler
             ['projectId' => $projectId, 'ruleId' => $ruleId, 'place' => $command->place],
             new AuditSubject('project', $projectId),
         );
+        $this->events->dispatch(new BucketRulesChanged($projectId, $ruleId));
         $this->bus->dispatch(new RecomputeBucketTimes($projectId));
     }
 }

@@ -15,6 +15,16 @@
     {% endfor %}
     {% endif %}
 
+    {# The live frame sits inside the form's frame, so each answer to a control brings the address of the query it shows. #}
+    <turbo-frame id="metrics-live" refresh="morph" target="_top" class="lp-live-frame"
+                 data-controller="live-region"
+                 data-live-region-types-value="{{ ['worker_run.changed', 'board.card_changed', 'analytics.changed']|json_encode }}"
+                 data-live-region-match-type-value="{{ {'analytics.changed': {area: 'bucket_rules'}}|json_encode }}"
+                 data-live-region-url-value="{{ liveUrl }}"
+                 data-live-region-mode-value="frame"
+                 data-live-region-quiet-value="5000"
+                 data-live-region-max-value="30000"
+                 data-live-content>
     {% if query.formula is not null and query.formula.problem is not null %}
     {# The problem shows under the Formula field. #}
     {% elseif view.layout is null %}
@@ -65,4 +75,5 @@
         </twig:Ds:Dialog>
     </div>
     {% endif %}
+    </turbo-frame>
 </turbo-frame>

@@ -18,8 +18,10 @@ vi.mock('../../assets/lib/live.js', () => ({
 
 vi.mock('@hotwired/turbo', () => ({
     renderStreamMessage: (html) => turbo.streams.push(html),
-    morphTurboFrameElements: (current, fresh) =>
-        turbo.morphs.push({ current, fresh }),
+    morphTurboFrameElements: (current, fresh) => {
+        turbo.morphs.push({ current, fresh });
+        turbo.onMorph?.(current);
+    },
 }));
 
 const { default: LiveRegionController } =
@@ -74,6 +76,7 @@ beforeEach(() => {
     live.subscriptions = [];
     turbo.streams = [];
     turbo.morphs = [];
+    turbo.onMorph = undefined;
     answers = [];
     vi.stubGlobal(
         'fetch',
@@ -137,6 +140,56 @@ it('skips a change whose payload does not match', async () => {
     expect(fetch).toHaveBeenCalledTimes(1);
 });
 
+it('matchType filters the types it lists and always passes the others', async () => {
+    await mount(
+        `data-live-region-types-value='["worker_run.changed","analytics.changed"]' data-live-region-url-value="/x" data-live-region-mode-value="stream" data-live-region-match-type-value='{"analytics.changed":{"area":"reports"}}'`,
+    );
+    answer(200, '<turbo-stream></turbo-stream>');
+    answer(200, '<turbo-stream></turbo-stream>');
+    signal({ type: 'analytics.changed', area: 'experiments' });
+    await settle();
+    expect(fetch).not.toHaveBeenCalled();
+    signal({ type: 'worker_run.changed' });
+    await settle();
+    expect(fetch).toHaveBeenCalledTimes(1);
+    signal({ type: 'analytics.changed', area: 'reports' });
+    await settle();
+    expect(fetch).toHaveBeenCalledTimes(2);
+});
+
+it('matchType and match both have to pass', async () => {
+    await mount(
+        `${STREAM} data-live-region-match-value='{"artifactId":"a1"}' data-live-region-match-type-value='{"artifact.changed":{"kind":"page"}}'`,
+    );
+    signal({ artifactId: 'a1', kind: 'file' });
+    signal({ artifactId: 'a2', kind: 'page' });
+    await settle();
+    expect(fetch).not.toHaveBeenCalled();
+    signal({ artifactId: 'a1', kind: 'page' });
+    await settle();
+    expect(fetch).toHaveBeenCalledTimes(1);
+});
+
+it('quiet and max set the wait of the fetcher', async () => {
+    await mount(`${STREAM} data-live-region-quiet-value="1000"`);
+    signal();
+    await vi.advanceTimersByTimeAsync(QUIET_MILLISECONDS);
+    expect(fetch).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1000 - QUIET_MILLISECONDS);
+    expect(fetch).toHaveBeenCalledTimes(1);
+});
+
+it('max caps the wait of a steady stream of signals', async () => {
+    await mount(
+        `${STREAM} data-live-region-quiet-value="1000" data-live-region-max-value="1500"`,
+    );
+    for (let elapsed = 0; elapsed < 1500; elapsed += 500) {
+        signal();
+        await vi.advanceTimersByTimeAsync(500);
+    }
+    expect(fetch).toHaveBeenCalledTimes(1);
+});
+
 it('stream mode reads a Turbo Stream and renders it', async () => {
     await mount(
         `${TYPES} data-live-region-url-value="/band" data-live-region-mode-value="stream"`,
@@ -173,6 +226,38 @@ it('frame mode sends the frame header and morphs the fresh frame in', async () =
     expect(turbo.morphs).toHaveLength(1);
     expect(turbo.morphs[0].current.id).toBe('region');
     expect(turbo.morphs[0].fresh.textContent).toBe('new');
+});
+
+it('frame mode keeps an open disclosure open through the morph', async () => {
+    await mount(
+        `${TYPES} data-live-region-url-value="/frame"`,
+        '<details open><summary>Table</summary></details>',
+        'turbo-frame',
+    );
+    const attributeEvent = (mutationType) =>
+        new CustomEvent('turbo:before-morph-attribute', {
+            bubbles: true,
+            cancelable: true,
+            detail: { attributeName: 'open', mutationType },
+        });
+    const events = {
+        removed: attributeEvent('remove'),
+        updated: attributeEvent('update'),
+    };
+    turbo.onMorph = (current) => {
+        const details = current.querySelector('details');
+        details.dispatchEvent(events.removed);
+        details.dispatchEvent(events.updated);
+    };
+    answer(
+        200,
+        '<html><body><turbo-frame id="region"><details><summary>Table</summary></details></turbo-frame></body></html>',
+    );
+    signal();
+    await settle();
+    expect(turbo.morphs).toHaveLength(1);
+    expect(events.removed.defaultPrevented).toBe(true);
+    expect(events.updated.defaultPrevented).toBe(false);
 });
 
 it('reads again after a reconnect', async () => {
