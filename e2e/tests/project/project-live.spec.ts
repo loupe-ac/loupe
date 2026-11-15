@@ -59,7 +59,7 @@ test('a rename saved in one browser shows in the projects list and the open form
         attempt += 1;
         const renamed = `Renamed ${RUN} ${attempt}`;
         await editor.goto(editUrl);
-        await editor.getByLabel('Project name').fill(renamed);
+        await editor.getByLabel('Project name', { exact: true }).fill(renamed);
         await editor.getByRole('button', { name: 'Save changes' }).click();
         await expect(editor).toHaveURL(/\/projects$/);
 
