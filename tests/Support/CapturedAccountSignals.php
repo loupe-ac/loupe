@@ -57,11 +57,12 @@ final class CapturedAccountSignals
     }
 
     /**
-     * The areas that account.changed signals named on the topic of the user, in order.
+     * The areas that account.changed signals named on the topic of the user, in order. A test that
+     * owns one area passes it, so a signal of another area on the same topic stays out of its assertion.
      *
      * @return list<string>
      */
-    public function areasOf(Uuid $userId): array
+    public function areasOf(Uuid $userId, ?string $only = null): array
     {
         $topics = $this->container->get(UserTopicBuilder::class);
         \assert($topics instanceof UserTopicBuilder);
@@ -74,7 +75,9 @@ final class CapturedAccountSignals
             }
             $data = json_decode($update->getData(), true, 512, \JSON_THROW_ON_ERROR);
             \assert(\is_array($data) && 'account.changed' === $data['type'] && \is_string($data['area']));
-            $areas[] = $data['area'];
+            if (null === $only || $only === $data['area']) {
+                $areas[] = $data['area'];
+            }
         }
 
         return $areas;

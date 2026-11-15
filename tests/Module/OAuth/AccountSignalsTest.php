@@ -42,7 +42,7 @@ final class AccountSignalsTest extends KernelTestCase
         AgentCredential::agentToken(self::getContainer(), $this->owner);
         $this->signals->endRequest();
 
-        self::assertSame(['apps'], array_values(array_unique($this->signals->areasOf($this->id($this->owner)))));
+        self::assertSame(['apps'], array_values(array_unique($this->apps($this->id($this->owner)))));
     }
 
     public function test_an_access_token_of_another_user_signals_that_user_only(): void
@@ -52,8 +52,8 @@ final class AccountSignalsTest extends KernelTestCase
         AgentCredential::agentToken(self::getContainer(), $other);
         $this->signals->endRequest();
 
-        self::assertSame([], $this->signals->areasOf($this->id($this->owner)));
-        self::assertNotSame([], $this->signals->areasOf($this->id($other)));
+        self::assertSame([], $this->apps($this->id($this->owner)));
+        self::assertNotSame([], $this->apps($this->id($other)));
     }
 
     public function test_a_token_that_is_rolled_back_signals_nothing(): void
@@ -69,33 +69,33 @@ final class AccountSignalsTest extends KernelTestCase
         }
         $this->signals->endRequest();
 
-        self::assertSame([], $this->signals->areasOf($this->id($this->owner)));
+        self::assertSame([], $this->apps($this->id($this->owner)));
     }
 
     public function test_a_preview_token_mint_and_a_revoke_by_token_signal_the_owner(): void
     {
         $tokenId = $this->mint('signal-label');
         $this->signals->endRequest();
-        $afterMint = $this->signals->areasOf($this->id($this->owner));
+        $afterMint = $this->apps($this->id($this->owner));
 
         self::getContainer()->get(RevokePreviewTokensHandler::class)(new RevokePreviewTokensCommand(owner: $this->owner, accessTokenId: $tokenId));
         $this->signals->endRequest();
 
         self::assertNotSame([], $afterMint);
         self::assertSame(['apps'], array_values(array_unique($afterMint)));
-        self::assertGreaterThan(\count($afterMint), \count($this->signals->areasOf($this->id($this->owner))));
+        self::assertGreaterThan(\count($afterMint), \count($this->apps($this->id($this->owner))));
     }
 
     public function test_a_revoke_by_label_signals_the_owner(): void
     {
         $this->mint('revoke-label');
         $this->signals->endRequest();
-        $before = \count($this->signals->areasOf($this->id($this->owner)));
+        $before = \count($this->apps($this->id($this->owner)));
 
         self::getContainer()->get(RevokePreviewTokensHandler::class)(new RevokePreviewTokensCommand(owner: $this->owner, handle: (string) $this->project->id, label: 'revoke-label'));
         $this->signals->endRequest();
 
-        self::assertSame($before + 1, \count($this->signals->areasOf($this->id($this->owner))));
+        self::assertSame($before + 1, \count($this->apps($this->id($this->owner))));
     }
 
     public function test_a_revoke_by_card_signals_the_owner_of_each_live_token_of_the_card(): void
@@ -103,12 +103,12 @@ final class AccountSignalsTest extends KernelTestCase
         $cardId = $this->cardOf($this->project);
         $this->mint('card-token', $cardId);
         $this->signals->endRequest();
-        $before = \count($this->signals->areasOf($this->id($this->owner)));
+        $before = \count($this->apps($this->id($this->owner)));
 
         self::getContainer()->get(RevokePreviewTokensHandler::class)(new RevokePreviewTokensCommand(cardId: $cardId));
         $this->signals->endRequest();
 
-        self::assertSame($before + 1, \count($this->signals->areasOf($this->id($this->owner))));
+        self::assertSame($before + 1, \count($this->apps($this->id($this->owner))));
     }
 
     public function test_a_revoke_that_matches_no_token_signals_nothing(): void
@@ -116,7 +116,7 @@ final class AccountSignalsTest extends KernelTestCase
         self::getContainer()->get(RevokePreviewTokensHandler::class)(new RevokePreviewTokensCommand(owner: $this->owner, accessTokenId: 'no-such-token'));
         $this->signals->endRequest();
 
-        self::assertSame([], $this->signals->areasOf($this->id($this->owner)));
+        self::assertSame([], $this->apps($this->id($this->owner)));
     }
 
     public function test_revoking_a_connected_app_signals_the_apps_area_of_the_user(): void
@@ -124,7 +124,7 @@ final class AccountSignalsTest extends KernelTestCase
         self::getContainer()->get(RevokeConnectedAppHandler::class)(new RevokeConnectedAppCommand($this->owner, OAuthScenario::CLIENT_ID));
         $this->signals->endRequest();
 
-        self::assertSame(['apps'], $this->signals->areasOf($this->id($this->owner)));
+        self::assertSame(['apps'], $this->apps($this->id($this->owner)));
     }
 
     public function test_a_project_delete_signals_the_apps_area_of_its_owner(): void
@@ -132,7 +132,7 @@ final class AccountSignalsTest extends KernelTestCase
         self::getContainer()->get(DeleteOAuthGrantsOnProjectDeleting::class)(new ProjectDeleting($this->project));
         $this->signals->endRequest();
 
-        self::assertSame(['apps'], $this->signals->areasOf($this->id($this->owner)));
+        self::assertSame(['apps'], $this->apps($this->id($this->owner)));
     }
 
     public function test_the_expired_token_purge_signals_each_user_whose_tokens_expired_and_nobody_else(): void
@@ -145,8 +145,14 @@ final class AccountSignalsTest extends KernelTestCase
         self::getContainer()->get(PurgeExpiredOAuthTokensHandler::class)(new PurgeExpiredOAuthTokensCommand());
         $this->signals->endRequest();
 
-        self::assertSame(['apps'], $this->signals->areasOf($this->id($this->owner)));
-        self::assertSame([], $this->signals->areasOf($this->id($other)));
+        self::assertSame(['apps'], $this->apps($this->id($this->owner)));
+        self::assertSame([], $this->apps($this->id($other)));
+    }
+
+    /** @return list<string> */
+    private function apps(Uuid $userId): array
+    {
+        return $this->signals->areasOf($userId, 'apps');
     }
 
     private function insertToken(Connection $connection, string $id, string $expiry, User $user): void
