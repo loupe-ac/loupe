@@ -9,6 +9,7 @@ use App\Module\Project\Entity\Project;
 use App\Outbox\ActivityFamily;
 use App\Outbox\Entity\OutboxEvent;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\QueryBuilder;
@@ -186,33 +187,59 @@ class OutboxEventRepository extends ServiceEntityRepository
             ->setFirstResult(($page - 1) * $perPage)
             ->setMaxResults($perPage);
 
-        if (null !== $family) {
-            $prefixes = $qb->expr()->orX();
-            foreach ($family->typePrefixes() as $index => $prefix) {
-                $prefixes->add("e.type LIKE :prefix{$index} ESCAPE '\\'");
-                $qb->setParameter('prefix'.$index, self::escapeLike($prefix).'%');
-            }
-            $qb->andWhere($prefixes);
-        }
-
-        $words = preg_split('/\s+/u', trim($search ?? ''), flags: \PREG_SPLIT_NO_EMPTY);
-        foreach (false === $words ? [] : $words as $index => $word) {
-            $word = mb_strtolower($word);
-            $matches = $qb->expr()->orX(
-                "LOWER(e.type) LIKE :word{$index} ESCAPE '\\'",
-                "LOWER(e.payload) LIKE :word{$index} ESCAPE '\\'",
-            );
-            $qb->setParameter('word'.$index, '%'.self::escapeLike($word).'%');
-            // The payload is stored JSON, so `/`, `"` and non-ASCII text sit there escaped.
-            $jsonWord = substr(json_encode($word, \JSON_THROW_ON_ERROR), 1, -1);
-            if ($jsonWord !== $word) {
-                $matches->add("LOWER(e.payload) LIKE :jsonWord{$index} ESCAPE '\\'");
-                $qb->setParameter('jsonWord'.$index, '%'.self::escapeLike($jsonWord).'%');
-            }
-            $qb->andWhere($matches);
-        }
+        $this->applyActivityFilters($qb, $search, $family);
 
         return new Paginator($qb->getQuery());
+    }
+
+    /**
+     * The rows of the given ids that still belong to the project and match the filters.
+     *
+     * @param list<string> $ids
+     *
+     * @return list<OutboxEvent>
+     */
+    public function findByIdsForProject(Project $project, array $ids, ?string $search, ?ActivityFamily $family): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        $qb = $this->createQueryBuilder('e')
+            ->andWhere('e.project = :project')
+            ->andWhere('e.id IN (:ids)')
+            ->setParameter('project', $project)
+            ->setParameter('ids', $ids, ArrayParameterType::STRING)
+            ->orderBy('e.createdAt', 'DESC')
+            ->addOrderBy('e.sequence', 'DESC');
+        $this->applyActivityFilters($qb, $search, $family);
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /** The highest sequence of the project, or 0 when it has no event. */
+    public function highestSequenceForProject(Project $project): int
+    {
+        return (int) $this->createQueryBuilder('e')
+            ->select('MAX(e.sequence)')
+            ->andWhere('e.project = :project')
+            ->setParameter('project', $project)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /** How many events above the sequence match the filters. */
+    public function countAboveForProject(Project $project, int $sequence, ?string $search, ?ActivityFamily $family): int
+    {
+        $qb = $this->createQueryBuilder('e')
+            ->select('COUNT(e.id)')
+            ->andWhere('e.project = :project')
+            ->andWhere('e.sequence > :sequence')
+            ->setParameter('project', $project)
+            ->setParameter('sequence', $sequence);
+        $this->applyActivityFilters($qb, $search, $family);
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
     }
 
     /** @return Paginator<OutboxEvent> */
@@ -255,6 +282,35 @@ class OutboxEventRepository extends ServiceEntityRepository
             ->orderBy('candidate.name', 'ASC')
             ->getQuery()
             ->getResult();
+    }
+
+    private function applyActivityFilters(QueryBuilder $qb, ?string $search, ?ActivityFamily $family): void
+    {
+        if (null !== $family) {
+            $prefixes = $qb->expr()->orX();
+            foreach ($family->typePrefixes() as $index => $prefix) {
+                $prefixes->add("e.type LIKE :prefix{$index} ESCAPE '\\'");
+                $qb->setParameter('prefix'.$index, self::escapeLike($prefix).'%');
+            }
+            $qb->andWhere($prefixes);
+        }
+
+        $words = preg_split('/\s+/u', trim($search ?? ''), flags: \PREG_SPLIT_NO_EMPTY);
+        foreach (false === $words ? [] : $words as $index => $word) {
+            $word = mb_strtolower($word);
+            $matches = $qb->expr()->orX(
+                "LOWER(e.type) LIKE :word{$index} ESCAPE '\\'",
+                "LOWER(e.payload) LIKE :word{$index} ESCAPE '\\'",
+            );
+            $qb->setParameter('word'.$index, '%'.self::escapeLike($word).'%');
+            // The payload is stored JSON, so `/`, `"` and non-ASCII text sit there escaped.
+            $jsonWord = substr(json_encode($word, \JSON_THROW_ON_ERROR), 1, -1);
+            if ($jsonWord !== $word) {
+                $matches->add("LOWER(e.payload) LIKE :jsonWord{$index} ESCAPE '\\'");
+                $qb->setParameter('jsonWord'.$index, '%'.self::escapeLike($jsonWord).'%');
+            }
+            $qb->andWhere($matches);
+        }
     }
 
     private function ownedQueryBuilder(User $owner): QueryBuilder
