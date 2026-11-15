@@ -80,6 +80,9 @@ final readonly class DevAnalysesSeeder implements DevSeederInterface
         MARKDOWN;
 
     /** @var list<array{string, string}> pattern and bucket */
+    /** Enough finished reports, with the four others, to fill page 1 of the list (50 rows) and put rows on page 2. */
+    private const int OLDER_REPORTS = 50;
+
     private const array RULES = [['git *', 'git'], ['grep', 'search'], ['Agent', 'subagent']];
 
     /** @var list<array{string, int, int, list<string>}> tool, start offset in seconds, duration in milliseconds, signatures */
@@ -138,6 +141,22 @@ final readonly class DevAnalysesSeeder implements DevSeederInterface
         $this->seedCost($context, $project);
         $this->seedTime($context, $project);
         $this->seedExperiment($context, $project, DevExperimentSeeder::EXPERIMENT);
+        $this->seedOlderReports($context, $project);
+    }
+
+    /** Older finished reports push the list past one page, so page 2 of the reports shows rows. */
+    private function seedOlderReports(SeedContext $context, Project $project): void
+    {
+        $report = $this->report($context, $project, 'Cost report: older', self::REPORT, 'older-report', $context->now->modify('-10 days'));
+        for ($index = 1; $index <= self::OLDER_REPORTS; ++$index) {
+            $slug = \sprintf('older-%02d', $index);
+            if ($this->storedAnalysis($slug) instanceof Analysis) {
+                continue;
+            }
+            $createdAt = $context->now->modify(\sprintf('-%d days -%d minutes', 10 + $index, $index));
+            $this->finishedAnalysis($context, $project, $slug, AnalysisTopic::Cost, new AnalysisScope(MetricRange::NinetyDays), $createdAt, $report, $createdAt->modify('+20 minutes'));
+        }
+        $this->em->flush();
     }
 
     private function seedCost(SeedContext $context, Project $project): void

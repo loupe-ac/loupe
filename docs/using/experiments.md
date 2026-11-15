@@ -512,3 +512,15 @@ of the card reported usage, or when the cost is unknown. Select a card to open i
 The filters above the list show all the cards, the kept cards of one variant,
 or the cards that are left out. Each filter lands in the URL, so a filtered
 view is a link you can share.
+
+## Live updates
+
+The list of experiments, the page of one experiment and the Cards tab update on
+their own. When someone archives or unarchives an experiment, or a run finishes,
+the open page shows it with no reload. A table that you opened stays open.
+
+Page 1 of the Cards tab updates as a whole. A later page updates only the rows
+it already shows. When cards ran again and now sit on page 1, a band above the
+rows says how many. Select **Show the first page** to see them. The
+[analytics page](analytics.md#live-updates) describes the bands, the
+**Analysis settings** form, and the lost access band.

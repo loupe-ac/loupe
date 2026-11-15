@@ -18,7 +18,7 @@
         </thead>
         <tbody>
             {% for variant in variants %}
-                <tr data-experiment-variant="{{ variant.name }}">
+                <tr data-experiment-variant="{{ variant.name }}"{% if variant.runs > 0 %} data-experiment-variant-ran{% endif %}>
                     <th scope="row">{{ variant.name }}{% if headline is not null and variant.name == headline.baseline %} <twig:Ds:Tag tone="neutral">{{ 'bridge.experiments.variants.baseline'|trans }}</twig:Ds:Tag>{% endif %}</th>
                     <td>{{ variant.models is empty ? '–' : variant.models|join(', ') }}</td>
                     <td class="lp-experiment-table__number">{{ variant.weight ?? '–' }}</td>
