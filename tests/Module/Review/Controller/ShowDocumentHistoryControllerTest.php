@@ -312,7 +312,7 @@ final class ShowDocumentHistoryControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertCount(1, $crawler->filter('.lp-history__row'));
-        self::assertCount(0, $crawler->filter('.lp-history-compare'));
+        self::assertCount(0, $crawler->filter('.lp-history-compare .lp-version-compare'));
         self::assertCount(0, $crawler->filter('.lp-history__compare'));
     }
 

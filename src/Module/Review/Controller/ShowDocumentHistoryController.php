@@ -18,7 +18,6 @@ use App\Module\Review\Form\SubmitReviewFormType;
 use App\Module\Review\Form\SubmitReviewRequest;
 use App\Module\Review\Security\DocumentVoter;
 use App\Module\Review\Service\DraftReviewLoops;
-use App\Session\ReadOnlyAwareSessionHandler;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -28,7 +27,6 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[Route(
     '/projects/{projectId}/documents/{documentId}/review/history',
     name: 'app_document_review_history',
-    defaults: [ReadOnlyAwareSessionHandler::READ_ONLY => 'document-history-live'],
     methods: ['GET'],
 )]
 final class ShowDocumentHistoryController extends AppController

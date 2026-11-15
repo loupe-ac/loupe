@@ -18,6 +18,7 @@ use App\Module\Review\Command\ReviseDocumentCommand;
 use App\Module\Review\Command\ReviseDocumentHandler;
 use App\Module\Review\Entity\Comment;
 use App\Module\Review\Entity\Document;
+use App\Module\Review\Entity\DocumentStatus;
 use App\Tests\Support\AcceptedTerms;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -263,19 +264,57 @@ final class ReviewLiveRoutesTest extends WebTestCase
         self::assertStringContainsString('This document was archived.', $crawler->filter('#live-band')->text());
     }
 
-    public function test_the_history_is_a_morphing_frame_that_follows_versions_threads_and_verdicts(): void
+    public function test_the_history_is_a_stream_region_that_follows_versions_threads_and_verdicts(): void
     {
-        $frame = $this->page('/review/history')->filter('turbo-frame#document-history-live');
+        $crawler = $this->page('/review/history');
+        $frame = $crawler->filter('turbo-frame#document-history-live');
 
         self::assertCount(1, $frame);
-        self::assertSame('morph', $frame->attr('refresh'));
-        self::assertSame('_top', $frame->attr('target'));
         self::assertSame('live-region', $frame->attr('data-controller'));
-        self::assertSame('frame', $frame->attr('data-live-region-mode-value'));
+        self::assertSame('stream', $frame->attr('data-live-region-mode-value'));
         self::assertSame(['review.version_published', 'review.thread_changed', 'review.document_state_changed'], json_decode((string) $frame->attr('data-live-region-types-value'), true));
         self::assertSame(['documentId' => (string) $this->document->id], json_decode((string) $frame->attr('data-live-region-match-value'), true));
-        self::assertSame($this->base().'/review/history', $frame->attr('data-live-region-url-value'));
+        self::assertSame($this->base().'/review/history/live', $frame->attr('data-live-region-url-value'));
         self::assertCount(1, $frame->filter('[data-version-number="1"]'));
+        self::assertCount(1, $crawler->filter('#history-topbar-count'));
+        self::assertCount(1, $crawler->filter('#history-topbar-actions'));
+        self::assertCount(1, $crawler->filter('#history-compare'));
+    }
+
+    public function test_the_history_stream_carries_the_count_the_picker_the_button_and_the_table(): void
+    {
+        $this->revise();
+        $this->get('/review/history/live');
+
+        self::assertResponseIsSuccessful();
+        $body = (string) $this->client->getResponse()->getContent();
+        foreach (['history-topbar-count', 'history-topbar-actions', 'history-compare', 'document-history-live'] as $target) {
+            self::assertStringContainsString('target="'.$target.'"', $body);
+        }
+        self::assertStringContainsString('data-version-number="2"', $body);
+        self::assertStringContainsString('name="from"', $body);
+        self::assertStringContainsString('2 versions', $body);
+    }
+
+    public function test_the_history_stream_drops_the_finish_button_once_a_verdict_stands(): void
+    {
+        $this->get('/review/history/live');
+        self::assertStringContainsString('review-finish#open', (string) $this->client->getResponse()->getContent());
+
+        $this->document->status = DocumentStatus::Approved;
+        $this->em->flush();
+        $this->get('/review/history/live');
+
+        self::assertStringNotContainsString('review-finish#open', (string) $this->client->getResponse()->getContent());
+    }
+
+    public function test_the_history_stream_is_refused_to_a_stranger(): void
+    {
+        $this->client->loginUser($this->user('history-stranger@example.com'));
+
+        $this->get('/review/history/live');
+
+        self::assertResponseStatusCodeSame(Response::HTTP_FORBIDDEN);
     }
 
     public function test_the_rename_form_holds_a_hidden_band_that_opens_the_document_in_a_new_tab(): void
