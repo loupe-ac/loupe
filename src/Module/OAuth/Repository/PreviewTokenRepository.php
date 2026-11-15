@@ -116,6 +116,23 @@ class PreviewTokenRepository extends ServiceEntityRepository
         ]);
     }
 
+    /**
+     * The owners of the live tokens of a card, so a caller can tell their
+     * pages before revokeByCard() changes the rows.
+     *
+     * @return list<Uuid>
+     */
+    public function findLiveOwnerIdsForCard(Uuid $cardId): array
+    {
+        $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn(
+            'SELECT DISTINCT p.user_id FROM oauth_preview_tokens p JOIN oauth2_access_token a ON a.identifier = p.access_token_id
+             WHERE p.card_id = :cardId AND a.revoked = false AND a.expiry > NOW()',
+            ['cardId' => $cardId->toRfc4122()],
+        );
+
+        return array_values(array_map(static fn (mixed $id): Uuid => Uuid::fromString((string) $id), $ids));
+    }
+
     public function revokeByCard(Uuid $cardId): int
     {
         return $this->revokeWhere('p.card_id = :cardId', ['cardId' => $cardId->toRfc4122()]);

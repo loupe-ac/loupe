@@ -7,6 +7,7 @@ namespace App\Tests\Module\Account\Service;
 use App\Module\Account\Entity\DataExport;
 use App\Module\Account\Entity\User;
 use App\Module\Account\Service\ExpiredExportPurger;
+use App\Tests\Support\CapturedAccountSignals;
 use Doctrine\ORM\EntityManagerInterface;
 use League\Flysystem\FilesystemOperator;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -15,11 +16,13 @@ final class ExpiredExportPurgerTest extends KernelTestCase
 {
     private EntityManagerInterface $em;
     private FilesystemOperator $exportStorage;
+    private CapturedAccountSignals $signals;
 
     #[\Override]
     protected function setUp(): void
     {
         self::bootKernel();
+        $this->signals = CapturedAccountSignals::install(self::getContainer());
         $em = self::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
         $this->em = $em;
@@ -67,5 +70,32 @@ final class ExpiredExportPurgerTest extends KernelTestCase
         self::assertNull($this->em->find(DataExport::class, $expiredId));
         self::assertNotNull($this->em->find(DataExport::class, $stillValidId));
         self::assertNotNull($this->em->find(DataExport::class, $pendingId));
+    }
+
+    public function test_signals_the_exports_area_of_each_owner_of_a_purged_export_once(): void
+    {
+        $alice = new User('Alice A', 'alice-purge@example.com', 'x');
+        $bob = new User('Bob B', 'bob-purge@example.com', 'x');
+        $carol = new User('Carol C', 'carol-purge@example.com', 'x');
+        foreach ([$alice, $bob, $carol] as $user) {
+            $this->em->persist($user);
+        }
+        foreach ([[$alice, '-1 minute'], [$alice, '-2 minutes'], [$bob, '-1 minute']] as [$user, $expiry]) {
+            $export = new DataExport($user);
+            $export->complete();
+            $export->expiresAt = new \DateTimeImmutable($expiry);
+            $this->em->persist($export);
+        }
+        $stillValid = new DataExport($carol);
+        $stillValid->complete();
+        $this->em->persist($stillValid);
+        $this->em->flush();
+
+        self::getContainer()->get(ExpiredExportPurger::class)->purge();
+        $this->signals->endRequest();
+
+        self::assertSame(['exports'], $this->signals->areasOf($alice->id ?? throw new \LogicException('no id')));
+        self::assertSame(['exports'], $this->signals->areasOf($bob->id ?? throw new \LogicException('no id')));
+        self::assertSame([], $this->signals->areasOf($carol->id ?? throw new \LogicException('no id')));
     }
 }

@@ -16,6 +16,7 @@ use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Workflow\Contract\Actor;
 use App\Tests\Module\OAuth\PreviewTokenScenario;
+use App\Tests\Support\RecordedAccountSignals;
 use App\Tests\Support\RecordingLogger;
 use App\Tests\Support\SilentAuditor;
 use Doctrine\DBAL\Connection;
@@ -120,7 +121,7 @@ final class RevokePreviewTokensOnCardMovedTest extends KernelTestCase
         $projects = self::getContainer()->get(ProjectRepository::class);
         self::assertInstanceOf(ProjectRepository::class, $projects);
 
-        return new RevokePreviewTokensOnCardMoved(new RevokePreviewTokensHandler($repository, $projects, SilentAuditor::create()), $this->em, $logger);
+        return new RevokePreviewTokensOnCardMoved(new RevokePreviewTokensHandler($repository, $projects, SilentAuditor::create(), new RecordedAccountSignals()->publisher), $this->em, $logger);
     }
 
     private function move(Card $card, Project $project, string $slug): void

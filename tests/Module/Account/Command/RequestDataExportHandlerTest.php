@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Account\Command;
 
 use App\Exception\DomainErrors;
+use App\Mercure\AccountArea;
 use App\Module\Account\Command\RequestDataExportCommand;
 use App\Module\Account\Command\RequestDataExportHandler;
 use App\Module\Account\Entity\DataExport;
@@ -12,6 +13,7 @@ use App\Module\Account\Entity\User;
 use App\Module\Account\Messenger\GenerateDataExportMessage;
 use App\Module\Account\Repository\DataExportRepository;
 use App\Tests\Support\DirectLogging;
+use App\Tests\Support\RecordedAccountSignals;
 use App\Tests\Support\RecordingAuditor;
 use Doctrine\DBAL\Driver\PDO\Exception as PdoDriverException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
@@ -30,7 +32,7 @@ final class RequestDataExportHandlerTest extends TestCase
 {
     public function test_requests_an_export_and_dispatches_the_generate_message(): void
     {
-        $user = new User('Alice A', 'alice@example.com', 'x');
+        $user = RecordedAccountSignals::withId(new User('Alice A', 'alice@example.com', 'x'));
 
         /** @var DataExportRepository&Stub $dataExports */
         $dataExports = $this->createStub(DataExportRepository::class);
@@ -62,11 +64,13 @@ final class RequestDataExportHandlerTest extends TestCase
             ->willReturnCallback(static fn (object $message): Envelope => new Envelope($message));
 
         $audit = new RecordingAuditor(new NullAuditActorProvider());
-        $handler = new RequestDataExportHandler($dataExports, $em, $bus, $audit->auditor);
+        $signals = new RecordedAccountSignals();
+        $handler = new RequestDataExportHandler($dataExports, $em, $bus, $audit->auditor, $signals->publisher);
 
         $export = $handler(new RequestDataExportCommand($user));
 
         self::assertSame($user, $export->user);
+        $signals->assertSignalled($user->id, AccountArea::EXPORTS);
 
         $record = $audit->record('account.data_export_requested');
         self::assertSame(AuditOutcome::Success, $record->outcome);
@@ -87,7 +91,7 @@ final class RequestDataExportHandlerTest extends TestCase
 
     public function test_a_pending_export_is_rejected(): void
     {
-        $user = new User('Alice A', 'alice@example.com', 'x');
+        $user = RecordedAccountSignals::withId(new User('Alice A', 'alice@example.com', 'x'));
         $pending = new DataExport($user);
 
         /** @var DataExportRepository&Stub $dataExports */
@@ -104,7 +108,7 @@ final class RequestDataExportHandlerTest extends TestCase
         $bus->expects(self::never())->method('dispatch');
 
         $audit = new RecordingAuditor(new NullAuditActorProvider());
-        $handler = new RequestDataExportHandler($dataExports, $em, $bus, $audit->auditor);
+        $handler = new RequestDataExportHandler($dataExports, $em, $bus, $audit->auditor, new RecordedAccountSignals()->publisher);
 
         try {
             $handler(new RequestDataExportCommand($user));
@@ -123,7 +127,7 @@ final class RequestDataExportHandlerTest extends TestCase
      */
     public function test_a_dispatch_failure_rolls_the_request_back_and_records_nothing(): void
     {
-        $user = new User('Alice A', 'alice@example.com', 'x');
+        $user = RecordedAccountSignals::withId(new User('Alice A', 'alice@example.com', 'x'));
 
         /** @var DataExportRepository&Stub $dataExports */
         $dataExports = $this->createStub(DataExportRepository::class);
@@ -151,7 +155,7 @@ final class RequestDataExportHandlerTest extends TestCase
         $bus->method('dispatch')->willThrowException(new \RuntimeException('the transport is gone'));
 
         $audit = new RecordingAuditor(new NullAuditActorProvider());
-        $handler = new RequestDataExportHandler($dataExports, $em, $bus, $audit->auditor);
+        $handler = new RequestDataExportHandler($dataExports, $em, $bus, $audit->auditor, new RecordedAccountSignals()->publisher);
 
         try {
             $handler(new RequestDataExportCommand($user));
@@ -167,7 +171,7 @@ final class RequestDataExportHandlerTest extends TestCase
         // Both requests pass the pre-check (no pending row exists yet); one of
         // them then loses the race at flush() against the partial unique
         // index on data_exports(user_id) WHERE status = 'pending'.
-        $user = new User('Alice A', 'alice@example.com', 'x');
+        $user = RecordedAccountSignals::withId(new User('Alice A', 'alice@example.com', 'x'));
 
         /** @var DataExportRepository&Stub $dataExports */
         $dataExports = $this->createStub(DataExportRepository::class);
@@ -188,7 +192,7 @@ final class RequestDataExportHandlerTest extends TestCase
         $bus->expects(self::never())->method('dispatch');
 
         $audit = new RecordingAuditor(new NullAuditActorProvider());
-        $handler = new RequestDataExportHandler($dataExports, $em, $bus, $audit->auditor);
+        $handler = new RequestDataExportHandler($dataExports, $em, $bus, $audit->auditor, new RecordedAccountSignals()->publisher);
 
         try {
             $handler(new RequestDataExportCommand($user));

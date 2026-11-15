@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Module\Account\Command;
 
 use App\Exception\DomainErrors;
+use App\Mercure\AccountArea;
+use App\Mercure\AccountChangedPublisher;
 use App\Module\Account\Entity\DataExport;
 use App\Module\Account\Messenger\GenerateDataExportMessage;
 use App\Module\Account\Repository\DataExportRepository;
@@ -22,6 +24,7 @@ final readonly class RequestDataExportHandler
         private EntityManagerInterface $em,
         private MessageBusInterface $bus,
         private Auditor $auditor,
+        private AccountChangedPublisher $accountChanged,
     ) {
     }
 
@@ -54,6 +57,8 @@ final readonly class RequestDataExportHandler
             // violation into the same domain error instead of a 500.
             throw new DomainErrors(['export' => 'account.settings.export.error.already_pending']);
         }
+
+        $this->accountChanged->changed($command->user->id ?? throw new \LogicException('a persisted user always has an id'), AccountArea::EXPORTS);
 
         // After the commit, never inside it: the sink drains outside the
         // business transaction, so a record written in there survives a rollback.

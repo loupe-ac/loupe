@@ -13,6 +13,7 @@ use App\Module\Billing\Entity\BillingProfile;
 use App\Module\Billing\Entity\BillingStatus;
 use App\Module\Billing\Entity\Subscription;
 use App\Module\Billing\Entity\SubscriptionKind;
+use App\Module\Billing\Event\BillingStateChanged;
 use App\Module\Billing\Repository\SubscriptionRepository;
 use App\Module\Billing\Service\CancelSurveyEmailSender;
 use App\Module\Billing\Service\TrialEndSurveyEmailSender;
@@ -20,6 +21,7 @@ use App\Tests\Support\BillingGrants;
 use App\Tests\Support\BillingScenario;
 use App\Tests\Support\DirectLogging;
 use App\Tests\Support\FeatureFlags;
+use App\Tests\Support\RecordedEvents;
 use App\Tests\Support\RecordingAuditor;
 use App\Tests\Support\RecordingLogger;
 use App\Tests\Support\RecordingMailer;
@@ -29,6 +31,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use Psr\Log\NullLogger;
 use Symfony\Bridge\Twig\Mime\TemplatedEmail;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Mailer\Envelope;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mime\RawMessage;
@@ -61,6 +64,10 @@ final class RunTrialSweepHandlerTest extends KernelTestCase
 
     private RecordingLogger $logger;
 
+    private EventDispatcher $events;
+
+    private RecordedEvents $billingChanges;
+
     private \DateTimeImmutable $now;
 
     #[\Override]
@@ -71,6 +78,9 @@ final class RunTrialSweepHandlerTest extends KernelTestCase
         self::assertInstanceOf(AuditActorProviderInterface::class, $actors);
         $this->audit = new RecordingAuditor($actors);
         $this->logger = new RecordingLogger();
+        $this->events = new EventDispatcher();
+        $this->billingChanges = new RecordedEvents();
+        $this->events->addListener(BillingStateChanged::class, $this->billingChanges);
         // Wall-clock, not a fixed date: the grant fixtures are built from
         // relative offsets, so a frozen "now" would put them all in the future.
         $this->now = new \DateTimeImmutable();
@@ -90,6 +100,9 @@ final class RunTrialSweepHandlerTest extends KernelTestCase
         self::assertInstanceOf(TemplatedEmail::class, $email);
         self::assertSame('@Billing/email/trial_end_survey_churned.html.twig', $email->getHtmlTemplate());
         self::assertSame('churnone@example.com', $email->getTo()[0]->getAddress());
+        $changes = $this->billingChanges->of(BillingStateChanged::class);
+        self::assertCount(1, $changes);
+        self::assertEquals($profile->user->id, $changes[0]->userId);
     }
 
     public function test_expired_trial_of_an_already_disabled_user_counts_no_disable(): void
@@ -120,6 +133,7 @@ final class RunTrialSweepHandlerTest extends KernelTestCase
 
         self::assertEquals(new TrialSweepResult(), $second);
         self::assertCount(1, $this->mailer->sent);
+        self::assertCount(1, $this->billingChanges->of(BillingStateChanged::class), 'the second sweep changes nothing and signals nothing');
     }
 
     /** A comp keeps the account alive, so the trial's ending disables nobody. */
@@ -179,6 +193,7 @@ final class RunTrialSweepHandlerTest extends KernelTestCase
         self::assertNull($profile->user->disabledAt);
         self::assertNull($canceled->surveySentAt);
         self::assertCount(0, $this->mailer->sent);
+        self::assertSame([], $this->billingChanges->events, 'a trial marker that changes nothing the user sees signals nothing');
     }
 
     public function test_canceled_past_its_paid_period_is_disabled_and_gets_the_cancel_survey(): void
@@ -313,6 +328,7 @@ final class RunTrialSweepHandlerTest extends KernelTestCase
             $container->get(EntityManagerInterface::class),
             $failureLogger = new RecordingLogger(),
             $this->audit->auditor,
+            new EventDispatcher(),
         );
 
         $result = ($handler)(new RunTrialSweepCommand($this->now));
@@ -361,6 +377,7 @@ final class RunTrialSweepHandlerTest extends KernelTestCase
             $container->get(EntityManagerInterface::class),
             $this->logger,
             $this->audit->auditor,
+            $this->events,
         );
     }
 

@@ -8,11 +8,13 @@ use App\Module\Account\Entity\User;
 use App\Module\Billing\Entity\BillingStatus;
 use App\Module\Billing\Entity\Subscription;
 use App\Module\Billing\Entity\SubscriptionKind;
+use App\Module\Billing\Event\BillingStateChanged;
 use App\Module\Billing\Repository\SubscriptionRepository;
 use App\Module\Billing\Service\CancelSurveyEmailSender;
 use App\Module\Billing\Service\TrialEndSurveyEmailSender;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
@@ -37,6 +39,7 @@ final readonly class RunTrialSweepHandler
         private EntityManagerInterface $em,
         private LoggerInterface $logger,
         private Auditor $auditor,
+        private EventDispatcherInterface $events,
     ) {
     }
 
@@ -127,6 +130,10 @@ final readonly class RunTrialSweepHandler
             return [$disabledNow, 1, 0];
         });
 
+        if ($disabledNow || $churnedNow || $subscriberNow) {
+            $this->events->dispatch(new BillingStateChanged($user->id ?? throw new \LogicException('a persisted user always has an id')));
+        }
+
         if (1 === $disabledNow) {
             $this->recordDisabled($user, 'trial_expired');
         }
@@ -179,6 +186,10 @@ final readonly class RunTrialSweepHandler
 
             return [$disabledNow, $surveyNow];
         });
+
+        if ($disabledNow || $surveyNow) {
+            $this->events->dispatch(new BillingStateChanged($user->id ?? throw new \LogicException('a persisted user always has an id')));
+        }
 
         if (1 === $disabledNow) {
             $this->recordDisabled($user, 'subscription_canceled');

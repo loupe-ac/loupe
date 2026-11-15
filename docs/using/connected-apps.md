@@ -175,3 +175,10 @@ resource metadata is at `/.well-known/oauth-protected-resource/mcp` (RFC 9728).
 
 An http redirect address on `localhost`, `127.0.0.1` or `[::1]` matches on any
 port (RFC 8252). Every other address must match exactly.
+
+## Live updates
+
+The connected apps and the preview tokens follow your account live. When an app
+connects, an app refreshes its token, you revoke an app in another browser, or
+a preview token is made or revoked, the open page updates. An open revoke dialog
+holds the update until you close it.
