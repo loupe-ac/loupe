@@ -10,12 +10,18 @@
 
 {% block body %}
 <twig:Ds:Workspace>
+    {% if not app.request.headers.has('Turbo-Frame') %}{% do mercure_subscribe(activity_topic(project)) %}{% endif %}
+    <turbo-frame id="outbox-frame" class="lp-live-frame" refresh="morph" target="_top" data-live-content
+                 data-controller="live-region"
+                 data-live-region-types-value="{{ ['activity.changed']|json_encode }}"
+                 data-live-region-mode-value="frame"
+                 data-live-region-url-value="{{ app.request.requestUri }}">
     {% if events|length > 0 %}
     <twig:Ds:PageHeader :title="'outbox.page.title'|trans" :description="'outbox.page.description'|trans" />
     <p class="lp-site-review-meta-line">{{ 'outbox.count'|trans({'%count%': events|length}) }}</p>
     <div class="lp-site-review-list">
         {% for event in events %}
-            <article class="lp-site-review-item" data-outbox-event-id="{{ event.id }}">
+            <article class="lp-site-review-item" id="outbox-event-{{ event.id }}" data-live-row="{{ event.id }}" data-outbox-event-id="{{ event.id }}">
                 <span class="lp-site-review-index lp-site-review-index--pending">{{ '%02d'|format(loop.index) }}</span>
                 <div class="lp-site-review-main">
                     <div class="lp-site-review-title-row">
@@ -48,5 +54,6 @@
     <h1 class="sr-only">{{ 'outbox.page.title'|trans }}</h1>
     <twig:Ds:EmptyState icon="lucide:circle-check" iconClass="text-accent" :title="'outbox.empty'|trans" :body="'outbox.page.description'|trans" />
     {% endif %}
+    </turbo-frame>
 </twig:Ds:Workspace>
 {% endblock %}

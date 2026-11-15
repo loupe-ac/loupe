@@ -1,0 +1,17 @@
+{# A GET form, so every control lands in the URL. `page` is not a field: a changed filter starts at page one. #}
+<twig:Ds:FilterBar
+    :action="path('app_project_activity', {id: project.id})"
+    :search="{id: 'activity-search', name: 'search', value: listQuery.search, label: 'activity.filter.search_label'|trans, placeholder: 'activity.filter.search_placeholder'|trans}"
+    :clearHref="path('app_project_activity', {id: project.id})"
+    :clearLabel="'activity.filter.clear'|trans"
+    :count="'activity.count'|trans({'%count%': filteredTotal})">
+    <label class="sr-only" for="activity-family">{{ 'activity.filter.family_label'|trans }}</label>
+    <twig:Ds:Select id="activity-family"
+            name="family"
+            data-action="change->autosearch#search">
+        <option value="">{{ 'activity.filter.all_families'|trans }}</option>
+        {% for family in families %}
+            <option value="{{ family.value }}"{{ listQuery.family == family ? ' selected' : '' }}>{{ family.translationKey()|trans }}</option>
+        {% endfor %}
+    </twig:Ds:Select>
+</twig:Ds:FilterBar>
