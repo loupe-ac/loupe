@@ -13,6 +13,7 @@ use App\Module\Review\Repository\DocumentRepository;
 use App\Module\Review\Repository\DocumentVersionRepository;
 use App\Module\Review\Repository\ReviewRepository;
 use App\Module\Review\Service\DecisionSummaryReader;
+use App\Module\Review\Service\DocumentLiveSignals;
 use App\Module\Review\Service\DraftStateSignal;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
@@ -30,6 +31,7 @@ final readonly class SubmitReviewHandler
         private ReviewRepository $reviews,
         private EventDispatcherInterface $events,
         private DraftStateSignal $draftState,
+        private DocumentLiveSignals $liveSignals,
         private DecisionSummaryReader $decisionSummary,
         private Auditor $auditor,
     ) {
@@ -118,10 +120,10 @@ final readonly class SubmitReviewHandler
 
         // Queued after the commit: a verdict dispatches ReviewSubmitted inside
         // its transaction, and the publisher sends whatever it holds.
-        $this->draftState->send(
-            $document->project->id ?? throw new \LogicException('A persisted project has an id.'),
-            $document->id ?? throw new \LogicException('A persisted document has an id.'),
-        );
+        $projectId = $document->project->id ?? throw new \LogicException('A persisted project has an id.');
+        $documentId = $document->id ?? throw new \LogicException('A persisted document has an id.');
+        $this->draftState->send($projectId, $documentId);
+        $this->liveSignals->documentsChanged($projectId, $documentId);
 
         $this->auditor->record(
             'review.document_verdict_submitted',

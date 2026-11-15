@@ -133,4 +133,24 @@ final class ProjectTopicBuilderTest extends KernelTestCase
         self::assertNull($builder->projectIdFromBoardTopic($topic));
         self::assertNull($builder->projectIdFromActivityTopic($topic));
     }
+
+    public function test_the_documents_topic_names_its_project_and_no_other_topic_does(): void
+    {
+        self::bootKernel();
+        $builder = self::getContainer()->get(ProjectTopicBuilder::class);
+        self::assertInstanceOf(ProjectTopicBuilder::class, $builder);
+        $projectId = Uuid::v7();
+        $documentId = Uuid::v7();
+
+        $topic = $builder->forDocuments($projectId);
+
+        self::assertStringEndsWith('/projects/'.$projectId.'/documents', $topic);
+        self::assertEquals($projectId, $builder->projectIdFromDocumentsTopic($topic));
+        self::assertNull($builder->projectIdFromDocumentsTopic($topic.'/extra'));
+        self::assertNull($builder->projectIdFromDocumentsTopic($builder->forDocument($projectId, $documentId)));
+        self::assertNull($builder->projectIdFromDocumentsTopic($builder->forBoard($projectId)));
+        self::assertNull($builder->projectIdFromDocumentsTopic(str_replace((string) $projectId, 'not-a-uuid', $topic)));
+        self::assertNull($builder->idsFromDocumentTopic($topic));
+        self::assertNull($builder->projectIdFromBoardTopic($topic));
+    }
 }

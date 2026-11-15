@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Module\Review\Command;
 
 use App\Module\Review\Entity\Series;
+use App\Module\Review\Event\DocumentSeriesChanged;
 use App\Module\Review\Service\DocumentSeriesApplier;
 use App\Module\Review\Service\SeriesConflictErrors;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
@@ -27,6 +29,7 @@ final readonly class SetDocumentSeriesHandler
         private DocumentSeriesApplier $seriesApplier,
         private SeriesConflictErrors $conflicts,
         private Auditor $auditor,
+        private EventDispatcherInterface $events,
     ) {
     }
 
@@ -53,6 +56,10 @@ final readonly class SetDocumentSeriesHandler
             ],
             new AuditSubject('document', (string) $document->id),
         );
+        $this->events->dispatch(new DocumentSeriesChanged(
+            $document->project->id ?? throw new \LogicException('A persisted project has an id.'),
+            $document->id ?? throw new \LogicException('A persisted document has an id.'),
+        ));
 
         return $series;
     }
