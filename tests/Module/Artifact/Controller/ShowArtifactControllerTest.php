@@ -48,6 +48,28 @@ final class ShowArtifactControllerTest extends WebTestCase
         self::assertSame('/projects/'.$projectId.'/artifacts/'.$artifactId.'/versions/2/download', $crawler->filter('[data-artifact-download]')->attr('href'));
     }
 
+    public function test_the_page_listens_for_changes_to_its_own_artifact(): void
+    {
+        $client = static::createClient();
+        $project = $this->switchedOnProject('show-live@example.com');
+        $artifact = $this->storedArtifact($project, 'Widget tokens', [['index.html' => 'one'], ['index.html' => 'two']], $project->owner);
+        [$projectId, $artifactId] = [(string) $project->id, (string) $artifact->id];
+        $this->em()->clear();
+
+        $client->loginUser($project->owner);
+        $crawler = $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, '/projects/'.$projectId.'/artifacts/'.$artifactId.'/versions/1');
+
+        $region = $crawler->filter('[data-controller="live-region"]');
+        self::assertCount(1, $region);
+        self::assertNull($region->attr('hidden'), 'The stopped band lands inside the region, so the region must be visible.');
+        self::assertSame('stream', $region->attr('data-live-region-mode-value'));
+        self::assertSame('{"artifactId":"'.$artifactId.'"}', $region->attr('data-live-region-match-value'));
+        self::assertSame('1', $region->attr('data-live-shown-version'));
+        self::assertSame('1', $region->attr('data-live-pinned'));
+        self::assertStringContainsString('/live-band?shown=1&archived=0&full=0', html_entity_decode((string) $region->attr('data-live-region-url-value')));
+        self::assertCount(1, $crawler->filter('#live-band'));
+    }
+
     public function test_a_content_domain_frames_the_sub_address_with_its_own_origin_and_drops_the_band(): void
     {
         $previous = getenv('ARTIFACT_CONTENT_HOST');
