@@ -19,7 +19,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\UX\Turbo\TurboBundle;
 
-/** The rows of a later page of the Cards tab, as a Turbo Stream: each shown card that still matches the filter morphs in place, the others go, and the band counts the newer ones. */
+/** The rows of a later page of the Cards tab, as a Turbo Stream: each shown card that still matches the filter morphs in place, the others go, the band counts the newer ones, and the count and variant links refresh. */
 #[IsGranted(ProjectVoter::VIEW, subject: 'project')]
 #[Route(
     '/projects/{id:project}/analytics/experiments/{experiment}/cards/rows',
@@ -49,6 +49,14 @@ class ListExperimentCardRowsController extends AppController
             newerSince: $rowsQuery->since,
         )) ?? throw $this->createNotFoundException('No run and no pin name this experiment.');
 
+        $whole = ($this->showExperiment)(new ShowExperimentCommand(
+            $project,
+            $experiment,
+            variant: $query->variant,
+            leftOutOnly: $query->leftOutOnly,
+            withMetrics: false,
+        )) ?? throw $this->createNotFoundException('No run and no pin name this experiment.');
+
         $cards = [];
         foreach ($report->cards as $card) {
             $cards[$card->cardId->toRfc4122()] = $card;
@@ -58,6 +66,9 @@ class ListExperimentCardRowsController extends AppController
             'ids' => array_map(static fn ($id): string => $id->toRfc4122(), $rowsQuery->ids),
             'cards' => $cards,
             'newer' => $report->newerCards,
+            'report' => $whole,
+            'query' => $query,
+            'routeParams' => ['id' => $project->id, 'experiment' => $experiment],
             'firstPage' => $this->generateUrl('app_project_analytics_experiment_cards', [
                 'id' => (string) $project->id,
                 'experiment' => $experiment,

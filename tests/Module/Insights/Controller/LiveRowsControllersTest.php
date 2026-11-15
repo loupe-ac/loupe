@@ -130,6 +130,8 @@ final class LiveRowsControllersTest extends WebTestCase
         self::assertStringContainsString('<turbo-stream action="update" target="experiment-cards-newer">', $body);
         self::assertStringContainsString('1 card ran again and is now on the first page.', $body);
         self::assertStringContainsString('href="'.$this->base($project).'/experiments/model-test/cards?variant=a"', $body);
+        self::assertStringContainsString('<turbo-stream action="replace" method="morph" target="experiment-cards-filter">', $body, 'The count and the variant links refresh with the rows.');
+        self::assertStringContainsString('2 cards', $body, 'The count covers every card of the filter, not only the shown rows.');
     }
 
     public function test_the_card_rows_of_an_unknown_experiment_are_not_found(): void

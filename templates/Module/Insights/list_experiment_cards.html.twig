@@ -18,21 +18,6 @@
 
     {% include '@Insights/_experiment_tabs.html.twig' with {project: project, experiment: report.experiment, active: 'cards', archived: report.archived, liveUrl: path('app_project_analytics_experiment_cards', routeParams|merge(query.routeParams))} only %}
 
-    <twig:Ds:FilterBar class="lp-cost-controls" :count="'bridge.experiments.card_count'|trans({'%count%': report.filteredTotal})">
-        <nav class="lp-cost-toggle" aria-label="{{ 'bridge.experiments.cards.filter_label'|trans }}" data-experiment-filter>
-            <a class="lp-cost-toggle__option"
-               href="{{ path('app_project_analytics_experiment_cards', routeParams) }}"
-               {% if query.variant is null and not query.leftOutOnly %}aria-current="true"{% endif %}>{{ 'bridge.experiments.cards.all'|trans }}</a>
-            {% for variant in report.variants %}
-                <a class="lp-cost-toggle__option"
-                   href="{{ path('app_project_analytics_experiment_cards', routeParams|merge({variant: variant.name})) }}"
-                   {% if query.variant == variant.name %}aria-current="true"{% endif %}>{{ variant.name }}</a>
-            {% endfor %}
-            <a class="lp-cost-toggle__option"
-               href="{{ path('app_project_analytics_experiment_cards', routeParams|merge({'left-out': 1})) }}"
-               {% if query.leftOutOnly %}aria-current="true"{% endif %}>{{ 'bridge.experiments.cards.left_out'|trans }}</a>
-        </nav>
-    </twig:Ds:FilterBar>
 
     {% set pagination %}
         <twig:Ds:Pagination route="app_project_analytics_experiment_cards" :page="report.page" :totalPages="report.totalPages" :pageList="report.pageList" :routeParams="routeParams|merge(query.routeParams)" />
@@ -46,10 +31,12 @@
                  data-live-region-url-value="{{ path('app_project_analytics_experiment_cards', routeParams|merge(query.routeParams)) }}"
                  data-live-region-mode-value="frame"
                  data-live-content>
+        {% include '@Insights/_experiment_cards_filter.html.twig' with {report: report, query: query, routeParams: routeParams} only %}
         {% include '@Insights/_experiment_cards_list.html.twig' with {report: report, project: project} only %}
         {% if report.cards is not empty %}{{ pagination }}{% endif %}
     </turbo-frame>
     {% else %}
+    {% include '@Insights/_experiment_cards_filter.html.twig' with {report: report, query: query, routeParams: routeParams} only %}
     <div data-controller="live-region"
          data-live-region-types-value="{{ ['analytics.changed', 'worker_run.changed']|json_encode }}"
          data-live-region-match-type-value="{{ {'analytics.changed': {area: 'experiments'}}|json_encode }}"

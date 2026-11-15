@@ -6,3 +6,4 @@
 {% endif %}
 {% endfor %}
 <turbo-stream action="update" target="experiment-cards-newer"><template>{% include '@Insights/_newer_band.html.twig' with {count: newer, label: 'insights.live.newer_cards', href: firstPage} only %}</template></turbo-stream>
+<turbo-stream action="replace" method="morph" target="experiment-cards-filter"><template>{% include '@Insights/_experiment_cards_filter.html.twig' with {report: report, query: query, routeParams: routeParams} only %}</template></turbo-stream>
