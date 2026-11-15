@@ -10,6 +10,8 @@ use App\DevSeed\SeedContext;
 use App\Module\Account\Entity\DataExport;
 use App\Module\Account\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use League\Flysystem\FilesystemOperator;
+use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Component\DependencyInjection\Attribute\When;
 
 /**
@@ -25,6 +27,9 @@ final readonly class DevDataExportSeeder implements DevSeederInterface
     public function __construct(
         private EntityManagerInterface $em,
         private UserRepository $users,
+
+        #[Target('export.storage')]
+        private FilesystemOperator $exportStorage,
     ) {
     }
 
@@ -55,5 +60,25 @@ final readonly class DevDataExportSeeder implements DevSeederInterface
         $context->ids->assign($export, $id);
         $this->em->persist($export);
         $this->em->flush();
+        $this->exportStorage->write(DataExport::computeArchiveKey($id), $this->emptyArchive());
+    }
+
+    private function emptyArchive(): string
+    {
+        $path = tempnam(sys_get_temp_dir(), 'loupe-seed-export-');
+        if (false === $path) {
+            throw new \RuntimeException('Cannot create a temporary file for the seeded archive.');
+        }
+
+        try {
+            $zip = new \ZipArchive();
+            $zip->open($path, \ZipArchive::OVERWRITE);
+            $zip->addFromString('README.txt', 'Seeded data export.');
+            $zip->close();
+
+            return (string) file_get_contents($path);
+        } finally {
+            @unlink($path);
+        }
     }
 }

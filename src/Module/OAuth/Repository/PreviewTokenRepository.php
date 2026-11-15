@@ -26,11 +26,11 @@ class PreviewTokenRepository extends ServiceEntityRepository
     /**
      * Records a use with one conditional UPDATE, which writes only when no use
      * is recorded or the last one is older than the window. A token with no
-     * row matches nothing, so it costs no write.
+     * row matches nothing, so it costs no write. Returns whether a use was written.
      */
-    public function recordUse(string $accessTokenId): void
+    public function recordUse(string $accessTokenId): bool
     {
-        $this->getEntityManager()->getConnection()->executeStatement(
+        return 0 < $this->getEntityManager()->getConnection()->executeStatement(
             'UPDATE oauth_preview_tokens SET last_used_at = NOW()
              WHERE access_token_id = :id AND (last_used_at IS NULL OR last_used_at < NOW() - make_interval(mins => :window))',
             ['id' => $accessTokenId, 'window' => self::LAST_USE_WINDOW_MINUTES],
