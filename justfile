@@ -646,9 +646,7 @@ tunnel:
 # Vet + test the Go CLI (cli/) in a throwaway Go container — no host Go needed.
 # The Amphetamine hook test fakes osascript, so it runs on Linux too.
 # The container installs git, because the worktree tests run it.
-# The two named volumes keep the Go module and build caches between runs, so a
-# run does not download and compile every dependency again. Go locks both
-# caches, so parallel runs from several worktrees share them safely.
+# Two named volumes keep the Go module and build caches between runs.
 cli-test:
     docker run --rm -v loupe-go-mod:/go/pkg/mod -v loupe-go-build:/root/.cache/go-build -v "{{justfile_directory()}}/cli":/cli -v "{{justfile_directory()}}/openapi":/openapi:ro -w /cli -e GOTOOLCHAIN=local -e LOUPE_PUBLIC_SPEC=/openapi/public.json golang:1.26-alpine sh -c 'apk add --no-cache git >/dev/null && go vet ./... && GOOS=darwin go vet ./... && go test ./...'
     docker run --rm -v "{{justfile_directory()}}/hooks/amphetamine":/pkg:ro -w /pkg golang:1.26-alpine sh ./test.sh
