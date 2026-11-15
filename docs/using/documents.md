@@ -42,7 +42,7 @@ When you submit, Loupe asks a second time: "Stop the agent review?". Select **St
 The band and the warning follow the draft live. They change when a new round starts, when the review pauses or goes on, when you publish in another tab, and when Loupe publishes the draft.
 The warning in an open **Finish review** sheet changes at once and keeps your verdict and note.
 A dialog for **Publish now** holds the update until you close it.
-When the draft is no longer a draft, the page loads again and shows the In review state.
+When the draft is no longer a draft, the band and the warning go, and the rest of the page stays as it is.
 When an update fails after several tries, the page says "Live updates stopped. Reload the page to see the current state." under the band and above the warning.
 An instance with no live updates shows the state as of the page load.
 
@@ -684,6 +684,19 @@ fixes its own language when it is written.
 The default is `english` for every project that existed before this field.
 
 Pick **Other or mixed (no stemming)** for a project whose text has no single language.
+
+## Live updates
+
+When live updates are on, the document pages follow changes that another person, an agent or another tab makes. No page moves the text under your cursor.
+
+1. **A new version.** A band at the top of the review page says "Version N is out" and offers **Show version N**. The page keeps the text you read. The band also shows on a page of an older version.
+2. **Comments.** A reply from another actor updates its thread. A new, resolved, reopened, deleted or restored thread updates the list of threads and the counts. A reply box with text that you typed stays as it is.
+3. **Archive.** When another actor archives the document, a band says "This document was archived" and offers **Unarchive**. The band goes when the document is back.
+4. **Version history.** The history page adds the new version to its list.
+5. **Documents list.** Page 1 shows new documents, new versions, new statuses and changed tags and series at once, and puts each row in its place. On page 2 and later, each row updates in place and a row that no longer matches your filters goes. A band counts the new documents and links to page 1, so the rows never shift under you.
+6. **Rename form.** When another actor changes the document, a band offers to open it in a new tab. The text that you typed stays.
+
+An open dialog holds the update of a list until it closes, and a drag holds the update of the threads. When an update fails after several tries, the page says "Live updates stopped. Reload the page to see the current state."
 
 ## Archiving
 
