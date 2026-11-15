@@ -32,7 +32,9 @@ func ReadFile(path string) (stream.Output, error) {
 }
 
 // Read reads a stream line by line: one JSON object per line. It finds the
-// result line and one Call for each tool_use block. The older
+// last result line and one Call for each tool_use block. A session wakes
+// after each background task and prints one more result line, so only the
+// last one holds the final answer and the usage of the whole run. The older
 // --output-format json prints one result line, so the same reader takes both.
 // A line that is no JSON object, such as a torn last line, counts for nothing.
 func Read(r io.Reader) (stream.Output, error) {
@@ -130,9 +132,7 @@ func (rd *reader) line(raw []byte) {
 		return
 	}
 	if e.Type == "result" {
-		if rd.result == nil {
-			rd.result = bytes.Clone(raw)
-		}
+		rd.result = bytes.Clone(raw)
 
 		return
 	}
