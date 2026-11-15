@@ -33,6 +33,8 @@ use App\Module\Review\Command\SetDocumentSeriesCommand;
 use App\Module\Review\Command\SetDocumentSeriesHandler;
 use App\Module\Review\Command\SetDocumentTagsCommand;
 use App\Module\Review\Command\SetDocumentTagsHandler;
+use App\Module\Review\Command\SubmitReviewCommand;
+use App\Module\Review\Command\SubmitReviewHandler;
 use App\Module\Review\Entity\Comment;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Event\CommentThreadChanged;
@@ -193,6 +195,15 @@ final class DocumentLiveSignalsTest extends KernelTestCase
 
         self::assertCount(3, $published->events());
         self::assertSame([0, 0, 0], $published->transactionDepths());
+    }
+
+    public function test_a_verdict_signals_the_document_state_and_the_list(): void
+    {
+        $this->service(SubmitReviewHandler::class)(new SubmitReviewCommand($this->owner, $this->document, 'approved', 1));
+
+        $messages = $this->drain();
+        self::assertContains('review.document_state_changed', array_column($this->on($messages, $this->documentTopic()), 'type'));
+        self::assertContains('documents.changed', array_column($this->on($messages, $this->documentsTopic()), 'type'));
     }
 
     public function test_a_rename_signals_the_state_and_the_list(): void

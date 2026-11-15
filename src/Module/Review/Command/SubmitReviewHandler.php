@@ -123,6 +123,7 @@ final readonly class SubmitReviewHandler
         $projectId = $document->project->id ?? throw new \LogicException('A persisted project has an id.');
         $documentId = $document->id ?? throw new \LogicException('A persisted document has an id.');
         $this->draftState->send($projectId, $documentId);
+        $this->liveSignals->documentStateChanged($projectId, $documentId);
         $this->liveSignals->documentsChanged($projectId, $documentId);
 
         $this->auditor->record(

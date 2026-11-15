@@ -263,7 +263,7 @@ final class ReviewLiveRoutesTest extends WebTestCase
         self::assertStringContainsString('This document was archived.', $crawler->filter('#live-band')->text());
     }
 
-    public function test_the_history_is_a_morphing_frame_that_follows_new_versions(): void
+    public function test_the_history_is_a_morphing_frame_that_follows_versions_threads_and_verdicts(): void
     {
         $frame = $this->page('/review/history')->filter('turbo-frame#document-history-live');
 
@@ -272,7 +272,7 @@ final class ReviewLiveRoutesTest extends WebTestCase
         self::assertSame('_top', $frame->attr('target'));
         self::assertSame('live-region', $frame->attr('data-controller'));
         self::assertSame('frame', $frame->attr('data-live-region-mode-value'));
-        self::assertSame(['review.version_published'], json_decode((string) $frame->attr('data-live-region-types-value'), true));
+        self::assertSame(['review.version_published', 'review.thread_changed', 'review.document_state_changed'], json_decode((string) $frame->attr('data-live-region-types-value'), true));
         self::assertSame(['documentId' => (string) $this->document->id], json_decode((string) $frame->attr('data-live-region-match-value'), true));
         self::assertSame($this->base().'/review/history', $frame->attr('data-live-region-url-value'));
         self::assertCount(1, $frame->filter('[data-version-number="1"]'));
