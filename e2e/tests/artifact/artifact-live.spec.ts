@@ -138,7 +138,9 @@ test('a new version shows a band with a link and keeps the open prototype, and t
         frameSource ?? '',
     );
     await band.getByRole('link', { name: 'Show version 2' }).click();
-    await expect(page).toHaveURL(new RegExp(`${base}/${artifactId}$`));
+    await expect(page).toHaveURL(
+        new RegExp(`${base}/${artifactId}/versions/2$`),
+    );
     await expect(page.locator('[data-artifact-live-version]')).toHaveCount(0);
 
     await storeVersion(
