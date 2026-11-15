@@ -1,0 +1,10 @@
+{# The analyses of a page of the Reports tab, or the empty state. #}
+{% if analyses is not empty %}
+<ol class="lp-reports-list">
+    {% for row in analyses %}
+    {% include '@Insights/_report_row.html.twig' with {row: row, project: project, page: page, costMetric: costMetric, refusedDismissForm: refusedDismissForm} only %}
+    {% endfor %}
+</ol>
+{% else %}
+<twig:Ds:EmptyState icon="lucide:file-chart-column" :title="'insights.reports.empty.title'|trans" :body="'insights.reports.empty.description'|trans" linkHref="{{ app_docs_url }}/extending/cli-bridge/#work-requests" :linkLabel="'insights.reports.empty.docs'|trans" data-reports-empty />
+{% endif %}

@@ -9,6 +9,7 @@
 {% endblock %}
 
 {% block body %}
+{% do mercure_subscribe(analytics_topic(project)) %}
 <twig:Ds:Workspace class="lp-redesign-secondary lp-redesign-runs">
     {% include '@Insights/_header.html.twig' with {} only %}
 
@@ -16,6 +17,13 @@
 
     {% set canManage = is_granted(constant('App\\Module\\Project\\Security\\ProjectVoter::MANAGE'), project) %}
     {% set shares = experiment_share_states(project, experiments|map(row => row.name)) %}
+    <turbo-frame id="analytics-experiments" refresh="morph" target="_top" class="lp-live-frame"
+                 data-controller="live-region"
+                 data-live-region-types-value="{{ ['analytics.changed']|json_encode }}"
+                 data-live-region-match-type-value="{{ {'analytics.changed': {area: 'experiments'}}|json_encode }}"
+                 data-live-region-url-value="{{ path('app_project_analytics_experiments', {id: project.id}|merge(includeArchived ? {archived: 1} : {})) }}"
+                 data-live-region-mode-value="frame"
+                 data-live-content>
     {% if archivedCount > 0 or includeArchived %}
     <twig:Ds:FilterBar
         :action="path('app_project_analytics_experiments', {id: project.id})"
@@ -81,5 +89,6 @@
     {% else %}
     <twig:Ds:EmptyState icon="lucide:chart-column" :title="'bridge.experiments.empty.title'|trans" :body="'bridge.experiments.empty.description'|trans" linkHref="{{ app_docs_url }}/extending/cli-bridge/#experiments" :linkLabel="'bridge.experiments.empty.docs'|trans" data-experiments-empty />
     {% endif %}
+    </turbo-frame>
 </twig:Ds:Workspace>
 {% endblock %}

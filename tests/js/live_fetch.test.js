@@ -208,6 +208,20 @@ describe('LiveFetcher', () => {
         expect(load).toHaveBeenCalledTimes(1);
     });
 
+    it('uses the quiet time and the longest wait it is given', async () => {
+        make({ quietMilliseconds: 50, maxWaitMilliseconds: 120 });
+        fetcher.request();
+        await vi.advanceTimersByTimeAsync(49);
+        expect(load).not.toHaveBeenCalled();
+        await vi.advanceTimersByTimeAsync(1);
+        expect(load).toHaveBeenCalledTimes(1);
+        for (let elapsed = 0; elapsed < 120; elapsed += 40) {
+            fetcher.request();
+            await vi.advanceTimersByTimeAsync(40);
+        }
+        expect(load).toHaveBeenCalledTimes(2);
+    });
+
     it('holds the read until the hold ends', async () => {
         let held = true;
         make({ hold: () => held });

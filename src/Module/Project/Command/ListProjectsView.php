@@ -14,6 +14,8 @@ final readonly class ListProjectsView
      */
     public function __construct(
         public array $items,
+        /** The cursor of the newest project at load, set on page 2 and later. */
+        public ?string $liveSince,
         public int $totalPages,
         public array $pageList,
         public ?int $clampedPage,

@@ -10,6 +10,7 @@ use App\Module\Bridge\Command\ShowExperimentHandler;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
+use App\Session\ReadOnlyAwareSessionHandler;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
@@ -19,6 +20,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     '/projects/{id:project}/analytics/experiments/{experiment}',
     name: 'app_project_analytics_experiment',
     requirements: ['experiment' => WorkerRun::EXPERIMENT_NAME],
+    defaults: [ReadOnlyAwareSessionHandler::READ_ONLY => 'analytics-experiment'],
     methods: ['GET'],
 )]
 class ShowExperimentController extends AppController

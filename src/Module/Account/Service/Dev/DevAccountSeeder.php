@@ -30,6 +30,8 @@ final readonly class DevAccountSeeder implements DevSeederInterface
     public const string KEYS_EXPIRED_EMAIL = 'keys-expired@loupe.test';
     public const string INSTALLER_EMAIL = 'installer@loupe.test';
     public const string INSTALLER_EMPTY_EMAIL = 'installer-empty@loupe.test';
+    public const string PROJECTS_MANY_EMAIL = 'projects-many@loupe.test';
+    public const string PROJECTS_MANY_USER = 'account/user/projects-many';
     public const string INSTALLER_USER = 'account/user/installer';
     public const string INSTALLER_EMPTY_USER = 'account/user/installer-empty';
     public const string KEYS_USER = 'account/user/keys';
@@ -72,6 +74,7 @@ final readonly class DevAccountSeeder implements DevSeederInterface
         $this->seedDemo($context, self::KEYS_EXPIRED_USER, self::KEYS_EXPIRED_EMAIL, 'Keys Expired User', false, $context->at(5));
         $this->seedDemo($context, self::INSTALLER_USER, self::INSTALLER_EMAIL, 'Installer User', false, $context->at(6));
         $this->seedDemo($context, self::INSTALLER_EMPTY_USER, self::INSTALLER_EMPTY_EMAIL, 'Installer Empty User', false, $context->at(7));
+        $this->seedDemo($context, self::PROJECTS_MANY_USER, self::PROJECTS_MANY_EMAIL, 'Projects Many User', false, $context->at(8));
     }
 
     /**

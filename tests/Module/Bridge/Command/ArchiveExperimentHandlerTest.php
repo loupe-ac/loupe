@@ -148,7 +148,7 @@ final class ArchiveExperimentHandlerTest extends KernelTestCase
         $this->recordRun('trial');
         $this->archive('trial');
 
-        $handler = new UnarchiveExperimentHandler($this->archives(), $this->em, $this->auditor());
+        $handler = new UnarchiveExperimentHandler($this->archives(), $this->em, $this->auditor(), self::getContainer()->get(EventDispatcherInterface::class));
         $handler(new UnarchiveExperimentCommand($this->project, 'trial'));
         $handler(new UnarchiveExperimentCommand($this->project, 'trial'));
 

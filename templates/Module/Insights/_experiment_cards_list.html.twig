@@ -1,0 +1,19 @@
+{# The card table of a page of the Cards tab, or the empty state. #}
+{% if report.cards is not empty %}
+<twig:Ds:DataTable modifier="experiment-cards" :label="'bridge.experiments.cards.table.label'|trans" :columns="[
+    {label: 'bridge.experiments.cards.column.card'|trans},
+    {label: 'bridge.experiments.cards.column.variant'|trans},
+    {label: 'bridge.experiments.cards.column.column'|trans},
+    {label: 'bridge.experiments.cards.column.runs'|trans, align: 'end'},
+    {label: 'bridge.experiments.cards.column.covered_cost'|trans, align: 'end'},
+    {label: 'bridge.experiments.cards.column.fix_rounds'|trans, align: 'end'},
+    {label: 'bridge.experiments.cards.column.cost'|trans, align: 'end'},
+    {label: 'bridge.experiments.cards.column.left_out'|trans},
+]">
+    {% for card in report.cards %}
+    {% include '@Insights/_experiment_card_row.html.twig' with {card: card, project: project} only %}
+    {% endfor %}
+</twig:Ds:DataTable>
+{% else %}
+<twig:Ds:EmptyState icon="lucide:chart-column" :title="'bridge.experiments.cards.empty'|trans" data-experiment-cards-empty />
+{% endif %}
