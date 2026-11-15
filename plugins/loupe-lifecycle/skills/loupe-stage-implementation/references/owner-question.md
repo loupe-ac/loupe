@@ -11,7 +11,7 @@ A stop is a question when you can name two or more valid outcomes and only the o
 1. Call `inbox_list` with the `cardId` of this card, in every state. Walk each page while `hasMore` is true.
 2. For a card with a `parent`, call `card_list` with `parentCardId`. Call `inbox_list` the same way for each sibling.
 3. Call `inbox_search` with two or three key words. Read each candidate with `inbox_get`, and pass your session id as `readerSessionId`.
-4. An open item that asks the same thing: add this card with `inbox_join`, and stop as "The stop" says.
+4. An open item that asks the same thing: note it. Check every decision of this stop first. Then add this card to each noted item with `inbox_join`.
 5. A resolved item of this card that asks the same thing is the answer. Apply it, and ask nothing.
 6. A resolved item of a sibling card that asks the same thing is the answer too. The exception is an answer that rests on a fact that differs on this card. Then ask again, name that fact, and link the earlier item.
 7. A declined item is an answer too. Read its note. Apply it when it is clear. Ask again only when the note leaves the choice open or the facts differ.
@@ -19,7 +19,7 @@ A stop is a question when you can name two or more valid outcomes and only the o
 
 ## Build the ask
 
-1. Make one `inbox_ask`. Give one item for each distinct decision. Drop a finding that asks the same thing as another. Merge the owner findings of one review into this one ask. Pass your session id and bridge id.
+1. Make one `inbox_ask` for the decisions that no open item covers. When every decision joined an open item, make no ask. Give one item for each distinct decision. Drop a finding that asks the same thing as another. Merge the owner findings of one review into this one ask. Pass your session id and bridge id.
 2. Each item has `freeText` true. Put the clear choices in `options`.
 3. The body of each item says what the code does now, and what the design or the card says. It gives the cost of each option for a user, in plain words. It ends with your recommendation and its confidence: high, moderate or low. The recommendation never replaces the answer. Never act on a recommendation alone.
 4. Put the id of this card in `cardIds` of each item. Add each other card that the question applies to, such as a sibling that waits on the same answer. The card filter of `inbox_list` reads only this field.
