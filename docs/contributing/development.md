@@ -121,7 +121,7 @@ one with `/** @vitest-environment jsdom */` on its first line.
 ## The gate
 
 ```sh
-just cs                    # apply formatter + Rector fixes
+just cs-changed main       # apply formatter + Rector fixes to the files the branch changed
 just phpstan               # whole project
 just arkitect              # whole project
 just gamache               # whole project

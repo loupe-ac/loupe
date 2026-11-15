@@ -238,6 +238,38 @@ mutation-diff base="origin/main":
 
 cs: prettier lint rector cs-fix twig-cs-fix
 
+# The `cs` fixers on the files this branch changed against origin/<base>, with
+# uncommitted and untracked files included. Use it while a branch is under way;
+# CI checks the whole tree. Pass the base the pull request targets, such as
+# `just cs-changed epic/1522`.
+cs-changed base="main":
+    #!/usr/bin/env bash
+    # Bash 3.2, as macOS ships it: no mapfile, and an empty array is unbound under -u.
+    set -euo pipefail
+    mb=$(git merge-base HEAD "origin/{{base}}")
+    changed=$( { git diff --name-only --diff-filter=ACMR "$mb"; git ls-files --others --exclude-standard; } | sort -u | while IFS= read -r f; do [ -f "$f" ] && echo "$f"; done || true )
+    if [ -z "$changed" ]; then echo "cs-changed: no changed files against origin/{{base}}"; exit 0; fi
+    pick() { printf '%s\n' "$changed" | grep -E "$1" || true; }
+    php=$(pick '^(bin|config|migrations|public|src|tests)/.*\.php$|^[^/]+\.php$')
+    rector_php=$(pick '^(config|migrations|public|src|tests)/.*\.php$')
+    twig=$(pick '^templates/.*\.twig$')
+    pretty=$(pick '^(assets|e2e|public/live-review|tests/js)/')
+    lintjs=$(pick '^(public/live-review/widget\.js|assets/controllers/.*\.js)$')
+    e2ejs=$(pick '^e2e/.*\.(js|mjs|cjs|ts)$' | sed 's#^e2e/##')
+    count() { [ -z "$1" ] && echo 0 || printf '%s\n' "$1" | wc -l | tr -d ' '; }
+    echo "cs-changed: $(count "$changed") files against origin/{{base}}: $(count "$php") PHP, $(count "$twig") Twig, $(count "$pretty") for prettier"
+    # Paths stay unquoted on purpose, so each line becomes one argument. No
+    # tracked path in this repository holds a space.
+    if [ -n "$pretty" ]; then npx prettier --write --ignore-unknown --log-level warn $pretty; fi
+    if [ -n "$php" ]; then vendor/bin/parallel-lint $php; fi
+    php bin/changelog.php --check
+    if [ -n "$pretty" ]; then npx prettier --check --ignore-unknown --log-level warn $pretty; fi
+    if [ -n "$lintjs" ]; then npx eslint $lintjs; fi
+    if [ -n "$e2ejs" ]; then (cd e2e && npx eslint $e2ejs); fi
+    if [ -n "$rector_php" ]; then vendor/bin/rector process $rector_php; fi
+    if [ -n "$php" ]; then vendor/bin/php-cs-fixer fix --config=.php-cs-fixer.dist.php --path-mode=intersection $php; fi
+    if [ -n "$twig" ]; then vendor/bin/twig-cs-fixer fix $twig; fi
+
 # Non-mutating counterpart of `cs` — reports instead of rewriting, for the gate.
 cs-check:
     vendor/bin/rector --dry-run
@@ -614,8 +646,9 @@ tunnel:
 # Vet + test the Go CLI (cli/) in a throwaway Go container — no host Go needed.
 # The Amphetamine hook test fakes osascript, so it runs on Linux too.
 # The container installs git, because the worktree tests run it.
+# Two named volumes keep the Go module and build caches between runs.
 cli-test:
-    docker run --rm -v "{{justfile_directory()}}/cli":/cli -v "{{justfile_directory()}}/openapi":/openapi:ro -w /cli -e GOTOOLCHAIN=local -e LOUPE_PUBLIC_SPEC=/openapi/public.json golang:1.26-alpine sh -c 'apk add --no-cache git >/dev/null && go vet ./... && GOOS=darwin go vet ./... && go test ./...'
+    docker run --rm -v loupe-go-mod:/go/pkg/mod -v loupe-go-build:/root/.cache/go-build -v "{{justfile_directory()}}/cli":/cli -v "{{justfile_directory()}}/openapi":/openapi:ro -w /cli -e GOTOOLCHAIN=local -e LOUPE_PUBLIC_SPEC=/openapi/public.json golang:1.26-alpine sh -c 'apk add --no-cache git >/dev/null && go vet ./... && GOOS=darwin go vet ./... && go test ./...'
     docker run --rm -v "{{justfile_directory()}}/hooks/amphetamine":/pkg:ro -w /pkg golang:1.26-alpine sh ./test.sh
     docker run --rm -v "{{justfile_directory()}}/plugins/loupe/hooks":/pkg:ro -w /pkg golang:1.26-alpine sh ./test.sh
     docker run --rm -v "{{justfile_directory()}}":/repo:ro -w /repo golang:1.26-alpine sh -c 'apk add --no-cache bash git jq >/dev/null && bash tests/plugins/github-approval-covers.sh && bash tests/plugins/github-required-checks.sh && bash tests/plugins/routing-check.sh'

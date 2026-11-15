@@ -18,7 +18,7 @@ Run these in order; the checks must pass cleanly — including any pre-existing
 failures you notice:
 
 ```bash
-just cs                    # applies PHP CS Fixer + Rector fixes; commit anything it changes
+just cs-changed main       # applies PHP CS Fixer + Rector fixes to the changed files; commit anything it changes
 just phpstan               # PHPStan (level 8) over the whole project
 just arkitect              # phparkitect module boundaries
 just gamache               # project convention checks
