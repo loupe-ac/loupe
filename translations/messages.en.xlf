@@ -11043,6 +11043,12 @@ workflow:
             <trans-unit id="openrouter.flash.saved"><source>openrouter.flash.saved</source><target>The OpenRouter key is saved.</target></trans-unit>
             <trans-unit id="openrouter.flash.removed"><source>openrouter.flash.removed</source><target>The OpenRouter key is removed.</target></trans-unit>
             <trans-unit id="openrouter.live_stopped"><source>openrouter.live_stopped</source><target>Live updates stopped. Reload the page to see the current state.</target></trans-unit>
+            <trans-unit id="artifact.live.version"><source>artifact.live.version</source><target>Version %number% is out.</target></trans-unit>
+            <trans-unit id="artifact.live.show_version"><source>artifact.live.show_version</source><target>Show version %number%</target></trans-unit>
+            <trans-unit id="artifact.live.archived"><source>artifact.live.archived</source><target>This artifact was archived.</target></trans-unit>
+            <trans-unit id="artifact.live.unarchive"><source>artifact.live.unarchive</source><target>Unarchive</target></trans-unit>
+            <trans-unit id="artifact.live.restored"><source>artifact.live.restored</source><target>This artifact was restored.</target></trans-unit>
+            <trans-unit id="artifact.live.reload"><source>artifact.live.reload</source><target>Reload</target></trans-unit>
             <trans-unit id="live.band.stopped"><source>live.band.stopped</source><target>Live updates stopped. Reload the page to see the current state.</target></trans-unit>
             <trans-unit id="live.band.signed_out"><source>live.band.signed_out</source><target>You are signed out, so this page no longer updates.</target></trans-unit>
             <trans-unit id="live.band.sign_in"><source>live.band.sign_in</source><target>Sign in</target></trans-unit>

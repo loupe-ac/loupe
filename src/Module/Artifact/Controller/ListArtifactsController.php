@@ -10,6 +10,7 @@ use App\Module\Artifact\Command\ListArtifactsHandler;
 use App\Module\Artifact\Install\ArtifactInstallFlags;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
+use App\Session\ReadOnlyAwareSessionHandler;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -21,6 +22,7 @@ use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
 #[Route(
     '/projects/{id:project}/artifacts',
     name: 'app_project_artifacts',
+    defaults: [ReadOnlyAwareSessionHandler::READ_ONLY => 'artifacts-frame'],
     methods: ['GET'],
 )]
 final class ListArtifactsController extends AppController

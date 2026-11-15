@@ -301,3 +301,17 @@ An account data export holds an `artifacts.json` file. It lists each artifact of
 your projects with its versions and files. A text file appears as a string. Any
 other file appears as base64. Deleting a project, or your account, deletes its
 artifacts.
+
+## Live updates
+
+An open artifact page and the artifacts list follow the project while live
+updates are on. When someone stores a new version, the open artifact page shows
+a band that says "Version N is out" with a **Show version N** link. The page
+keeps the prototype it shows until you follow the link, also on a link that pins
+a version. When someone archives the artifact, the band says so and offers
+**Unarchive** to a person who may manage the artifact. When someone restores it,
+the band offers a **Reload** link.
+
+The artifacts list adds, updates and removes rows in place. Your scroll
+position stays. If a page loses access, for example after you sign out or the
+project is deleted, it shows a band that says why and stops updating.
