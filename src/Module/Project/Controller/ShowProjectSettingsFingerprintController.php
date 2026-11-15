@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace App\Module\Project\Controller;
 
 use App\Controller\AppController;
+use App\Module\Project\Command\ShowProjectSettingsFingerprintCommand;
+use App\Module\Project\Command\ShowProjectSettingsFingerprintHandler;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
-use App\Module\Project\Service\ProjectSettingsFingerprint;
 use App\Session\ReadOnlyAwareSessionHandler;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -24,12 +25,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 class ShowProjectSettingsFingerprintController extends AppController
 {
     public function __construct(
-        private readonly ProjectSettingsFingerprint $fingerprint,
+        private readonly ShowProjectSettingsFingerprintHandler $showFingerprint,
     ) {
     }
 
     public function __invoke(Project $project): Response
     {
-        return new Response($this->fingerprint->of($project), Response::HTTP_OK, ['Content-Type' => 'text/plain; charset=UTF-8']);
+        return new Response(($this->showFingerprint)(new ShowProjectSettingsFingerprintCommand($project)), Response::HTTP_OK, ['Content-Type' => 'text/plain; charset=UTF-8']);
     }
 }
