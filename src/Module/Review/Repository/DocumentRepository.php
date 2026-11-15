@@ -19,6 +19,7 @@ use App\Module\Review\View\DocumentPosition;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\LockMode;
 use Doctrine\DBAL\Types\Types;
+use Doctrine\ORM\QueryBuilder;
 use Doctrine\ORM\Tools\Pagination\Paginator;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Bridge\Doctrine\Types\UuidType;
@@ -99,6 +100,40 @@ class DocumentRepository extends ServiceEntityRepository
             ->setFirstResult(($page - 1) * $perPage)
             ->setMaxResults($perPage);
 
+        $searchQuery = $this->applyListFilters($qb, $includeArchived, $search, $status, $tagName, $seriesName);
+
+        // One series is an ordered set, so its own numbering outranks both
+        // recency and the title match once the reader has asked for it.
+        if (null !== $seriesName) {
+            $qb->orderBy('d.seriesOrdinal', 'ASC');
+        } elseif (null !== $searchQuery) {
+            SubstringSearch::addTitleFirst($qb, 'd', 'title', $searchQuery);
+            $qb->addOrderBy('d.createdAt', 'DESC');
+        } else {
+            $qb->orderBy('d.createdAt', 'DESC');
+        }
+
+        // created_at is TIMESTAMP(0) so same-second rows tie, and ranks tie far
+        // more often still; without a unique tiebreak, offset pages can repeat or
+        // skip a document.
+        $qb->addOrderBy('d.id', 'DESC');
+
+        return new Paginator($qb->getQuery());
+    }
+
+    /**
+     * Narrows a list query to the filters of the documents list.
+     *
+     * @return SearchQuery|null the parsed search, which the order of a list reads
+     */
+    private function applyListFilters(
+        QueryBuilder $qb,
+        bool $includeArchived,
+        ?string $search,
+        ?DocumentStatus $status,
+        ?string $tagName,
+        ?string $seriesName,
+    ): ?SearchQuery {
         if (!$includeArchived) {
             $qb->andWhere('d.archivedAt IS NULL');
         }
@@ -125,23 +160,70 @@ class DocumentRepository extends ServiceEntityRepository
             SubstringSearch::andMatches($qb, 'd', ['title', 'searchText'], $searchQuery);
         }
 
-        // One series is an ordered set, so its own numbering outranks both
-        // recency and the title match once the reader has asked for it.
-        if (null !== $seriesName) {
-            $qb->orderBy('d.seriesOrdinal', 'ASC');
-        } elseif (null !== $searchQuery) {
-            SubstringSearch::addTitleFirst($qb, 'd', 'title', $searchQuery);
-            $qb->addOrderBy('d.createdAt', 'DESC');
-        } else {
-            $qb->orderBy('d.createdAt', 'DESC');
+        return $searchQuery;
+    }
+
+    /**
+     * The documents of a project that the filters keep, out of the named ids.
+     * A document that an update moved out of the filters is not in the answer.
+     *
+     * @param list<string> $ids
+     *
+     * @return list<Document>
+     */
+    public function findMatchingByIds(
+        Project $project,
+        array $ids,
+        bool $includeArchived,
+        ?string $search,
+        ?DocumentStatus $status,
+        ?string $tagName,
+        ?string $seriesName,
+    ): array {
+        if ([] === $ids) {
+            return [];
         }
 
-        // created_at is TIMESTAMP(0) so same-second rows tie, and ranks tie far
-        // more often still; without a unique tiebreak, offset pages can repeat or
-        // skip a document.
-        $qb->addOrderBy('d.id', 'DESC');
+        $qb = $this->createQueryBuilder('d')
+            ->leftJoin('d.series', 'documentSeries')
+            ->addSelect('documentSeries')
+            ->andWhere('d.project = :project')
+            ->andWhere('d.id IN (:ids)')
+            ->setParameter('project', $project)
+            ->setParameter('ids', $ids);
+        $this->applyListFilters($qb, $includeArchived, $search, $status, $tagName, $seriesName);
 
-        return new Paginator($qb->getQuery());
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * How many documents that the filters keep were created after the cursor,
+     * not counting the named ids. The list sorts new documents to its front.
+     *
+     * @param list<string> $excludedIds
+     */
+    public function countMatchingCreatedSince(
+        Project $project,
+        \DateTimeImmutable $since,
+        array $excludedIds,
+        bool $includeArchived,
+        ?string $search,
+        ?DocumentStatus $status,
+        ?string $tagName,
+        ?string $seriesName,
+    ): int {
+        $qb = $this->createQueryBuilder('d')
+            ->select('COUNT(DISTINCT d.id)')
+            ->andWhere('d.project = :project')
+            ->andWhere('d.createdAt > :since')
+            ->setParameter('project', $project)
+            ->setParameter('since', $since, Types::DATETIME_IMMUTABLE);
+        if ([] !== $excludedIds) {
+            $qb->andWhere('d.id NOT IN (:excluded)')->setParameter('excluded', $excludedIds);
+        }
+        $this->applyListFilters($qb, $includeArchived, $search, $status, $tagName, $seriesName);
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
     }
 
     /**

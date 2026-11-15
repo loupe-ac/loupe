@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Review\Controller;
 
 use App\Controller\AppController;
+use App\Mercure\ProjectTopicBuilder;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
 use App\Module\Review\Command\ListDocumentsCommand;
@@ -30,6 +31,7 @@ class ListDocumentsController extends AppController
     public function __construct(
         private readonly ListDocumentsHandler $listDocuments,
         private readonly LoggerInterface $logger,
+        private readonly ProjectTopicBuilder $topics,
     ) {
     }
 
@@ -60,6 +62,7 @@ class ListDocumentsController extends AppController
         return $this->render('@Review/list_documents.html.twig', [
             'createDocumentForm' => $createDocumentForm,
             'project' => $project,
+            'documentsTopic' => $this->topics->forDocuments($project->id ?? throw new \LogicException('Project has no id.')),
             'items' => $view->items,
             'filteredTotal' => $view->filteredTotal,
             'page' => $listQuery->page,
