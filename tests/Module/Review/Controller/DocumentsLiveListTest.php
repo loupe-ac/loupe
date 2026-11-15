@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Review\Controller;
 
+use App\Mercure\ProjectTopicBuilder;
 use App\Module\Account\Entity\User;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Command\CreateDocumentCommand;
@@ -66,9 +67,19 @@ final class DocumentsLiveListTest extends WebTestCase
 
         $this->client->request(Request::METHOD_GET, $this->list());
 
-        $cookie = $this->client->getResponse()->headers->getCookies();
-        $names = array_map(static fn ($c): string => $c->getName(), $cookie);
-        self::assertContains('mercureAuthorization', $names);
+        $token = null;
+        foreach ($this->client->getResponse()->headers->getCookies() as $cookie) {
+            if ('mercureAuthorization' === $cookie->getName()) {
+                $token = $cookie->getValue();
+            }
+        }
+        self::assertNotNull($token);
+        $claims = json_decode((string) base64_decode(strtr(explode('.', $token)[1], '-_', '+/'), true), true);
+        self::assertIsArray($claims);
+        self::assertContains(
+            static::getContainer()->get(ProjectTopicBuilder::class)->forDocuments($this->project->requireId()),
+            $claims['mercure']['subscribe'],
+        );
     }
 
     public function test_a_later_page_reads_its_rows_by_id_after_the_cursor_it_loaded_at(): void

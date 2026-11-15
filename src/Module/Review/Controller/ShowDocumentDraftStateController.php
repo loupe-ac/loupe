@@ -8,7 +8,11 @@ use App\Controller\AppController;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Command\ShowDraftStateCommand;
 use App\Module\Review\Command\ShowDraftStateHandler;
+use App\Module\Review\Command\ShowStandingVerdictCommand;
+use App\Module\Review\Command\ShowStandingVerdictHandler;
 use App\Module\Review\Entity\Document;
+use App\Module\Review\Form\UndoVerdictFormType;
+use App\Module\Review\Form\UndoVerdictRequest;
 use App\Module\Review\Security\DocumentVoter;
 use App\Session\ReadOnlyAwareSessionHandler;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
@@ -21,8 +25,9 @@ use Symfony\UX\Turbo\TurboBundle;
 /**
  * The band and the Finish review warning of a draft, as the open page fetches
  * them after a signal. A document that is no longer a draft answers streams
- * that remove the band and empty the warning. A page that offers no publish
- * asks with publish=0.
+ * that remove the band and the warning. A page that offers no publish
+ * asks with publish=0. Either answer ends with the top bar actions, which name
+ * the standing verdict.
  */
 #[IsGranted(DocumentVoter::VIEW, subject: 'document')]
 #[Route(
@@ -35,6 +40,7 @@ final class ShowDocumentDraftStateController extends AppController
 {
     public function __construct(
         private readonly ShowDraftStateHandler $showDraftState,
+        private readonly ShowStandingVerdictHandler $showStandingVerdict,
     ) {
     }
 
@@ -51,6 +57,17 @@ final class ShowDocumentDraftStateController extends AppController
                 'draftReviewLoop' => $state->loop,
                 'showPublish' => $request->query->getBoolean('publish', true),
             ]);
+
+        $review = ($this->showStandingVerdict)(new ShowStandingVerdictCommand($document));
+        $html .= $this->renderView('@Review/_topbar_actions.stream.html.twig', [
+            'document' => $document,
+            'review' => $review,
+            'undoVerdictForm' => $this->createForm(
+                UndoVerdictFormType::class,
+                new UndoVerdictRequest(reviewId: $review?->id?->toRfc4122()),
+                ['action' => $this->generateUrl('app_document_review_undo', ['projectId' => (string) $project->id, 'documentId' => (string) $document->id])],
+            )->createView(),
+        ]);
 
         return new Response($html, Response::HTTP_OK, ['Content-Type' => TurboBundle::STREAM_MEDIA_TYPE]);
     }

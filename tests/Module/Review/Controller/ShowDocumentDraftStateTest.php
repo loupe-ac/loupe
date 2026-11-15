@@ -9,6 +9,8 @@ use App\Module\Board\Command\PauseCardCommand;
 use App\Module\Board\Command\PauseCardHandler;
 use App\Module\Board\Entity\Card;
 use App\Module\Project\Entity\Project;
+use App\Module\Review\Command\SubmitReviewCommand;
+use App\Module\Review\Command\SubmitReviewHandler;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\DocumentStatus;
 use App\Module\Review\Entity\Tag;
@@ -51,7 +53,9 @@ final class ShowDocumentDraftStateTest extends WebTestCase
         self::assertResponseStatusCodeSame(Response::HTTP_OK);
         self::assertStringStartsWith(self::STREAM, (string) $this->client->getResponse()->headers->get('Content-Type'));
         $streams = $this->streams();
-        self::assertCount(2, $streams);
+        self::assertCount(3, $streams);
+        self::assertSame(['replace', 'review-topbar-actions'], [$streams[2]['action'], $streams[2]['target']]);
+        self::assertCount(1, $streams[2]['content']->filter('.lp-review-topbar-actions--finish'));
         self::assertSame(['replace', 'draft-band'], [$streams[0]['action'], $streams[0]['target']]);
         self::assertSame(['replace', 'draft-review-warning'], [$streams[1]['action'], $streams[1]['target']]);
         self::assertSame('true', $streams[1]['active']);
@@ -109,13 +113,26 @@ final class ShowDocumentDraftStateTest extends WebTestCase
         self::assertStringStartsWith(self::STREAM, (string) $this->client->getResponse()->headers->get('Content-Type'));
         $crawler = new Crawler((string) $this->client->getResponse()->getContent());
         $streams = $crawler->filter('turbo-stream');
-        self::assertCount(2, $streams);
-        self::assertSame('remove', $streams->eq(0)->attr('action'));
-        self::assertSame('draft-band', $streams->eq(0)->attr('target'));
-        self::assertSame('update', $streams->eq(1)->attr('action'));
-        self::assertSame('draft-review-warning', $streams->eq(1)->attr('target'));
+        self::assertCount(3, $streams);
+        self::assertSame(['remove', 'draft-band'], [$streams->eq(0)->attr('action'), $streams->eq(0)->attr('target')]);
+        self::assertSame(['remove', 'draft-review-warning'], [$streams->eq(1)->attr('action'), $streams->eq(1)->attr('target')]);
         self::assertSame('false', $streams->eq(1)->attr('data-stop-confirm-active'));
-        self::assertSame('', trim($streams->eq(1)->filter('template')->html()));
+        self::assertSame(['replace', 'review-topbar-actions'], [$streams->eq(2)->attr('action'), $streams->eq(2)->attr('target')]);
+    }
+
+    public function test_a_verdict_shows_in_the_top_bar_actions(): void
+    {
+        $document = $this->linkedDocument($this->card(), DocumentStatus::InReview);
+        $handler = self::getContainer()->get(SubmitReviewHandler::class);
+        self::assertInstanceOf(SubmitReviewHandler::class, $handler);
+        $handler(new SubmitReviewCommand($this->project->owner, $document, 'approved', 1));
+
+        $this->fetch($document, $this->project->owner);
+
+        $topbar = array_values(array_filter($this->streams(), static fn (array $stream): bool => 'review-topbar-actions' === $stream['target']));
+        self::assertCount(1, $topbar);
+        self::assertCount(1, $topbar[0]['content']->filter('.lp-verdict-chip--approved'));
+        self::assertCount(0, $topbar[0]['content']->filter('.lp-review-topbar-actions--finish'));
     }
 
     public function test_a_person_who_may_not_open_the_page_gets_a_403(): void
@@ -183,7 +200,7 @@ final class ShowDocumentDraftStateTest extends WebTestCase
                 'action' => (string) $stream->attr('action'),
                 'target' => (string) $stream->attr('target'),
                 'active' => $stream->attr('data-stop-confirm-active'),
-                'content' => new Crawler($stream->filter('template')->html()),
+                'content' => new Crawler(\count($stream->filter('template')) > 0 ? $stream->filter('template')->html() : ''),
             ];
         }
 

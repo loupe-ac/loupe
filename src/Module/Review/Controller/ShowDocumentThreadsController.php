@@ -8,10 +8,13 @@ use App\Controller\AppController;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Command\ListLatestCommentsCommand;
 use App\Module\Review\Command\ListLatestCommentsHandler;
+use App\Module\Review\Command\ShowLiveBandCommand;
+use App\Module\Review\Command\ShowLiveBandHandler;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Security\DocumentVoter;
 use App\Session\ReadOnlyAwareSessionHandler;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
@@ -20,7 +23,8 @@ use Symfony\UX\Turbo\TurboBundle;
 /**
  * Every thread of the latest version, as the open review page reads them after
  * another actor added, removed or resolved one. The streams morph, so a reply
- * box with typed text stays.
+ * box with typed text stays. A page that shows an older version than the
+ * latest one (shown) reads nothing, because its text no longer matches.
  */
 #[IsGranted(DocumentVoter::VIEW, subject: 'document')]
 #[Route(
@@ -33,13 +37,19 @@ final class ShowDocumentThreadsController extends AppController
 {
     public function __construct(
         private readonly ListLatestCommentsHandler $listLatestComments,
+        private readonly ShowLiveBandHandler $showLiveBand,
     ) {
     }
 
     public function __invoke(
         #[MapEntity(mapping: ['projectId' => 'id'])] Project $project,
         #[MapEntity(expr: 'repository.findOneByIdAndProjectId(documentId, projectId)')] Document $document,
+        Request $request,
     ): Response {
+        if ($request->query->has('shown') && ($this->showLiveBand)(new ShowLiveBandCommand($document, $request->query->getInt('shown')))->newerVersionNumber > 0) {
+            return new Response('', Response::HTTP_OK, ['Content-Type' => TurboBundle::STREAM_MEDIA_TYPE]);
+        }
+
         $html = $this->renderView('@Review/_comment_added.stream.html.twig', [
             'comments' => ($this->listLatestComments)(new ListLatestCommentsCommand($document))->comments,
             'morph' => true,

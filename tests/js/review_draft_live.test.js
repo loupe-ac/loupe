@@ -217,7 +217,7 @@ describe('a dialog', () => {
 
 describe('a document that is no longer a draft', () => {
     const CLEARED =
-        '<turbo-stream action="remove" target="draft-band"></turbo-stream><turbo-stream action="update" target="draft-review-warning" data-stop-confirm-active="false"><template></template></turbo-stream>';
+        '<turbo-stream action="remove" target="draft-band"></turbo-stream><turbo-stream action="remove" target="draft-review-warning" data-stop-confirm-active="false"></turbo-stream>';
 
     beforeEach(() => {
         turbo.renderStreamMessage.mockImplementation((html) => {
@@ -226,11 +226,7 @@ describe('a document that is no longer a draft', () => {
                 const target = document.getElementById(
                     stream.getAttribute('target'),
                 );
-                if (stream.getAttribute('action') === 'remove') {
-                    target?.remove();
-                } else {
-                    target?.replaceChildren();
-                }
+                target?.remove();
             });
         });
     });
@@ -244,9 +240,7 @@ describe('a document that is no longer a draft', () => {
         expect(fetch.mock.calls[0][0]).toBe(URL_PATH);
         expect(turbo.renderStreamMessage).toHaveBeenCalledWith(CLEARED);
         expect(document.querySelector('#draft-band')).toBeNull();
-        expect(
-            document.querySelector('#draft-review-warning').textContent.trim(),
-        ).toBe('');
+        expect(document.querySelector('#draft-review-warning')).toBeNull();
     });
 
     it('turns the second confirmation off and keeps the verdict and the note of an open Finish review dialog', async () => {

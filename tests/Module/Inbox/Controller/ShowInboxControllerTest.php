@@ -186,7 +186,7 @@ final class ShowInboxControllerTest extends WebTestCase
         $inboxTopic = $topics->forInbox($owner->id ?? throw new \LogicException('The owner has no id.'));
         $projectTopics = static::getContainer()->get(ProjectTopicBuilder::class);
         self::assertInstanceOf(ProjectTopicBuilder::class, $projectTopics);
-        $topics = [$inboxTopic, $projectTopics->forWorkerRuns($project->id ?? throw new \LogicException('The project has no id.'))];
+        $topics = [$inboxTopic, $projectTopics->forWorkerRuns($project->id ?? throw new \LogicException('The project has no id.')), $projectTopics->forDocuments($project->id ?? throw new \LogicException('The project has no id.'))];
         self::assertSame($topics, self::subscribedTopics($this->client->getResponse()));
         self::assertSame($topics, $crawler->filter('form#mercure-subscriptions input[data-mercure-topic]')->each(static fn ($input): ?string => $input->attr('value')));
 
@@ -341,7 +341,10 @@ final class ShowInboxControllerTest extends WebTestCase
         $projectTopics = static::getContainer()->get(ProjectTopicBuilder::class);
         self::assertInstanceOf(ProjectTopicBuilder::class, $projectTopics);
         self::assertSame(
-            [$projectTopics->forWorkerRuns($project->id ?? throw new \LogicException('The project has no id.'))],
+            [
+                $projectTopics->forWorkerRuns($project->id ?? throw new \LogicException('The project has no id.')),
+                $projectTopics->forDocuments($project->id ?? throw new \LogicException('The project has no id.')),
+            ],
             self::subscribedTopics($this->client->getResponse()),
         );
     }

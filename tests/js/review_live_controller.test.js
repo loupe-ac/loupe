@@ -147,7 +147,9 @@ it('reads one thread for a thread signal that the page holds', async () => {
         commentId: 'c-1',
     });
     await settle();
-    expect(fetched()).toEqual([`http://localhost:3000${THREADS_URL}/c-1`]);
+    expect(fetched()).toEqual([
+        `http://localhost:3000${THREADS_URL}/c-1?shown=2`,
+    ]);
 });
 
 it('reads every thread for a thread signal that names a thread the page lacks', async () => {
@@ -159,7 +161,7 @@ it('reads every thread for a thread signal that names a thread the page lacks', 
         commentId: 'c-9',
     });
     await settle();
-    expect(fetched()).toEqual([`http://localhost:3000${THREADS_URL}`]);
+    expect(fetched()).toEqual([`http://localhost:3000${THREADS_URL}?shown=2`]);
 });
 
 it('reads every thread for a collection signal', async () => {
@@ -171,7 +173,7 @@ it('reads every thread for a collection signal', async () => {
         commentId: 'c-1',
     });
     await settle();
-    expect(fetched()).toEqual([`http://localhost:3000${THREADS_URL}`]);
+    expect(fetched()).toEqual([`http://localhost:3000${THREADS_URL}?shown=2`]);
 });
 
 it('reads every thread when a burst names two threads', async () => {
@@ -190,7 +192,7 @@ it('reads every thread when a burst names two threads', async () => {
         commentId: 'c-2',
     });
     await settle();
-    expect(fetched()).toEqual([`http://localhost:3000${THREADS_URL}`]);
+    expect(fetched()).toEqual([`http://localhost:3000${THREADS_URL}?shown=2`]);
 });
 
 it('does not hold a thread read for typed text in a reply box', async () => {
@@ -203,6 +205,20 @@ it('does not hold a thread read for typed text in a reply box', async () => {
     });
     await settle();
     expect(fetch).toHaveBeenCalledTimes(1);
+});
+
+it('reads no thread once a higher version is published', async () => {
+    await mount();
+    answer();
+    signal({ type: 'review.version_published', versionNumber: 3 });
+    signal({
+        type: 'review.thread_changed',
+        scope: 'collection',
+        commentId: 'c-1',
+    });
+    live.subscriptions[0].options.onReconnect();
+    await settle();
+    expect(fetched().every((url) => url.includes('live-band'))).toBe(true);
 });
 
 it('reads no thread on a page that is not live for threads', async () => {
@@ -238,7 +254,9 @@ it('reads the band and every thread after a reconnect', async () => {
     live.subscriptions[0].options.onReconnect();
     await settle();
     expect(fetch).toHaveBeenCalledTimes(2);
-    expect(fetched().some((url) => url.endsWith(THREADS_URL))).toBe(true);
+    expect(
+        fetched().some((url) => url.endsWith(`${THREADS_URL}?shown=2`)),
+    ).toBe(true);
     expect(fetched().some((url) => url.includes('live-band?shown=2'))).toBe(
         true,
     );
@@ -256,6 +274,26 @@ it('stops and shows the stopped band after the last retry', async () => {
     }
     expect(document.querySelector('[data-testid="stopped"]')).not.toBeNull();
     expect(live.subscriptions[0].removed).toBe(true);
+});
+
+it('guards forms against a morph while connected only', async () => {
+    const add = vi.spyOn(document, 'addEventListener');
+    const remove = vi.spyOn(document, 'removeEventListener');
+    await mount();
+    expect(add).toHaveBeenCalledWith(
+        'turbo:before-morph-element',
+        keepLocalForm,
+    );
+    expect(remove).not.toHaveBeenCalledWith(
+        'turbo:before-morph-element',
+        keepLocalForm,
+    );
+    document.body.replaceChildren();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(remove).toHaveBeenCalledWith(
+        'turbo:before-morph-element',
+        keepLocalForm,
+    );
 });
 
 it('drops its subscription on disconnect', async () => {

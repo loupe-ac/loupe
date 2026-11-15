@@ -108,7 +108,7 @@ final class ReviewLiveRoutesTest extends WebTestCase
     {
         $comment = $this->comment();
 
-        $this->get('/review/threads');
+        $this->get('/review/threads?shown=1');
 
         self::assertStringStartsWith(self::STREAM, (string) $this->client->getResponse()->headers->get('Content-Type'));
         $streams = $this->streams();
@@ -183,6 +183,22 @@ final class ReviewLiveRoutesTest extends WebTestCase
 
         self::assertSame('comment-threads', $this->streams()[0]['target']);
         self::assertStringNotContainsString('Foreign', (string) $this->client->getResponse()->getContent());
+    }
+
+    public function test_a_page_that_shows_an_older_version_reads_no_thread(): void
+    {
+        $comment = $this->comment();
+        $this->revise();
+
+        foreach (['/review/threads?shown=1', '/review/threads/'.$comment->id.'?shown=1'] as $suffix) {
+            $this->get($suffix);
+
+            self::assertResponseIsSuccessful();
+            self::assertSame('', (string) $this->client->getResponse()->getContent(), $suffix);
+        }
+
+        $this->get('/review/threads?shown=2');
+        self::assertSame('comment-threads', $this->streams()[0]['target']);
     }
 
     public function test_the_thread_routes_are_refused_to_a_stranger(): void

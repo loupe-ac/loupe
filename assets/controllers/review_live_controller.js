@@ -43,7 +43,8 @@ export function keepLocalForm(event) {
  * - A thread change reads one thread, or every thread when the signal names a
  *   thread the page does not hold or a change of the collection.
  *
- * The thread streams morph, and a reply box with typed text stays as it is.
+ * Once a higher version is published, the page reads no more threads, because
+ * its text no longer matches them. The thread streams morph, and a reply box with typed text stays as it is.
  * Only a drag holds a thread read, because the read touches no other form.
  */
 export default class extends Controller {
@@ -56,6 +57,7 @@ export default class extends Controller {
 
     connect() {
         this.halted = false;
+        this.threadsLiveFlag = this.threadsLiveValue;
         this.pendingIds = new Set();
         this.pendingCollection = false;
         this.bandFetcher = this.fetcher(
@@ -124,6 +126,7 @@ export default class extends Controller {
         }
         if (change.type === VERSION_PUBLISHED) {
             if (Number(change.versionNumber) > this.shownVersion()) {
+                this.threadsLiveFlag = false;
                 this.bandFetcher.request();
             }
 
@@ -138,7 +141,7 @@ export default class extends Controller {
     }
 
     threadChanged(change) {
-        if (!this.threadsLiveValue) {
+        if (!this.threadsLiveFlag) {
             return;
         }
         const id = String(change.commentId);
@@ -158,7 +161,7 @@ export default class extends Controller {
             return;
         }
         this.bandFetcher.request();
-        if (this.threadsLiveValue) {
+        if (this.threadsLiveFlag) {
             this.pendingCollection = true;
             this.threadFetcher.request();
         }
@@ -180,7 +183,10 @@ export default class extends Controller {
             ? `${this.threadsUrlValue}/${[...this.pendingIds][0]}`
             : this.threadsUrlValue;
 
-        return liveRequest(new URL(path, window.location.href).toString(), {
+        const url = new URL(path, window.location.href);
+        url.searchParams.set('shown', String(this.shownVersion()));
+
+        return liveRequest(url.toString(), {
             headers: { Accept: STREAM_TYPE },
             signal,
         });

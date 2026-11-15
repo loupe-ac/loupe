@@ -17,57 +17,7 @@
 
 {% block topbar_actions %}
 {% if verdictAvailable %}
-{% if document.status.value in ['draft', 'in-review'] %}
-{% include '@Review/_finish_review_button.html.twig' with {inReviewBar: true} only %}
-{% elseif document.status.value in ['approved', 'changes-requested'] %}
-{% set verdictLabel = ('review.document.verdict.' ~ document.status.value)|trans %}
-<div class="lp-review-topbar-actions">
-    <twig:Ds:Menu id="verdict-chip-panel" class="lp-verdict-chip lp-verdict-chip--{{ document.status.value }}" size="md" density="flush">
-        <twig:block name="trigger">
-            <button type="button" class="lp-verdict-chip__trigger"
-                    aria-label="{{ verdictLabel }}"
-                    aria-expanded="false"
-                    aria-controls="verdict-chip-panel"
-                    data-popover-target="trigger"
-                    data-action="click->popover#toggle">
-                <span class="lp-verdict-chip__dot" aria-hidden="true"></span>
-                <span class="lp-verdict-chip__title">{{ verdictLabel }}</span>
-                <twig:ux:icon name="lucide:chevron-down" class="lp-verdict-chip__caret" />
-            </button>
-        </twig:block>
-        <twig:block name="content">
-            <div class="lp-verdict-chip__head">
-                <twig:ux:icon name="{{ document.status.value == 'approved' ? 'lucide:circle-check' : 'lucide:circle-alert' }}" class="lp-verdict-chip__icon" />
-                <div class="lp-verdict-chip__heading">
-                    <p class="lp-verdict-chip__word">{{ verdictLabel }}</p>
-                    <p class="lp-verdict-chip__detail">{{ ('review.document.verdict.' ~ document.status.value ~ '_detail')|trans }}</p>
-                </div>
-            </div>
-            {% if review is not null %}
-            <div class="lp-verdict-chip__body">
-                <p class="lp-verdict-chip__meta{{ review.workflowRule ? ' lp-verdict-chip__rule' : '' }}">
-                    <span class="lp-verdict-chip__reviewer">{{ review.reviewer.fullName }}</span>
-                    {% if review.workflowRule %}<twig:Ds:Tag tone="neutral">{{ review.workflowRule }}</twig:Ds:Tag>{% endif %}
-                </p>
-                {% if review.workflowRule and review.verdict.value == 'approved' %}<blockquote class="lp-verdict-chip__note">{{ 'review.document.verdict.workflow_approved_note'|trans }}</blockquote>
-                {% elseif review.note %}<blockquote class="lp-verdict-chip__note">{{ review.note }}</blockquote>{% endif %}
-                {% if review.throughAgent %}<p class="lp-verdict-chip__agent"><twig:ux:icon name="lucide:bot" class="lp-icon lp-icon--sm" aria-hidden="true" />{{ 'review.document.verdict.through_agent'|trans }}</p>{% endif %}
-                {% if review.apiKeyId %}<p class="lp-verdict-chip__api-key"><twig:ux:icon name="lucide:key-round" class="lp-icon lp-icon--sm" aria-hidden="true" />{{ review.apiKeyName ? 'review.document.verdict.through_named_api_key'|trans({'%name%': review.apiKeyName}) : 'review.document.verdict.through_api_key'|trans }}</p>{% endif %}
-            </div>
-            {% endif %}
-            <div class="lp-verdict-chip__actions">
-                {% if review is not null and undoVerdictForm is defined %}
-                {{ form_start(undoVerdictForm, {attr: {class: 'lp-verdict-chip__undo'}}) }}
-                    {{ form_widget(undoVerdictForm.reviewId) }}
-                    <twig:Ds:Button variant="ghost" size="sm" type="submit"><twig:ux:icon name="lucide:rotate-ccw" class="lp-verdict-chip__action-icon" />{{ 'review.document.verdict.undo'|trans }}</twig:Ds:Button>
-                {{ form_end(undoVerdictForm) }}
-                {% endif %}
-                <twig:Ds:Button variant="ghost" size="sm" type="button" data-controller="review-finish" data-action="click->review-finish#open"><twig:ux:icon name="lucide:pencil" class="lp-verdict-chip__action-icon" />{{ 'review.document.verdict.change'|trans }}</twig:Ds:Button>
-            </div>
-        </twig:block>
-    </twig:Ds:Menu>
-</div>
-{% endif %}
+{% include '@Review/_topbar_actions.html.twig' with {document: document, review: review, undoVerdictForm: undoVerdictForm is defined ? undoVerdictForm : null} only %}
 {% endif %}
 {% endblock %}
 
