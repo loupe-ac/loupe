@@ -6,6 +6,8 @@ namespace App\Tests\Module\Project\EventListener;
 
 use App\Mercure\UserTopicBuilder;
 use App\Module\Account\Entity\User;
+use App\Module\Artifact\Event\ArtifactChange;
+use App\Module\Artifact\Event\ArtifactChanged;
 use App\Module\Board\Event\CardChanged;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Service\ProjectDeleter;
@@ -93,6 +95,15 @@ final class PublishProjectsChangedTest extends KernelTestCase
         $this->drainLiveUpdates();
 
         $this->dispatch(new DocumentStatusChanged($this->projectId(), Uuid::v7()));
+
+        self::assertSame([$this->message()], $this->changed());
+    }
+
+    public function test_an_artifact_change_publishes(): void
+    {
+        $this->drainLiveUpdates();
+
+        $this->dispatch(new ArtifactChanged($this->projectId(), Uuid::v7(), ArtifactChange::Stored, 1));
 
         self::assertSame([$this->message()], $this->changed());
     }
