@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Inbox\Service;
 
 use App\Module\Board\Entity\Card;
+use App\Module\Board\Entity\CardPause;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\ValueObject\WorkerRunState;
@@ -24,6 +25,7 @@ use App\Module\Inbox\Service\ReplyCardBuilder;
 use App\Module\Inbox\View\ReplyField;
 use App\Module\Inbox\View\ThreadAction;
 use App\Module\Project\Entity\Project;
+use App\Module\Workflow\Contract\PauseKind;
 use App\Tests\Module\Inbox\InboxFixtures;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -178,10 +180,27 @@ final class ReplyCardBuilderTest extends KernelTestCase
 
         self::assertNotNull($card);
         self::assertSame([ReplyField::Note], $card->fields);
-        self::assertSame('inbox.thread.note_hint', $card->hintKey);
+        self::assertSame('inbox.thread.note_hint_agent', $card->hintKey);
         self::assertSame(InboxActionKind::ResumeRun, $card->main?->action->kind);
         self::assertContainsOnlyInstancesOf(ThreadAction::class, $card->menu);
         self::assertSame(InboxActionKind::Dismiss, $card->dismiss?->action->kind);
+    }
+
+    public function test_a_wait_on_a_pause_says_the_agent_reads_the_note_only_when_the_retry_starts_one(): void
+    {
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Wait, title: '#3 Ship it', blocking: true, origin: InboxAskOrigin::Loupe);
+        $this->em->persist($item);
+        $pause = new CardPause($this->card, $this->project, 'retries-spent', 'implement', PauseKind::Retries, new \DateTimeImmutable());
+        $this->em->persist($pause);
+        $watch = new InboxCardWatch($item, $this->card->id ?? throw new \LogicException('Stored.'), $this->card->number);
+        $this->em->persist($watch);
+        $watch->waits->add(new InboxCardWait($watch, 'paused', InboxCardWaitType::CardPause, 'marker.paused', pauseId: $pause->id));
+        $this->em->flush();
+
+        $card = $this->builder->build($item);
+
+        self::assertSame(InboxActionKind::RetryCard, $card?->main?->action->kind);
+        self::assertSame('inbox.thread.note_hint_retry', $card->hintKey);
     }
 
     public function test_a_closed_item_has_no_card_and_a_late_response_gets_the_refusal(): void

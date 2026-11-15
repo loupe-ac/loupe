@@ -60,7 +60,7 @@ final readonly class ReplyCardBuilder
             return null;
         }
 
-        return new ReplyCard($fields, $this->hintKey($item, $fields, $review), $main, $menu, $dismissRow, $review, $targetGone);
+        return new ReplyCard($fields, $this->hintKey($item, $fields, $review, $main), $main, $menu, $dismissRow, $review, $targetGone);
     }
 
     /** What a response to the item gets once it is closed, or null while it is open. */
@@ -88,10 +88,18 @@ final readonly class ReplyCardBuilder
     }
 
     /** @param list<ReplyField> $fields */
-    private function hintKey(InboxItem $item, array $fields, ?InboxReview $review): ?string
+    private function hintKey(InboxItem $item, array $fields, ?InboxReview $review, ?ThreadAction $main): ?string
     {
         if ($item->isAutomatic()) {
-            return \in_array(ReplyField::Note, $fields, true) ? 'inbox.thread.note_hint' : null;
+            if (!\in_array(ReplyField::Note, $fields, true)) {
+                return null;
+            }
+
+            return match (true) {
+                $main?->action->kind->sendsAgent() ?? false => 'inbox.thread.note_hint_agent',
+                InboxActionKind::RetryCard === $main?->action->kind => 'inbox.thread.note_hint_retry',
+                default => 'inbox.thread.note_hint',
+            };
         }
 
         return match (true) {

@@ -440,7 +440,11 @@ inbox. The main action is the one that the stopped worker recommends, when it
 fits the item. Otherwise it follows the newest wait. The heading of the card
 shows the reason that the worker gave for the main action. With no reason, it
 names the action, such as "Resume the run". The note field is optional and holds up to 2000 characters. The note
-stays in Loupe, on the item. The split button at the bottom right of the card
+always stays on the item in Loupe. When the action sends an agent, the agent also
+reads it as your instruction. This holds for "Resume the run", "Send an agent",
+"Start an interactive session", and a "Run a command" that resumes the run. A
+retry gives the note to an agent only when the retried work starts one, and not
+to a command. Other actions send the note to no agent. The split button at the bottom right of the card
 runs the main action. The chevron beside it opens a menu with the other
 actions that fit the item. Each row of the menu names the action and says in
 one line what it does. Escape, or a click outside the menu, closes it. The arrow
