@@ -6103,7 +6103,7 @@
             <trans-unit id="inbox.run_command.dialog.command"><source>inbox.run_command.dialog.command</source><target>Command</target></trans-unit>
             <trans-unit id="inbox.run_command.dialog.command_in"><source>inbox.run_command.dialog.command_in</source><target>Command, in %folder%</target></trans-unit>
             <trans-unit id="inbox.run_command.dialog.success_todo"><source>inbox.run_command.dialog.success_todo</source><target>A success marks the to-do done.</target></trans-unit>
-            <trans-unit id="inbox.run_command.dialog.success_run"><source>inbox.run_command.dialog.success_run</source><target>A success resumes the run.</target></trans-unit>
+            <trans-unit id="inbox.run_command.dialog.success_run"><source>inbox.run_command.dialog.success_run</source><target>A success resumes the run, and the worker reads your note as your instruction.</target></trans-unit>
             <trans-unit id="inbox.run_command.dialog.cancel"><source>inbox.run_command.dialog.cancel</source><target>Cancel</target></trans-unit>
             <trans-unit id="inbox.run_command.dialog.run"><source>inbox.run_command.dialog.run</source><target>Run</target></trans-unit>
             <trans-unit id="inbox.run_command.missing.label"><source>inbox.run_command.missing.label</source><target>Proposed entry, add it under work:</target></trans-unit>
@@ -6691,6 +6691,8 @@ workflow:
             <trans-unit id="inbox.thread.waiting"><source>inbox.thread.waiting</source><target>noticed %time%</target></trans-unit>
             <trans-unit id="inbox.thread.note_placeholder"><source>inbox.thread.note_placeholder</source><target>Add a note (optional)</target></trans-unit>
             <trans-unit id="inbox.thread.note_hint"><source>inbox.thread.note_hint</source><target>The note stays with this item in Loupe.</target></trans-unit>
+            <trans-unit id="inbox.thread.note_hint_agent"><source>inbox.thread.note_hint_agent</source><target>The agent reads this note as your instruction.</target></trans-unit>
+            <trans-unit id="inbox.thread.note_hint_retry"><source>inbox.thread.note_hint_retry</source><target>When the retried work starts an agent, the agent reads this note as your instruction.</target></trans-unit>
             <trans-unit id="inbox.thread.other_actions"><source>inbox.thread.other_actions</source><target>Other actions</target></trans-unit>
             <trans-unit id="inbox.thread.you"><source>inbox.thread.you</source><target>You</target></trans-unit>
             <trans-unit id="inbox.thread.you_verb.resume-run"><source>inbox.thread.you_verb.resume-run</source><target>resumed the run at %time%</target></trans-unit>
