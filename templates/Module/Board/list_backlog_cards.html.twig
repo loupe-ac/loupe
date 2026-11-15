@@ -11,18 +11,21 @@
 
 {% block body %}
 {% set backlogPath = path('app_project_board_backlog', {projectId: project.id}) %}
-{% set bulkName = constant('App\\Module\\Board\\Form\\BulkMoveBacklogCardsFormType::NAME') %}
 {% do mercure_subscribe(board_topic(project)) %}
-<twig:Ds:Workspace class="lp-core-prototype-page lp-core-documents" data-controller="backlog-select backlog-live card-drawer">
+<twig:Ds:Workspace class="lp-core-prototype-page lp-core-documents" data-controller="backlog-select card-drawer">
     <twig:Ds:PageHeader :title="backlog.label|trans" :description="'board.backlog.page.description'|trans" titleClass="lp-workspace-title--doc" />
 
-    {# Shown when another person or an agent changes the board. The page does not reload by itself. #}
-    <p class="lp-backlog-notice" role="status" data-backlog-live-target="notice" hidden>
-        <span class="lp-flash__dot"></span>{{ 'board.backlog.live.changed'|trans }}
-        <a class="lp-backlog-notice__link" href="{{ app.request.requestUri }}">{{ 'board.backlog.live.reload'|trans }}</a>
-    </p>
     <div id="backlog-confirmation" aria-live="polite"></div>
 
+    {% set liveRows = listQuery.page > 1 %}
+    {% set liveTag = liveRows ? 'div' : 'turbo-frame' %}
+    <{{ liveTag }} id="backlog-live"{{ liveRows ? '' : ' target="_top"' }}
+        data-controller="live-region"
+        data-live-region-types-value="{{ ['board.card_changed', 'board.columns_changed']|json_encode }}"
+        data-live-region-mode-value="{{ liveRows ? 'rows' : 'frame' }}"
+        data-live-region-url-value="{{ path(liveRows ? 'app_project_board_backlog_rows' : 'app_project_board_backlog', {projectId: project.id}|merge(listQuery.routeParams)) }}"
+        {% if liveRows %}data-live-since="{{ since }}"{% endif %}>
+    {% if liveRows %}<div id="backlog-live-band" aria-live="polite"></div>{% endif %}
     {% if view.total > 0 or listQuery.isNarrowed %}
     {% set backlogCount %}<span id="backlog-filter-count">{% include '@Board/_backlog_count.html.twig' with {view: view, listQuery: listQuery} only %}</span>{% endset %}
     {# A GET form, so the filters land in the URL. `page` is not a field, so a changed filter starts at page one. #}
@@ -63,39 +66,8 @@
         {% include '@Board/_backlog_results.html.twig' with {project: project, view: view, listQuery: listQuery} only %}
     </div>
 
-    {# The row checkboxes join this form through their form attribute. #}
-    <form id="backlog-bulk-form"
-          class="lp-backlog-bulk"
-          method="post"
-          action="{{ path('app_project_board_backlog_bulk_move', {projectId: project.id}|merge(listQuery.routeParams)) }}"
-          data-backlog-select-target="bar"
-          hidden>
-        <input type="hidden" name="{{ bulkName }}[_token]" value="{{ csrf_token('submit') }}" data-controller="csrf-protection">
-        <span><span class="lp-backlog-bulk__count" data-backlog-select-target="count">0</span> {{ 'board.backlog.bulk.selected'|trans }}</span>
-        {% if view.nextColumn %}
-        <twig:Ds:Button variant="primary" size="sm" type="submit" name="{{ bulkName }}[column]" value="{{ view.nextColumn.id }}">{{ 'board.backlog.bulk.move_to_next'|trans({'%column%': view.nextColumn.label|trans}) }}</twig:Ds:Button>
-        {% endif %}
-        <twig:Ds:Menu id="backlog-bulk-menu" direction="up">
-            <twig:block name="trigger">
-                <twig:Ds:Button variant="ghost" size="sm" type="button"
-                        aria-expanded="false"
-                        aria-controls="backlog-bulk-menu"
-                        data-popover-target="trigger"
-                        data-action="click->popover#toggle">
-                    {{ 'board.backlog.bulk.move_to'|trans }}
-                    <twig:ux:icon name="lucide:chevron-up" class="lp-icon lp-icon--md" />
-                </twig:Ds:Button>
-            </twig:block>
-            <twig:block name="content">
-                {% for column in view.boardColumns %}
-                <twig:Ds:MenuItem type="submit" name="{{ bulkName }}[column]" value="{{ column.id }}" data-action="popover#close">
-                    <span class="lp-tone-dot lp-tone-dot--{{ column.tone.value }}"></span>{{ column.label|trans }}
-                </twig:Ds:MenuItem>
-                {% endfor %}
-            </twig:block>
-        </twig:Ds:Menu>
-        <twig:Ds:Button variant="ghost" size="sm" type="button" data-action="backlog-select#clear">{{ 'board.backlog.bulk.clear'|trans }}</twig:Ds:Button>
-    </form>
+    {% include '@Board/_backlog_bulk.html.twig' with {project: project, listQuery: listQuery, nextColumn: view.nextColumn, boardColumns: view.boardColumns} only %}
+    </{{ liveTag }}>
 
     {% include '@Board/_card_drawer.html.twig' with {project: project} only %}
 </twig:Ds:Workspace>

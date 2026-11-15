@@ -7385,13 +7385,29 @@ workflow:
                 <source>board.backlog.bulk.clear</source>
                 <target>Clear</target>
             </trans-unit>
-            <trans-unit id="board.backlog.live.changed">
-                <source>board.backlog.live.changed</source>
-                <target>The board changed.</target>
+            <trans-unit id="board.backlog.live.newer">
+                <source>board.backlog.live.newer</source>
+                <target>{0}No new card matches this list.|{1}One new card matches this list.|]1,Inf[%count% new cards match this list.</target>
             </trans-unit>
-            <trans-unit id="board.backlog.live.reload">
-                <source>board.backlog.live.reload</source>
-                <target>Reload</target>
+            <trans-unit id="board.backlog.live.first_page">
+                <source>board.backlog.live.first_page</source>
+                <target>Show the first page</target>
+            </trans-unit>
+            <trans-unit id="board.terminal.live.newer">
+                <source>board.terminal.live.newer</source>
+                <target>{0}No more card finished.|{1}One more card finished.|]1,Inf[%count% more cards finished.</target>
+            </trans-unit>
+            <trans-unit id="board.terminal.live.first_page">
+                <source>board.terminal.live.first_page</source>
+                <target>Show the first page</target>
+            </trans-unit>
+            <trans-unit id="board.automation.live.changed">
+                <source>board.automation.live.changed</source>
+                <target>Someone changed these settings. Your form shows the old values.</target>
+            </trans-unit>
+            <trans-unit id="board.automation.live.open">
+                <source>board.automation.live.open</source>
+                <target>Open the current settings in a new tab</target>
             </trans-unit>
             <trans-unit id="board.backlog.error.not_in_backlog">
                 <source>board.backlog.error.not_in_backlog</source>
@@ -8286,6 +8302,7 @@ workflow:
             <trans-unit id="board.card.drawer.loading"><source>board.card.drawer.loading</source><target>Loading card…</target></trans-unit>
             <trans-unit id="board.card.drawer.failed"><source>board.card.drawer.failed</source><target>The card could not load. Try again.</target></trans-unit>
             <trans-unit id="board.card.drawer.retry"><source>board.card.drawer.retry</source><target>Retry</target></trans-unit>
+            <trans-unit id="board.card.deleted_band.back"><source>board.card.deleted_band.back</source><target>Back to the board</target></trans-unit>
             <trans-unit id="board.card.drawer.deleted"><source>board.card.drawer.deleted</source><target>This card was deleted.</target></trans-unit>
             <trans-unit id="nav.global_actions.label"><source>nav.global_actions.label</source><target>Global tools</target></trans-unit>
             <trans-unit id="nav.new_work"><source>nav.new_work</source><target>New work</target></trans-unit>

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Board\Controller;
 
+use App\Mercure\ProjectTopicBuilder;
 use App\Module\Account\Entity\User;
 use App\Module\Board\Entity\BoardColumn;
 use App\Module\Board\Entity\Card;
@@ -57,6 +58,27 @@ final class BoardColumnControllersTest extends WebTestCase
         $this->client->followRedirect();
         self::assertSelectorExists('[data-board-column-settings]');
         self::assertSame(['backlog', 'next', 'in-progress', 'done', 'parked'], $this->slugs($project));
+    }
+
+    public function test_the_settings_page_is_a_live_frame_that_follows_column_changes(): void
+    {
+        [, $project] = $this->ownedBoard('columns-settings-live@example.com');
+        $this->em->clear();
+
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/settings/columns');
+
+        self::assertResponseIsSuccessful();
+        $region = $crawler->filter('turbo-frame#board-settings-live[data-controller="live-region"]');
+        self::assertCount(1, $region);
+        self::assertSame('["board.columns_changed"]', $region->attr('data-live-region-types-value'));
+        self::assertSame('/projects/'.$project->id.'/settings/columns', $region->attr('data-live-region-url-value'));
+        self::assertCount(1, $region->filter('[data-board-column-settings]'));
+        $topics = static::getContainer()->get(ProjectTopicBuilder::class);
+        self::assertInstanceOf(ProjectTopicBuilder::class, $topics);
+        self::assertContains(
+            $topics->forBoard($project->id ?? throw new \LogicException('Project has no id.')),
+            $crawler->filter('form#mercure-subscriptions input[data-mercure-topic]')->each(static fn ($input): ?string => $input->attr('value')),
+        );
     }
 
     public function test_settings_saves_the_terminal_window_and_refuses_a_window_out_of_range(): void

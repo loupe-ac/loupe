@@ -6,6 +6,7 @@ namespace App\Module\Board\Repository;
 
 use App\Doctrine\SearchQuery;
 use App\Doctrine\SubstringSearch;
+use App\Doctrine\Type\MicrosecondDateTimeImmutableType;
 use App\Module\Account\Entity\User;
 use App\Module\Board\Entity\BoardColumn;
 use App\Module\Board\Entity\Card;
@@ -480,7 +481,7 @@ class CardRepository extends ServiceEntityRepository
         } else {
             if (null !== $after) {
                 $qb->andWhere(\sprintf('c.updatedAt %1$s :afterTime OR (c.updatedAt = :afterTime AND c.id %1$s :afterId)', $compare))
-                    ->setParameter('afterTime', \DateTimeImmutable::createFromFormat('!Y-m-d H:i:s', $after[0]) ?: throw new \InvalidArgumentException('The cursor time does not parse.'), Types::DATETIME_IMMUTABLE)
+                    ->setParameter('afterTime', \DateTimeImmutable::createFromFormat('!Y-m-d H:i:s.u', $after[0]) ?: throw new \InvalidArgumentException('The cursor time does not parse.'), MicrosecondDateTimeImmutableType::NAME)
                     ->setParameter('afterId', $after[1], UuidType::NAME);
             }
             $qb->orderBy('c.updatedAt', $direction)->addOrderBy('c.id', $direction);
@@ -1515,6 +1516,104 @@ class CardRepository extends ServiceEntityRepository
             ->getQuery();
 
         return array_values(iterator_to_array(new Paginator($query, fetchJoinCollection: true), false));
+    }
+
+    /**
+     * The cards of a terminal column that stay in it, from a list of ids, newest
+     * completion first. A card that left the column is absent.
+     *
+     * @param list<string> $ids
+     *
+     * @return list<Card>
+     */
+    public function findCompletedByIds(BoardColumn $column, array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        return array_values($this->withPullRequests($this->completedQuery($column))
+            ->andWhere('c.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->getResult());
+    }
+
+    /**
+     * How many cards of a terminal column arrived after the moment: first
+     * completed, or moved into this column.
+     *
+     * @param list<string> $movedIds the cards with a move into the column after the moment
+     * @param list<string> $shownIds the cards the page already shows
+     */
+    public function countCompletedAfter(BoardColumn $column, \DateTimeImmutable $since, array $movedIds = [], array $shownIds = []): int
+    {
+        $qb = $this->createQueryBuilder('c')
+            ->select('COUNT(c.id)')
+            ->andWhere('c.column = :column')
+            ->setParameter('column', $column)
+            ->setParameter('since', $since, MicrosecondDateTimeImmutableType::NAME);
+        if ([] === $movedIds) {
+            $qb->andWhere('c.completedAt > :since');
+        } else {
+            $qb->andWhere('c.completedAt > :since OR c.id IN (:moved)')->setParameter('moved', $movedIds);
+        }
+        if ([] !== $shownIds) {
+            $qb->andWhere('c.id NOT IN (:shown)')->setParameter('shown', $shownIds);
+        }
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
+    /**
+     * The Backlog cards from a list of ids that still match the filters, with
+     * the epic of each. A card that left the Backlog or the filter is absent.
+     *
+     * @param list<string> $ids
+     *
+     * @return list<Card>
+     */
+    public function findBacklogMatchingByIds(BoardColumn $backlog, BacklogListQuery $listQuery, array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        return array_values($this->backlogMatching($backlog, $listQuery)
+            ->leftJoin('c.parent', 'parent')
+            ->addSelect('parent')
+            ->andWhere('c.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->getResult());
+    }
+
+    /**
+     * How many Backlog cards that match the filters arrived after the moment:
+     * created, moved into the Backlog, or, with the filters narrowed, edited.
+     * An edit can bring a card into a narrowed filter, so it counts there. With
+     * no filter an edit cannot add a card, so it never counts. A card the page
+     * already shows never counts.
+     *
+     * @param list<string> $movedIds the cards with a move into the Backlog after the moment
+     * @param list<string> $shownIds the cards the page already shows
+     */
+    public function countBacklogMatchingArrivedAfter(BoardColumn $backlog, BacklogListQuery $listQuery, \DateTimeImmutable $since, array $movedIds = [], array $shownIds = []): int
+    {
+        $qb = $this->backlogMatching($backlog, $listQuery)
+            ->select('COUNT(c.id)')
+            ->setParameter('since', $since, MicrosecondDateTimeImmutableType::NAME);
+        $arrivedAt = $listQuery->isNarrowed() ? 'c.updatedAt' : 'c.createdAt';
+        if ([] === $movedIds) {
+            $qb->andWhere($arrivedAt.' > :since');
+        } else {
+            $qb->andWhere($arrivedAt.' > :since OR c.id IN (:moved)')->setParameter('moved', $movedIds);
+        }
+        if ([] !== $shownIds) {
+            $qb->andWhere('c.id NOT IN (:shown)')->setParameter('shown', $shownIds);
+        }
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
     }
 
     /**

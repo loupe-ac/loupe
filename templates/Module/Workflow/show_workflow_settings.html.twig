@@ -9,7 +9,12 @@
 {% endblock %}
 
 {% block body %}
+{% do mercure_subscribe(board_topic(project)) %}
 <twig:Ds:Workspace class="lp-orchestration-page lp-redesign-secondary">
+    <turbo-frame id="workflow-live" target="_top"
+        data-controller="live-region"
+        data-live-region-types-value="{{ ['board.columns_changed']|json_encode }}"
+        data-live-region-url-value="{{ path('app_project_workflow', {id: project.id}) }}">
     {% if template is null %}
     <header class="lp-orchestration-header">
         <div>
@@ -183,5 +188,6 @@
         <p class="lp-workspace-desc" data-workflow-no-timeout>{{ 'workflow.settings.timings.no_timeout'|trans }}</p>
     </section>
     {% endif %}
+    </turbo-frame>
 </twig:Ds:Workspace>
 {% endblock %}

@@ -13,6 +13,11 @@
 
 {% block settings_content %}
 {% set canManage = is_granted(constant('App\\Module\\Board\\Security\\BoardColumnVoter::MANAGE'), board.project) %}
+{% do mercure_subscribe(board_topic(board.project)) %}
+<turbo-frame id="board-settings-live" target="_top"
+    data-controller="live-region"
+    data-live-region-types-value="{{ ['board.columns_changed']|json_encode }}"
+    data-live-region-url-value="{{ path('app_board_settings', {id: board.project.id}) }}">
 <twig:Ds:Panel as="section" data-board-column-settings>
     <twig:Ds:SectionHeading>{{ 'board.settings.heading'|trans }}</twig:Ds:SectionHeading>
     <p class="lp-connect-hint">{{ 'board.settings.description'|trans }}</p>
@@ -134,4 +139,5 @@
         {{ form_end(windowForm) }}
     {% endif %}
 </twig:Ds:Panel>
+</turbo-frame>
 {% endblock %}

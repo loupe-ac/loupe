@@ -57,6 +57,8 @@ function rowsOf(element) {
  * A frame morph keeps the rows that left in place while they fade out, and
  * marks the rows that entered. A leaving row is a copy in the new element, at
  * the place it had, with no row id, so that a later morph does not copy it again.
+ * The morph can keep the row that stands in the page for the copy, so the end of
+ * the fade removes every leaving row of the page, not only the copy.
  */
 function onBeforeFrameMorph(event) {
     const current = event.target;
@@ -85,7 +87,12 @@ function onBeforeFrameMorph(event) {
         delete copy.dataset.liveRow;
         copy.classList.add(LEAVING);
         placeCopy(row, copy, freshRows, current, fresh);
-        setTimeout(() => copy.remove(), FADE_MILLISECONDS);
+        setTimeout(() => {
+            copy.remove();
+            current
+                .querySelectorAll(`.${LEAVING}`)
+                .forEach((leaving) => leaving.remove());
+        }, FADE_MILLISECONDS);
     });
 }
 

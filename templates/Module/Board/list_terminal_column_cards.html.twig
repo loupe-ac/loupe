@@ -9,31 +9,26 @@
     ]" />
 {% endblock %}
 
-{% block topbar_meta %}
-    <span class="lp-topbar__meta">{{ 'board.terminal.meta.total'|trans({'%count%': total}) }}</span>
-{% endblock %}
-
 {% block body %}
+{% do mercure_subscribe(board_topic(project)) %}
 <twig:Ds:Workspace>
     <h1 class="lp-workspace-title lp-workspace-title--doc">{{ column.label|trans }}</h1>
     <p class="lp-workspace-desc">{{ 'board.terminal.page.description'|trans }}</p>
 
+    {% set liveRows = page > 1 %}
+    {% set liveTag = liveRows ? 'div' : 'turbo-frame' %}
+    <{{ liveTag }} id="terminal-live"{{ liveRows ? '' : ' target="_top"' }}
+        data-controller="live-region"
+        data-live-region-types-value="{{ ['board.card_changed']|json_encode }}"
+        data-live-region-mode-value="{{ liveRows ? 'rows' : 'frame' }}"
+        data-live-region-url-value="{{ path(liveRows ? 'app_project_board_terminal_column_rows' : 'app_project_board_terminal_column', routeParams|merge({page: page})) }}"
+        {% if liveRows %}data-live-since="{{ since }}"{% endif %}>
+    {% if liveRows %}<div id="terminal-live-band" aria-live="polite"></div>{% endif %}
+    <p id="terminal-total" class="lp-workspace-desc">{{ 'board.terminal.meta.total'|trans({'%count%': total}) }}</p>
     {% if items|length > 0 %}
     <div class="lp-done-list">
         {% for card in items %}
-        <div class="lp-done-row" data-card-id="{{ card.id }}">
-            <a class="lp-done-row__title" href="{{ path('app_board_card', {projectId: project.id, cardId: card.id}) }}">{{ card.title|reference_plain }}</a>
-            {% include '@Board/_card_type_tag.html.twig' with {card: card} only %}
-            {% if card.pullRequests|length > 0 %}
-            <span class="lp-board-card__pulls">
-                <twig:ux:icon name="lucide:git-pull-request" class="lp-icon lp-icon--sm" />
-                {{ card.pullRequests|length }}
-            </span>
-            {% endif %}
-            <span class="lp-done-row__when">
-                {% if card.completedAt %}<twig:Ds:RelativeTime :datetime="card.completedAt" />{% else %}{{ 'board.terminal.no_completion'|trans }}{% endif %}
-            </span>
-        </div>
+        {% include '@Board/_terminal_row.html.twig' with {project: project, card: card} only %}
         {% endfor %}
     </div>
 
@@ -43,5 +38,6 @@
         <twig:Ds:Button href="{{ path('app_project_board', {id: project.id}) }}">{{ 'board.terminal.empty.action'|trans }}</twig:Ds:Button>
     </twig:Ds:EmptyState>
     {% endif %}
+    </{{ liveTag }}>
 </twig:Ds:Workspace>
 {% endblock %}

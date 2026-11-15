@@ -7,6 +7,7 @@ namespace App\Tests\Module\Board\Controller;
 use App\Mercure\ProjectTopicBuilder;
 use App\Module\Board\Command\ListBacklogCardsHandler;
 use App\Module\Board\Entity\Card;
+use App\Module\Board\View\LiveCursor;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\Actor;
 use Doctrine\ORM\EntityManagerInterface;
@@ -214,20 +215,21 @@ final class ListBacklogCardsControllerTest extends WebTestCase
         self::assertResponseRedirects($url.'?page=1&type=feature&sort=epic&dir=asc');
     }
 
-    public function test_the_page_follows_the_board_topic_with_a_hidden_notice(): void
+    public function test_the_first_page_is_a_live_frame_on_the_board_topic(): void
     {
         $client = static::createClient();
         $em = static::getContainer()->get(EntityManagerInterface::class);
 
         $owner = $this->user($em, 'backlog-live@example.com');
         $project = $this->project($em, $owner);
+        $card = $this->card($em, $project, 'Waiting');
         $url = $this->backlogUrl($project);
         $projectId = $project->id;
         self::assertNotNull($projectId);
         $em->clear();
 
         $client->loginUser($owner);
-        $crawler = $client->request(Request::METHOD_GET, $url.'?type=bug');
+        $crawler = $client->request(Request::METHOD_GET, $url.'?type=feature');
 
         self::assertResponseIsSuccessful();
         $topics = static::getContainer()->get(ProjectTopicBuilder::class);
@@ -236,9 +238,41 @@ final class ListBacklogCardsControllerTest extends WebTestCase
             [$topics->forBoard($projectId), $topics->forWorkerRuns($projectId)],
             $crawler->filter('form#mercure-subscriptions input[data-mercure-topic]')->each(static fn (Crawler $input): ?string => $input->attr('value')),
         );
-        $notice = $crawler->filter('[data-controller~="backlog-live"] [data-backlog-live-target="notice"][hidden]');
-        self::assertCount(1, $notice);
-        self::assertSame($url.'?type=bug', $notice->filter('a')->attr('href'));
+        $region = $crawler->filter('turbo-frame#backlog-live[data-controller="live-region"]');
+        self::assertCount(1, $region);
+        self::assertSame('frame', $region->attr('data-live-region-mode-value'));
+        self::assertSame('["board.card_changed","board.columns_changed"]', $region->attr('data-live-region-types-value'));
+        self::assertSame($url.'?page=1&type=feature', $region->attr('data-live-region-url-value'));
+        self::assertCount(1, $region->filter('#backlog-row-'.$card->id.'[data-live-row="'.$card->id.'"][data-live-fade]'));
+        self::assertCount(0, $crawler->filter('[data-backlog-live-target]'));
+        self::assertCount(1, $region->filter('form#backlog-bulk-form'));
+    }
+
+    public function test_a_later_page_reads_its_own_rows_with_the_moment_it_rendered(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+
+        $owner = $this->user($em, 'backlog-later@example.com');
+        $project = $this->project($em, $owner);
+        for ($index = 1; $index <= ListBacklogCardsHandler::PER_PAGE + 1; ++$index) {
+            $this->card($em, $project, 'Card '.$index);
+        }
+        $url = $this->backlogUrl($project);
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, $url.'?page=2');
+
+        self::assertResponseIsSuccessful();
+        $region = $crawler->filter('div#backlog-live[data-controller="live-region"]');
+        self::assertCount(1, $region);
+        self::assertSame('rows', $region->attr('data-live-region-mode-value'));
+        self::assertSame($url.'/rows?page=2', $region->attr('data-live-region-url-value'));
+        self::assertNotNull(LiveCursor::parse($region->attr('data-live-since')));
+        self::assertCount(1, $region->filter('#backlog-live-band'));
+        self::assertCount(1, $region->filter('[data-live-row]'));
+        self::assertCount(1, $region->filter('form#backlog-bulk-form'));
     }
 
     public function test_a_title_opens_the_card_drawer_and_the_row_shows_no_source_tag(): void

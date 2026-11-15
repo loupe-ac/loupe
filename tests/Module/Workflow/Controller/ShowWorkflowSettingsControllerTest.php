@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Workflow\Controller;
 
+use App\Mercure\ProjectTopicBuilder;
 use App\Module\Account\Entity\User;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Command\BindWorkflowTemplateCommand;
@@ -79,6 +80,29 @@ final class ShowWorkflowSettingsControllerTest extends WebTestCase
         self::assertCount(1, $crawler->filter('main [data-workflow-template]'));
         self::assertCount(0, $crawler->filter('main form, main button:not(.lp-overflow-cue__arrow)'));
         self::assertSelectorExists('a.lp-sidebar__link--active[href="/projects/'.$project->id.'/workflow"]');
+    }
+
+    public function test_the_page_is_a_live_frame_that_follows_column_changes(): void
+    {
+        $project = $this->workflowProject('workflow-page-live');
+        $this->bindLifecycle($project);
+        $owner = $this->stampedOwner($project);
+
+        $this->client->loginUser($owner);
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/workflow');
+
+        self::assertResponseIsSuccessful();
+        $region = $crawler->filter('turbo-frame#workflow-live[data-controller="live-region"]');
+        self::assertCount(1, $region);
+        self::assertSame('["board.columns_changed"]', $region->attr('data-live-region-types-value'));
+        self::assertSame('/projects/'.$project->id.'/workflow', $region->attr('data-live-region-url-value'));
+        self::assertCount(1, $region->filter('[data-workflow-template]'));
+        $topics = self::getContainer()->get(ProjectTopicBuilder::class);
+        self::assertInstanceOf(ProjectTopicBuilder::class, $topics);
+        self::assertContains(
+            $topics->forBoard($project->id ?? throw new \LogicException('Project has no id.')),
+            $crawler->filter('form#mercure-subscriptions input[data-mercure-topic]')->each(static fn (Crawler $input): ?string => $input->attr('value')),
+        );
     }
 
     public function test_a_deleted_column_reads_as_not_linked(): void

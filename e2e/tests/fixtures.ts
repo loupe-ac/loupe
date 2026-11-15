@@ -405,3 +405,90 @@ export function createTest(credentials: Credentials) {
         storageState: ({ workerStorageState }, use) => use(workerStorageState),
     });
 }
+
+export interface Card {
+    id: string;
+    number: number;
+}
+
+export type CreateCard = ((
+    title: string,
+    options?: { type?: string; status?: string; parent?: Card },
+) => Promise<Card>) & { move: (card: Card, status: string) => Promise<void> };
+
+/** Opens an MCP session with a token bound to the project, and returns a card_create call. */
+export async function mcpCards(
+    page: Page,
+    projectId: string,
+): Promise<CreateCard> {
+    const token = await accessToken(page, 'mcp', projectId);
+    const headers: Record<string, string> = {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+    };
+
+    const initialize = await page.request.post('/mcp', {
+        headers,
+        data: {
+            jsonrpc: '2.0',
+            id: 1,
+            method: 'initialize',
+            params: {
+                protocolVersion: '2024-11-05',
+                capabilities: {},
+                clientInfo: { name: 'e2e', version: '1' },
+            },
+        },
+    });
+    expect(initialize.ok()).toBeTruthy();
+    headers['Mcp-Session-Id'] = initialize.headers()['mcp-session-id'] ?? '';
+    expect(headers['Mcp-Session-Id']).not.toBe('');
+    await page.request.post('/mcp', {
+        headers,
+        data: { jsonrpc: '2.0', method: 'notifications/initialized' },
+    });
+
+    let id = 2;
+    const call = async (
+        name: string,
+        args: Record<string, unknown>,
+    ): Promise<Record<string, unknown>> => {
+        const response = await page.request.post('/mcp', {
+            headers,
+            data: {
+                jsonrpc: '2.0',
+                id: id++,
+                method: 'tools/call',
+                params: { name, arguments: args },
+            },
+        });
+        const answer = await response.json();
+        expect(answer.result?.isError, JSON.stringify(answer)).toBeFalsy();
+
+        return answer.result.structuredContent;
+    };
+
+    const create: CreateCard = Object.assign(
+        async (
+            title: string,
+            options: { type?: string; status?: string; parent?: Card } = {},
+        ) => {
+            const card = await call('card_create', {
+                title,
+                body: '',
+                type: options.type ?? 'feature',
+                ...(options.status ? { status: options.status } : {}),
+                ...(options.parent ? { parentCardId: options.parent.id } : {}),
+            });
+
+            return { id: card.cardId as string, number: card.number as number };
+        },
+        {
+            move: async (card: Card, status: string) => {
+                await call('card_update', { cardId: card.id, status });
+            },
+        },
+    );
+
+    return create;
+}
