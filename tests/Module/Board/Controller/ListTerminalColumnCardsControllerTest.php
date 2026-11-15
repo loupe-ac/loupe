@@ -176,6 +176,8 @@ final class ListTerminalColumnCardsControllerTest extends WebTestCase
         }
         $em->flush();
         $url = $this->historyUrl($project, 'done');
+        $projectId = $project->id;
+        self::assertNotNull($projectId);
         $em->clear();
 
         $client->loginUser($owner);
@@ -183,7 +185,7 @@ final class ListTerminalColumnCardsControllerTest extends WebTestCase
         $topics = static::getContainer()->get(ProjectTopicBuilder::class);
         self::assertInstanceOf(ProjectTopicBuilder::class, $topics);
         self::assertContains(
-            $topics->forBoard($project->id),
+            $topics->forBoard($projectId),
             $first->filter('form#mercure-subscriptions input[data-mercure-topic]')->each(static fn (Crawler $input): ?string => $input->attr('value')),
         );
         $region = $first->filter('turbo-frame#terminal-live[data-controller="live-region"]');
@@ -195,7 +197,7 @@ final class ListTerminalColumnCardsControllerTest extends WebTestCase
 
         $later = $client->request(Request::METHOD_GET, $url.'?page=2');
         self::assertContains(
-            $topics->forBoard($project->id),
+            $topics->forBoard($projectId),
             $later->filter('form#mercure-subscriptions input[data-mercure-topic]')->each(static fn (Crawler $input): ?string => $input->attr('value')),
         );
         $region = $later->filter('div#terminal-live[data-controller="live-region"]');
