@@ -158,3 +158,22 @@ it('returns focus to the figure after an open from the figure and from Expand', 
         expect(svg()).toBeNull();
     }
 });
+
+it('zooms around the pointer on a gesture pinch, with no wheel event', () => {
+    expandFrom(document.getElementById('figure'));
+    const gesture = (type, scale) => {
+        const event = new Event(type, { bubbles: true, cancelable: true });
+        Object.assign(event, { scale, clientX: 400, clientY: 200 });
+        dialog().dispatchEvent(event);
+        return event;
+    };
+
+    expect(gesture('gesturestart', 1).defaultPrevented).toBe(true);
+    gesture('gesturechange', 1.25);
+    expect(output().textContent).toBe('100%');
+    gesture('gesturechange', 1.5);
+    expect(output().textContent).toBe('120%');
+    gesture('gesturestart', 1);
+    gesture('gesturechange', 0.5);
+    expect(output().textContent).toBe('60%');
+});

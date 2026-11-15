@@ -24,6 +24,8 @@ export default class extends ModalController {
     // Fields, because Stimulus can call a target callback before connect().
     onWheel = (event) => this.wheel(event);
     onKeydown = (event) => this.key(event);
+    onGestureStart = (event) => this.gestureStart(event);
+    onGestureChange = (event) => this.gestureChange(event);
     onPointerDown = (event) => this.pointerDown(event);
     onPointerMove = (event) => this.pointerMove(event);
     onPointerEnd = (event) => this.pointerEnd(event);
@@ -33,6 +35,7 @@ export default class extends ModalController {
         this.state = null;
         this.pointers = new Map();
         this.pinchDistance = null;
+        this.gestureScale = 1;
         this.svg = null;
         this.content = null;
         this.range = null;
@@ -56,12 +59,16 @@ export default class extends ModalController {
         super.dialogTargetConnected(dialog);
         dialog.addEventListener('wheel', this.onWheel, { passive: false });
         dialog.addEventListener('keydown', this.onKeydown);
+        dialog.addEventListener('gesturestart', this.onGestureStart);
+        dialog.addEventListener('gesturechange', this.onGestureChange);
     }
 
     dialogTargetDisconnected(dialog) {
         super.dialogTargetDisconnected(dialog);
         dialog.removeEventListener('wheel', this.onWheel);
         dialog.removeEventListener('keydown', this.onKeydown);
+        dialog.removeEventListener('gesturestart', this.onGestureStart);
+        dialog.removeEventListener('gesturechange', this.onGestureChange);
     }
 
     stageTargetConnected(stage) {
@@ -186,6 +193,23 @@ export default class extends ModalController {
         const lines = event.deltaMode === 1 ? 16 : 1;
         const strength = event.ctrlKey ? 0.01 : 0.002;
         const factor = Math.exp(-event.deltaY * lines * strength);
+        this.zoomBy(factor, this.stagePoint(event.clientX, event.clientY));
+    }
+
+    // Some engines send a trackpad pinch as gesture events, with a scale
+    // relative to the start, and no wheel event.
+    gestureStart(event) {
+        event.preventDefault();
+        this.gestureScale = 1;
+    }
+
+    gestureChange(event) {
+        event.preventDefault();
+        if (!this.state || !event.scale) {
+            return;
+        }
+        const factor = event.scale / this.gestureScale;
+        this.gestureScale = event.scale;
         this.zoomBy(factor, this.stagePoint(event.clientX, event.clientY));
     }
 
