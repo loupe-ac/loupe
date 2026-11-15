@@ -128,6 +128,20 @@ final class CardRepositoryLiveRowsTest extends KernelTestCase
         self::assertSame(0, $this->cards->countBacklogMatchingArrivedAfter($backlog, new BacklogListQuery(type: 'feature'), $since));
     }
 
+    public function test_an_edit_of_a_card_that_already_matched_adds_no_card_without_a_filter(): void
+    {
+        $project = $this->project($this->em, $this->user($this->em, 'rows-edit-nofilter@example.com'));
+        $card = $this->card($this->em, $project, 'Already listed');
+        $backlog = $this->column($project, 'backlog');
+        $since = new \DateTimeImmutable('+1 second');
+        $card->title = 'Renamed';
+        $card->updatedAt = new \DateTimeImmutable('+2 seconds');
+        $this->em->flush();
+
+        self::assertSame(0, $this->cards->countBacklogMatchingArrivedAfter($backlog, new BacklogListQuery(), $since));
+        self::assertSame(1, $this->cards->countBacklogMatchingArrivedAfter($backlog, new BacklogListQuery(), new \DateTimeImmutable('-1 hour')));
+    }
+
     public function test_a_move_into_another_column_or_before_the_moment_is_not_a_move_in(): void
     {
         $project = $this->project($this->em, $this->user($this->em, 'rows-moved-else@example.com'));
