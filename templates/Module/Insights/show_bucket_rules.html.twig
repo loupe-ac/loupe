@@ -9,6 +9,7 @@
 {% endblock %}
 
 {% block body %}
+{% do mercure_subscribe(analytics_topic(project)) %}
 <twig:Ds:Workspace class="lp-redesign-secondary lp-redesign-runs">
     {% include '@Insights/_header.html.twig' with {} only %}
 
@@ -38,6 +39,14 @@
         {{ form_end(ruleForm) }}
     </section>
 
+    {# The add form stays outside the frame, so a refresh never touches typed text. #}
+    <turbo-frame id="analytics-bucket-rules" refresh="morph" target="_top" class="lp-live-frame"
+                 data-controller="live-region"
+                 data-live-region-types-value="{{ ['analytics.changed']|json_encode }}"
+                 data-live-region-match-type-value="{{ {'analytics.changed': {area: 'bucket_rules'}}|json_encode }}"
+                 data-live-region-url-value="{{ path('app_project_analytics_time_buckets', {id: project.id, range: summary.range.value}) }}"
+                 data-live-region-mode-value="frame"
+                 data-live-content>
     {% if rules is not empty %}
     <ol class="lp-reports-list" data-bucket-rules>
         {% for rule in rules %}
@@ -122,5 +131,6 @@
         </div>
         {% endif %}
     </section>
+    </turbo-frame>
 </twig:Ds:Workspace>
 {% endblock %}

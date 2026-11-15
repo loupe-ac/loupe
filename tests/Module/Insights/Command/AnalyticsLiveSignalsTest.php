@@ -22,6 +22,8 @@ use App\Module\Insights\Command\CreateBucketRuleCommand;
 use App\Module\Insights\Command\CreateBucketRuleHandler;
 use App\Module\Insights\Command\DeleteBucketRuleCommand;
 use App\Module\Insights\Command\DeleteBucketRuleHandler;
+use App\Module\Insights\Command\DismissProposalCommand;
+use App\Module\Insights\Command\DismissProposalHandler;
 use App\Module\Insights\Command\MoveBucketRuleCommand;
 use App\Module\Insights\Command\MoveBucketRuleHandler;
 use App\Module\Insights\Command\PlaceBucketRuleCommand;
@@ -162,7 +164,28 @@ final class AnalyticsLiveSignalsTest extends KernelTestCase
         $this->service(UpdateAnalyticsSettingsHandler::class)(new UpdateAnalyticsSettingsCommand($project, null, null, true, changeModel: false, changeEffort: false));
         $this->terminate();
 
-        $this->assertSignals($project, [['reports', (string) $reported->id], ['reports', null]]);
+        $this->assertSignals($project, [['reports', (string) $reported->id], ['reports', 'settings']]);
+    }
+
+    public function test_a_dismissal_signals_the_analysis_and_a_refused_one_signals_nothing(): void
+    {
+        $em = $this->em();
+        $project = $this->scenarioProject('analytics-dismiss');
+        $analysis = $this->seedAnalysis($em, $project, AnalysisState::Done);
+        $proposal = $this->seedProposal($em, $analysis);
+        $handler = $this->service(DismissProposalHandler::class);
+
+        $handler(new DismissProposalCommand($proposal, 'Cached already.'));
+        $this->terminate();
+        $this->assertSignals($project, [['reports', (string) $analysis->id]]);
+
+        try {
+            $handler(new DismissProposalCommand($proposal, null));
+            self::fail('Expected a refusal.');
+        } catch (DomainErrors) {
+        }
+        $this->terminate();
+        $this->assertSignals($project, [['reports', (string) $analysis->id]]);
     }
 
     public function test_a_refused_report_signals_nothing(): void

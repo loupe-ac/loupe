@@ -7,8 +7,10 @@ namespace App\Module\Insights\Command;
 use App\Exception\DomainErrors;
 use App\Module\Insights\Entity\Proposal;
 use App\Module\Insights\Entity\ProposalState;
+use App\Module\Insights\Event\AnalysisChanged;
 use App\Module\Insights\Repository\ProposalRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
@@ -21,6 +23,7 @@ final readonly class DismissProposalHandler
         private ProposalRepository $proposals,
         private EntityManagerInterface $em,
         private Auditor $auditor,
+        private EventDispatcherInterface $events,
     ) {
     }
 
@@ -47,6 +50,7 @@ final readonly class DismissProposalHandler
             throw new DomainErrors(['proposal' => AcceptProposalHandler::NOT_PROPOSED]);
         }
 
+        $this->events->dispatch(new AnalysisChanged((string) $dismissed->analysis->project->id, (string) $dismissed->analysis->id));
         $this->auditor->record(
             'insights.proposal_dismissed',
             AuditOutcome::Success,

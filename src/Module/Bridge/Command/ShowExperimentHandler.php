@@ -278,10 +278,15 @@ final readonly class ShowExperimentHandler
             $metrics[$key] = $computed[$key];
         }
 
-        $filtered = array_values(array_filter($cards, static fn (array $row): bool => (null === $command->onlyCard || $command->onlyCard->equals($row['card']->cardId))
-            && (null === $command->variant || ($row['card']->included() && $command->variant === $row['card']->variant))
+        $matchesFilter = static fn (array $row): bool => (null === $command->variant || ($row['card']->included() && $command->variant === $row['card']->variant))
             && (!$command->leftOutOnly || !$row['card']->included())
-            && (!$command->keptOnly || $row['card']->included())));
+            && (!$command->keptOnly || $row['card']->included());
+        $onlyIds = null === $command->onlyCards ? null : array_map(strval(...), $command->onlyCards);
+        $filtered = array_values(array_filter($cards, static fn (array $row): bool => (null === $command->onlyCard || $command->onlyCard->equals($row['card']->cardId))
+            && (null === $onlyIds || \in_array((string) $row['card']->cardId, $onlyIds, true))
+            && $matchesFilter($row)));
+        $since = $command->newerSince;
+        $newerCards = null === $since ? 0 : \count(array_filter($cards, static fn (array $row): bool => $matchesFilter($row) && null !== $row['lastRunAt'] && $row['lastRunAt'] > $since));
         // The latest run first, and a card with a pin and no run last.
         usort($filtered, static fn (array $a, array $b): int => self::walkOrder($a['lastRunAt'], $a['card']->cardId, $b['lastRunAt'], $b['card']->cardId));
 
@@ -293,7 +298,7 @@ final readonly class ShowExperimentHandler
 
         $hasMore = false;
         if (null === $command->limit) {
-            $pageCards = array_column(\array_slice($filtered, ($page - 1) * self::PER_PAGE, self::PER_PAGE), 'card');
+            $pageCards = array_column(null === $onlyIds ? \array_slice($filtered, ($page - 1) * self::PER_PAGE, self::PER_PAGE) : $filtered, 'card');
         } else {
             $after = $command->after;
             $rest = null === $after ? $filtered : array_values(array_filter($filtered, static fn (array $row): bool => self::walkOrder($row['lastRunAt'], $row['card']->cardId, $after->lastRunAt, $after->cardId) > 0));
@@ -339,6 +344,7 @@ final readonly class ShowExperimentHandler
             leftOutOnly: $command->leftOutOnly,
             archived: null !== $archive && ExperimentArchiveState::isArchived($archive, $this->workerRuns->findExperimentRunIdsReceivedFrom($project, $experiment, $archive->archivedAt)),
             hasMore: $hasMore,
+            newerCards: $newerCards,
         );
     }
 

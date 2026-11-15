@@ -9,6 +9,7 @@
 {% endblock %}
 
 {% block body %}
+{% do mercure_subscribe(analytics_topic(project)) %}
 {% set routeParams = {id: project.id, experiment: report.experiment} %}
 <twig:Ds:Workspace class="lp-redesign-secondary lp-redesign-runs">
     {% include '@Insights/_header.html.twig' with {} only %}
@@ -33,53 +34,33 @@
         </nav>
     </twig:Ds:FilterBar>
 
-    {% if report.cards is not empty %}
-    <twig:Ds:DataTable modifier="experiment-cards" :label="'bridge.experiments.cards.table.label'|trans" :columns="[
-        {label: 'bridge.experiments.cards.column.card'|trans},
-        {label: 'bridge.experiments.cards.column.variant'|trans},
-        {label: 'bridge.experiments.cards.column.column'|trans},
-        {label: 'bridge.experiments.cards.column.runs'|trans, align: 'end'},
-        {label: 'bridge.experiments.cards.column.covered_cost'|trans, align: 'end'},
-        {label: 'bridge.experiments.cards.column.fix_rounds'|trans, align: 'end'},
-        {label: 'bridge.experiments.cards.column.cost'|trans, align: 'end'},
-        {label: 'bridge.experiments.cards.column.left_out'|trans},
-    ]">
-        {% for card in report.cards %}
-        <div class="lp-data-table__row" role="row" data-experiment-card="{{ card.cardId }}">
-            <div class="lp-data-table__cell lp-data-table__primary" role="cell">
-                {% if card.column is not null %}<a class="lp-data-table__target" href="{{ path('app_board_card', {projectId: project.id, cardId: card.cardId}) }}">{% endif %}
-                    {% if card.number is not null %}<span class="lp-data-table__number">{{ 'bridge.worker_runs.card_number'|trans({'%number%': card.number}) }}</span>{% endif %}
-                    <span class="lp-data-table__title">{{ card.title is not null ? card.title|reference_plain : 'bridge.experiments.cards.untitled'|trans }}</span>
-                {% if card.column is not null %}</a>{% endif %}
-            </div>
-            <span class="lp-data-table__cell" role="cell">{{ card.variant ?? '–' }}</span>
-            <span class="lp-data-table__cell" role="cell" data-experiment-card-column>{{ card.column is not null ? card.column.label|trans : '–' }}</span>
-            <span class="lp-data-table__cell lp-data-table__cell--end" role="cell" data-experiment-card-runs>{{ card.runs }}</span>
-            <span class="lp-data-table__cell lp-data-table__cell--end" role="cell" data-experiment-card-covered-cost>{{ card.coveredCostMicros is null ? '–' : (card.coveredCostMicros / 1000000)|format_currency('USD') }}</span>
-            <span class="lp-data-table__cell lp-data-table__cell--end" role="cell">{{ card.fixRounds }}</span>
-            <span class="lp-data-table__cell lp-data-table__cell--end" role="cell" data-experiment-card-cost>{{ card.costMicros is null ? '–' : (card.costMicros / 1000000)|format_currency('USD') }}</span>
-            <span class="lp-data-table__cell lp-experiment-reasons" role="cell">
-                {% for reason in card.leftOut %}
-                    {% if reason.value == 'excluded' and card.exclusion is not null %}
-                        <span class="lp-experiment-excluded" tabindex="0" aria-describedby="excluded-{{ card.cardId }}" data-experiment-card-excluded>
-                            <twig:Ds:Tag tone="amber">{{ ('bridge.experiments.left_out_reason.' ~ reason.value)|trans }}</twig:Ds:Tag>
-                            <twig:Ds:Tooltip id="excluded-{{ card.cardId }}">
-                                <span class="lp-tooltip__line">{{ card.exclusion.reason }}</span>
-                                <span class="lp-tooltip__line">{{ 'bridge.experiments.excluded.by'|trans({'%name%': card.exclusion.authorName ?? 'bridge.experiments.excluded.deleted_user'|trans, '%date%': card.exclusion.excludedAt|format_datetime('medium', 'none')}) }}</span>
-                            </twig:Ds:Tooltip>
-                        </span>
-                    {% else %}
-                        <twig:Ds:Tag tone="amber">{{ ('bridge.experiments.left_out_reason.' ~ reason.value)|trans }}</twig:Ds:Tag>
-                    {% endif %}
-                {% endfor %}
-            </span>
-        </div>
-        {% endfor %}
-    </twig:Ds:DataTable>
-
-    <twig:Ds:Pagination route="app_project_analytics_experiment_cards" :page="report.page" :totalPages="report.totalPages" :pageList="report.pageList" :routeParams="routeParams|merge(query.routeParams)" />
+    {% set pagination %}
+        <twig:Ds:Pagination route="app_project_analytics_experiment_cards" :page="report.page" :totalPages="report.totalPages" :pageList="report.pageList" :routeParams="routeParams|merge(query.routeParams)" />
+    {% endset %}
+    {% if report.page == 1 %}
+    {# Page 1 morphs as a whole. A later page reads its own rows by id, so a card that runs again never moves them. #}
+    <turbo-frame id="analytics-experiment-cards" refresh="morph" target="_top" class="lp-live-frame"
+                 data-controller="live-region"
+                 data-live-region-types-value="{{ ['analytics.changed', 'worker_run.changed']|json_encode }}"
+                 data-live-region-match-type-value="{{ {'analytics.changed': {area: 'experiments'}}|json_encode }}"
+                 data-live-region-url-value="{{ path('app_project_analytics_experiment_cards', routeParams|merge(query.routeParams)) }}"
+                 data-live-region-mode-value="frame"
+                 data-live-content>
+        {% include '@Insights/_experiment_cards_list.html.twig' with {report: report, project: project} only %}
+        {% if report.cards is not empty %}{{ pagination }}{% endif %}
+    </turbo-frame>
     {% else %}
-    <twig:Ds:EmptyState icon="lucide:chart-column" :title="'bridge.experiments.cards.empty'|trans" data-experiment-cards-empty />
+    <div data-controller="live-region"
+         data-live-region-types-value="{{ ['analytics.changed', 'worker_run.changed']|json_encode }}"
+         data-live-region-match-type-value="{{ {'analytics.changed': {area: 'experiments'}}|json_encode }}"
+         data-live-region-url-value="{{ path('app_project_analytics_experiment_cards_rows', routeParams|merge(query.withPage(1).routeParams)) }}"
+         data-live-region-mode-value="rows"
+         data-live-since="{{ since|date('c') }}"
+         data-live-content>
+        <div id="experiment-cards-newer" data-experiment-cards-newer></div>
+        {% include '@Insights/_experiment_cards_list.html.twig' with {report: report, project: project} only %}
+    </div>
+    {% if report.cards is not empty %}{{ pagination }}{% endif %}
     {% endif %}
 </twig:Ds:Workspace>
 {% endblock %}

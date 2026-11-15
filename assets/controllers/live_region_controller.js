@@ -159,8 +159,31 @@ export default class extends Controller {
         const fresh = new DOMParser()
             .parseFromString(html, 'text/html')
             .querySelector(`turbo-frame[id="${this.element.id}"]`);
-        if (fresh) {
+        if (!fresh) {
+            return;
+        }
+        const keepOpenDisclosure = (event) => {
+            if (
+                event.target instanceof HTMLDetailsElement &&
+                event.detail.attributeName === 'open' &&
+                event.detail.mutationType === 'remove'
+            ) {
+                event.preventDefault();
+            }
+        };
+        this.element.addEventListener(
+            'turbo:before-morph-attribute',
+            keepOpenDisclosure,
+            true,
+        );
+        try {
             morphTurboFrameElements(this.element, fresh);
+        } finally {
+            this.element.removeEventListener(
+                'turbo:before-morph-attribute',
+                keepOpenDisclosure,
+                true,
+            );
         }
     }
 

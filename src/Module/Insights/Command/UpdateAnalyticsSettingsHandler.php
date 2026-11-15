@@ -10,6 +10,7 @@ use App\Module\Bridge\Service\ToolCallCollectionSettings;
 use App\Module\Insights\Entity\InsightsProjectSettings;
 use App\Module\Insights\Event\AnalysisChanged;
 use App\Module\Insights\Repository\InsightsProjectSettingsRepository;
+use App\Module\Insights\Service\AnalyticsArea;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
@@ -81,7 +82,7 @@ final readonly class UpdateAnalyticsSettingsHandler
             return $settings;
         });
 
-        $this->events->dispatch(new AnalysisChanged($projectId, null));
+        $this->events->dispatch(new AnalysisChanged($projectId, AnalyticsArea::SETTINGS_ID));
         $this->auditor->record(
             'insights.settings_saved',
             AuditOutcome::Success,

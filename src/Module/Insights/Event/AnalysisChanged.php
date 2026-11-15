@@ -9,7 +9,7 @@ final readonly class AnalysisChanged
 {
     public function __construct(
         public string $projectId,
-        /** Null when the change names no one analysis, as a settings change does. */
+        /** Null when the change names no one analysis. A settings change names AnalyticsArea::SETTINGS_ID. */
         public ?string $analysisId,
     ) {
     }

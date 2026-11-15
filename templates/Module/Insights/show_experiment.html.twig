@@ -9,6 +9,7 @@
 {% endblock %}
 
 {% block body %}
+{% do mercure_subscribe(analytics_topic(project)) %}
 {% set headline = report.headline %}
 <twig:Ds:Workspace class="lp-redesign-secondary lp-redesign-runs">
     {% include '@Insights/_header.html.twig' with {} only %}
@@ -16,6 +17,15 @@
     {% include '@Insights/_tabs.html.twig' with {project: project, active: 'experiments'} only %}
 
     {% include '@Insights/_experiment_tabs.html.twig' with {project: project, experiment: report.experiment, active: 'comparison', archived: report.archived} only %}
+
+    {# A table the person opened stays open through a refresh. #}
+    <turbo-frame id="analytics-experiment" refresh="morph" target="_top" class="lp-live-frame"
+                 data-controller="live-region"
+                 data-live-region-types-value="{{ ['analytics.changed', 'worker_run.changed']|json_encode }}"
+                 data-live-region-match-type-value="{{ {'analytics.changed': {area: 'experiments'}}|json_encode }}"
+                 data-live-region-url-value="{{ path('app_project_analytics_experiment', {id: project.id, experiment: report.experiment}) }}"
+                 data-live-region-mode-value="frame"
+                 data-live-content>
 
     {% set text = experiment_headline_text() %}
     {% if headline is not null %}
@@ -46,5 +56,6 @@
             <twig:Ds:Button variant="outline" size="sm" href="{{ path('app_project_analytics_reports', {id: project.id, topic: 'experiment', experiment: report.experiment}) }}" data-experiment-analyse>{{ 'bridge.experiments.analyse'|trans }}</twig:Ds:Button>
         </p>
     {% endif %}
+    </turbo-frame>
 </twig:Ds:Workspace>
 {% endblock %}
