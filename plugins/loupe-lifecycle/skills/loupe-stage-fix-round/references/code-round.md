@@ -34,4 +34,4 @@ The round ends at the push. It never waits for CI, because the app reads the new
 11. Post a marker reply for each handled item, per the reference. A conflict has no item, so it gets no reply. An agent review finding has no thread, so it gets no reply either.
 12. Mark each fixed note addressed, as `live-review-notes.md` says.
 13. Stop with `STAGE RESULT: waiting <pr url>`. Never move the card.
-14. When a step cannot go on, record the block as "Record a block" in `../../loupe-stage-implementation/references/commands.md` says. Post the refusal comment on the pull request, per "Post a refusal comment" in the same file. Stop with `STAGE RESULT: blocked: <reason>`.
+14. When a step cannot go on and the stop needs an owner choice, follow `../../loupe-stage-implementation/references/owner-question.md`. Otherwise record the block as "Record a block" in `../../loupe-stage-implementation/references/commands.md` says. Post the refusal comment on the pull request, per "Post a refusal comment" in the same file. Stop with `STAGE RESULT: blocked: <reason>`.
