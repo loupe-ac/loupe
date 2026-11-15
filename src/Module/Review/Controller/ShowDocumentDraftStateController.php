@@ -20,8 +20,9 @@ use Symfony\UX\Turbo\TurboBundle;
 
 /**
  * The band and the Finish review warning of a draft, as the open page fetches
- * them after a signal. A document that is no longer a draft answers no content,
- * and the page loads again. A page that offers no publish asks with publish=0.
+ * them after a signal. A document that is no longer a draft answers streams
+ * that remove the band and empty the warning. A page that offers no publish
+ * asks with publish=0.
  */
 #[IsGranted(DocumentVoter::VIEW, subject: 'document')]
 #[Route(
@@ -43,15 +44,13 @@ final class ShowDocumentDraftStateController extends AppController
         Request $request,
     ): Response {
         $state = ($this->showDraftState)(new ShowDraftStateCommand($document));
-        if (null === $state) {
-            return new Response(status: Response::HTTP_NO_CONTENT);
-        }
-
-        $html = $this->renderView('@Review/_draft_state.stream.html.twig', [
-            'document' => $document,
-            'draftReviewLoop' => $state->loop,
-            'showPublish' => $request->query->getBoolean('publish', true),
-        ]);
+        $html = null === $state
+            ? $this->renderView('@Review/_draft_cleared.stream.html.twig')
+            : $this->renderView('@Review/_draft_state.stream.html.twig', [
+                'document' => $document,
+                'draftReviewLoop' => $state->loop,
+                'showPublish' => $request->query->getBoolean('publish', true),
+            ]);
 
         return new Response($html, Response::HTTP_OK, ['Content-Type' => TurboBundle::STREAM_MEDIA_TYPE]);
     }

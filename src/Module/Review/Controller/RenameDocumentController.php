@@ -6,12 +6,14 @@ namespace App\Module\Review\Controller;
 
 use App\Controller\AppController;
 use App\Exception\DomainErrors;
+use App\Mercure\ProjectTopicBuilder;
 use App\Module\Review\Command\RenameDocumentCommand;
 use App\Module\Review\Command\RenameDocumentHandler;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Form\RenameDocumentFormType;
 use App\Module\Review\Form\RenameDocumentRequest;
 use App\Module\Review\Security\DocumentVoter;
+use App\Module\Review\Service\DocumentFingerprint;
 use App\Module\Review\View\DocumentListQuery;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 use Symfony\Component\HttpFoundation\Request;
@@ -31,6 +33,7 @@ final class RenameDocumentController extends AppController
     public function __construct(
         private readonly RenameDocumentHandler $renameDocument,
         private readonly TranslatorInterface $translator,
+        private readonly ProjectTopicBuilder $topics,
     ) {
     }
 
@@ -71,6 +74,11 @@ final class RenameDocumentController extends AppController
         return $this->renderFormResponse('@Review/rename_document.html.twig', $form, [
             'document' => $document,
             'listQuery' => $listQuery,
+            'documentTopic' => $this->topics->forDocument(
+                $document->project->id ?? throw new \LogicException('Project has no id.'),
+                $document->id ?? throw new \LogicException('Document has no id.'),
+            ),
+            'fingerprint' => DocumentFingerprint::of($document),
         ]);
     }
 }

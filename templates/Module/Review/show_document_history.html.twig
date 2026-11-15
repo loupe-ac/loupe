@@ -70,6 +70,12 @@
         {% endif %}
     </div>
 
+    <turbo-frame id="document-history-live" refresh="morph" target="_top"
+                 data-controller="live-region"
+                 data-live-region-mode-value="frame"
+                 data-live-region-types-value="{{ ['review.version_published']|json_encode|e('html_attr') }}"
+                 data-live-region-match-value="{{ {documentId: document.id ~ ''}|json_encode|e('html_attr') }}"
+                 data-live-region-url-value="{{ path('app_document_review_history', routeParameters) }}">
     <twig:Ds:DataTable modifier="history" :label="'review.document.history.table.label'|trans" :columns="[
         {label: 'review.document.history.column.version'|trans},
         {label: 'review.document.history.column.revision'|trans},
@@ -133,6 +139,7 @@
         <p class="lp-history__empty">{{ 'review.document.history.no_verdicts'|trans }}</p>
         {% endfor %}
     </div>
+    </turbo-frame>
 </div>
 {% if finishReviewAvailable %}
 {% include '@Review/_finish_review.html.twig' with {

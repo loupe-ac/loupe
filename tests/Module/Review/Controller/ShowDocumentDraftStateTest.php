@@ -101,12 +101,21 @@ final class ShowDocumentDraftStateTest extends WebTestCase
         self::assertCount(0, $band->filter('[data-document-publish]'));
     }
 
-    public function test_a_document_that_is_no_longer_a_draft_answers_no_content(): void
+    public function test_a_document_that_is_no_longer_a_draft_answers_streams_that_clear_the_band_and_the_warning(): void
     {
         $this->fetch($this->linkedDocument($this->card(), DocumentStatus::InReview), $this->project->owner);
 
-        self::assertResponseStatusCodeSame(Response::HTTP_NO_CONTENT);
-        self::assertSame('', (string) $this->client->getResponse()->getContent());
+        self::assertResponseStatusCodeSame(Response::HTTP_OK);
+        self::assertStringStartsWith(self::STREAM, (string) $this->client->getResponse()->headers->get('Content-Type'));
+        $crawler = new Crawler((string) $this->client->getResponse()->getContent());
+        $streams = $crawler->filter('turbo-stream');
+        self::assertCount(2, $streams);
+        self::assertSame('remove', $streams->eq(0)->attr('action'));
+        self::assertSame('draft-band', $streams->eq(0)->attr('target'));
+        self::assertSame('update', $streams->eq(1)->attr('action'));
+        self::assertSame('draft-review-warning', $streams->eq(1)->attr('target'));
+        self::assertSame('false', $streams->eq(1)->attr('data-stop-confirm-active'));
+        self::assertSame('', trim($streams->eq(1)->filter('template')->html()));
     }
 
     public function test_a_person_who_may_not_open_the_page_gets_a_403(): void

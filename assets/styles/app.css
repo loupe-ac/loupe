@@ -4442,6 +4442,16 @@
     .lp-version-banner {
         @apply flex flex-wrap items-center gap-2.5 px-4 py-3 mb-4 rounded-lg border text-sm bg-surface-2 border-line text-fg-mute;
     }
+    /* Holds the bands that another actor's change calls for. Empty, it takes no room. */
+    .lp-live-band {
+        @apply flex flex-col gap-2;
+    }
+    .lp-live-band:not(:empty) {
+        @apply mb-4;
+    }
+    .lp-live-band__form {
+        @apply inline;
+    }
     .lp-review-doc__byline {
         @apply text-fg-dim m-0 text-sm;
     }

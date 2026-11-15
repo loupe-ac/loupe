@@ -1,0 +1,23 @@
+{# Props: document, archived (bool), newerVersion (int, 0 for none).
+   The bands of a review page that another actor's change calls for. #}
+{% if archived and is_granted(constant('App\\Module\\Review\\Security\\DocumentVoter::MANAGE'), document) %}
+{% set unarchiveForm = document_archive_form(document) %}
+<twig:Ds:Flash severity="warning" data-live-band="archived">
+    {{ 'review.live.archived'|trans }}
+    <twig:block name="actions">
+        {{ form_start(unarchiveForm, {attr: {class: 'lp-live-band__form'}}) }}
+            <twig:Ds:Button size="sm" type="submit">{{ 'review.live.unarchive'|trans }}</twig:Ds:Button>
+        {{ form_end(unarchiveForm) }}
+    </twig:block>
+</twig:Ds:Flash>
+{% elseif archived %}
+<twig:Ds:Flash severity="warning" data-live-band="archived">{{ 'review.live.archived'|trans }}</twig:Ds:Flash>
+{% endif %}
+{% if newerVersion > 0 %}
+<twig:Ds:Flash severity="info" data-live-band="version">
+    {{ 'review.live.version_out'|trans({'%version%': newerVersion}) }}
+    <twig:block name="actions">
+        <a href="{{ path('app_document_review', {projectId: document.project.id, documentId: document.id}) }}">{{ 'review.live.show_version'|trans({'%version%': newerVersion}) }}</a>
+    </twig:block>
+</twig:Ds:Flash>
+{% endif %}

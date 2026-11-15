@@ -74,10 +74,18 @@
 {% block body %}
 {% set finishReviewAvailable = verdictAvailable %}
 {% set draftLive = not diffMode or (document.status.value == 'draft' and finishReviewAvailable) %}
-<div class="lp-review" data-site-review-quotes="off" data-live-content data-controller="card-drawer{{ finishReviewAvailable ? ' sheet' : '' }}{{ draftLive ? ' review-draft-live' : '' }}"
+{% set reviewLive = not diffMode %}
+{% set threadsLive = reviewLive and not readOnly %}
+<div class="lp-review" data-site-review-quotes="off" data-live-content data-controller="card-drawer{{ finishReviewAvailable ? ' sheet' : '' }}{{ draftLive ? ' review-draft-live' : '' }}{{ reviewLive ? ' review-live' : '' }}"
+     {% if reviewLive %}data-live-shown-version="{{ version.versionNumber }}" data-live-pinned="{{ pinnedVersion ? 'true' : 'false' }}"
+     data-review-live-document-value="{{ document.id }}" data-review-live-band-url-value="{{ path('app_document_live_band', {projectId: document.project.id, documentId: document.id}) }}"
+     data-review-live-threads-url-value="{{ path('app_document_threads', {projectId: document.project.id, documentId: document.id}) }}" data-review-live-threads-live-value="{{ threadsLive ? 'true' : 'false' }}"{% endif %}
      {% if draftLive %}data-review-draft-live-url-value="{{ path('app_document_draft_state', {projectId: document.project.id, documentId: document.id}|merge(readOnly ? {publish: 0} : {})) }}" data-review-draft-live-stopped-value="{{ 'review.draft_band.live_stopped'|trans }}"{% endif %}
      {% if finishReviewAvailable %}data-action="review:finish@window->sheet#open"{% endif %}
      {% if finishReviewAvailable %}data-sheet-reopen-value="{{ submitReviewForm.vars.submitted ? 'true' : 'false' }}"{% endif %}>
+    {% if reviewLive %}
+    <div id="live-band" class="lp-live-band">{% include '@Review/_live_band.html.twig' with {document: document, archived: document.archivedAt is not null, newerVersion: 0} only %}</div>
+    {% endif %}
     {# Both controllers pass diffMode explicitly: Twig's `default` filter fires
        on any falsy value, so `|default(true)` would send every show-page render
        down the diff branch. A comparison names itself with the chip in the
