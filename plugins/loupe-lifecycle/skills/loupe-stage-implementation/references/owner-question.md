@@ -12,15 +12,15 @@ A stop is a question when you can name two or more valid outcomes and only the o
 2. For a card with a `parent`, call `card_list` with `parentCardId`. Call `inbox_list` the same way for each sibling.
 3. Call `inbox_search` with two or three key words. Read each candidate with `inbox_get`, and pass your session id as `readerSessionId`.
 4. List each distinct decision of this stop. Drop a finding that asks the same thing as another. Then settle each decision on its own, with the next four steps. A decision with an answer never settles another decision.
-5. An open item that asks the same thing as a decision: add this card to it with `inbox_join`. The decision is covered.
+5. An open item that asks the same thing as a decision: add this card to it with `inbox_join`. The decision still has no answer, so the stop below applies.
 6. A resolved item of this card, or of a sibling card, that asks the same thing is the answer to that decision. Apply it. The exception is an answer that rests on a fact that differs on this card. Then the decision stays open: name that fact, and link the earlier item.
 7. A declined item is an answer too. Read its note. Apply it when it is clear. The decision stays open when the note leaves the choice open or the facts differ.
 8. Record each applied answer as "After the answer" says, and cite the item number.
-9. The decisions that no step 5 to 7 settled go into the ask.
+9. The decisions that no step 6 or 7 settled and no join covered go into the ask. A decision that step 5 joined waits for the owner like an asked one.
 
 ## Build the ask
 
-1. Make one `inbox_ask` for the decisions that step 9 left. When none is left, make no ask and go on with the applied answers. Give one item for each distinct decision. Pass your session id and bridge id.
+1. Make one `inbox_ask` for the decisions that step 9 left. When none is left and no step 5 join waits, make no ask and go on with the applied answers. When a joined item waits, make no new ask and take the stop below. Give one item for each distinct decision. Pass your session id and bridge id.
 2. Each item has `freeText` true. Put the clear choices in `options`.
 3. The body of each item says what the code does now, and what the design or the card says. It gives the cost of each option for a user, in plain words. It ends with your recommendation and its confidence: high, moderate or low. The recommendation never replaces the answer. Never act on a recommendation alone.
 4. Put the id of this card in `cardIds` of each item. Add each other card that the question applies to, such as a sibling that waits on the same answer. The card filter of `inbox_list` reads only this field.
