@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace App\Module\Artifact\Command;
 
 use App\Module\Artifact\Entity\Artifact;
+use App\Module\Artifact\Event\ArtifactChange;
+use App\Module\Artifact\Event\ArtifactChanged;
 use App\Module\Artifact\Repository\ArtifactRepository;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
@@ -18,6 +21,7 @@ final readonly class ArchiveArtifactHandler
         private ArtifactRepository $artifacts,
         private EntityManagerInterface $em,
         private Auditor $auditor,
+        private EventDispatcherInterface $events,
     ) {
     }
 
@@ -53,6 +57,11 @@ final readonly class ArchiveArtifactHandler
                 ['artifactId' => (string) $artifact->id, 'projectId' => (string) $artifact->project->id],
                 new AuditSubject('artifact', (string) $artifact->id),
             );
+            $this->events->dispatch(new ArtifactChanged(
+                $artifact->project->id ?? throw new \LogicException('A persisted project has an id.'),
+                $artifact->id ?? throw new \LogicException('A persisted artifact has an id.'),
+                ArtifactChange::Archived,
+            ));
         }
 
         return $artifact;
