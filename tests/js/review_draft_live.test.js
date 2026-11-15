@@ -5,7 +5,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const live = vi.hoisted(() => ({ subscriptions: [] }));
 const turbo = vi.hoisted(() => ({
     renderStreamMessage: vi.fn(),
-    morphBodyElements: vi.fn(),
 }));
 
 vi.mock('../../assets/lib/live.js', () => ({
@@ -102,7 +101,6 @@ beforeEach(() => {
     live.subscriptions = [];
     responses = [];
     turbo.renderStreamMessage.mockReset();
-    turbo.morphBodyElements.mockReset();
     turbo.renderStreamMessage.mockImplementation((html) => {
         const parsed = new DOMParser().parseFromString(html, 'text/html');
         parsed.querySelectorAll('turbo-stream').forEach((stream) => {
@@ -215,62 +213,44 @@ describe('a dialog', () => {
         await settle();
         expect(fetch).toHaveBeenCalledTimes(1);
     });
-
-    it('loads the page with a morph once the document is no longer a draft', async () => {
-        answer(204);
-        responses.push({
-            ok: true,
-            status: 200,
-            text: async () =>
-                '<!doctype html><html><body><p>In review</p></body></html>',
-        });
-        await mount();
-        signal();
-        await settle();
-        expect(fetch).toHaveBeenCalledTimes(2);
-        expect(turbo.morphBodyElements).toHaveBeenCalledTimes(1);
-        const [current, fresh] = turbo.morphBodyElements.mock.calls[0];
-        expect(current).toBe(document.body);
-        expect(fresh.textContent).toContain('In review');
-    });
-
-    it('holds the page load while any dialog is open', async () => {
-        answer(204);
-        answer(204);
-        responses.push({
-            ok: true,
-            status: 200,
-            text: async () => '<html><body>In review</body></html>',
-        });
-        await mount();
-        const dialog = open('finish');
-        signal();
-        await settle();
-        expect(turbo.morphBodyElements).not.toHaveBeenCalled();
-        close(dialog);
-        await settle();
-        expect(turbo.morphBodyElements).toHaveBeenCalledTimes(1);
-    });
 });
 
-describe('a published draft', () => {
-    it('clears the warning and the second confirmation of an open Finish review dialog at once', async () => {
-        answer(204);
-        answer(204);
-        responses.push({
-            ok: true,
-            status: 200,
-            text: async () => '<html><body>In review</body></html>',
+describe('a document that is no longer a draft', () => {
+    const CLEARED =
+        '<turbo-stream action="remove" target="draft-band"></turbo-stream><turbo-stream action="remove" target="draft-review-warning" data-stop-confirm-active="false"></turbo-stream>';
+
+    beforeEach(() => {
+        turbo.renderStreamMessage.mockImplementation((html) => {
+            const parsed = new DOMParser().parseFromString(html, 'text/html');
+            parsed.querySelectorAll('turbo-stream').forEach((stream) => {
+                const target = document.getElementById(
+                    stream.getAttribute('target'),
+                );
+                target?.remove();
+            });
         });
+    });
+
+    it('applies the streams that clear the band and the warning, and loads no page', async () => {
+        answer(200, CLEARED);
         await mount();
-        const dialog = open('finish');
+        signal();
+        await settle();
+        expect(fetch).toHaveBeenCalledTimes(1);
+        expect(fetch.mock.calls[0][0]).toBe(URL_PATH);
+        expect(turbo.renderStreamMessage).toHaveBeenCalledWith(CLEARED);
+        expect(document.querySelector('#draft-band')).toBeNull();
+        expect(document.querySelector('#draft-review-warning')).toBeNull();
+    });
+
+    it('turns the second confirmation off and keeps the verdict and the note of an open Finish review dialog', async () => {
+        answer(200, CLEARED);
+        await mount();
+        open('finish');
         document.querySelector('input[value="approved"]').checked = true;
         document.querySelector('textarea').value = 'My note';
         signal();
         await settle();
-        expect(
-            document.querySelector('#draft-review-warning').textContent.trim(),
-        ).toBe('');
         expect(
             document
                 .querySelector('form')
@@ -280,10 +260,21 @@ describe('a published draft', () => {
             true,
         );
         expect(document.querySelector('textarea').value).toBe('My note');
-        expect(turbo.morphBodyElements).not.toHaveBeenCalled();
+    });
+
+    it('holds the update while the publish dialog is open', async () => {
+        answer(200, CLEARED);
+        await mount();
+        document.querySelector('#draft-band').innerHTML =
+            '<dialog id="band-dialog"></dialog>';
+        const dialog = open('band-dialog');
+        signal();
+        await settle();
+        expect(fetch).not.toHaveBeenCalled();
         close(dialog);
         await settle();
-        expect(turbo.morphBodyElements).toHaveBeenCalledTimes(1);
+        expect(fetch).toHaveBeenCalledTimes(1);
+        expect(document.querySelector('#draft-band')).toBeNull();
     });
 });
 
@@ -357,141 +348,5 @@ describe('a failed fetch', () => {
             expect(line.closest('#draft-band')).toBeNull();
             expect(line.closest('#draft-review-warning')).toBeNull();
         }
-    });
-});
-
-describe('a page that is not a draft', () => {
-    async function mountPlain() {
-        document.body.innerHTML = `
-    <div class="lp-review" data-controller="review-draft-live" data-review-draft-live-url-value="${URL_PATH}" data-review-draft-live-stopped-value="${STOPPED}">
-        <p>Approved</p>
-        <textarea name="comment"></textarea>
-    </div>`;
-        await vi.advanceTimersByTimeAsync(0);
-    }
-
-    it('loads the page with a morph when the draft state answers no content', async () => {
-        answer(204);
-        responses.push({
-            ok: true,
-            status: 200,
-            text: async () =>
-                '<!doctype html><html><body><p>Changes requested</p></body></html>',
-        });
-        await mountPlain();
-        signal();
-        await settle();
-        expect(fetch).toHaveBeenCalledTimes(2);
-        expect(fetch.mock.calls[0][0]).toBe(URL_PATH);
-        expect(turbo.morphBodyElements).toHaveBeenCalledTimes(1);
-        const [current, fresh] = turbo.morphBodyElements.mock.calls[0];
-        expect(current).toBe(document.body);
-        expect(fresh.textContent).toContain('Changes requested');
-        expect(turbo.renderStreamMessage).not.toHaveBeenCalled();
-    });
-
-    describe('the forms of the reader', () => {
-        function morphEvent(current, incoming) {
-            const event = new CustomEvent('turbo:before-morph-element', {
-                bubbles: true,
-                cancelable: true,
-                detail: { currentElement: current, newElement: incoming },
-            });
-            current.dispatchEvent(event);
-
-            return event;
-        }
-
-        async function morphWith(markup, ask) {
-            answer(204);
-            responses.push({
-                ok: true,
-                status: 200,
-                text: async () => '<html><body><p>Approved</p></body></html>',
-            });
-            let outcome;
-            turbo.morphBodyElements.mockImplementation(() => {
-                outcome = ask();
-            });
-            document.body.innerHTML = `<div data-controller="review-draft-live" data-review-draft-live-url-value="${URL_PATH}" data-review-draft-live-stopped-value="${STOPPED}">${markup}</div>`;
-            await vi.advanceTimersByTimeAsync(0);
-            signal();
-            await settle();
-
-            return outcome;
-        }
-
-        const incoming = (hidden) => {
-            const form = document.createElement('form');
-            form.hidden = hidden;
-
-            return form;
-        };
-
-        it('keeps a form with typed text out of the morph', async () => {
-            const outcome = await morphWith(
-                '<form id="composer"><textarea></textarea></form>',
-                () => {
-                    document.querySelector('textarea').value = 'Typed';
-
-                    return morphEvent(
-                        document.getElementById('composer'),
-                        incoming(false),
-                    ).defaultPrevented;
-                },
-            );
-            expect(outcome).toBe(true);
-        });
-
-        it('keeps a form that a script opened out of the morph', async () => {
-            const outcome = await morphWith(
-                '<form id="composer"><textarea></textarea></form>',
-                () =>
-                    morphEvent(
-                        document.getElementById('composer'),
-                        incoming(true),
-                    ).defaultPrevented,
-            );
-            expect(outcome).toBe(true);
-        });
-
-        it('lets a form with nothing typed and nothing opened morph', async () => {
-            const outcome = await morphWith(
-                '<form id="composer"><textarea></textarea></form>',
-                () =>
-                    morphEvent(
-                        document.getElementById('composer'),
-                        incoming(false),
-                    ).defaultPrevented,
-            );
-            expect(outcome).toBe(false);
-        });
-
-        it('lets the morph remove a form the new page no longer has', async () => {
-            const outcome = await morphWith(
-                '<form id="composer"><textarea></textarea></form>',
-                () => {
-                    document.querySelector('textarea').value = 'Typed';
-
-                    return morphEvent(
-                        document.getElementById('composer'),
-                        undefined,
-                    ).defaultPrevented;
-                },
-            );
-            expect(outcome).toBe(false);
-        });
-
-        it('listens for the morph only while it runs', async () => {
-            await morphWith('<form id="composer"></form>', () => true);
-            const form = document.createElement('form');
-            form.innerHTML = '<textarea></textarea>';
-            form.querySelector('textarea').value = 'Typed';
-            document.body.append(form);
-
-            expect(morphEvent(form, incoming(false)).defaultPrevented).toBe(
-                false,
-            );
-        });
     });
 });

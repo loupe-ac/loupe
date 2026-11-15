@@ -1,0 +1,24 @@
+{# Props: project, listQuery, items (list<DocumentListItem>), removedIds (list<string>), newerCount (int).
+   The answer to a later page of the documents list: a row that still matches
+   morphs, a row that no longer matches goes, and the band counts new documents. #}
+{% set cardLinkMap = document_card_link_map(items) %}
+{% for item in items %}
+<turbo-stream action="replace" method="morph" target="document-row-{{ item.document.id }}">
+    <template>{% include '@Review/_document_row.html.twig' with {item: item, project: project, listQuery: listQuery, cardLinks: cardLinkMap[item.document.id ~ '']|default([])} only %}</template>
+</turbo-stream>
+{% endfor %}
+{% for id in removedIds %}
+<turbo-stream action="remove" target="document-row-{{ id }}"></turbo-stream>
+{% endfor %}
+<turbo-stream action="update" target="documents-live-band">
+    <template>
+        {% if newerCount > 0 %}
+        <twig:Ds:Flash severity="info">
+            {{ 'review.live.newer_documents'|trans({'%count%': newerCount}) }}
+            <twig:block name="actions">
+                <a href="{{ path('app_project_documents', {id: project.id}|merge(listQuery.withPage(1).routeParams)) }}">{{ 'review.live.show_first_page'|trans }}</a>
+            </twig:block>
+        </twig:Ds:Flash>
+        {% endif %}
+    </template>
+</turbo-stream>

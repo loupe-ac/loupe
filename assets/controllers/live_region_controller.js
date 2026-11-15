@@ -144,6 +144,22 @@ export default class extends Controller {
         if (this.modeValue === 'rows') {
             url.searchParams.set('ids', this.rowIds().join(','));
             url.searchParams.set('since', this.element.dataset.liveSince ?? '');
+            url.searchParams.set(
+                'sinceId',
+                this.element.dataset.liveSinceId ?? '',
+            );
+            if (this.element.dataset.liveTotal !== undefined) {
+                url.searchParams.set('total', this.element.dataset.liveTotal);
+            }
+        }
+
+        const known = this.element.dataset.liveKnown;
+        if (this.modeValue === 'rows' && known !== undefined) {
+            const body = new URLSearchParams({
+                known: JSON.parse(known).join(','),
+            });
+
+            return liveRequest(url.toString(), { headers, signal, body });
         }
 
         return liveRequest(url.toString(), { headers, signal });

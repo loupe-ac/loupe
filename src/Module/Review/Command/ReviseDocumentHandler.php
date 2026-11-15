@@ -9,6 +9,7 @@ use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\DocumentStatus;
 use App\Module\Review\Entity\Series;
 use App\Module\Review\Event\DocumentStatusChanged;
+use App\Module\Review\Event\DocumentVersionPublished;
 use App\Module\Review\Repository\CommentRepository;
 use App\Module\Review\Repository\DocumentVersionRepository;
 use App\Module\Review\Service\DocumentReferenceValidator;
@@ -193,10 +194,10 @@ final readonly class ReviseDocumentHandler
             ],
             new AuditSubject('document', (string) $document->id),
         );
-        $this->events->dispatch(new DocumentStatusChanged(
-            $document->project->id ?? throw new \LogicException('A persisted project has an id.'),
-            $document->id ?? throw new \LogicException('A persisted document has an id.'),
-        ));
+        $projectId = $document->project->id ?? throw new \LogicException('A persisted project has an id.');
+        $documentId = $document->id ?? throw new \LogicException('A persisted document has an id.');
+        $this->events->dispatch(new DocumentVersionPublished($projectId, $documentId, $newVersionNumber));
+        $this->events->dispatch(new DocumentStatusChanged($projectId, $documentId));
 
         return $summary;
     }

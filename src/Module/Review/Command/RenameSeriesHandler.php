@@ -6,11 +6,13 @@ namespace App\Module\Review\Command;
 
 use App\Exception\DomainErrors;
 use App\Module\Review\Entity\Series;
+use App\Module\Review\Event\DocumentSeriesChanged;
 use App\Module\Review\Repository\DocumentRepository;
 use App\Module\Review\Repository\SeriesRepository;
 use App\Module\Review\Service\SeriesConflictErrors;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
@@ -33,6 +35,7 @@ final readonly class RenameSeriesHandler
         private DocumentRepository $documents,
         private SeriesConflictErrors $conflicts,
         private Auditor $auditor,
+        private EventDispatcherInterface $events,
     ) {
     }
 
@@ -75,6 +78,9 @@ final readonly class RenameSeriesHandler
             ],
             new AuditSubject('series', (string) $series->id),
         );
+        $this->events->dispatch(new DocumentSeriesChanged(
+            $series->project->id ?? throw new \LogicException('A persisted project has an id.'),
+        ));
 
         return new RenameSeriesOutcome($series, $this->documents->countBySeries($series));
     }

@@ -1478,6 +1478,38 @@
                 <source>review.publish.submit</source>
                 <target>Publish</target>
             </trans-unit>
+            <trans-unit id="review.live.archived">
+                <source>review.live.archived</source>
+                <target>This document was archived.</target>
+            </trans-unit>
+            <trans-unit id="review.live.unarchive">
+                <source>review.live.unarchive</source>
+                <target>Unarchive</target>
+            </trans-unit>
+            <trans-unit id="review.live.version_out">
+                <source>review.live.version_out</source>
+                <target>Version %version% is out.</target>
+            </trans-unit>
+            <trans-unit id="review.live.show_version">
+                <source>review.live.show_version</source>
+                <target>Show version %version%</target>
+            </trans-unit>
+            <trans-unit id="review.live.rename_changed">
+                <source>review.live.rename_changed</source>
+                <target>This document changed in another place. Open it to see the current title before you rename it.</target>
+            </trans-unit>
+            <trans-unit id="review.live.open_document">
+                <source>review.live.open_document</source>
+                <target>Open the document</target>
+            </trans-unit>
+            <trans-unit id="review.live.newer_documents">
+                <source>review.live.newer_documents</source>
+                <target>{0}No new documents.|{1}1 new document.|]1,Inf[%count% new documents.</target>
+            </trans-unit>
+            <trans-unit id="review.live.show_first_page">
+                <source>review.live.show_first_page</source>
+                <target>Show the first page</target>
+            </trans-unit>
             <trans-unit id="review.draft_band.live_stopped">
                 <source>review.draft_band.live_stopped</source>
                 <target>Live updates stopped. Reload the page to see the current state.</target>

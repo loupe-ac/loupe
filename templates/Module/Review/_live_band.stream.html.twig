@@ -1,0 +1,4 @@
+{# Props: document, archived (bool), newerVersion (int, 0 for none). #}
+<turbo-stream action="update" target="live-band">
+    <template>{% include '@Review/_live_band.html.twig' with {document: document, archived: archived, newerVersion: newerVersion} only %}</template>
+</turbo-stream>

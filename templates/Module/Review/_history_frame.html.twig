@@ -1,0 +1,74 @@
+{# Props: document, versions. The live region of the history page. #}
+{% set routeParameters = {projectId: document.project.id, documentId: document.id} %}
+{% set latestVersion = versions|first.versionNumber %}
+{% set earliestVersion = versions|last.versionNumber %}
+<turbo-frame id="document-history-live" target="_top"
+             data-controller="live-region"
+             data-live-region-mode-value="stream"
+             data-live-region-types-value="{{ ['review.version_published', 'review.thread_changed', 'review.document_state_changed']|json_encode|e('html_attr') }}"
+             data-live-region-match-value="{{ {documentId: document.id ~ ''}|json_encode|e('html_attr') }}"
+             data-live-region-url-value="{{ path('app_document_history_live', routeParameters) }}">
+<twig:Ds:DataTable modifier="history" :label="'review.document.history.table.label'|trans" :columns="[
+    {label: 'review.document.history.column.version'|trans},
+    {label: 'review.document.history.column.revision'|trans},
+    {label: 'review.document.history.column.discussion'|trans},
+    {label: 'review.document.history.column.open'|trans},
+]">
+    {% for meta in versions %}
+    {% set isLatest = meta.versionNumber == latestVersion %}
+    {% set readPath = isLatest
+        ? path('app_document_review', routeParameters)
+        : path('app_document_review_version', routeParameters|merge({versionNumber: meta.versionNumber})) %}
+    <div class="lp-data-table__row lp-history__row{{ isLatest ? ' lp-history__row--current' : '' }}" role="row"
+        data-version-number="{{ meta.versionNumber }}">
+        <div class="lp-data-table__cell" role="cell"><span class="lp-history__version">{{ 'v' ~ meta.versionNumber }}</span></div>
+        <div class="lp-data-table__cell" role="cell">
+            {% if meta.description %}
+            <strong class="lp-history__note">{{ meta.description }}</strong>
+            {% else %}
+            <strong class="lp-history__note lp-history__note--empty">{{ (isLatest ? 'review.document.history.current' : 'review.document.history.no_note')|trans }}</strong>
+            {% endif %}
+            <twig:Ds:RelativeTime :datetime="meta.createdAt" class="lp-history__date" />
+        </div>
+        <div class="lp-data-table__cell" role="cell">{{ 'review.document.history.threads'|trans({'%count%': meta.threadCount}) }}</div>
+        <div class="lp-data-table__cell" role="cell">
+            <div class="lp-history__actions">
+                <a class="lp-history__action" href="{{ readPath }}">
+                    <twig:ux:icon name="lucide:file-text" />
+                    {{ 'review.document.history.read'|trans }}
+                </a>
+                {# The oldest version has no predecessor, so it carries no control. #}
+                {% if meta.versionNumber > earliestVersion %}
+                <a class="lp-history__action lp-history__compare"
+                   href="{{ path('app_document_review_diff', routeParameters|merge({fromVersionNumber: meta.versionNumber - 1, toVersionNumber: meta.versionNumber})) }}"
+                   aria-label="{{ 'review.document.history.compare_with'|trans({'%from%': meta.versionNumber - 1}) }}">
+                    <twig:ux:icon name="lucide:git-compare" />
+                    {{ 'review.document.history.diff'|trans }}
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</twig:Ds:DataTable>
+
+<h2 class="lp-history-title lp-history-title--log">{{ 'review.document.history.reviews'|trans }}</h2>
+<div class="lp-history-surface lp-history-log">
+    {% set verdicts = versions|reduce((carry, meta) => carry|merge(meta.reviews|map(review => {review: review, versionNumber: meta.versionNumber})), []) %}
+    {% for entry in verdicts %}
+    <div class="lp-history__review" data-review-sequence="{{ entry.review.sequence }}">
+        <span class="lp-history__verdict lp-history__verdict--{{ entry.review.verdict.value }}">{{ ('review.document.verdict.' ~ entry.review.verdict.value)|trans }}</span>
+        <span>{{ entry.review.reviewer.fullName }}</span>
+        {% if entry.review.workflowRule %}<twig:Ds:Tag tone="neutral">{{ entry.review.workflowRule }}</twig:Ds:Tag>{% endif %}
+        <span class="lp-history__version">{{ 'v' ~ entry.versionNumber }}</span>
+        <twig:Ds:RelativeTime :datetime="entry.review.submittedAt" class="lp-history__date" />
+        {% if entry.review.workflowRule and entry.review.verdict.value == 'approved' %}<p class="lp-history__review-note">{{ 'review.document.verdict.workflow_approved_note'|trans }}</p>
+        {% elseif entry.review.note %}<p class="lp-history__review-note">{{ entry.review.note }}</p>{% endif %}
+        {% if entry.review.throughAgent %}<p class="lp-history__review-agent"><twig:ux:icon name="lucide:bot" class="lp-icon lp-icon--sm" aria-hidden="true" />{{ 'review.document.verdict.through_agent'|trans }}</p>{% endif %}
+        {% if entry.review.apiKeyId %}<p class="lp-history__review-api-key"><twig:ux:icon name="lucide:key-round" class="lp-icon lp-icon--sm" aria-hidden="true" />{{ entry.review.apiKeyName ? 'review.document.verdict.through_named_api_key'|trans({'%name%': entry.review.apiKeyName}) : 'review.document.verdict.through_api_key'|trans }}</p>{% endif %}
+    </div>
+    {% else %}
+    <p class="lp-history__empty">{{ 'review.document.history.no_verdicts'|trans }}</p>
+    {% endfor %}
+</div>
+</turbo-frame>
