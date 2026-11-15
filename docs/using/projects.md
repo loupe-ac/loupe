@@ -6,6 +6,8 @@ description: "Create projects and describe their purpose."
 Each project belongs to one account, its owner. Loupe has no teams yet, so a project has no second member and you cannot share it with a group. Some pages are for the owner alone, such as the [Agent readiness tab and the Repositories section](#agent-readiness) of the project settings. Several agents can work for one owner. A coding agent signs in through the owner's account. See [First steps](../getting-started/index.md) and [Installing the CLI](../getting-started/cli.md).
 
 Open All projects to choose a workspace. Each tile links to its Workshop and shows that project's counts.
+The page updates by itself. When a project is created, renamed or deleted, or when a count on a tile changes, the first page shows the change with no reload. A tile that leaves fades out.
+On page 2 and later, the tiles stay in their place. Each tile shows its new name and counts, and a deleted tile fades out. When projects are newer than the page, a band says how many, with a link to the first page.
 Press Tab to reveal Skip to content. Press Enter to bypass navigation and focus the page content.
 The next Tab moves to a control within that content.
 The sidebar picker marks the current project with a check. It includes the current project even when newer projects fill the list.
@@ -29,6 +31,10 @@ An agent connected to the project can change the name, description, domain and d
 It changes the allowed origins of the sign-in widget with `project_origins_set`.
 See [Changing the project settings](mcp.md#changing-the-project-settings).
 An invalid submission keeps the entered text so you can correct it.
+
+A project form that you have open does not change under your typing. When a person or an agent saves the same project, the form shows a band with a link that opens the current settings in a new tab. What you typed stays in the form. The project form, the allowed origins form on the Connect page, the readiness guide form and the agent account form do this.
+The machines on the Connect page and the discovery status in the readiness settings update by themselves.
+Live updates need a Mercure hub and the `live_updates.enabled` flag, see [Live changes](board.md#live-changes).
 
 Project settings has no Inbox section.
 The `inbox:` list of the workflow template decides which card waits open an item in the inbox.

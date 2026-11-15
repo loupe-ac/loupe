@@ -8,6 +8,7 @@ use App\Doctrine\SearchLanguage;
 use App\Exception\DomainErrors;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Event\ProjectRenamed;
+use App\Module\Project\Event\ProjectSettingsChanged;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Project\Service\AllowedOriginsInput;
 use App\Utils\Slug;
@@ -123,6 +124,8 @@ final readonly class UpdateProjectHandler
             // A concurrent rename won the race with the checks above, and a unique index caught it.
             throw new DomainErrors(['name' => str_contains($e->getMessage(), Project::SLUG_CONSTRAINT) ? 'project.error.slug_taken' : 'project.error.name_taken']);
         }
+
+        $this->events->dispatch(new ProjectSettingsChanged($project->id ?? throw new \LogicException('Project has no id.')));
 
         $this->auditor->record(
             'project.updated',

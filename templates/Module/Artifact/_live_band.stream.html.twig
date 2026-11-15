@@ -1,0 +1,30 @@
+{% set artifactPath = path(full ? 'app_project_artifact_full' : 'app_project_artifact', {id: project.id, artifactId: artifact.id}) %}
+{% set versionPath = view.newerVersion is not null ? path(full ? 'app_project_artifact_version_full' : 'app_project_artifact_version', {id: project.id, artifactId: artifact.id, number: view.newerVersion}) : artifactPath %}
+<turbo-stream action="update" target="live-band">
+    <template>
+        {% if view.newerVersion is not null %}
+        <twig:Ds:Flash severity="info" class="lp-artifact-band" data-artifact-live-version>
+            {{ 'artifact.live.version'|trans({'%number%': view.newerVersion}) }}
+            <twig:block name="actions"><a href="{{ versionPath }}" data-artifact-live-show-version>{{ 'artifact.live.show_version'|trans({'%number%': view.newerVersion}) }}</a></twig:block>
+        </twig:Ds:Flash>
+        {% endif %}
+        {% if view.archived %}
+        <twig:Ds:Flash severity="warning" class="lp-artifact-band" data-artifact-live-archived>
+            {{ 'artifact.live.archived'|trans }}
+            <twig:block name="actions">
+                {% if is_granted(constant('App\\Module\\Artifact\\Security\\ArtifactVoter::MANAGE'), artifact) %}
+                <twig:Ds:ActionForm :action="path('app_project_artifact_unarchive', {id: project.id, artifactId: artifact.id})" token="artifact-unarchive">
+                    <twig:Ds:Button size="sm" type="submit">{{ 'artifact.live.unarchive'|trans }}</twig:Ds:Button>
+                </twig:Ds:ActionForm>
+                {% endif %}
+            </twig:block>
+        </twig:Ds:Flash>
+        {% endif %}
+        {% if view.restored %}
+        <twig:Ds:Flash severity="info" class="lp-artifact-band" data-artifact-live-restored>
+            {{ 'artifact.live.restored'|trans }}
+            <twig:block name="actions"><a href="{{ artifactPath }}" data-artifact-live-reload>{{ 'artifact.live.reload'|trans }}</a></twig:block>
+        </twig:Ds:Flash>
+        {% endif %}
+    </template>
+</turbo-stream>

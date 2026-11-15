@@ -31,6 +31,8 @@ final readonly class DevArtifactSeeder implements DevSeederInterface
 
     public const string TWIN_NAME = 'Archived pricing sketch';
 
+    public const string ARCHIVED_NAME = 'Retired pricing draft';
+
     public const string SOURCE_LINK = 'https://claude.ai/design/p/00000000-0000-0000-0000-000000000000?file=Example.dc.html';
 
     private const string FIRST = <<<'HTML'
@@ -66,6 +68,11 @@ final readonly class DevArtifactSeeder implements DevSeederInterface
         return DevSeedId::of('artifact/artifact/archived-pricing-sketch');
     }
 
+    public static function archivedId(): Uuid
+    {
+        return DevSeedId::of('artifact/artifact/retired-pricing-draft');
+    }
+
     public function __construct(
         private EntityManagerInterface $em,
         private ProjectRepository $projects,
@@ -93,6 +100,7 @@ final readonly class DevArtifactSeeder implements DevSeederInterface
             ?? throw new \LogicException('The dev project does not exist.');
 
         $this->seedTwin($context, $project);
+        $this->seedArchived($context, $project);
 
         $id = self::artifactId();
         if ($this->artifacts->find($id) instanceof Artifact) {
@@ -125,6 +133,23 @@ final readonly class DevArtifactSeeder implements DevSeederInterface
         $context->ids->assign($artifact, $id);
         $version = $artifact->addVersion($project->owner, notes: 'The only draft.');
         $version->addFile('index.html', $this->artifactBlobs->findOrCreate($project, self::FIRST), 'text/html');
+        $this->em->persist($artifact);
+        $this->em->flush();
+    }
+
+    /** One version, archived: the page shows the archived tag and the Unarchive action. */
+    private function seedArchived(SeedContext $context, Project $project): void
+    {
+        $id = self::archivedId();
+        if ($this->artifacts->find($id) instanceof Artifact) {
+            return;
+        }
+
+        $artifact = new Artifact($project, self::ARCHIVED_NAME, $project->owner, null, createdAt: $context->at(110));
+        $context->ids->assign($artifact, $id);
+        $artifact->addVersion($project->owner, notes: 'The draft the team dropped.')
+            ->addFile('index.html', $this->artifactBlobs->findOrCreate($project, self::FIRST), 'text/html');
+        $artifact->archivedAt = $context->at(115);
         $this->em->persist($artifact);
         $this->em->flush();
     }

@@ -535,6 +535,11 @@ the kept result of the graph. When the kept result is older than the sweep
 interval, or no result exists yet, the page computes the numbers in its own
 request. A visitor cannot change the settings.
 
+The page does not update while it is open. A visitor sees the result of the
+page load until they reload the page. When you turn the link off, an open page
+keeps its result on screen, and the next reload shows "not found". The page has
+no account and no live connection, so it has no safe way to hear about a change.
+
 Account names and bridge names never reach the page. A split by account shows
 **Account 1**, **Account 2** and so on. A split by bridge shows **Bridge 1**,
 **Bridge 2**. The account usage split shows labels such as **Bridge 1 / Account 2**

@@ -10,6 +10,7 @@
 {% endblock %}
 
 {% block body %}
+{% do mercure_subscribe(account_topic(app.user)) %}
 {% set reopenDialog = (form.vars.submitted and not form.vars.valid) or app.request.query.has('new') %}
 <twig:Ds:Workspace class="lp-redesign-secondary lp-redesign-projects" data-controller="modal" :data-modal-reopen-value="reopenDialog ? 'true' : false">
     <twig:Ds:PageHeader :title="'project.list.page.title'|trans" :description="'project.list.page.description'|trans">
@@ -21,49 +22,30 @@
         </twig:block>
     </twig:Ds:PageHeader>
 
-    <div class="lp-project-list lp-project-tile-grid">
-        {% for item in items %}
-        {% set project = item.project %}
-        <twig:Ds:Panel as="article" class="lp-project-tile" data-project-id="{{ project.id }}">
-            <a href="{{ path('app_project_workshop', {id: project.id}) }}"
-               class="lp-project-row__link" aria-label="{{ project.name }}"></a>
-            <twig:Ds:Avatar :name="project.name" shape="square" tone="ink" />
-            <div class="lp-project-row__main">
-                <div class="lp-project-row__head">
-                    <span class="lp-project-row__name">{{ project.name }}</span>
-                    {% if project.domain %}<span class="lp-project-row__domain">{{ project.domain }}</span>{% endif %}
-                </div>
-                {% if project.description is not null %}<p class="lp-project-row__description">{{ project.description }}</p>{% endif %}
-                <div class="lp-project-row__meta">
-                    <span>{{ 'project.list.meta.documents'|trans({'%count%': item.documentCount}) }}</span>
-                    <span class="lp-project-row__sep">·</span>
-                    <span>{{ 'project.list.meta.comments'|trans({'%count%': item.commentCount}) }}</span>
-                    <span class="lp-project-row__sep">·</span>
-                    <span class="lp-project-row__open">{{ 'project.list.meta.open'|trans({'%count%': item.openCount}) }}</span>
-                    <span class="lp-project-row__sep">·</span>
-                    <span class="lp-project-row__cards">{{ 'project.list.meta.cards'|trans({'%count%': item.openCardCount}) }}</span>
-                    {% if is_feature_enabled('inbox.enabled') %}
-                    <span class="lp-project-row__sep">·</span>
-                    <span data-project-inbox-count>{{ 'inbox.project_list.open_items'|trans({'%count%': item.openInboxItemCount}) }}</span>
-                    {% endif %}
-                </div>
-            </div>
-            <a href="{{ path('app_project_edit', {id: project.id}) }}"
-               class="lp-project-row__edit"
-               aria-label="{{ 'project.list.edit'|trans({'%name%': project.name}) }}">
-                <twig:ux:icon name="lucide:pencil" class="lp-icon lp-icon--md" />
-            </a>
-            <twig:ux:icon name="lucide:chevron-right" class="lp-project-tile__arrow" />
-        </twig:Ds:Panel>
-        {% endfor %}
+    {% if page == 1 %}
+    {% include '@Project/_projects_frame.html.twig' with {items: items, page: page, totalPages: totalPages, pageList: pageList} only %}
+    {% else %}
+    <div id="projects-live-rows" data-controller="live-region"
+         data-live-region-types-value="{{ ['account.changed']|json_encode }}"
+         data-live-region-match-value="{{ {area: 'projects'}|json_encode }}"
+         data-live-region-url-value="{{ path('app_projects_rows') }}"
+         data-live-region-mode-value="rows"
+         data-live-since="{{ liveSince }}">
+        <div id="projects-live-band"></div>
+        <div class="lp-project-list lp-project-tile-grid">
+            {% for item in items %}
+            {% include '@Project/_project_row.html.twig' with {item: item} only %}
+            {% endfor %}
 
-        <button type="button" class="lp-project-new" data-action="click->modal#open">
-            <span class="lp-project-new__plus"><twig:ux:icon name="lucide:plus" /></span>
-            <span class="lp-project-new__label">{{ 'project.list.new'|trans }}</span>
-        </button>
+            <button type="button" class="lp-project-new" data-action="click->modal#open">
+                <span class="lp-project-new__plus"><twig:ux:icon name="lucide:plus" /></span>
+                <span class="lp-project-new__label">{{ 'project.list.new'|trans }}</span>
+            </button>
+        </div>
     </div>
 
     <twig:Ds:Pagination route="app_projects" :page="page" :totalPages="totalPages" :pageList="pageList" />
+    {% endif %}
 
     <twig:Ds:Dialog aria-labelledby="new-project-title" data-action="cancel->modal#close">
         <h3 class="lp-dialog-title" id="new-project-title">{{ 'project.list.new'|trans }}</h3>

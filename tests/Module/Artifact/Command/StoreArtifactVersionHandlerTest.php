@@ -27,6 +27,7 @@ use App\Tests\Support\RecordingAuditor;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestWith;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Uid\Uuid;
 
 final class StoreArtifactVersionHandlerTest extends KernelTestCase
@@ -371,6 +372,7 @@ final class StoreArtifactVersionHandlerTest extends KernelTestCase
             self::getContainer()->get(ArtifactCardLinksInterface::class),
             $this->em(),
             $this->audit->auditor,
+            self::getContainer()->get(EventDispatcherInterface::class),
         );
     }
 
