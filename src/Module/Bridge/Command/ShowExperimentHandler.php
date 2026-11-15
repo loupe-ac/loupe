@@ -286,7 +286,9 @@ final readonly class ShowExperimentHandler
             && (null === $onlyIds || \in_array((string) $row['card']->cardId, $onlyIds, true))
             && $matchesFilter($row)));
         $since = $command->newerSince;
-        $newerCards = null === $since ? 0 : \count(array_filter($cards, static fn (array $row): bool => $matchesFilter($row) && null !== $row['lastRunAt'] && $row['lastRunAt'] > $since));
+        $newerCards = null === $since ? 0 : \count(array_filter($cards, static fn (array $row): bool => $matchesFilter($row)
+            && !\in_array((string) $row['card']->cardId, $onlyIds ?? [], true)
+            && null !== $row['lastRunAt'] && $row['lastRunAt'] > $since));
         // The latest run first, and a card with a pin and no run last.
         usort($filtered, static fn (array $a, array $b): int => self::walkOrder($a['lastRunAt'], $a['card']->cardId, $b['lastRunAt'], $b['card']->cardId));
 
