@@ -17,35 +17,22 @@
 
     {% include 'activity/_tabs.html.twig' with {project: project, active: 'events'} only %}
 
-    {% if filtered %}
-    {# A GET form, so every control lands in the URL. `page` is not a field: a changed filter starts at page one. #}
-    <twig:Ds:FilterBar
-        :action="path('app_project_activity', {id: project.id})"
-        :search="{id: 'activity-search', name: 'search', value: listQuery.search, label: 'activity.filter.search_label'|trans, placeholder: 'activity.filter.search_placeholder'|trans}"
-        :clearHref="path('app_project_activity', {id: project.id})"
-        :clearLabel="'activity.filter.clear'|trans"
-        :count="'activity.count'|trans({'%count%': filteredTotal})"
-        countFrame="activity-count">
-        <label class="sr-only" for="activity-family">{{ 'activity.filter.family_label'|trans }}</label>
-        <twig:Ds:Select id="activity-family"
-                name="family"
-                data-action="change->autosearch#search">
-            <option value="">{{ 'activity.filter.all_families'|trans }}</option>
-            {% for family in families %}
-                <option value="{{ family.value }}"{{ listQuery.family == family ? ' selected' : '' }}>{{ family.translationKey()|trans }}</option>
-            {% endfor %}
-        </twig:Ds:Select>
-    </twig:Ds:FilterBar>
-    {% endif %}
-
-    {# A reload on page two would move the rows under the reader, so only page one follows live changes. #}
-    {% set live = page == 1 %}
-    {% if live %}{% do mercure_subscribe(activity_topic(project)) %}{% endif %}
-    <div class="lp-live-frame"{% if live %} data-controller="worker-run-refresh"
-         data-worker-run-refresh-events-value="{{ ['activity.changed']|json_encode }}"
-         data-worker-run-refresh-frames-value="{{ ['activity-count']|json_encode }}"
-         data-worker-run-refresh-whole-value="{{ filtered ? 'false' : 'true' }}"{% endif %}>
-    <turbo-frame id="activity-frame" class="lp-live-frame" target="_top" data-worker-run-refresh-target="frame">
+    {% if not app.request.headers.has('Turbo-Frame') %}{% do mercure_subscribe(activity_topic(project)) %}{% endif %}
+    {% set rowsUrl = path('app_project_activity_rows', {id: project.id}|merge(listQuery.routeParams)) %}
+    {% if page > 1 and filtered %}{% include 'outbox/_activity_filters.html.twig' with {project: project, listQuery: listQuery, families: families, filteredTotal: filteredTotal} only %}{% endif %}
+    {# Page one morphs as a frame. A later page refreshes its rows by id, so a new event never moves them. #}
+    <div class="lp-live-frame"{% if page > 1 %} data-controller="live-region" data-live-content
+         data-live-region-types-value="{{ ['activity.changed']|json_encode }}"
+         data-live-region-mode-value="rows"
+         data-live-region-url-value="{{ rowsUrl }}"
+         data-live-since="{{ highestSequence }}"{% endif %}>
+    {% if page > 1 %}<div id="activity-live-band"></div>{% endif %}
+    <turbo-frame id="activity-frame" class="lp-live-frame" target="_top"{% if page == 1 %} refresh="morph" data-live-content
+         data-controller="live-region"
+         data-live-region-types-value="{{ ['activity.changed']|json_encode }}"
+         data-live-region-mode-value="frame"
+         data-live-region-url-value="{{ app.request.requestUri }}"{% endif %}>
+    {% if page == 1 and filtered %}{% include 'outbox/_activity_filters.html.twig' with {project: project, listQuery: listQuery, families: families, filteredTotal: filteredTotal} only %}{% endif %}
     {% if entries|length > 0 %}
     <twig:Ds:DataTable modifier="events" :label="'activity.table.label'|trans" :columns="[
         {label: 'activity.column.event'|trans},
@@ -55,30 +42,7 @@
         {label: 'activity.column.recorded'|trans},
     ]">
         {% for entry in entries %}
-        {% set event = entry.event %}
-        {% set family = entry.family() %}
-        {% set prefix = event.type|split('.')|first %}
-        {% set delivery = event.publishedAt ? 'delivered' : (event.lastPublishError ? 'failed' : 'pending') %}
-        {% set event_content %}<span class="lp-data-table__title">{% include 'outbox/_event_type_label.html.twig' with {type: event.type} only %}</span>{% if entry.link %}<span class="lp-data-table__subject">{{ entry.link.subject }}</span>{% endif %}{% endset %}
-        <div class="lp-data-table__row" role="row" data-activity-event-id="{{ event.id }}" data-event-family="{{ family ? family.value : prefix }}">
-            <div class="lp-data-table__cell lp-data-table__primary" role="cell">
-                {% if entry.link %}
-                <a class="lp-data-table__target" href="{{ entry.link.url }}" data-activity-work-link>{{ event_content }}</a>
-                {% else %}
-                {{ event_content }}
-                {% endif %}
-            </div>
-            <span class="lp-data-table__cell" role="cell">
-                <twig:Ds:StatusChip
-                    :modifier="{delivered: 'ok', failed: 'failed', pending: 'pending'}[delivery]"
-                    :label="('activity.delivery.' ~ delivery)|trans"
-                    :reason="event.lastPublishError ? 'activity.delivery.reason'|trans({'%count%': event.publishAttempts, '%error%': event.lastPublishError}) : null"
-                    :id="'activity-reason-' ~ event.id" />
-            </span>
-            <span class="lp-data-table__cell" role="cell"><twig:Ds:Tag tone="neutral">{{ family ? family.translationKey()|trans : prefix }}</twig:Ds:Tag></span>
-            <span class="lp-data-table__cell lp-data-table__cell--end" role="cell">{{ event.sequence ?? '—' }}</span>
-            <span class="lp-data-table__cell" role="cell"><twig:Ds:RelativeTime :datetime="event.createdAt" /></span>
-        </div>
+        {% include 'outbox/_activity_row.html.twig' with {entry: entry} only %}
         {% endfor %}
     </twig:Ds:DataTable>
 

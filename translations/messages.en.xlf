@@ -8486,6 +8486,8 @@ workflow:
             <trans-unit id="activity.filter.search_placeholder"><source>activity.filter.search_placeholder</source><target>Search event type or data</target></trans-unit>
             <trans-unit id="activity.filter.family_label"><source>activity.filter.family_label</source><target>Filter by event family</target></trans-unit>
             <trans-unit id="activity.filter.all_families"><source>activity.filter.all_families</source><target>All event types</target></trans-unit>
+            <trans-unit id="activity.live.newer"><source>activity.live.newer</source><target>{0}No newer event was recorded.|{1}One newer event was recorded.|]1,Inf[%count% newer events were recorded.</target></trans-unit>
+            <trans-unit id="activity.live.show_first_page"><source>activity.live.show_first_page</source><target>Show the first page</target></trans-unit>
             <trans-unit id="activity.filter.clear"><source>activity.filter.clear</source><target>Clear</target></trans-unit>
             <trans-unit id="activity.filter.empty"><source>activity.filter.empty</source><target>No activity matches these filters.</target></trans-unit>
             <trans-unit id="activity.column.event"><source>activity.column.event</source><target>Event</target></trans-unit>

@@ -22,7 +22,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[Route(
     '/projects/{id:project}/activity',
     name: 'app_project_activity',
-    defaults: [ReadOnlyAwareSessionHandler::READ_ONLY => ['activity-frame', 'activity-count']],
+    defaults: [ReadOnlyAwareSessionHandler::READ_ONLY => 'activity-frame'],
     methods: ['GET'],
 )]
 final class ListActivityController extends AppController
@@ -58,6 +58,7 @@ final class ListActivityController extends AppController
             'page' => $listQuery->page,
             'totalPages' => $view->totalPages,
             'pageList' => $view->pageList,
+            'highestSequence' => $view->highestSequence,
             'listQuery' => $listQuery,
             'families' => ActivityFamily::cases(),
         ]);

@@ -9,6 +9,7 @@ use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
 use App\Outbox\Command\ListProjectOutboxCommand;
 use App\Outbox\Command\ListProjectOutboxHandler;
+use App\Session\ReadOnlyAwareSessionHandler;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
@@ -17,6 +18,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[Route(
     '/projects/{id:project}/outbox',
     name: 'app_project_outbox',
+    defaults: [ReadOnlyAwareSessionHandler::READ_ONLY => 'outbox-frame'],
     methods: ['GET'],
 )]
 class ListProjectOutboxController extends AppController
