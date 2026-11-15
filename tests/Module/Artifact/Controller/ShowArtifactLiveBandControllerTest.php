@@ -29,7 +29,7 @@ final class ShowArtifactLiveBandControllerTest extends WebTestCase
         self::assertSame('live-band', $crawler->filter('turbo-stream')->attr('target'));
         self::assertStringContainsString('Version 2 is out.', $crawler->filter('[data-artifact-live-version]')->text());
         self::assertSame('Show version 2', trim($crawler->filter('[data-artifact-live-show-version]')->text()));
-        self::assertStringEndsWith('/artifacts/'.$artifact->id, (string) $crawler->filter('[data-artifact-live-show-version]')->attr('href'));
+        self::assertStringEndsWith('/artifacts/'.$artifact->id.'/versions/2', (string) $crawler->filter('[data-artifact-live-show-version]')->attr('href'));
         self::assertCount(0, $crawler->filter('[data-artifact-live-archived]'));
     }
 
@@ -39,7 +39,7 @@ final class ShowArtifactLiveBandControllerTest extends WebTestCase
 
         $crawler = $this->band($client, $project, $artifact, 'shown=1&full=1');
 
-        self::assertStringEndsWith('/artifacts/'.$artifact->id.'/full-screen', (string) $crawler->filter('[data-artifact-live-show-version]')->attr('href'));
+        self::assertStringEndsWith('/artifacts/'.$artifact->id.'/versions/2/full-screen', (string) $crawler->filter('[data-artifact-live-show-version]')->attr('href'));
     }
 
     public function test_a_page_on_the_latest_version_gets_an_empty_band(): void
