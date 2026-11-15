@@ -117,8 +117,8 @@ func resultIndex(t *testing.T, result []byte) int {
 func TestReadsAPlainRunWithABackgroundTaskAndAnAsyncSubagent(t *testing.T) {
 	out := readFixture(t, "plain_background_subagent.jsonl")
 
-	if resultIndex(t, out.Result) != 0 {
-		t.Fatalf("the first result line wins, got %s", out.Result)
+	if resultIndex(t, out.Result) != 1 {
+		t.Fatalf("the last result line wins, got %s", out.Result)
 	}
 	checkCalls(t, out.Calls, []call{
 		{tool: "Bash", kind: stream.KindShell, startedAt: "2026-10-06T16:32:31.797Z", durationMs: i64(157), isError: no(), backgroundID: str("bcxsdsc2t")},
@@ -133,11 +133,11 @@ func TestReadsAPlainRunWithABackgroundTaskAndAnAsyncSubagent(t *testing.T) {
 	checkTiming(t, out.Timing, i64(157+24+24), i64(0))
 }
 
-func TestTheFirstOfTwoResultLinesWins(t *testing.T) {
+func TestTheLastOfTwoResultLinesWins(t *testing.T) {
 	out := readFixture(t, "background_two_results.jsonl")
 
-	if resultIndex(t, out.Result) != 0 {
-		t.Fatalf("the first result line wins, got %s", out.Result)
+	if resultIndex(t, out.Result) != 1 {
+		t.Fatalf("the last result line wins, got %s", out.Result)
 	}
 	if !bytes.Contains(out.Result, []byte(`"structured_output"`)) {
 		t.Fatalf("the result line lost its structured output: %s", out.Result)
