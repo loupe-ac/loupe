@@ -1585,19 +1585,24 @@ class CardRepository extends ServiceEntityRepository
 
     /**
      * How many Backlog cards that match the filters arrived after the moment:
-     * created, or moved into the Backlog.
+     * created, edited, or moved into the Backlog. An edit counts because it can
+     * bring a card into the filters. A card the page already shows never counts.
      *
      * @param list<string> $movedIds the cards with a move into the Backlog after the moment
+     * @param list<string> $shownIds the cards the page already shows
      */
-    public function countBacklogMatchingArrivedAfter(BoardColumn $backlog, BacklogListQuery $listQuery, \DateTimeImmutable $since, array $movedIds = []): int
+    public function countBacklogMatchingArrivedAfter(BoardColumn $backlog, BacklogListQuery $listQuery, \DateTimeImmutable $since, array $movedIds = [], array $shownIds = []): int
     {
         $qb = $this->backlogMatching($backlog, $listQuery)
             ->select('COUNT(c.id)')
             ->setParameter('since', $since);
         if ([] === $movedIds) {
-            $qb->andWhere('c.createdAt > :since');
+            $qb->andWhere('c.updatedAt > :since');
         } else {
-            $qb->andWhere('c.createdAt > :since OR c.id IN (:moved)')->setParameter('moved', $movedIds);
+            $qb->andWhere('c.updatedAt > :since OR c.id IN (:moved)')->setParameter('moved', $movedIds);
+        }
+        if ([] !== $shownIds) {
+            $qb->andWhere('c.id NOT IN (:shown)')->setParameter('shown', $shownIds);
         }
 
         return (int) $qb->getQuery()->getSingleScalarResult();

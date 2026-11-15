@@ -106,6 +106,28 @@ final class CardRepositoryLiveRowsTest extends KernelTestCase
         self::assertSame(0, $this->cards->countBacklogMatchingArrivedAfter($backlog, new BacklogListQuery(type: 'bug'), $since, $movedIds));
     }
 
+    public function test_the_backlog_counts_a_card_edited_into_the_filters_after_the_moment(): void
+    {
+        $project = $this->project($this->em, $this->user($this->em, 'rows-edited-in@example.com'));
+        $card = $this->card($this->em, $project, 'Becomes a bug');
+        $shown = $this->card($this->em, $project, 'Already shown');
+        $backlog = $this->column($project, 'backlog');
+        $since = new \DateTimeImmutable('+1 second');
+        $bugs = new BacklogListQuery(type: 'bug');
+
+        self::assertSame(0, $this->cards->countBacklogMatchingArrivedAfter($backlog, $bugs, $since));
+
+        foreach ([$card, $shown] as $edited) {
+            $edited->type = 'bug';
+            $edited->updatedAt = new \DateTimeImmutable('+2 seconds');
+        }
+        $this->em->flush();
+
+        self::assertSame(2, $this->cards->countBacklogMatchingArrivedAfter($backlog, $bugs, $since));
+        self::assertSame(1, $this->cards->countBacklogMatchingArrivedAfter($backlog, $bugs, $since, [], [(string) $shown->id]));
+        self::assertSame(0, $this->cards->countBacklogMatchingArrivedAfter($backlog, new BacklogListQuery(type: 'feature'), $since));
+    }
+
     public function test_a_move_into_another_column_or_before_the_moment_is_not_a_move_in(): void
     {
         $project = $this->project($this->em, $this->user($this->em, 'rows-moved-else@example.com'));

@@ -40,6 +40,7 @@ final readonly class ListBacklogRowsHandler
                 $command->listQuery,
                 $command->since,
                 $this->cardEvents->findCardIdsMovedIntoColumnAfter($command->backlog, $command->since),
+                $command->ids,
             ),
             total: $total,
             filteredTotal: $command->listQuery->isNarrowed() ? $this->cards->countBacklogMatching($command->backlog, $command->listQuery) : $total,

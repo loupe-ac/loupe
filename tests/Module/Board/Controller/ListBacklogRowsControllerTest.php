@@ -37,7 +37,7 @@ final class ListBacklogRowsControllerTest extends WebTestCase
         self::assertStringContainsString('<turbo-stream action="replace" method="morph" target="backlog-row-'.$stays->id.'">', $body);
         self::assertStringContainsString('<turbo-stream action="remove" target="backlog-row-'.$moved->id.'">', $body);
         self::assertStringContainsString('target="backlog-live-band"', $body);
-        self::assertStringContainsString('2 new cards match this list.', $body);
+        self::assertStringContainsString('One new card matches this list.', $body);
         self::assertStringContainsString('target="backlog-filter-count"', $body);
     }
 
