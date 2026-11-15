@@ -1,0 +1,1 @@
+{"rows":[{"itemId":"01itm000-0000-7000-8000-000000000081","number":81,"title":"Name the public field: format or kind","state":"resolved","cardIds":["01a19328-0000-7000-8000-000000000044"]}],"page":1,"perPage":50,"total":1,"hasMore":false}
