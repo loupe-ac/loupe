@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Board\Controller;
 
+use App\Mercure\ProjectTopicBuilder;
 use App\Module\Board\Command\ListTerminalColumnCardsHandler;
 use App\Module\Board\Entity\BoardColumn;
 use App\Module\Board\View\LiveCursor;
@@ -179,6 +180,12 @@ final class ListTerminalColumnCardsControllerTest extends WebTestCase
 
         $client->loginUser($owner);
         $first = $client->request(Request::METHOD_GET, $url);
+        $topics = static::getContainer()->get(ProjectTopicBuilder::class);
+        self::assertInstanceOf(ProjectTopicBuilder::class, $topics);
+        self::assertContains(
+            $topics->forBoard($project->id),
+            $first->filter('form#mercure-subscriptions input[data-mercure-topic]')->each(static fn (Crawler $input): ?string => $input->attr('value')),
+        );
         $region = $first->filter('turbo-frame#terminal-live[data-controller="live-region"]');
         self::assertCount(1, $region);
         self::assertSame('frame', $region->attr('data-live-region-mode-value'));
@@ -187,6 +194,10 @@ final class ListTerminalColumnCardsControllerTest extends WebTestCase
         self::assertCount(1, $region->filter('#terminal-total'));
 
         $later = $client->request(Request::METHOD_GET, $url.'?page=2');
+        self::assertContains(
+            $topics->forBoard($project->id),
+            $later->filter('form#mercure-subscriptions input[data-mercure-topic]')->each(static fn (Crawler $input): ?string => $input->attr('value')),
+        );
         $region = $later->filter('div#terminal-live[data-controller="live-region"]');
         self::assertCount(1, $region);
         self::assertSame('rows', $region->attr('data-live-region-mode-value'));
