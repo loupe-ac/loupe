@@ -48,6 +48,7 @@ class BoardAutomationSettings
         public int $stuckDelayMinutes = self::DEFAULT_STUCK_DELAY_MINUTES,
     ) {
     }
+
     /** What the automation form shows, in a short string a page compares with a later read. */
     public function fingerprint(): string
     {

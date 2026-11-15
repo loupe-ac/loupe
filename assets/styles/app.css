@@ -2632,7 +2632,7 @@
     }
 
     /* A live frame holds blocks, and a custom element is inline by default. */
-    turbo-frame[refresh='morph'] {
+    turbo-frame[data-controller~='live-region'] {
         @apply block;
     }
 

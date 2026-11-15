@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace App\Module\Board\Controller;
 
 use App\Controller\AppController;
-use App\Module\Board\Service\BoardAutomation;
+use App\Module\Board\Command\CheckBoardAutomationSettingsCommand;
+use App\Module\Board\Command\CheckBoardAutomationSettingsHandler;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
 use App\Session\ReadOnlyAwareSessionHandler;
@@ -24,13 +25,13 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 final class CheckBoardAutomationSettingsController extends AppController
 {
     public function __construct(
-        private readonly BoardAutomation $automation,
+        private readonly CheckBoardAutomationSettingsHandler $checkSettings,
     ) {
     }
 
     public function __invoke(Project $project): Response
     {
-        return new Response($this->automation->settingsOf($project)->fingerprint(), Response::HTTP_OK, [
+        return new Response(($this->checkSettings)(new CheckBoardAutomationSettingsCommand($project)), Response::HTTP_OK, [
             'Content-Type' => 'text/plain; charset=UTF-8',
         ]);
     }

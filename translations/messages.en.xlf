@@ -7347,7 +7347,7 @@ workflow:
             </trans-unit>
             <trans-unit id="board.backlog.live.newer">
                 <source>board.backlog.live.newer</source>
-                <target>{1}One new card matches this list.|]1,Inf[%count% new cards match this list.</target>
+                <target>{0}No new card matches this list.|{1}One new card matches this list.|]1,Inf[%count% new cards match this list.</target>
             </trans-unit>
             <trans-unit id="board.backlog.live.first_page">
                 <source>board.backlog.live.first_page</source>
@@ -7355,7 +7355,7 @@ workflow:
             </trans-unit>
             <trans-unit id="board.terminal.live.newer">
                 <source>board.terminal.live.newer</source>
-                <target>{1}One more card finished.|]1,Inf[%count% more cards finished.</target>
+                <target>{0}No more card finished.|{1}One more card finished.|]1,Inf[%count% more cards finished.</target>
             </trans-unit>
             <trans-unit id="board.terminal.live.first_page">
                 <source>board.terminal.live.first_page</source>

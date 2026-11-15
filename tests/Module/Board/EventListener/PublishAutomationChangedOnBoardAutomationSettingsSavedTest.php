@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Module\Board\EventListener;
 
 use App\Mercure\LiveUpdatePublisher;
-use App\Mercure\LiveUpdateTransactionBuffer;
 use App\Mercure\LiveUpdates;
+use App\Mercure\LiveUpdateTransactionBuffer;
 use App\Mercure\ProjectTopicBuilder;
 use App\Module\Account\Entity\User;
 use App\Module\Board\Command\SaveBoardAutomationSettingsCommand;

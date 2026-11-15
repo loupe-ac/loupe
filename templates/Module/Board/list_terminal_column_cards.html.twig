@@ -20,7 +20,7 @@
 
     {% set liveRows = page > 1 %}
     {% set liveTag = liveRows ? 'div' : 'turbo-frame' %}
-    <{{ liveTag }} id="terminal-live"{{ liveRows ? '' : ' refresh="morph" target="_top"' }}
+    <{{ liveTag }} id="terminal-live"{{ liveRows ? '' : ' target="_top"' }}
         data-controller="live-region"
         data-live-region-types-value="{{ ['board.card_changed']|json_encode }}"
         data-live-region-mode-value="{{ liveRows ? 'rows' : 'frame' }}"
