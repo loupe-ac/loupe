@@ -49,7 +49,12 @@ final readonly class DevDataExportSeeder implements DevSeederInterface
     public function seed(SeedContext $context): void
     {
         $id = DevSeedId::of('account/data-export/keys');
+        $archiveKey = DataExport::computeArchiveKey($id);
         if ($this->em->find(DataExport::class, $id) instanceof DataExport) {
+            if (!$this->exportStorage->fileExists($archiveKey)) {
+                $this->exportStorage->write($archiveKey, $this->emptyArchive());
+            }
+
             return;
         }
 
@@ -60,7 +65,7 @@ final readonly class DevDataExportSeeder implements DevSeederInterface
         $context->ids->assign($export, $id);
         $this->em->persist($export);
         $this->em->flush();
-        $this->exportStorage->write(DataExport::computeArchiveKey($id), $this->emptyArchive());
+        $this->exportStorage->write($archiveKey, $this->emptyArchive());
     }
 
     private function emptyArchive(): string

@@ -12,6 +12,7 @@ use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Repository\InboxItemRepository;
+use App\Module\Inbox\Service\InboxSearchIndexer;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Project\Service\Dev\DevProjectSeeder;
 use Doctrine\ORM\EntityManagerInterface;
@@ -32,6 +33,7 @@ final readonly class DevAccountInboxSeeder implements DevSeederInterface
         private EntityManagerInterface $em,
         private ProjectRepository $projects,
         private InboxItemRepository $inboxItems,
+        private InboxSearchIndexer $inboxSearch,
     ) {
     }
 
@@ -64,10 +66,11 @@ final readonly class DevAccountInboxSeeder implements DevSeederInterface
             title: 'Rotate the CI deploy key',
             blocking: false,
             origin: InboxAskOrigin::Agent,
-            createdAt: $context->at(3600),
+            createdAt: $context->at(4_140),
         );
         $context->ids->assign($item, $id);
         $this->em->persist($item);
         $this->em->flush();
+        $this->inboxSearch->index($item);
     }
 }
