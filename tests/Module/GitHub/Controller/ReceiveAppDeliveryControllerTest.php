@@ -16,6 +16,7 @@ use App\Module\GitHub\Repository\GitHubInstallationRepository;
 use App\Tests\Support\RecordedEvents;
 use App\Tests\Support\RecordingAuditor;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\Cache\Adapter\AdapterInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\RouterInterface;
@@ -377,6 +378,22 @@ final class ReceiveAppDeliveryControllerTest extends WebTestCase
         self::assertNull($this->storedInstallation(9_000_609)->suspendedAt);
         $this->deliver($client, self::PATH, 'pull_request', $this->merged(609, 'acme/h', 3, $installation), self::SECRET);
         self::assertSame([[$tracked, false]], $this->queuedRefreshes());
+    }
+
+    public function test_an_installation_event_clears_the_cached_installation_list(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $this->installation(9_000_620, GitHubRepositorySelection::All);
+        $cache = static::getContainer()->get('cache.app');
+        self::assertInstanceOf(AdapterInterface::class, $cache);
+        $item = $cache->getItem('github_app_installation_list');
+        $cache->save($item->set([]));
+        self::assertTrue($cache->hasItem('github_app_installation_list'));
+
+        $this->deliver($client, self::PATH, 'installation', ['action' => 'new_permissions_accepted', 'installation' => ['id' => 9_000_620]], self::SECRET);
+
+        self::assertFalse($cache->hasItem('github_app_installation_list'));
     }
 
     public function test_a_deleted_installation_keeps_its_rows_as_no_access(): void

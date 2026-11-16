@@ -9,9 +9,15 @@ use Ubermuda\HealthCheckBundle\Diagnostic;
 use Ubermuda\HealthCheckBundle\DiagnosticInterface;
 use Ubermuda\HealthCheckBundle\DiagnosticState;
 
-/** Reads the DSN format only. The page never calls Sentry to check that the DSN works. */
+/**
+ * Reads the DSN format, and runs a 50 ms profiler self-test when profiles are sampled.
+ * The page never calls Sentry to check that the DSN works.
+ */
 final readonly class SentryCheck implements DiagnosticInterface
 {
+    /** The Sentry SDK drops a profile with fewer samples. */
+    private const int MIN_SAMPLES = 2;
+
     public function __construct(
         #[Autowire('%env(default::SENTRY_DSN)%')]
         private ?string $dsn,
@@ -21,6 +27,7 @@ final readonly class SentryCheck implements DiagnosticInterface
 
         #[Autowire('%env(float:SENTRY_PROFILES_SAMPLE_RATE)%')]
         private float $profilesSampleRate,
+        private ProfilerSelfTest $selfTest,
         private string $profilerExtension = 'excimer',
     ) {
     }
@@ -45,6 +52,10 @@ final readonly class SentryCheck implements DiagnosticInterface
 
         if ($this->tracesSampleRate > 0.0 && $this->profilesSampleRate > 0.0 && !\extension_loaded($this->profilerExtension)) {
             return new Diagnostic('sentry', DiagnosticState::Warning, 'account.system_status.sentry.no_excimer');
+        }
+
+        if ($this->tracesSampleRate > 0.0 && $this->profilesSampleRate > 0.0 && $this->selfTest->sampleCount() < self::MIN_SAMPLES) {
+            return new Diagnostic('sentry', DiagnosticState::Warning, 'account.system_status.sentry.no_samples');
         }
 
         return new Diagnostic('sentry', DiagnosticState::Ok, 'account.system_status.sentry.configured');

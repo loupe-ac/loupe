@@ -18,8 +18,9 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
  * The calls Loupe makes as the App and as one of its installations. Tokens
- * stay in this object's memory only: a shared cache pool would rest them in
- * the database.
+ * stay in this object's memory. A token reaches the shared cache pool, which
+ * rests in the database, only encrypted and only through
+ * `GitHubRepositoryTokenStore`.
  */
 final class GitHubAppApi
 {
