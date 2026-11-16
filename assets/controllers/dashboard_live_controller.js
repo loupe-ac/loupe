@@ -1,6 +1,7 @@
 import { Controller } from '@hotwired/stimulus';
 import { renderStreamMessage } from '@hotwired/turbo';
 import { on } from '../lib/live.js';
+import { handleLostAccess, onLostAccess } from '../lib/live_fetch.js';
 
 export const SIGNAL_TYPE = 'dashboard.graph_changed';
 
@@ -41,6 +42,8 @@ export default class extends Controller {
     static values = { url: String, stopped: String };
 
     connect() {
+        // A lost access ends the live part, as a disconnect does.
+        this.removeLostListener = onLostAccess(() => this.disconnect());
         this.sequence = 0;
         this.deadline = null;
         this.staleTiles = new Set();
@@ -55,6 +58,8 @@ export default class extends Controller {
     }
 
     disconnect() {
+        this.removeLostListener?.();
+        this.removeLostListener = undefined;
         document.removeEventListener(
             'turbo:before-stream-render',
             this.onBeforeStream,
@@ -172,9 +177,12 @@ export default class extends Controller {
         try {
             // eslint-disable-next-line no-restricted-syntax -- a read-only GET of the grid that Turbo then applies, not a mutation.
             const response = await fetch(this.urlValue, {
-                headers: { Accept: STREAM_TYPE },
+                headers: { Accept: STREAM_TYPE, 'X-Loupe-Live-Refresh': '1' },
                 credentials: 'same-origin',
             });
+            if (handleLostAccess(response)) {
+                return;
+            }
             status = response.status;
             if (response.ok) {
                 body = await response.text();

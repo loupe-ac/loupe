@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Account\Command;
 
+use App\Mercure\AccountArea;
 use App\Module\Account\Command\ProcessDataExportCommand;
 use App\Module\Account\Command\ProcessDataExportHandler;
 use App\Module\Account\Entity\DataExport;
@@ -14,6 +15,7 @@ use App\Module\Account\Repository\DataExportRepository;
 use App\Module\Account\Service\DataExportEmailSender;
 use App\Module\Account\Service\ExpiredExportPurger;
 use App\Tests\Support\DirectLogging;
+use App\Tests\Support\RecordedAccountSignals;
 use App\Tests\Support\RecordingAuditor;
 use App\Tests\Support\RecordingLogger;
 use Doctrine\ORM\EntityManagerInterface;
@@ -29,10 +31,17 @@ final class ProcessDataExportHandlerTest extends TestCase
 {
     private RecordingAuditor $audit;
     private RecordingLogger $directLogger;
+    private RecordedAccountSignals $signals;
+
+    #[\Override]
+    protected function setUp(): void
+    {
+        $this->signals = new RecordedAccountSignals();
+    }
 
     private function persistedExport(): DataExport
     {
-        $user = new User('Alice A', 'alice@example.com', 'x');
+        $user = RecordedAccountSignals::withId(new User('Alice A', 'alice@example.com', 'x'));
         $export = new DataExport($user);
         $ref = new \ReflectionProperty(DataExport::class, 'id');
         $ref->setValue($export, Uuid::v7());
@@ -73,11 +82,12 @@ final class ProcessDataExportHandlerTest extends TestCase
         $em = $this->createStub(EntityManagerInterface::class);
         $this->audit = new RecordingAuditor(new NullAuditActorProvider());
         $this->directLogger = new RecordingLogger();
-        $handler = new ProcessDataExportHandler($exports, $builder, $emailSender, $purger, $em, $this->directLogger, $this->audit->auditor);
+        $handler = new ProcessDataExportHandler($exports, $builder, $emailSender, $purger, $em, $this->directLogger, $this->audit->auditor, $this->signals->publisher);
 
         $handler(new ProcessDataExportCommand((string) $export->id));
 
         self::assertSame(DataExportStatus::Ready, $export->status);
+        $this->signals->assertSignalled($export->user->id, AccountArea::EXPORTS);
 
         $record = $this->audit->record('account.data_export_completed');
         self::assertSame(AuditOutcome::Success, $record->outcome);
@@ -144,6 +154,7 @@ final class ProcessDataExportHandlerTest extends TestCase
             $this->createStub(EntityManagerInterface::class),
             $logger,
             $audit->auditor,
+            $this->signals->publisher,
         );
     }
 
@@ -170,7 +181,7 @@ final class ProcessDataExportHandlerTest extends TestCase
         $em = $this->createStub(EntityManagerInterface::class);
         $this->audit = new RecordingAuditor(new NullAuditActorProvider());
         $this->directLogger = new RecordingLogger();
-        $handler = new ProcessDataExportHandler($exports, $builder, $emailSender, $purger, $em, $this->directLogger, $this->audit->auditor);
+        $handler = new ProcessDataExportHandler($exports, $builder, $emailSender, $purger, $em, $this->directLogger, $this->audit->auditor, $this->signals->publisher);
 
         $handler(new ProcessDataExportCommand((string) $export->id));
 
@@ -198,7 +209,7 @@ final class ProcessDataExportHandlerTest extends TestCase
         $em = $this->createStub(EntityManagerInterface::class);
         $this->audit = new RecordingAuditor(new NullAuditActorProvider());
         $this->directLogger = new RecordingLogger();
-        $handler = new ProcessDataExportHandler($exports, $builder, $emailSender, $purger, $em, $this->directLogger, $this->audit->auditor);
+        $handler = new ProcessDataExportHandler($exports, $builder, $emailSender, $purger, $em, $this->directLogger, $this->audit->auditor, $this->signals->publisher);
 
         $handler(new ProcessDataExportCommand((string) Uuid::v7()));
     }
@@ -227,7 +238,7 @@ final class ProcessDataExportHandlerTest extends TestCase
         $em = $this->createStub(EntityManagerInterface::class);
         $this->audit = new RecordingAuditor(new NullAuditActorProvider());
         $this->directLogger = new RecordingLogger();
-        $handler = new ProcessDataExportHandler($exports, $builder, $emailSender, $purger, $em, $this->directLogger, $this->audit->auditor);
+        $handler = new ProcessDataExportHandler($exports, $builder, $emailSender, $purger, $em, $this->directLogger, $this->audit->auditor, $this->signals->publisher);
 
         $handler(new ProcessDataExportCommand((string) $export->id));
     }
@@ -257,7 +268,7 @@ final class ProcessDataExportHandlerTest extends TestCase
         $em = $this->createStub(EntityManagerInterface::class);
         $this->audit = new RecordingAuditor(new NullAuditActorProvider());
         $this->directLogger = new RecordingLogger();
-        $handler = new ProcessDataExportHandler($exports, $builder, $emailSender, $purger, $em, $this->directLogger, $this->audit->auditor);
+        $handler = new ProcessDataExportHandler($exports, $builder, $emailSender, $purger, $em, $this->directLogger, $this->audit->auditor, $this->signals->publisher);
 
         $handler(new ProcessDataExportCommand((string) $export->id));
 
@@ -288,7 +299,7 @@ final class ProcessDataExportHandlerTest extends TestCase
         $em = $this->createStub(EntityManagerInterface::class);
         $this->audit = new RecordingAuditor(new NullAuditActorProvider());
         $this->directLogger = new RecordingLogger();
-        $handler = new ProcessDataExportHandler($exports, $builder, $emailSender, $purger, $em, $this->directLogger, $this->audit->auditor);
+        $handler = new ProcessDataExportHandler($exports, $builder, $emailSender, $purger, $em, $this->directLogger, $this->audit->auditor, $this->signals->publisher);
 
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('disk full');
@@ -323,7 +334,7 @@ final class ProcessDataExportHandlerTest extends TestCase
         $em = $this->createStub(EntityManagerInterface::class);
         $this->audit = new RecordingAuditor(new NullAuditActorProvider());
         $this->directLogger = new RecordingLogger();
-        $handler = new ProcessDataExportHandler($exports, $builder, $emailSender, $purger, $em, $this->directLogger, $this->audit->auditor);
+        $handler = new ProcessDataExportHandler($exports, $builder, $emailSender, $purger, $em, $this->directLogger, $this->audit->auditor, $this->signals->publisher);
 
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('smtp down');

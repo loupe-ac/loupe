@@ -6,6 +6,7 @@ namespace App\Module\Board\Repository;
 
 use App\Doctrine\Type\MicrosecondDateTimeImmutableType;
 use App\Module\Account\Entity\User;
+use App\Module\Board\Entity\BoardColumn;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardEvent;
 use App\Module\Board\Entity\CardEventKind;
@@ -277,6 +278,27 @@ class CardEventRepository extends ServiceEntityRepository
         }
 
         return $newest;
+    }
+
+    /**
+     * @return list<string> RFC 4122 ids of the cards with a `moved` row into the column after the moment
+     */
+    public function findCardIdsMovedIntoColumnAfter(BoardColumn $column, \DateTimeImmutable $since): array
+    {
+        $connection = $this->getEntityManager()->getConnection();
+
+        /** @var list<string> $ids */
+        $ids = $connection->fetchFirstColumn(
+            "SELECT DISTINCT card_id FROM board_card_events WHERE kind = :kind AND detail->'to'->>'id' = :column AND occurred_at > :since",
+            [
+                'kind' => CardEventKind::Moved->value,
+                'column' => (string) $column->id,
+                'since' => $since,
+            ],
+            ['since' => MicrosecondDateTimeImmutableType::NAME],
+        );
+
+        return array_map(strval(...), $ids);
     }
 
     /** The time of the newest `created` or `moved` row of the card, which is its arrival in its current column. Null when it has none. */

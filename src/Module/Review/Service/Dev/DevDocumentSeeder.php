@@ -10,15 +10,18 @@ use App\DevSeed\SeedContext;
 use App\Module\Account\Entity\User;
 use App\Module\Account\Repository\UserRepository;
 use App\Module\Account\Service\Dev\DevAccountSeeder;
+use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Project\Service\Dev\DevProjectSeeder;
 use App\Module\Review\Entity\Comment;
+use App\Module\Review\Entity\CommentStatus;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\DocumentStatus;
 use App\Module\Review\Entity\DocumentVersion;
 use App\Module\Review\Entity\Review;
 use App\Module\Review\Entity\Verdict;
 use App\Module\Review\Repository\DocumentRepository;
+use App\Module\Review\Repository\ReviewRepository;
 use App\Module\Review\Service\DocumentTagApplier;
 use App\Module\Review\ValueObject\Anchor;
 use Doctrine\ORM\EntityManagerInterface;
@@ -38,6 +41,8 @@ final readonly class DevDocumentSeeder implements DevSeederInterface
 {
     public const string KEY = 'documents';
 
+    public const int LIST_FILLERS = 20;
+
     /** The product designs of the session start cards, by document slug. */
     public const array SESSION_START_SLUGS = [
         'session-start-ask' => 'Product design: a card that waits for a session start answer',
@@ -50,6 +55,7 @@ final readonly class DevDocumentSeeder implements DevSeederInterface
         private DocumentRepository $documents,
         private DocumentTagApplier $tagApplier,
         private UserRepository $users,
+        private ReviewRepository $reviews,
     ) {
     }
 
@@ -109,6 +115,7 @@ final readonly class DevDocumentSeeder implements DevSeederInterface
         }
 
         $this->seedHistoryComment($context, $owner);
+        $this->seedHistoryReview($context);
 
         if (!$this->documents->find(self::documentId('first-handoff')) instanceof Document) {
             $onboarding = new Document($owner, $project, 'Tech design: First handoff guide', $context->at(1_800));
@@ -142,6 +149,66 @@ final readonly class DevDocumentSeeder implements DevSeederInterface
 
         $this->seedApiKeyDocuments($context);
         $this->seedSessionStartDocuments($context);
+        $this->seedLiveStates($context, $project, $owner);
+        $this->seedListFillers($context);
+    }
+
+    /**
+     * The archived document and the document with an addressed thread and a reply that the live preview links show.
+     */
+    private function seedLiveStates(SeedContext $context, Project $project, User $owner): void
+    {
+        if (!$this->documents->find(self::documentId('live-archived')) instanceof Document) {
+            $archived = new Document($owner, $project, 'An archived document', $context->at(900));
+            $archived->addVersion(
+                "# An archived document\n\nAn owner archived this document. The review page keeps its text and shows the archive band.\n",
+                '<h1>An archived document</h1><p>An owner archived this document. The review page keeps its text and shows the archive band.</p>',
+            );
+            $archived->archivedAt = $context->at(100);
+            $this->store($context, $archived, 'live-archived');
+        }
+
+        if (!$this->documents->find(self::documentId('live-thread')) instanceof Document) {
+            $thread = new Document($owner, $project, 'A document with an answered thread', $context->at(950));
+            $version = $thread->addVersion(
+                "# A document with an answered thread\n\nOne thread of this document is addressed and holds a reply.\n",
+                '<h1>A document with an answered thread</h1><p>One thread of this document is addressed and holds a reply.</p>',
+            );
+            $this->store($context, $thread, 'live-thread');
+
+            $root = $this->comment($context, $version, $owner, false);
+            $root->status = CommentStatus::Addressed;
+            $context->ids->assign($root, DevSeedId::of('review/comment/live-thread'));
+            $this->em->persist($root);
+            $reply = new Comment($version, $this->users->workflow(), 'Reworded the section as asked.', Anchor::unanchored(), $root, createdAt: $context->at(200));
+            $context->ids->assign($reply, DevSeedId::of('review/comment/live-thread-reply'));
+            $this->em->persist($reply);
+            $this->em->flush();
+        }
+    }
+
+    /**
+     * Twenty documents in the Lifecycle project, so its list holds a second page of two rows.
+     */
+    private function seedListFillers(SeedContext $context): void
+    {
+        $project = $this->projects->find(DevProjectSeeder::lifecycleProjectId())
+            ?? throw new \LogicException('The lifecycle project does not exist.');
+
+        for ($number = 1; $number <= self::LIST_FILLERS; ++$number) {
+            $slug = \sprintf('list-filler-%02d', $number);
+            if ($this->documents->find(self::documentId($slug)) instanceof Document) {
+                continue;
+            }
+
+            $title = \sprintf('Filler document %02d', $number);
+            $document = new Document($context->devUser(), $project, $title, $context->at(4_000 + $number * 10));
+            $document->addVersion(
+                \sprintf("# %s\n\nA short document that fills the list.\n", $title),
+                \sprintf('<h1>%s</h1><p>A short document that fills the list.</p>', $title),
+            );
+            $this->store($context, $document, $slug);
+        }
     }
 
     /**
@@ -185,6 +252,19 @@ final readonly class DevDocumentSeeder implements DevSeederInterface
         $comment = $this->comment($context, $history->currentVersion(), $owner, false);
         $context->ids->assign($comment, $commentId);
         $this->em->persist($comment);
+        $this->em->flush();
+    }
+
+    private function seedHistoryReview(SeedContext $context): void
+    {
+        $history = $this->documents->find(self::documentId('worker-run-history'))
+            ?? throw new \LogicException('The worker run history document does not exist.');
+        $version = $history->versions->first();
+        if (!$version instanceof DocumentVersion || null !== $this->reviews->findOneBy(['version' => $version])) {
+            return;
+        }
+
+        $this->em->persist(new Review($version, Verdict::ChangesRequested, $context->devUser(), submittedAt: $context->at(500), note: 'Answer the failure question first.'));
         $this->em->flush();
     }
 

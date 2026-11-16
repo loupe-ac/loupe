@@ -39,6 +39,11 @@ final class OutboxPageTest extends WebTestCase
         self::assertCount(1, $crawler->filter('[data-outbox-event-id]'));
         self::assertCount(1, $crawler->filter('[data-outbox-event-id="'.$stuckId.'"]'));
         self::assertStringContainsString('hub unreachable', $crawler->filter('.lp-site-review-list')->text());
+        $region = $crawler->filter('turbo-frame#outbox-frame[data-controller="live-region"]');
+        self::assertCount(1, $region);
+        self::assertSame('frame', $region->attr('data-live-region-mode-value'));
+        self::assertSame('["activity.changed"]', $region->attr('data-live-region-types-value'));
+        self::assertCount(1, $region->filter('[data-live-row="'.$stuckId.'"]'));
     }
 
     public function test_an_empty_outbox_says_so(): void

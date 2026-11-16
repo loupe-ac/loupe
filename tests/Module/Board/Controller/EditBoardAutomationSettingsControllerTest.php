@@ -148,6 +148,49 @@ final class EditBoardAutomationSettingsControllerTest extends WebTestCase
         self::assertStringContainsString('Loupe could not post the comment (api_failed_http_status_422).', $note->text());
     }
 
+    public function test_the_form_sits_in_a_band_region_with_its_fingerprint_and_a_hidden_band(): void
+    {
+        $project = $this->ownedProject('automation-band@example.com');
+        $crawler = $this->page($project);
+
+        $region = $crawler->filter('[data-controller="live-region"]');
+        self::assertCount(1, $region);
+        self::assertSame('band', $region->attr('data-live-region-mode-value'));
+        self::assertSame('["board.automation_changed"]', $region->attr('data-live-region-types-value'));
+        self::assertSame('/projects/'.$project->id.'/settings/automation/check', $region->attr('data-live-region-url-value'));
+        self::assertSame('1:15', $region->attr('data-live-fingerprint'));
+        $band = $region->filter('[data-live-region-target="band"][hidden]');
+        self::assertCount(1, $band);
+        self::assertSame('_blank', $band->filter('a')->attr('target'));
+        self::assertSame('/projects/'.$project->id.'/settings/automation', $band->filter('a')->attr('href'));
+        self::assertCount(0, $region->filter('turbo-frame'));
+    }
+
+    public function test_the_check_route_answers_the_fingerprint_of_the_saved_settings(): void
+    {
+        $project = $this->ownedProject('automation-check@example.com');
+        $this->em->persist(new BoardAutomationSettings($project, false, 3, 40));
+        $this->em->flush();
+        $this->em->clear();
+
+        $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/settings/automation/check');
+
+        self::assertResponseIsSuccessful();
+        self::assertSame('0:40', $this->client->getResponse()->getContent());
+    }
+
+    public function test_the_check_route_is_closed_to_a_reader_who_may_not_manage(): void
+    {
+        $owner = $this->user($this->em, 'automation-check-owner@example.com');
+        $project = $this->project($this->em, $owner);
+        $this->client->loginUser($this->user($this->em, 'automation-check-stranger@example.com'));
+        $this->em->clear();
+
+        $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/settings/automation/check');
+
+        self::assertResponseStatusCodeSame(403);
+    }
+
     private function settledComment(Project $project, PullRequestCommentState $state, string $repository, int $number, ?string $cause, \DateTimeImmutable $at): void
     {
         $comment = new PullRequestComment($project, Uuid::v7(), Uuid::v7(), 'github', $repository, $number, null, 'checks-failed');

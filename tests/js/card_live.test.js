@@ -160,70 +160,24 @@ it('listens for card and worker run changes', async () => {
     ]);
 });
 
-it('ignores another card, a change this page made, and a delete in the drawer', async () => {
-    const visit = vi.fn();
-    vi.stubGlobal('Turbo', { visit });
+it('ignores another card, a change this page made, and a delete', async () => {
     await mount({ frame: true });
     cardChanged({ cardId: '0199aaaa-0000-7000-8000-000000000002' });
     cardChanged({ local: true, own: true });
     cardChanged({ change: 'deleted' });
     await settle();
     expect(fetch).not.toHaveBeenCalled();
-    expect(visit).not.toHaveBeenCalled();
 });
 
-it('loads the page again when the card on the standalone page is deleted', async () => {
+it('reads nothing and leaves the page in place when the card on the standalone page is deleted', async () => {
     const visit = vi.fn();
     vi.stubGlobal('Turbo', { visit });
     await mount();
     cardChanged({ change: 'deleted' });
-    await settle();
-    expect(fetch).not.toHaveBeenCalled();
-    expect(visit).toHaveBeenCalledWith(window.location.href, {
-        action: 'replace',
-    });
-});
-
-function submit(root, success, selector = '[data-card-delete]') {
-    const form = root.querySelector(selector);
-    form.dispatchEvent(
-        new CustomEvent('turbo:submit-start', { bubbles: true }),
-    );
-    if (success !== undefined) {
-        form.dispatchEvent(
-            new CustomEvent('turbo:submit-end', {
-                bubbles: true,
-                detail: { success },
-            }),
-        );
-    }
-}
-
-it('leaves the redirect alone when this page deleted the card', async () => {
-    const visit = vi.fn();
-    vi.stubGlobal('Turbo', { visit });
-    const root = await mount();
-    submit(root, undefined);
-    cardChanged({ change: 'deleted', own: true });
-    submit(root, true);
     cardChanged({ change: 'deleted', own: true });
     await settle();
     expect(fetch).not.toHaveBeenCalled();
     expect(visit).not.toHaveBeenCalled();
-});
-
-it('loads the page again on a delete with its origin that this page did not submit', async () => {
-    const visit = vi.fn();
-    vi.stubGlobal('Turbo', { visit });
-    const root = await mount();
-    cardChanged({ change: 'deleted', own: true });
-    submit(root, false);
-    cardChanged({ change: 'deleted', own: true });
-    // Another form that stays on the page marks no delete.
-    submit(root, true, '[data-other-form]');
-    cardChanged({ change: 'deleted', own: true });
-    await settle();
-    expect(visit).toHaveBeenCalledTimes(3);
 });
 
 it('keeps the older history the reader loaded, and updates the newest rows', async () => {

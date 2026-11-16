@@ -9,6 +9,7 @@ use App\Module\Board\Command\ListBacklogCardsCommand;
 use App\Module\Board\Command\ListBacklogCardsHandler;
 use App\Module\Board\Entity\BoardColumn;
 use App\Module\Board\View\BacklogListQuery;
+use App\Module\Board\View\LiveCursor;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
 use App\Module\Workflow\Contract\CardTypeCatalog;
@@ -45,6 +46,7 @@ final class ListBacklogCardsController extends AppController
         if (null !== $listQuery->type && !$types->has($listQuery->type)) {
             $listQuery = $listQuery->withoutType();
         }
+        $since = new \DateTimeImmutable();
         $view = ($this->listBacklogCards)(new ListBacklogCardsCommand($backlog, $listQuery));
 
         if (null !== $view->clampedPage) {
@@ -61,6 +63,7 @@ final class ListBacklogCardsController extends AppController
             'view' => $view,
             'listQuery' => $listQuery,
             'types' => $types->all,
+            'since' => LiveCursor::format($since),
         ]);
     }
 }

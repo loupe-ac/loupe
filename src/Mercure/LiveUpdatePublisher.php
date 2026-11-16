@@ -12,6 +12,7 @@ use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
+use Symfony\Component\Messenger\Event\WorkerMessageFailedEvent;
 use Symfony\Component\Messenger\Event\WorkerMessageHandledEvent;
 use Symfony\Contracts\Service\ResetInterface;
 use Ubermuda\FeatureFlagsBundle\FeatureFlagService;
@@ -39,6 +40,7 @@ final class LiveUpdatePublisher implements ResetInterface
      */
     public function __construct(
         private readonly RequestStack $requests,
+        private readonly LiveUpdateTransactionBuffer $transactions,
         private readonly FeatureFlagService $featureFlags,
         private readonly LoggerInterface $logger,
 
@@ -48,7 +50,8 @@ final class LiveUpdatePublisher implements ResetInterface
     }
 
     /**
-     * Call it after the change commits, so a rollback signals nothing.
+     * Inside a transaction the signal waits for the commit, so a rollback
+     * signals nothing.
      *
      * @param array<string, scalar|list<scalar>|null> $payload
      */
@@ -59,18 +62,30 @@ final class LiveUpdatePublisher implements ResetInterface
         }
 
         $data = json_encode($payload, \JSON_THROW_ON_ERROR);
-        $this->pending[$topic."\n".$data] = ['topic' => $topic, 'data' => $data];
+        if ($this->transactions->isOpen()) {
+            $this->transactions->hold($topic, $data);
+
+            return;
+        }
+
+        $this->add($topic, $data);
     }
 
     /**
      * The messenger worker resets this service after each message and
-     * terminates only at its time limit, so a worker publishes here.
+     * terminates only at its time limit, so a worker publishes here. A failed
+     * message publishes after its own failure listeners, which may change state.
      */
     #[AsEventListener(WorkerMessageHandledEvent::class)]
+    #[AsEventListener(WorkerMessageFailedEvent::class, priority: -16)]
     #[AsEventListener(KernelEvents::TERMINATE)]
     #[AsEventListener(ConsoleEvents::TERMINATE)]
     public function publish(): void
     {
+        foreach ($this->transactions->takeCommitted() as $update) {
+            $this->add($update['topic'], $update['data']);
+        }
+
         $pending = $this->pending;
         $this->pending = [];
         if ([] === $pending || !$this->featureFlags->isEnabled(LiveUpdates::FLAG)) {
@@ -93,6 +108,12 @@ final class LiveUpdatePublisher implements ResetInterface
     public function reset(): void
     {
         $this->pending = [];
+        $this->transactions->reset();
+    }
+
+    private function add(string $topic, string $data): void
+    {
+        $this->pending[$topic."\n".$data] = ['topic' => $topic, 'data' => $data];
     }
 
     private function origin(): ?string

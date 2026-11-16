@@ -10,10 +10,12 @@ use App\DevSeed\SeedContext;
 use App\Module\Artifact\Entity\Artifact;
 use App\Module\Artifact\Repository\ArtifactBlobRepository;
 use App\Module\Artifact\Repository\ArtifactRepository;
+use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Project\Service\Dev\DevProjectSeeder;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\DependencyInjection\Attribute\When;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Stores one prototype with two versions, whose page runs a script, so the
@@ -26,6 +28,10 @@ final readonly class DevArtifactSeeder implements DevSeederInterface
     public const string KEY = 'artifacts';
 
     public const string NAME = 'Pricing page prototype';
+
+    public const string TWIN_NAME = 'Archived pricing sketch';
+
+    public const string ARCHIVED_NAME = 'Retired pricing draft';
 
     public const string SOURCE_LINK = 'https://claude.ai/design/p/00000000-0000-0000-0000-000000000000?file=Example.dc.html';
 
@@ -52,6 +58,21 @@ final readonly class DevArtifactSeeder implements DevSeederInterface
 
     private const string SCRIPT = "let n=0;document.getElementById('count').addEventListener('click',e=>{n++;e.target.textContent='Clicked '+n+' times'});";
 
+    public static function artifactId(): Uuid
+    {
+        return DevSeedId::of('artifact/artifact/pricing-page-prototype');
+    }
+
+    public static function twinId(): Uuid
+    {
+        return DevSeedId::of('artifact/artifact/archived-pricing-sketch');
+    }
+
+    public static function archivedId(): Uuid
+    {
+        return DevSeedId::of('artifact/artifact/retired-pricing-draft');
+    }
+
     public function __construct(
         private EntityManagerInterface $em,
         private ProjectRepository $projects,
@@ -75,13 +96,16 @@ final readonly class DevArtifactSeeder implements DevSeederInterface
     #[\Override]
     public function seed(SeedContext $context): void
     {
-        $id = DevSeedId::of('artifact/artifact/pricing-page-prototype');
+        $project = $this->projects->find(DevProjectSeeder::devProjectId())
+            ?? throw new \LogicException('The dev project does not exist.');
+
+        $this->seedTwin($context, $project);
+        $this->seedArchived($context, $project);
+
+        $id = self::artifactId();
         if ($this->artifacts->find($id) instanceof Artifact) {
             return;
         }
-
-        $project = $this->projects->find(DevProjectSeeder::devProjectId())
-            ?? throw new \LogicException('The dev project does not exist.');
 
         $artifact = new Artifact($project, self::NAME, $project->owner, self::SOURCE_LINK, createdAt: $context->at(120));
         $context->ids->assign($artifact, $id);
@@ -93,6 +117,39 @@ final readonly class DevArtifactSeeder implements DevSeederInterface
         $second->addFile('plans.html', $this->artifactBlobs->findOrCreate($project, self::PLANS), 'text/html');
         $second->addFile('style.css', $this->artifactBlobs->findOrCreate($project, self::STYLE), 'text/css');
         $second->addFile('app.js', $this->artifactBlobs->findOrCreate($project, self::SCRIPT), 'text/javascript');
+        $this->em->persist($artifact);
+        $this->em->flush();
+    }
+
+    /** One version and no linked card, the empty twin of the prototype page. */
+    private function seedTwin(SeedContext $context, Project $project): void
+    {
+        $id = self::twinId();
+        if ($this->artifacts->find($id) instanceof Artifact) {
+            return;
+        }
+
+        $artifact = new Artifact($project, self::TWIN_NAME, $project->owner, null, createdAt: $context->at(130));
+        $context->ids->assign($artifact, $id);
+        $version = $artifact->addVersion($project->owner, notes: 'The only draft.');
+        $version->addFile('index.html', $this->artifactBlobs->findOrCreate($project, self::FIRST), 'text/html');
+        $this->em->persist($artifact);
+        $this->em->flush();
+    }
+
+    /** One version, archived: the page shows the archived tag and the Unarchive action. */
+    private function seedArchived(SeedContext $context, Project $project): void
+    {
+        $id = self::archivedId();
+        if ($this->artifacts->find($id) instanceof Artifact) {
+            return;
+        }
+
+        $artifact = new Artifact($project, self::ARCHIVED_NAME, $project->owner, null, createdAt: $context->at(110));
+        $context->ids->assign($artifact, $id);
+        $artifact->addVersion($project->owner, notes: 'The draft the team dropped.')
+            ->addFile('index.html', $this->artifactBlobs->findOrCreate($project, self::FIRST), 'text/html');
+        $artifact->archivedAt = $context->at(115);
         $this->em->persist($artifact);
         $this->em->flush();
     }

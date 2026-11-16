@@ -26,11 +26,11 @@ class PreviewTokenRepository extends ServiceEntityRepository
     /**
      * Records a use with one conditional UPDATE, which writes only when no use
      * is recorded or the last one is older than the window. A token with no
-     * row matches nothing, so it costs no write.
+     * row matches nothing, so it costs no write. Returns whether a use was written.
      */
-    public function recordUse(string $accessTokenId): void
+    public function recordUse(string $accessTokenId): bool
     {
-        $this->getEntityManager()->getConnection()->executeStatement(
+        return 0 < $this->getEntityManager()->getConnection()->executeStatement(
             'UPDATE oauth_preview_tokens SET last_used_at = NOW()
              WHERE access_token_id = :id AND (last_used_at IS NULL OR last_used_at < NOW() - make_interval(mins => :window))',
             ['id' => $accessTokenId, 'window' => self::LAST_USE_WINDOW_MINUTES],
@@ -114,6 +114,23 @@ class PreviewTokenRepository extends ServiceEntityRepository
             'accessTokenId' => $accessTokenId,
             'userId' => $userId->toRfc4122(),
         ]);
+    }
+
+    /**
+     * The owners of the live tokens of a card, so a caller can tell their
+     * pages before revokeByCard() changes the rows.
+     *
+     * @return list<Uuid>
+     */
+    public function findLiveOwnerIdsForCard(Uuid $cardId): array
+    {
+        $ids = $this->getEntityManager()->getConnection()->fetchFirstColumn(
+            'SELECT DISTINCT p.user_id FROM oauth_preview_tokens p JOIN oauth2_access_token a ON a.identifier = p.access_token_id
+             WHERE p.card_id = :cardId AND a.revoked = false AND a.expiry > NOW()',
+            ['cardId' => $cardId->toRfc4122()],
+        );
+
+        return array_values(array_map(static fn (mixed $id): Uuid => Uuid::fromString((string) $id), $ids));
     }
 
     public function revokeByCard(Uuid $cardId): int

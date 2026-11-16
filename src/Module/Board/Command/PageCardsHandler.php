@@ -22,7 +22,7 @@ use Symfony\Component\Uid\Uuid;
  */
 final readonly class PageCardsHandler
 {
-    private const string TIME_FORMAT = 'Y-m-d H:i:s';
+    private const string TIME_FORMAT = 'Y-m-d H:i:s.u';
 
     public function __construct(
         private CardRepository $cards,

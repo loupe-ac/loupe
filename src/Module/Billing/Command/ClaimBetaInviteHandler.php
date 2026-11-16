@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Module\Billing\Command;
 
 use App\Module\Billing\Entity\BetaInvite;
+use App\Module\Billing\Event\BillingStateChanged;
 use App\Module\Billing\Repository\BetaInviteRepository;
 use App\Module\Billing\Service\BetaCompGranter;
 use App\Module\Billing\Service\BetaWelcomeEmailSender;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\EventDispatcher\EventDispatcherInterface;
 
 final readonly class ClaimBetaInviteHandler
 {
@@ -18,6 +20,7 @@ final readonly class ClaimBetaInviteHandler
         private BetaCompGranter $grantBetaComp,
         private BetaWelcomeEmailSender $welcomeEmail,
         private EntityManagerInterface $em,
+        private EventDispatcherInterface $events,
     ) {
     }
 
@@ -48,6 +51,10 @@ final readonly class ClaimBetaInviteHandler
 
             return $invite;
         });
+
+        if (null !== $invite) {
+            $this->events->dispatch(new BillingStateChanged($user->id ?? throw new \LogicException('a persisted user always has an id')));
+        }
 
         // After the commit, so a failed grant leaves the invite used and the
         // account on its trial, the same as at sign-up. It sends no welcome email then,

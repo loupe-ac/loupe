@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Billing\EventListener;
 
 use App\Api\Problem\ApiProblem;
+use App\Mercure\EventListener\AnswerLiveRefreshOnLostAccess;
 use App\Module\Account\Entity\User;
 use App\Module\Billing\Service\PaywallExemptions;
 use App\Module\Billing\Service\PaywallGate;
@@ -24,7 +25,8 @@ final readonly class RequireSubscriptionListener
      * Machine clients authenticate against the stateless token firewalls with an
      * API token. They are gated exactly like the UI, but an HTML 302 to the
      * subscribe page would corrupt their response rather than explain anything,
-     * so they get a 402 with a machine-readable body instead.
+     * so they get a 402 with a machine-readable body instead. A background
+     * refresh of a live region is a machine request for the same reason.
      */
     private const array MACHINE_PATH_PREFIXES = ['/api/', '/mcp'];
 
@@ -48,7 +50,8 @@ final readonly class RequireSubscriptionListener
         }
 
         $request = $event->getRequest();
-        $isMachineRequest = array_any(self::MACHINE_PATH_PREFIXES, fn ($prefix) => str_starts_with($request->getPathInfo(), (string) $prefix));
+        $isMachineRequest = AnswerLiveRefreshOnLostAccess::isLiveRefresh($request)
+            || array_any(self::MACHINE_PATH_PREFIXES, fn ($prefix) => str_starts_with($request->getPathInfo(), (string) $prefix));
 
         if (!$isMachineRequest) {
             $route = $request->attributes->get('_route');

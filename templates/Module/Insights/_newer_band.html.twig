@@ -1,0 +1,7 @@
+{# The band of a later page that counts the newer items on the first page. It shows nothing for a count of zero. #}
+{% if count > 0 %}
+<twig:Ds:Flash severity="info">
+    {{ label|trans({'%count%': count}) }}
+    <twig:block name="actions"><a href="{{ href }}">{{ 'insights.live.show_first_page'|trans }}</a></twig:block>
+</twig:Ds:Flash>
+{% endif %}

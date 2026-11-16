@@ -6,8 +6,11 @@ namespace App\Module\Review\Command;
 
 use App\Exception\DomainErrors;
 use App\Module\Review\Entity\Comment;
+use App\Module\Review\Event\CommentThreadChanged;
+use App\Module\Review\Event\CommentThreadScope;
 use App\Module\Review\Service\CommentWriteGuard;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
@@ -24,6 +27,7 @@ final readonly class ReplyToCommentHandler
         private EntityManagerInterface $em,
         private Auditor $auditor,
         private CommentWriteGuard $writeGuard,
+        private EventDispatcherInterface $events,
     ) {
     }
 
@@ -84,6 +88,13 @@ final readonly class ReplyToCommentHandler
             ],
             new AuditSubject('comment', (string) $reply->id),
         );
+
+        $this->events->dispatch(new CommentThreadChanged(
+            $parent->version->document->project->id ?? throw new \LogicException('A persisted project has an id.'),
+            $parent->version->document->id ?? throw new \LogicException('A persisted document has an id.'),
+            $parent->id ?? throw new \LogicException('A persisted comment has an id.'),
+            CommentThreadScope::Thread,
+        ));
 
         return $reply;
     }

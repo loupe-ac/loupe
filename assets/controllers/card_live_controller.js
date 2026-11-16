@@ -1,6 +1,7 @@
 import { Controller } from '@hotwired/stimulus';
 import { morphElements } from '@hotwired/turbo';
 import { on } from '../lib/live.js';
+import { handleLostAccess, onLostAccess } from '../lib/live_fetch.js';
 
 /** A move often arrives with the automation's next change close behind it. */
 export const DEBOUNCE_MILLISECONDS = 300;
@@ -20,6 +21,8 @@ export default class extends Controller {
     static values = { cardId: String, url: String, frame: Boolean };
 
     connect() {
+        // A lost access ends the live part, as a disconnect does.
+        this.removeLostListener = onLostAccess(() => this.disconnect());
         this.held = false;
         this.waiters = [];
         // A dialog's close event does not bubble, so the listener captures it.
@@ -29,23 +32,6 @@ export default class extends Controller {
             }
         };
         this.element.addEventListener('close', this.onDialogClose, true);
-        // A successful delete leaves the page, so only a failed one clears the mark.
-        this.deleting = false;
-        this.onSubmitStart = (event) => {
-            if (event.target.matches?.('[data-card-delete]')) {
-                this.deleting = true;
-            }
-        };
-        this.onSubmitEnd = (event) => {
-            if (
-                event.target.matches?.('[data-card-delete]') &&
-                !event.detail?.success
-            ) {
-                this.deleting = false;
-            }
-        };
-        this.element.addEventListener('turbo:submit-start', this.onSubmitStart);
-        this.element.addEventListener('turbo:submit-end', this.onSubmitEnd);
         this.unsubscribe = on(
             ['board.card_changed', 'worker_run.changed'],
             (change) => this.changed(change),
@@ -54,22 +40,18 @@ export default class extends Controller {
     }
 
     disconnect() {
+        this.removeLostListener?.();
+        this.removeLostListener = undefined;
         clearTimeout(this.timeout);
         this.request?.abort();
         this.settle();
         this.element.removeEventListener('close', this.onDialogClose, true);
-        this.element.removeEventListener(
-            'turbo:submit-start',
-            this.onSubmitStart,
-        );
-        this.element.removeEventListener('turbo:submit-end', this.onSubmitEnd);
         this.unsubscribe?.();
         this.unsubscribe = undefined;
     }
 
     /**
-     * A local change is already on this page, and the card drawer shows a
-     * deleted card. The hub echo of an own change still counts, because a drag
+     * A local change is already on this page, and a deleted card has its own band. The hub echo of an own change still counts, because a drag
      * on the board moves the card the drawer shows. The promise settles once
      * a read covers the change, or once no read will. An open dialog keeps it
      * waiting for the read after the dialog closes.
@@ -82,15 +64,8 @@ export default class extends Controller {
             if (change.cardId !== this.cardIdValue) {
                 return;
             }
+            // A deleted card has nothing to read. The deleted band of the page and the drawer shows it.
             if (change.change === 'deleted') {
-                // The standalone page has no drawer to show the delete, so it loads the not-found page.
-                // A delete this page submitted already redirects, and a reload would race that redirect.
-                if (!this.frameValue && !(change.own && this.deleting)) {
-                    window.Turbo?.visit(window.location.href, {
-                        action: 'replace',
-                    });
-                }
-
                 return;
             }
         }
@@ -154,6 +129,11 @@ export default class extends Controller {
                 credentials: 'same-origin',
                 signal: request.signal,
             });
+            if (handleLostAccess(response)) {
+                this.settle();
+
+                return;
+            }
             if (!response?.ok) {
                 if (request.signal.aborted) {
                     return;

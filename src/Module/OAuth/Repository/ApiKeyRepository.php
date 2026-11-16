@@ -103,11 +103,12 @@ class ApiKeyRepository extends ServiceEntityRepository
     /**
      * Stamps the use time unless the stored one is newer than $threshold. One
      * conditional UPDATE, so a burst of requests writes once and the write
-     * carries nothing else the request has pending.
+     * carries nothing else the request has pending. It answers whether it
+     * wrote a row.
      */
-    public function recordUse(Uuid $keyId, \DateTimeImmutable $now, \DateTimeImmutable $threshold): void
+    public function recordUse(Uuid $keyId, \DateTimeImmutable $now, \DateTimeImmutable $threshold): bool
     {
-        $this->createQueryBuilder('k')
+        $changed = $this->createQueryBuilder('k')
             ->update()
             ->set('k.lastUsedAt', ':now')
             ->where('k.id = :id')
@@ -117,5 +118,7 @@ class ApiKeyRepository extends ServiceEntityRepository
             ->setParameter('threshold', $threshold)
             ->getQuery()
             ->execute();
+
+        return $changed > 0;
     }
 }

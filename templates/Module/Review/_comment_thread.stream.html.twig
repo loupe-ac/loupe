@@ -6,18 +6,20 @@
     comment    Comment            The root comment of the thread to replace.
     replies    list<Comment>      Its direct replies (re-fetched after the mutation).
     replyForm  FormView|null      A reply form with validation errors, or null.
+    morph      bool               True when another actor's change is read, so a reply box with typed text stays.
 #}
-<turbo-stream action="replace" target="comment-thread-{{ comment.id }}">
+{% set method = morph|default(false) ? ' method="morph"' : '' %}
+<turbo-stream action="replace"{{ method|raw }} target="comment-thread-{{ comment.id }}">
     <template>
         <twig:CommentThread :comment="comment" :replies="replies" :replyForm="replyForm ?? null" />
     </template>
 </turbo-stream>
-<turbo-stream action="replace" target="comment-row-{{ comment.id }}">
+<turbo-stream action="replace"{{ method|raw }} target="comment-row-{{ comment.id }}">
     <template>
         {% include '@Review/_comment_row.html.twig' with {comment: comment} only %}
     </template>
 </turbo-stream>
-<turbo-stream action="replace" target="sheet-comment-row-{{ comment.id }}">
+<turbo-stream action="replace"{{ method|raw }} target="sheet-comment-row-{{ comment.id }}">
     <template>
         {% include '@Review/_comment_row.html.twig' with {comment: comment, variant: 'sheet', replyCount: replies|length} only %}
     </template>

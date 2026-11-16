@@ -535,6 +535,11 @@ the kept result of the graph. When the kept result is older than the sweep
 interval, or no result exists yet, the page computes the numbers in its own
 request. A visitor cannot change the settings.
 
+The page does not update while it is open. A visitor sees the result of the
+page load until they reload the page. When you turn the link off, an open page
+keeps its result on screen, and the next reload shows "not found". The page has
+no account and no live connection, so it has no safe way to hear about a change.
+
 Account names and bridge names never reach the page. A split by account shows
 **Account 1**, **Account 2** and so on. A split by bridge shows **Bridge 1**,
 **Bridge 2**. The account usage split shows labels such as **Bridge 1 / Account 2**
@@ -771,3 +776,33 @@ of the [Dashboard](#the-dashboard). A removal takes two calls, so that the agent
 asks you first, and an agent that a bridge started as a worker cannot remove a
 graph. A graph that an agent removed comes back with `graph_restore` for one day.
 An open Dashboard follows each change. See [the MCP tools](mcp.md#what-the-tools-do).
+
+## Live updates
+
+The Experiments, Reports, Metrics and Time buckets tabs, and the page of one
+experiment, update on their own. When someone else archives an experiment,
+starts or finishes an analysis, or changes a time bucket rule, the open page
+shows the change with no reload. A change that you make on the page shows at
+once.
+
+- A table you opened, such as **Variants** or **Metrics** on an experiment, stays
+  open through an update.
+- The form that adds a time bucket rule is not part of the update. Text you
+  typed in it stays.
+- Metrics waits for a quiet moment. It reads the page again 5 seconds after the
+  last change, and at most every 30 seconds while changes keep coming. The
+  chart you read does not jump while runs finish.
+- Reports shows 50 analyses on a page. Page 1 updates as a whole. A later page
+  updates only the rows it already shows. When newer reports land on page 1, a
+  band above the rows says how many. Select **Show the first page** to see them.
+- The **Analysis settings** form never updates under your hands. When someone
+  else saves the settings, a band above the form says **Someone changed these
+  settings**. The values you typed stay. Select **Open the current settings in
+  a new tab** to read the new values, then copy what you need.
+
+When the page loses its connection, it reads the current state again as soon as
+the connection returns. When you lose access to the project, or someone deletes
+it, the page shows a band that says so, and it stops updating. Live updates need
+a Mercure hub and the `live_updates.enabled` flag, see
+[Environment variables](../reference/environment.md). Without them, a page shows
+a change by someone else on the next load.

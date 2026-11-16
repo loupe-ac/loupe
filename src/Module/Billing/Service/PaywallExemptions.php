@@ -18,8 +18,10 @@ final readonly class PaywallExemptions
     /** @var list<string> */
     public const array ROUTES = [
         'app_billing_subscribe',
+        'app_billing_subscribe_frame',
         'app_billing_checkout',
         'app_billing_checkout_success',
+        'app_billing_checkout_success_frame',
         'app_billing_portal',
         // A tester whose trial ended is the one who needs the invite link.
         'app_billing_beta_invite',
@@ -33,8 +35,11 @@ final readonly class PaywallExemptions
         'app_waitlist_notify',
         'app_account_settings',
         'app_account_profile',
+        'app_account_profile_fingerprint',
         'app_account_connected_apps',
+        'app_account_connected_apps_frame',
         'app_account_data',
+        'app_account_data_frame',
         // The paywall runs above the terms gate, so dropping either of these
         // traps a user with a lapsed subscription and stale terms in a loop
         // between the subscribe page and the acceptance interstitial.

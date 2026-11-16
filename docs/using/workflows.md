@@ -730,6 +730,8 @@ template has no `review` request and no slots, so it cannot use these events.
 
 ## Workflow settings
 
+The Workflow settings page updates on its own when a column of the board changes, so the slot table shows the column names that the board holds now.
+
 A workflow template declares settings. A setting has a key, a type, a scope and a default. `workflow_get` lists each setting with its resolved value and the source of that value.
 
 | Key | Scope | Values | Default |

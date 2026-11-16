@@ -11,19 +11,11 @@
 {% block settings_section 'connections' %}
 
 {% block settings_content %}
-<div class="lp-connect-settings">
+{% do mercure_subscribe(worker_runs_topic(project)) %}
+<div class="lp-connect-settings" data-live-content>
     <twig:Ds:Panel as="section" id="agent-connection">
         <twig:Ds:SectionHeading>{{ 'project.connect.machines.title'|trans }}</twig:Ds:SectionHeading>
-        {% for machine in machines %}
-        <a class="lp-connect-machine" href="{{ machine.url }}" data-connect-machine="{{ machine.id }}">
-            <span class="lp-connect-machine__text">
-                <strong data-bridge-label>{{ machine.label }}</strong>
-                <small>{{ 'project.connect.machines.version'|trans({'%version%': machine.cliVersion|short_sha}) }}</small>
-                {%- if machine.quiet %}<small data-connect-machine-hint>{{ (machine.loginExpired ? 'bridge.agents.hint.login_expired' : 'bridge.agents.hint.stale')|trans({'%name%': machine.label})|inline_code }}</small>{% endif -%}
-            </span>
-            <twig:Ds:StatusChip :modifier="machine.loginExpired ? 'failed' : (machine.quiet ? 'pending' : 'ok')" :label="(machine.loginExpired ? 'bridge.agents.status.login_expired' : (machine.quiet ? 'bridge.agents.status.stale' : 'bridge.agents.status.healthy'))|trans" />
-        </a>
-        {% endfor %}
+        {% include '@Project/_connect_machines_frame.html.twig' with {project: project, machines: machines} only %}
         <twig:Ds:SectionHeading :level="3">{{ 'project.connect.machines.add.title'|trans }}</twig:Ds:SectionHeading>
         <twig:Ds:Hint>{{ 'project.connect.machines.add.hint'|trans }}</twig:Ds:Hint>
         <twig:Ds:CodeBlock
@@ -94,6 +86,8 @@
                 :copyLabel="'project.connect.copy'|trans"
                 :copiedLabel="'project.connect.copied'|trans"
                 testid="widget-oauth-snippet" />
+            <div data-controller="live-region" data-live-region-types-value="{{ ['project.updated']|json_encode }}" data-live-region-url-value="{{ path('app_project_settings_fingerprint', {id: project.id}) }}" data-live-region-mode-value="band" data-live-fingerprint="{{ project_settings_fingerprint(project) }}">
+            {% include '_live_form_band.html.twig' with {message: 'project.live.form_changed'|trans, linkLabel: 'project.live.form_open'|trans, url: path('app_project_connect', {id: project.id})} only %}
             {{ form_start(allowedOriginsForm, {'attr': {'class': 'lp-form', 'data-testid': 'allowed-origins-form'}}) }}
                 <twig:Ds:FormField>
                     {{ form_label(allowedOriginsForm.origins, null, {'label_attr': {'class': ds_label_class()}}) }}
@@ -107,6 +101,7 @@
                     <twig:Ds:Button variant="primary" type="submit">{{ 'project.allowed_origins.save'|trans }}</twig:Ds:Button>
                 </twig:Ds:FormActions>
             {{ form_end(allowedOriginsForm) }}
+            </div>
         </div>
     </twig:Ds:Panel>
 </div>

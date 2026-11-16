@@ -2622,19 +2622,34 @@
     .lp-backlog-bulk .lp-btn--ghost {
         @apply text-chrome-mute hover:bg-chrome-control hover:text-chrome-fg;
     }
-    /* A one-line status above the list: a confirmation, or the live notice. */
+    /* A one-line status above the list: a confirmation. */
     .lp-backlog-notice {
         @apply mt-4 flex items-center gap-2.5 rounded-lg bg-sunken px-3.5 py-2.5 text-sm font-medium text-ink;
         animation: lp-appear 120ms ease-out both;
     }
-    .lp-backlog-notice[hidden] {
-        @apply hidden;
-    }
     .lp-backlog-notice--error .lp-flash__dot {
         @apply bg-status-danger;
     }
-    .lp-backlog-notice__link {
-        @apply font-bold text-accent-ink underline;
+
+    /* A live frame holds blocks, and a custom element is inline by default. */
+    turbo-frame[data-controller~='live-region'] {
+        @apply block;
+    }
+
+    /* A row that another actor removed fades out before it goes, and a row that
+       another actor added fades in. The animations are opacity only. */
+    .lp-live-row--leaving {
+        @apply pointer-events-none;
+        animation: lp-live-row-leave 200ms ease-in both;
+    }
+    .lp-live-row--entering {
+        animation: lp-live-row-enter 200ms ease-out both;
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .lp-live-row--leaving,
+        .lp-live-row--entering {
+            animation: none;
+        }
     }
 
     /* Board controls and column framing for the supported kanban view. The
@@ -4426,6 +4441,16 @@
     .lp-version-banner {
         @apply flex flex-wrap items-center gap-2.5 px-4 py-3 mb-4 rounded-lg border text-sm bg-surface-2 border-line text-fg-mute;
     }
+    /* Holds the bands that another actor's change calls for. Empty, it takes no room. */
+    .lp-live-band {
+        @apply flex flex-col gap-2;
+    }
+    .lp-live-band:not(:empty) {
+        @apply mb-4;
+    }
+    .lp-live-band__form {
+        @apply inline;
+    }
     .lp-review-doc__byline {
         @apply text-fg-dim m-0 text-sm;
     }
@@ -5224,6 +5249,10 @@
     /* A line that holds a sentence wraps instead of cutting it off. */
     .lp-identity-row__meta--wrap {
         @apply whitespace-normal overflow-visible;
+    }
+    /* A live region that holds a list of rows keeps the gap its rows had in the panel. */
+    .lp-live-stack {
+        @apply flex flex-col gap-2.5;
     }
     .lp-identity-row > .lp-status-chip {
         @apply shrink-0 whitespace-nowrap;
@@ -8596,6 +8625,24 @@
     }
     to {
         opacity: 1;
+    }
+}
+
+@keyframes lp-live-row-enter {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes lp-live-row-leave {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
     }
 }
 

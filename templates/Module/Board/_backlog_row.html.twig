@@ -1,0 +1,54 @@
+{#- One Backlog row. Props: project (Project), card (Card), listQuery (BacklogListQuery), pendingComments (array<string, int>), boardColumns (list<BoardColumn>). -#}
+{% set routeParams = {projectId: project.id, cardId: card.id}|merge(listQuery.routeParams) %}
+{% set moveName = backlog_move_form_name(card) %}
+<div class="lp-data-table__row lp-backlog-row" id="backlog-row-{{ card.id }}" data-live-row="{{ card.id }}" data-live-fade data-backlog-card-id="{{ card.id }}" data-card-id="{{ card.id }}" role="row">
+    <span class="lp-data-table__cell" role="cell">
+        <input type="checkbox"
+               class="lp-backlog-check lp-touch-check"
+               name="{{ constant('App\\Module\\Board\\Form\\BulkMoveBacklogCardsFormType::NAME') }}[ids][]"
+               value="{{ card.id }}"
+               form="backlog-bulk-form"
+               aria-label="{{ 'board.backlog.select_card'|trans({'%number%': card.number}) }}"
+               data-backlog-select-target="box"
+               data-action="backlog-select#update">
+    </span>
+    <div class="lp-data-table__cell lp-document-row__main" role="cell">
+        <div class="lp-document-row__head">
+            <span class="lp-board-card__number">#{{ card.number }}</span>
+            <a class="lp-backlog-row__title"
+               href="{{ path('app_board_card', {projectId: project.id, cardId: card.id}) }}"
+               data-turbo-frame="card-drawer-frame"
+               data-drawer-title="#{{ card.number }}"
+               data-action="click->card-drawer#prepare">{{ card.title|reference_plain }}</a>
+        </div>
+    </div>
+    <div class="lp-data-table__cell" role="cell">{% include '@Board/_card_type_tag.html.twig' with {card: card} only %}</div>
+    <span class="lp-data-table__cell lp-document-row__author lp-backlog-row__epic" role="cell">
+        {% if card.parent %}<span class="lp-board-card__number">#{{ card.parent.number }}</span> {{ card.parent.title|reference_plain }}{% else %}<span aria-label="{{ 'board.backlog.table.no_epic'|trans }}">—</span>{% endif %}
+    </span>
+    <span class="lp-data-table__cell lp-document-row__linked-card" role="cell">{{ pendingComments[card.id ~ '']|default(0) ?: '—' }}</span>
+    <twig:Ds:RelativeTime :datetime="card.createdAt" class="lp-data-table__cell lp-document-row__updated" role="cell" />
+    <div class="lp-data-table__cell lp-document-row__actions" role="cell">
+        <twig:Ds:Menu id="backlog-move-{{ card.id }}" as="form" :panel="{method: 'post', action: path('app_project_board_backlog_move', routeParams)}">
+            <twig:block name="trigger">
+                <twig:Ds:Button variant="ghost" size="sm" type="button"
+                        aria-label="{{ 'board.backlog.move_card'|trans({'%number%': card.number}) }}"
+                        aria-expanded="false"
+                        aria-controls="backlog-move-{{ card.id }}"
+                        data-popover-target="trigger"
+                        data-action="click->popover#toggle">
+                    {{ 'board.backlog.move_to'|trans }}
+                    <twig:ux:icon name="lucide:chevron-down" class="lp-icon lp-icon--md" />
+                </twig:Ds:Button>
+            </twig:block>
+            <twig:block name="content">
+                <input type="hidden" name="{{ moveName }}[_token]" value="{{ csrf_token('submit') }}" data-controller="csrf-protection">
+                {% for column in boardColumns %}
+                <twig:Ds:MenuItem type="submit" name="{{ moveName }}[column]" value="{{ column.id }}">
+                    <span class="lp-tone-dot lp-tone-dot--{{ column.tone.value }}"></span>{{ column.label|trans }}
+                </twig:Ds:MenuItem>
+                {% endfor %}
+            </twig:block>
+        </twig:Ds:Menu>
+    </div>
+</div>

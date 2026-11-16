@@ -1,0 +1,23 @@
+{# The subscription status of the checkout return page, in a live region. The page and the fragment route render it. Props: view (ShowSubscribeView). #}
+<turbo-frame id="billing-checkout-status" class="lp-live-stack" refresh="morph" data-live-content data-controller="live-region" data-live-region-types-value="{{ ['account.changed']|json_encode }}" data-live-region-match-value="{{ {area: 'billing'}|json_encode }}" data-live-region-url-value="{{ path('app_billing_checkout_success_frame') }}" data-live-region-mode-value="frame">
+    <section class="lp-billing-block" data-testid="checkout-status">
+        <p class="lp-eyebrow">{{ 'billing.subscribe.status.eyebrow'|trans }}</p>
+        <div class="flex items-start gap-3">
+            {% if view.subscribed %}
+            <span class="lp-billing-status lp-billing-status--ok">{{ 'billing.subscribe.status.chip.subscribed'|trans }}</span>
+            <p class="lp-connect-hint">{{ 'billing.subscribe.status.subscribed'|trans }}</p>
+            {% elseif view.hasLiveSubscription %}
+            <span class="lp-billing-status lp-billing-status--expired">{{ 'billing.subscribe.status.chip.payment_problem'|trans }}</span>
+            <p class="lp-connect-hint">{{ 'billing.subscribe.status.payment_problem'|trans }}</p>
+            {% else %}
+            <span class="lp-billing-status lp-billing-status--trial">{{ 'billing.checkout_success.status.chip.pending'|trans }}</span>
+            <p class="lp-connect-hint">{{ 'billing.checkout_success.status.pending'|trans }}</p>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="lp-billing-block">
+        <twig:Ds:Button variant="primary" href="{{ path('app_home') }}" data-turbo-frame="_top">{{ 'billing.checkout_success.continue'|trans }}</twig:Ds:Button>
+        <p class="lp-connect-hint">{{ 'billing.checkout_success.hint'|trans }}</p>
+    </section>
+</turbo-frame>

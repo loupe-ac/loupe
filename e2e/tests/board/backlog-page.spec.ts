@@ -10,9 +10,11 @@
 import { expect, type Page } from '@playwright/test';
 import {
     hubStubbedTest as base,
-    accessToken,
+    mcpCards,
+    type CreateCard,
     suppressToolbar,
     suppressWidget,
+    type Card,
 } from '../fixtures';
 
 const RUN = Date.now();
@@ -29,76 +31,6 @@ async function login(page: Page, email: string): Promise<void> {
     await expect(page).toHaveURL(/\/(welcome|projects\/.+)$/, {
         timeout: 15000,
     });
-}
-
-interface Card {
-    id: string;
-    number: number;
-}
-
-type CreateCard = (
-    title: string,
-    options?: { type?: string; status?: string; parent?: Card },
-) => Promise<Card>;
-
-/** Opens an MCP session with a token bound to the project, and returns a card_create call. */
-async function mcpCards(page: Page, projectId: string): Promise<CreateCard> {
-    const token = await accessToken(page, 'mcp', projectId);
-    const headers: Record<string, string> = {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-    };
-
-    const initialize = await page.request.post('/mcp', {
-        headers,
-        data: {
-            jsonrpc: '2.0',
-            id: 1,
-            method: 'initialize',
-            params: {
-                protocolVersion: '2024-11-05',
-                capabilities: {},
-                clientInfo: { name: 'e2e', version: '1' },
-            },
-        },
-    });
-    expect(initialize.ok()).toBeTruthy();
-    headers['Mcp-Session-Id'] = initialize.headers()['mcp-session-id'] ?? '';
-    expect(headers['Mcp-Session-Id']).not.toBe('');
-    await page.request.post('/mcp', {
-        headers,
-        data: { jsonrpc: '2.0', method: 'notifications/initialized' },
-    });
-
-    let id = 2;
-
-    return async (title, options = {}) => {
-        const response = await page.request.post('/mcp', {
-            headers,
-            data: {
-                jsonrpc: '2.0',
-                id: id++,
-                method: 'tools/call',
-                params: {
-                    name: 'card_create',
-                    arguments: {
-                        title,
-                        body: '',
-                        type: options.type ?? 'feature',
-                        ...(options.status ? { status: options.status } : {}),
-                        ...(options.parent
-                            ? { parentCardId: options.parent.id }
-                            : {}),
-                    },
-                },
-            },
-        });
-        const answer = await response.json();
-        expect(answer.result?.isError, JSON.stringify(answer)).toBeFalsy();
-        const card = answer.result.structuredContent;
-
-        return { id: card.cardId, number: card.number };
-    };
 }
 
 interface Backlog {
@@ -200,9 +132,6 @@ test('a filtered row moves to Next and leaves the list', async ({
     );
     await expect(row(page, target)).toHaveCount(0);
     await expect(page.getByText('No card matches')).toBeVisible();
-    await expect(
-        page.locator('[data-backlog-live-target="notice"]'),
-    ).toBeHidden();
 
     await page.goto(`/projects/${backlog.projectId}/board`);
     await expect(

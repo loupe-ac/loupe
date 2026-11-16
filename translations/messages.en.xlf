@@ -1478,6 +1478,38 @@
                 <source>review.publish.submit</source>
                 <target>Publish</target>
             </trans-unit>
+            <trans-unit id="review.live.archived">
+                <source>review.live.archived</source>
+                <target>This document was archived.</target>
+            </trans-unit>
+            <trans-unit id="review.live.unarchive">
+                <source>review.live.unarchive</source>
+                <target>Unarchive</target>
+            </trans-unit>
+            <trans-unit id="review.live.version_out">
+                <source>review.live.version_out</source>
+                <target>Version %version% is out.</target>
+            </trans-unit>
+            <trans-unit id="review.live.show_version">
+                <source>review.live.show_version</source>
+                <target>Show version %version%</target>
+            </trans-unit>
+            <trans-unit id="review.live.rename_changed">
+                <source>review.live.rename_changed</source>
+                <target>This document changed in another place. Open it to see the current title before you rename it.</target>
+            </trans-unit>
+            <trans-unit id="review.live.open_document">
+                <source>review.live.open_document</source>
+                <target>Open the document</target>
+            </trans-unit>
+            <trans-unit id="review.live.newer_documents">
+                <source>review.live.newer_documents</source>
+                <target>{0}No new documents.|{1}1 new document.|]1,Inf[%count% new documents.</target>
+            </trans-unit>
+            <trans-unit id="review.live.show_first_page">
+                <source>review.live.show_first_page</source>
+                <target>Show the first page</target>
+            </trans-unit>
             <trans-unit id="review.draft_band.live_stopped">
                 <source>review.draft_band.live_stopped</source>
                 <target>Live updates stopped. Reload the page to see the current state.</target>
@@ -4356,7 +4388,15 @@
             </trans-unit>
             <trans-unit id="billing.checkout_success.hint">
                 <source>billing.checkout_success.hint</source>
-                <target>Activation usually takes a few seconds. Reload the page if the app still asks you to subscribe.</target>
+                <target>Activation usually takes a few seconds. This page shows the result when it is done.</target>
+            </trans-unit>
+            <trans-unit id="billing.checkout_success.status.chip.pending">
+                <source>billing.checkout_success.status.chip.pending</source>
+                <target>Confirming</target>
+            </trans-unit>
+            <trans-unit id="billing.checkout_success.status.pending">
+                <source>billing.checkout_success.status.pending</source>
+                <target>Stripe has not confirmed your payment yet. This page changes when it does.</target>
             </trans-unit>
             <trans-unit id="billing.beta_invite.page.title">
                 <source>billing.beta_invite.page.title</source>
@@ -7379,13 +7419,29 @@ workflow:
                 <source>board.backlog.bulk.clear</source>
                 <target>Clear</target>
             </trans-unit>
-            <trans-unit id="board.backlog.live.changed">
-                <source>board.backlog.live.changed</source>
-                <target>The board changed.</target>
+            <trans-unit id="board.backlog.live.newer">
+                <source>board.backlog.live.newer</source>
+                <target>{0}No new card matches this list.|{1}One new card matches this list.|]1,Inf[%count% new cards match this list.</target>
             </trans-unit>
-            <trans-unit id="board.backlog.live.reload">
-                <source>board.backlog.live.reload</source>
-                <target>Reload</target>
+            <trans-unit id="board.backlog.live.first_page">
+                <source>board.backlog.live.first_page</source>
+                <target>Show the first page</target>
+            </trans-unit>
+            <trans-unit id="board.terminal.live.newer">
+                <source>board.terminal.live.newer</source>
+                <target>{0}No more card finished.|{1}One more card finished.|]1,Inf[%count% more cards finished.</target>
+            </trans-unit>
+            <trans-unit id="board.terminal.live.first_page">
+                <source>board.terminal.live.first_page</source>
+                <target>Show the first page</target>
+            </trans-unit>
+            <trans-unit id="board.automation.live.changed">
+                <source>board.automation.live.changed</source>
+                <target>Someone changed these settings. Your form shows the old values.</target>
+            </trans-unit>
+            <trans-unit id="board.automation.live.open">
+                <source>board.automation.live.open</source>
+                <target>Open the current settings in a new tab</target>
             </trans-unit>
             <trans-unit id="board.backlog.error.not_in_backlog">
                 <source>board.backlog.error.not_in_backlog</source>
@@ -8280,6 +8336,7 @@ workflow:
             <trans-unit id="board.card.drawer.loading"><source>board.card.drawer.loading</source><target>Loading card…</target></trans-unit>
             <trans-unit id="board.card.drawer.failed"><source>board.card.drawer.failed</source><target>The card could not load. Try again.</target></trans-unit>
             <trans-unit id="board.card.drawer.retry"><source>board.card.drawer.retry</source><target>Retry</target></trans-unit>
+            <trans-unit id="board.card.deleted_band.back"><source>board.card.deleted_band.back</source><target>Back to the board</target></trans-unit>
             <trans-unit id="board.card.drawer.deleted"><source>board.card.drawer.deleted</source><target>This card was deleted.</target></trans-unit>
             <trans-unit id="nav.global_actions.label"><source>nav.global_actions.label</source><target>Global tools</target></trans-unit>
             <trans-unit id="nav.new_work"><source>nav.new_work</source><target>New work</target></trans-unit>
@@ -8520,6 +8577,8 @@ workflow:
             <trans-unit id="activity.filter.search_placeholder"><source>activity.filter.search_placeholder</source><target>Search event type or data</target></trans-unit>
             <trans-unit id="activity.filter.family_label"><source>activity.filter.family_label</source><target>Filter by event family</target></trans-unit>
             <trans-unit id="activity.filter.all_families"><source>activity.filter.all_families</source><target>All event types</target></trans-unit>
+            <trans-unit id="activity.live.newer"><source>activity.live.newer</source><target>{0}No newer event was recorded.|{1}One newer event was recorded.|]1,Inf[%count% newer events were recorded.</target></trans-unit>
+            <trans-unit id="activity.live.show_first_page"><source>activity.live.show_first_page</source><target>Show the first page</target></trans-unit>
             <trans-unit id="activity.filter.clear"><source>activity.filter.clear</source><target>Clear</target></trans-unit>
             <trans-unit id="activity.filter.empty"><source>activity.filter.empty</source><target>No activity matches these filters.</target></trans-unit>
             <trans-unit id="activity.column.event"><source>activity.column.event</source><target>Event</target></trans-unit>
@@ -8766,6 +8825,8 @@ workflow:
             <trans-unit id="account.settings.profile.description"><source>account.settings.profile.description</source><target>Your identity in the workshop.</target></trans-unit>
             <trans-unit id="account.settings.profile.email_label"><source>account.settings.profile.email_label</source><target>Email</target></trans-unit>
             <trans-unit id="account.settings.profile.email_hint"><source>account.settings.profile.email_hint</source><target>Contact support to change your sign-in email.</target></trans-unit>
+            <trans-unit id="account.settings.profile.changed_band.message"><source>account.settings.profile.changed_band.message</source><target>Your profile changed somewhere else. This form still shows the older version.</target></trans-unit>
+            <trans-unit id="account.settings.profile.changed_band.open"><source>account.settings.profile.changed_band.open</source><target>Open the current profile</target></trans-unit>
             <trans-unit id="account.settings.nav.label">
                 <source>account.settings.nav.label</source>
                 <target>Account sections</target>
@@ -11077,6 +11138,28 @@ workflow:
             <trans-unit id="openrouter.flash.saved"><source>openrouter.flash.saved</source><target>The OpenRouter key is saved.</target></trans-unit>
             <trans-unit id="openrouter.flash.removed"><source>openrouter.flash.removed</source><target>The OpenRouter key is removed.</target></trans-unit>
             <trans-unit id="openrouter.live_stopped"><source>openrouter.live_stopped</source><target>Live updates stopped. Reload the page to see the current state.</target></trans-unit>
+            <trans-unit id="artifact.live.version"><source>artifact.live.version</source><target>Version %number% is out.</target></trans-unit>
+            <trans-unit id="artifact.live.show_version"><source>artifact.live.show_version</source><target>Show version %number%</target></trans-unit>
+            <trans-unit id="artifact.live.archived"><source>artifact.live.archived</source><target>This artifact was archived.</target></trans-unit>
+            <trans-unit id="artifact.live.unarchive"><source>artifact.live.unarchive</source><target>Unarchive</target></trans-unit>
+            <trans-unit id="artifact.live.restored"><source>artifact.live.restored</source><target>This artifact was restored.</target></trans-unit>
+            <trans-unit id="artifact.live.reload"><source>artifact.live.reload</source><target>Reload</target></trans-unit>
+            <trans-unit id="live.band.stopped"><source>live.band.stopped</source><target>Live updates stopped. Reload the page to see the current state.</target></trans-unit>
+            <trans-unit id="live.band.signed_out"><source>live.band.signed_out</source><target>You are signed out, so this page no longer updates.</target></trans-unit>
+            <trans-unit id="live.band.sign_in"><source>live.band.sign_in</source><target>Sign in</target></trans-unit>
+            <trans-unit id="live.band.project_deleted"><source>live.band.project_deleted</source><target>This project was deleted, so this page no longer updates.</target></trans-unit>
+            <trans-unit id="live.band.generic"><source>live.band.generic</source><target>You can no longer see this page, so it no longer updates.</target></trans-unit>
+            <trans-unit id="insights.live.newer_reports"><source>insights.live.newer_reports</source><target>{0} No newer reports.|{1} 1 newer report is on the first page.|]1,Inf[ %count% newer reports are on the first page.</target></trans-unit>
+            <trans-unit id="insights.live.newer_cards"><source>insights.live.newer_cards</source><target>{0} No newer cards.|{1} 1 card ran again and is now on the first page.|]1,Inf[ %count% cards ran again and are now on the first page.</target></trans-unit>
+            <trans-unit id="insights.live.show_first_page"><source>insights.live.show_first_page</source><target>Show the first page</target></trans-unit>
+            <trans-unit id="insights.live.settings_changed"><source>insights.live.settings_changed</source><target>Someone changed these settings. The values you typed stay in this form.</target></trans-unit>
+            <trans-unit id="insights.live.settings_open"><source>insights.live.settings_open</source><target>Open the current settings in a new tab</target></trans-unit>
+            <trans-unit id="project.live.form_changed"><source>project.live.form_changed</source><target>Someone or an agent changed this project. What you typed stays here until you save.</target></trans-unit>
+            <trans-unit id="project.live.form_open"><source>project.live.form_open</source><target>Open the current settings in a new tab</target></trans-unit>
+            <trans-unit id="readiness.live.form_changed"><source>readiness.live.form_changed</source><target>Someone or an agent changed these settings. What you typed stays here until you save.</target></trans-unit>
+            <trans-unit id="readiness.live.form_open"><source>readiness.live.form_open</source><target>Open the current settings in a new tab</target></trans-unit>
+            <trans-unit id="project.list.live.newer"><source>project.list.live.newer</source><target>{0}No newer projects.|{1}One newer project is on the first page.|]1,Inf[%count% newer projects are on the first page.</target></trans-unit>
+            <trans-unit id="project.list.live.first_page"><source>project.list.live.first_page</source><target>Go to the first page</target></trans-unit>
         </body>
     </file>
 </xliff>

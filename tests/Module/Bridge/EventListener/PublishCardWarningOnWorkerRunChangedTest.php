@@ -59,6 +59,7 @@ final class PublishCardWarningOnWorkerRunChangedTest extends TestCase
     {
         $live = new LiveUpdatePublisher(
             new RequestStack(),
+            new \App\Mercure\LiveUpdateTransactionBuffer(),
             FeatureFlags::service([LiveUpdates::FLAG => true]),
             new NullLogger(),
             fn (): HubInterface => new MockHub(

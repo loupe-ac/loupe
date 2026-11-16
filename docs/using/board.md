@@ -65,6 +65,7 @@ API route writes a column.
 Another reader of the board sees no column controls.
 
 Open **Board settings** to manage columns beside the other project settings.
+The page updates on its own when another person or an agent changes a column. An open dialog holds the update until you close it.
 Below the columns, **Finished work on the board** sets how many days of
 finished cards each terminal column shows.
 The **Board columns** section lists the columns in order. Each row has
@@ -196,6 +197,11 @@ page carries the rest. The window is a board setting. The project owner sets it
 from 1 to 30 days under **Finished work on the board** in board settings.
 `card_list` applies no such window. Every finished card is on the board it pages
 through, however old it is.
+
+The history page of a terminal column updates on its own when a card changes.
+Page 1 shows a card that finishes in its place. On page 2 and later, the rows
+keep their order, a card that leaves the column fades out, and a band counts
+the cards that finished since you opened the page, with a link to the first page.
 
 ## The board screen
 
@@ -379,11 +385,16 @@ When one move is refused, no card moves.
 An empty Backlog shows **The Backlog is empty**. Filters that match no card
 show **No card matches** and a **Clear filters** button.
 
-When someone else changes a card or the columns of the board, the page shows
-**The board changed.** and a **Reload** link. The change can be outside the
-Backlog. The page does not reload by itself, so a
-selection or an open menu stays. A change made on this page shows no notice.
-The notice needs live changes, as the board does.
+The page updates on its own when someone else changes a card or the columns
+of the board, also outside the Backlog. On page 1, rows move into their sorted
+place and unchanged rows stay as they are. A row that you ticked stays ticked,
+and an open menu holds the update until it closes. On page 2 and later, the
+rows keep their order. A row that left the Backlog or no longer matches a
+filter fades out. A band shows how many new cards match the filters, with a
+link to the first page. The count of cards updates too. A change made on this
+page shows no band. If the page cannot read the update, a **Live updates
+stopped** band shows, and a reload catches up. The page needs live changes, as
+the board does.
 
 ### Live changes
 
@@ -497,7 +508,10 @@ card moves, when one of its pull requests changes, when the automation acts,
 and when a worker run of the project changes. The open tab stays open. A form
 with unsaved input keeps that input, and an open dialog holds the update until
 it closes. Live updates need the same hub and flag as the board. See
-[Live changes](#live-changes).
+[Live changes](#live-changes). The history tab updates with the rest of the card.
+When someone deletes the card while you read its full page, a band says
+**This card was deleted.** with a link back to the board. The card stays on
+screen and nothing reloads.
 
 The page also lists up to five agent runs of the card that are still in
 progress, with the rule that started each run, when it started and its state.
@@ -1011,6 +1025,11 @@ the work instead, as its template says.
 |---|---|---|
 | **Run the workflow of the board** | on | When off, the workflow moves no card and asks for no work on this board. Loupe still records the pull request facts |
 | **Stuck delay in minutes** | 15 | The minutes a pull request may stay ready to merge, or stay quiet with no card history, before its card shows **Stuck**, from 1 to 1440 |
+
+The settings form never changes under you. When another person or an agent saves
+these settings while the form is open, a band says so and links to the current
+settings. The link opens in a new tab, so what you typed stays. The form also
+checks for a missed change after a lost connection.
 
 The loop limit of the fix rules and the comments are part of the workflow
 template. The `limit` of a fix rule sets the number of fix rounds. The epic

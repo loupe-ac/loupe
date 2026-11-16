@@ -18,6 +18,7 @@ use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Workflow\Contract\Actor;
 use App\Tests\Module\OAuth\PreviewTokenScenario;
+use App\Tests\Support\RecordedAccountSignals;
 use App\Tests\Support\RecordingLogger;
 use App\Tests\Support\SilentAuditor;
 use Doctrine\DBAL\Connection;
@@ -149,7 +150,7 @@ final class RevokePreviewTokensOnBoardColumnChangesTest extends KernelTestCase
         $projects = self::getContainer()->get(ProjectRepository::class);
         self::assertInstanceOf(ProjectRepository::class, $projects);
 
-        return new RevokePreviewTokensHandler($repository, $projects, SilentAuditor::create());
+        return new RevokePreviewTokensHandler($repository, $projects, SilentAuditor::create(), new RecordedAccountSignals()->publisher);
     }
 
     private function delete(Project $project, string $slug, string $target): void

@@ -18,6 +18,7 @@ use App\Module\Workflow\Contract\Actor;
 use App\Outbox\Entity\OutboxEvent;
 use App\Outbox\Repository\OutboxEventRepository;
 use App\Tests\Module\Project\Command\RivalBeforeFlush;
+use App\Tests\Support\RecordedAccountSignals;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
@@ -185,7 +186,7 @@ final class WriteOutboxEventOnProjectRenamedTest extends KernelTestCase
             'name' => 'My App',
             'slug' => 'my-app',
             'created_at' => '2026-09-12 00:00:00',
-        ]), $auditor, $dispatcher);
+        ]), $auditor, $dispatcher, new RecordedAccountSignals()->publisher);
 
         $pending = null;
         $em = $this->em;

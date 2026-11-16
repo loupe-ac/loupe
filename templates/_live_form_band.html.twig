@@ -1,0 +1,5 @@
+{# The hidden band of a form region. A live region unhides it when another actor changes what the form shows. The link opens the current state in a new tab, so the typed values stay. Props: message (string), linkLabel (string), url (string). #}
+<twig:Ds:Flash severity="info" hidden data-live-region-target="band" data-testid="live-form-band">
+    {{ message }}
+    <twig:block name="actions"><a href="{{ url }}" target="_blank" rel="noopener noreferrer">{{ linkLabel }}</a></twig:block>
+</twig:Ds:Flash>

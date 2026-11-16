@@ -1,0 +1,17 @@
+{# The answer to a live read of a later page: each shown row in place, each gone row removed, and the band for newer projects. Props: items (list of ProjectListItem), goneIds (list of string), newerCount (int). #}
+{% for item in items %}
+<turbo-stream action="replace" method="morph" target="project-row-{{ item.project.id }}">
+    <template>{% include '@Project/_project_row.html.twig' with {item: item} only %}</template>
+</turbo-stream>
+{% endfor %}
+{% for id in goneIds %}
+<turbo-stream action="remove" target="project-row-{{ id }}"></turbo-stream>
+{% endfor %}
+<turbo-stream action="update" target="projects-live-band">
+    <template>{% if newerCount > 0 %}
+        <twig:Ds:Flash severity="info" data-testid="projects-newer-band">
+            {{ 'project.list.live.newer'|trans({'%count%': newerCount}) }}
+            <twig:block name="actions"><a href="{{ path('app_projects') }}">{{ 'project.list.live.first_page'|trans }}</a></twig:block>
+        </twig:Ds:Flash>
+    {% endif %}</template>
+</turbo-stream>

@@ -17,6 +17,7 @@ use App\Tests\Support\SilentAuditor;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -56,7 +57,7 @@ final class RequireSubscriptionListenerTest extends TestCase
 
         $gate = new PaywallGate(
             FeatureFlags::service(['billing.enabled' => true]),
-            new TrialProvisioner($profiles, FeatureFlags::service(), $this->createStub(EntityManagerInterface::class), SilentAuditor::create()),
+            new TrialProvisioner($profiles, FeatureFlags::service(), $this->createStub(EntityManagerInterface::class), SilentAuditor::create(), new EventDispatcher()),
         );
 
         $urlGenerator = $this->createStub(UrlGeneratorInterface::class);
@@ -88,6 +89,19 @@ final class RequireSubscriptionListenerTest extends TestCase
         $response = $event->getResponse();
         self::assertNotNull($response);
         self::assertSame(self::SUBSCRIBE_URL, $response->headers->get('Location'));
+    }
+
+    public function test_a_live_refresh_of_a_blocked_user_gets_a_402_instead_of_the_redirect(): void
+    {
+        $user = $this->user();
+        $event = $this->event('app_project_list');
+        $event->getRequest()->headers->set('X-Loupe-Live-Refresh', '1');
+
+        $this->listener($user, $this->expiredProfile($user))($event);
+
+        $response = $event->getResponse();
+        self::assertNotNull($response);
+        self::assertSame(Response::HTTP_PAYMENT_REQUIRED, $response->getStatusCode());
     }
 
     public function test_user_within_trial_is_not_redirected(): void

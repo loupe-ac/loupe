@@ -31,6 +31,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Uid\Uuid;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
@@ -82,7 +83,7 @@ final class StartCheckoutHandlerTest extends TestCase
         $users->method('countActive')->willReturn(1);
 
         return new StartCheckoutHandler(
-            new TrialProvisioner($profiles, FeatureFlags::service($flags), $this->createStub(EntityManagerInterface::class), SilentAuditor::create()),
+            new TrialProvisioner($profiles, FeatureFlags::service($flags), $this->createStub(EntityManagerInterface::class), SilentAuditor::create(), new EventDispatcher()),
             new ActivePriceProvider(FeatureFlags::service($flags), $priceStripe, new ArrayAdapter(), new NullLogger()),
             $stripe,
             FeatureFlags::service($flags),

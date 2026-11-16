@@ -7,6 +7,7 @@
 {% block settings_columns '' %}
 
 {% block body %}
+{% do mercure_subscribe(board_topic(project)) %}
 {% set section = block('settings_section') %}
 {% set columns = '' != block('settings_columns') %}
 {% set settingsContent %}{% block settings_content %}{% endblock %}{% endset %}

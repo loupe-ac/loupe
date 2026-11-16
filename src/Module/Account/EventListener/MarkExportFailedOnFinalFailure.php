@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Module\Account\EventListener;
 
+use App\Mercure\AccountArea;
+use App\Mercure\AccountChangedPublisher;
 use App\Module\Account\Entity\DataExport;
 use App\Module\Account\Entity\DataExportStatus;
 use App\Module\Account\Messenger\GenerateDataExportMessage;
@@ -26,6 +28,7 @@ final readonly class MarkExportFailedOnFinalFailure
         private DataExportRepository $dataExports,
         private EntityManagerInterface $em,
         private Auditor $auditor,
+        private AccountChangedPublisher $accountChanged,
 
         #[Target('export.storage')]
         private FilesystemOperator $exportStorage,
@@ -60,6 +63,7 @@ final readonly class MarkExportFailedOnFinalFailure
 
         $export->fail();
         $this->em->flush();
+        $this->accountChanged->changed($export->user->id ?? throw new \LogicException('a persisted user always has an id'), AccountArea::EXPORTS);
 
         // Both records land after the flush, so a failed write leaves the trail
         // saying nothing rather than claiming a status the row never took.

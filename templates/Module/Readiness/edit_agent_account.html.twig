@@ -11,7 +11,7 @@
 {% block settings_section 'readiness' %}
 
 {% block settings_content %}
-<twig:Ds:Panel as="section" data-agent-account>
+<twig:Ds:Panel as="section" data-agent-account data-live-content>
     <twig:Ds:SectionHeading>{{ 'readiness.agent_account.title'|trans }}</twig:Ds:SectionHeading>
     <p class="lp-connect-hint">{{ 'readiness.agent_account.description'|trans }}</p>
 
@@ -34,6 +34,8 @@
     </div>
 
     <twig:Ds:SectionHeading :level="3">{{ 'readiness.agent_account.login.title'|trans }}</twig:Ds:SectionHeading>
+    <div data-controller="live-region" data-live-region-types-value="{{ ['project.updated']|json_encode }}" data-live-region-url-value="{{ path('app_project_settings_fingerprint', {id: project.id}) }}" data-live-region-mode-value="band" data-live-fingerprint="{{ project_settings_fingerprint(project) }}">
+    {% include '_live_form_band.html.twig' with {message: 'readiness.live.form_changed'|trans, linkLabel: 'readiness.live.form_open'|trans, url: path('app_project_readiness_agent_account', {id: project.id})} only %}
     {{ form_start(form, {attr: {class: 'lp-form'}}) }}
         <twig:Ds:FormField>
             {{ form_label(form.login, null, {label_attr: {class: ds_label_class()}}) }}
@@ -47,5 +49,6 @@
             <twig:Ds:Button variant="primary" type="submit">{{ 'readiness.agent_account.submit'|trans }}</twig:Ds:Button>
         </twig:Ds:FormActions>
     {{ form_end(form) }}
+    </div>
 </twig:Ds:Panel>
 {% endblock %}

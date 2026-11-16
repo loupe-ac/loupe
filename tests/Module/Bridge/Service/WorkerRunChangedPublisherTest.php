@@ -376,6 +376,7 @@ final class WorkerRunChangedPublisherTest extends KernelTestCase
         $hubBuilt = false;
         $live = new LiveUpdatePublisher(
             new RequestStack(),
+            new \App\Mercure\LiveUpdateTransactionBuffer(),
             FeatureFlags::service([LiveUpdates::FLAG => false]),
             new Logger('test', [$log]),
             function () use (&$hubBuilt): HubInterface {
@@ -399,6 +400,7 @@ final class WorkerRunChangedPublisherTest extends KernelTestCase
         $other = $this->project($this->em(), $this->owner, 'Run publish failing');
         $live = new LiveUpdatePublisher(
             new RequestStack(),
+            new \App\Mercure\LiveUpdateTransactionBuffer(),
             FeatureFlags::service([LiveUpdates::FLAG => true]),
             new Logger('test', [$log]),
             fn (): HubInterface => new MockHub(
@@ -407,6 +409,10 @@ final class WorkerRunChangedPublisherTest extends KernelTestCase
                 function (Update $update): string {
                     if ([$this->runTopic($this->project)] === $update->getTopics()) {
                         throw new \RuntimeException('hub unreachable');
+                    }
+                    // A project written in setup also signals the projects list, which this test does not cover.
+                    if (str_contains($update->getData(), '"account.changed"')) {
+                        return 'id';
                     }
                     $this->published[] = $update;
 
@@ -539,6 +545,10 @@ final class WorkerRunChangedPublisherTest extends KernelTestCase
             'http://mercure/.well-known/mercure',
             new StaticTokenProvider('token'),
             function (Update $update): string {
+                // A project written in setup also signals the projects list, which this test does not cover.
+                if (str_contains($update->getData(), '"account.changed"')) {
+                    return 'id';
+                }
                 $this->published[] = $update;
 
                 return 'id';

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Module\Account\Command;
 
+use App\Mercure\AccountArea;
+use App\Mercure\AccountChangedPublisher;
 use App\Module\Account\Entity\DataExportStatus;
 use App\Module\Account\Export\DataExportArchiveBuilder;
 use App\Module\Account\Repository\DataExportRepository;
@@ -26,6 +28,7 @@ final readonly class ProcessDataExportHandler
         private EntityManagerInterface $em,
         private LoggerInterface $logger,
         private Auditor $auditor,
+        private AccountChangedPublisher $accountChanged,
     ) {
     }
 
@@ -60,6 +63,7 @@ final readonly class ProcessDataExportHandler
 
         $rawToken = $export->complete();
         $this->em->flush();
+        $this->accountChanged->changed($export->user->id ?? throw new \LogicException('a persisted user always has an id'), AccountArea::EXPORTS);
         $this->emailSender->send($export, $rawToken);
         $this->auditor->record(
             'account.data_export_completed',

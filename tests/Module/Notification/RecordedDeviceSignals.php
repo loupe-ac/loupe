@@ -33,6 +33,7 @@ final class RecordedDeviceSignals
     {
         $this->live = new LiveUpdatePublisher(
             new RequestStack(),
+            new \App\Mercure\LiveUpdateTransactionBuffer(),
             FeatureFlags::service([LiveUpdates::FLAG => true]),
             new NullLogger(),
             fn (): MockHub => new MockHub(

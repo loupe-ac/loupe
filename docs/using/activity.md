@@ -43,7 +43,11 @@ The count beside the filters shows how many events match.
 
 ## Live updates
 
-The first page reloads when Loupe records an event in the project, or delivers one.
-It also reloads after the page reconnects to the hub, for any change the page missed.
+The page follows the events of the project while it stays open.
 This needs a Mercure hub and the `live_updates.enabled` flag. Without them, the page shows a change on its next load.
-A later page does not reload, so its rows stay in place while you read.
+
+- **First page.** A new event, or a changed delivery status, updates the list in place. Rows that did not change keep their place, and the search box keeps what you typed. A new row fades in.
+- **Later pages.** The rows keep their order, so a new event never moves them. A row updates in place when its delivery status changes. A banner says how many newer events Loupe recorded, with a link to the first page.
+- **After a reconnect.** A page that lost its connection to the hub catches up once it is back.
+
+The **Undelivered events** page of a project (the project outbox) updates the same way. A row leaves the list when Loupe delivers its event.

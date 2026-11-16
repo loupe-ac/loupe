@@ -113,6 +113,22 @@ final class ProjectHandleLookupTest extends KernelTestCase
         self::assertSame($unclaimed, $this->projects->findOneByIdOrSlugForOwner('01965f2e-0000-7000-8000-000000000000', $owner));
     }
 
+    public function test_the_newer_count_ignores_another_owners_project_created_at_the_same_second(): void
+    {
+        $at = new \DateTimeImmutable('2026-01-01 00:00:00');
+        $mine = $this->owner('newer-mine@example.com');
+        $cursor = new Project($mine, 'Newer Cursor', createdAt: $at);
+        $theirs = new Project($this->owner('newer-theirs@example.com'), 'Newer Theirs', createdAt: $at);
+        $this->em->persist($cursor);
+        $this->em->persist($theirs);
+        $this->em->flush();
+
+        self::assertNotNull($cursor->id);
+        self::assertNotNull($theirs->id);
+        self::assertTrue((string) $theirs->id > (string) $cursor->id);
+        self::assertSame(0, $this->projects->countNewerThan($mine, $at, $cursor->id));
+    }
+
     /** @param non-empty-string $email */
     private function owner(string $email): User
     {

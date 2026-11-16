@@ -27,6 +27,8 @@ final readonly class DevProjectSeeder implements DevSeederInterface
     public const string INSTALLER_API_PROJECT_NAME = 'Acme api';
     public const string DEV_PROJECT_NAME = 'Dev Project';
     public const string KEYS_PROJECT_NAME = 'API key records';
+    public const string LIVE_BOARD_PROJECT_NAME = 'Dev Project (live board)';
+    public const string LIVE_BOARD_EMPTY_PROJECT_NAME = 'Dev Project (live board, empty)';
     public const string LIFECYCLE_PROJECT_NAME = 'Dev Project (lifecycle)';
     public const string NOT_SET_UP_PROJECT_NAME = 'Dev Project (not set up)';
     public const string SETUP_NO_REPOSITORY_PROJECT_NAME = 'Dev Project (setup: no repository)';
@@ -61,6 +63,18 @@ final readonly class DevProjectSeeder implements DevSeederInterface
     public static function installerApiProjectId(): Uuid
     {
         return DevSeedId::of('project/project/installer-api');
+    }
+
+    /** The project with more Backlog and finished cards than one page holds, so each list has a later page. */
+    public static function liveBoardProjectId(): Uuid
+    {
+        return DevSeedId::of('project/project/live-board');
+    }
+
+    /** The twin of the live board project: the same columns, no card. */
+    public static function liveBoardEmptyProjectId(): Uuid
+    {
+        return DevSeedId::of('project/project/live-board-empty');
     }
 
     /** The project of the keys account, which holds the records that API keys wrote. */
@@ -147,6 +161,9 @@ final readonly class DevProjectSeeder implements DevSeederInterface
         // The newest project comes first in the project picker.
         $this->project($context, $context->devUser(), self::devProjectId(), self::DEV_PROJECT_NAME);
         $this->project($context, $context->devUser(), self::lifecycleProjectId(), self::LIFECYCLE_PROJECT_NAME, 'lifecycle', 300);
+
+        $this->project($context, $context->devUser(), self::liveBoardProjectId(), self::LIVE_BOARD_PROJECT_NAME, secondsAgo: 520);
+        $this->project($context, $context->devUser(), self::liveBoardEmptyProjectId(), self::LIVE_BOARD_EMPTY_PROJECT_NAME, secondsAgo: 530);
 
         $keysUser = $this->users->find(DevSeedId::of(DevAccountSeeder::KEYS_USER))
             ?? throw new \LogicException('The keys account does not exist.');

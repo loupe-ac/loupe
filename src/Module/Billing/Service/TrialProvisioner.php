@@ -8,8 +8,10 @@ use App\Module\Account\Entity\User;
 use App\Module\Billing\Entity\BillingProfile;
 use App\Module\Billing\Entity\Subscription;
 use App\Module\Billing\Entity\SubscriptionKind;
+use App\Module\Billing\Event\BillingStateChanged;
 use App\Module\Billing\Repository\BillingProfileRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
@@ -30,6 +32,7 @@ final readonly class TrialProvisioner
         private FeatureFlagService $featureFlags,
         private EntityManagerInterface $em,
         private Auditor $auditor,
+        private EventDispatcherInterface $events,
     ) {
     }
 
@@ -79,6 +82,7 @@ final readonly class TrialProvisioner
         // read that finds an existing profile would bury the one grant that
         // matters under a record per request.
         if (null !== $trialDays) {
+            $this->events->dispatch(new BillingStateChanged($user->id ?? throw new \LogicException('a persisted user always has an id')));
             $this->auditor->record(
                 'billing.trial_granted',
                 AuditOutcome::Success,

@@ -1,0 +1,4 @@
+{# Props: document, review (the standing verdict or null), undoVerdictForm (FormView or null). #}
+<turbo-stream action="replace" target="review-topbar-actions">
+    <template>{% include '@Review/_topbar_actions.html.twig' with {document: document, review: review, undoVerdictForm: undoVerdictForm} only %}</template>
+</turbo-stream>

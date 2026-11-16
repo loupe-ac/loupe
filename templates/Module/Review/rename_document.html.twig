@@ -12,11 +12,24 @@
 {% endblock %}
 
 {% block body %}
-<twig:Ds:Workspace>
+<twig:Ds:Workspace data-live-content>
     <h1 class="lp-workspace-title">{{ 'review.rename.page.title'|trans }}</h1>
     <p class="lp-workspace-desc">{{ 'review.rename.description'|trans }}</p>
 
-    <div class="max-w-160">
+    {% do mercure_subscribe(documentTopic) %}
+    <div class="max-w-160"
+         data-controller="live-region"
+         data-live-region-mode-value="band"
+         data-live-region-types-value="{{ ['review.document_state_changed']|json_encode|e('html_attr') }}"
+         data-live-region-match-value="{{ {documentId: document.id ~ ''}|json_encode|e('html_attr') }}"
+         data-live-region-url-value="{{ path('app_document_fingerprint', {projectId: document.project.id, documentId: document.id}) }}"
+         data-live-fingerprint="{{ fingerprint }}">
+        <twig:Ds:Flash severity="warning" hidden data-live-region-target="band">
+            {{ 'review.live.rename_changed'|trans }}
+            <twig:block name="actions">
+                <a href="{{ path('app_document_review', {projectId: document.project.id, documentId: document.id}) }}" target="_blank" rel="noopener">{{ 'review.live.open_document'|trans }}</a>
+            </twig:block>
+        </twig:Ds:Flash>
         {{ form_start(form, {'attr': {'class': 'lp-form'}}) }}
             <twig:Ds:FormField :fieldView="form.title" />
             <twig:Ds:FormActions>

@@ -1,6 +1,7 @@
 import { Controller } from '@hotwired/stimulus';
 import { morphElements } from '@hotwired/turbo';
 import { on } from '../lib/live.js';
+import { handleLostAccess, onLostAccess } from '../lib/live_fetch.js';
 
 /** An agent often asks or withdraws several items in a row. */
 export const DEBOUNCE_MILLISECONDS = 300;
@@ -22,6 +23,8 @@ const VIEW_FRAME = 'inbox-view';
  */
 export default class extends Controller {
     connect() {
+        // A lost access ends the live part, as a disconnect does.
+        this.removeLostListener = onLostAccess(() => this.disconnect());
         this.held = false;
         // A dialog's close event does not bubble, so the listener captures it.
         this.onDialogClose = () => {
@@ -38,6 +41,8 @@ export default class extends Controller {
     }
 
     disconnect() {
+        this.removeLostListener?.();
+        this.removeLostListener = undefined;
         clearTimeout(this.timeout);
         this.request?.abort();
         this.element.removeEventListener('close', this.onDialogClose, true);
@@ -118,6 +123,9 @@ export default class extends Controller {
                 credentials: 'same-origin',
                 signal: request.signal,
             });
+            if (handleLostAccess(response)) {
+                return;
+            }
             if (!response?.ok) {
                 // A page the reader may no longer see answers the same on every try.
                 if (!request.signal.aborted && response?.status >= 500) {

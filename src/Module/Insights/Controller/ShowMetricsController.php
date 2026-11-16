@@ -30,6 +30,7 @@ use App\Module\Insights\View\MetricsQuery;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
 use App\Module\Workflow\Contract\TemplateMetrics;
+use App\Session\ReadOnlyAwareSessionHandler;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -39,6 +40,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[Route(
     '/projects/{id:project}/analytics/metrics',
     name: 'app_project_analytics_metrics',
+    defaults: [ReadOnlyAwareSessionHandler::READ_ONLY => 'metrics-live'],
     methods: ['GET'],
 )]
 class ShowMetricsController extends AppController

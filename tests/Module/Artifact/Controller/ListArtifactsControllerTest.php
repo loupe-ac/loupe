@@ -116,6 +116,27 @@ final class ListArtifactsControllerTest extends WebTestCase
         self::assertResponseRedirects('/projects/'.$projectId.'/artifacts?archived=1');
     }
 
+    public function test_the_list_is_a_live_frame_that_hears_artifact_changes(): void
+    {
+        $client = static::createClient();
+        $project = $this->switchedOnProject('list-live@example.com');
+        $artifact = $this->storedArtifact($project, 'Live row', [['index.html' => 'a']]);
+        $projectId = (string) $project->id;
+        $artifactId = (string) $artifact->id;
+        $this->em()->clear();
+
+        $client->loginUser($project->owner);
+        $crawler = $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, '/projects/'.$projectId.'/artifacts');
+
+        $frame = $crawler->filter('turbo-frame#artifacts-frame[data-controller="live-region"]');
+        self::assertCount(1, $frame);
+        self::assertSame('["artifact.changed"]', $frame->attr('data-live-region-types-value'));
+        self::assertSame('frame', $frame->attr('data-live-region-mode-value'));
+        self::assertSame('/projects/'.$projectId.'/artifacts', $frame->attr('data-live-region-url-value'));
+        self::assertCount(1, $frame->filter('[data-live-row="'.$artifactId.'"]'));
+        self::assertCount(1, $frame->filter('.lp-filter-bar, [data-artifact-count]'));
+    }
+
     public function test_a_project_with_no_artifact_shows_the_empty_state(): void
     {
         $client = static::createClient();

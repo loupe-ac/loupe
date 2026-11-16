@@ -11,9 +11,19 @@
 {% block settings_section 'automation' %}
 
 {% block settings_content %}
+{% do mercure_subscribe(board_topic(project)) %}
+<div data-live-content data-controller="live-region"
+    data-live-region-types-value="{{ ['board.automation_changed']|json_encode }}"
+    data-live-region-mode-value="band"
+    data-live-region-url-value="{{ path('app_board_automation_settings_check', {id: project.id}) }}"
+    data-live-fingerprint="{{ settingsFingerprint }}">
 <twig:Ds:Panel as="section" data-board-automation-settings>
     <twig:Ds:SectionHeading>{{ 'board.automation.heading'|trans }}</twig:Ds:SectionHeading>
     <p class="lp-connect-hint">{{ 'board.automation.description'|trans }}</p>
+    <twig:Ds:Flash severity="warning" hidden data-live-region-target="band" data-automation-changed-band>
+        {{ 'board.automation.live.changed'|trans }}
+        <twig:block name="actions"><a href="{{ path('app_board_automation_settings', {id: project.id}) }}" target="_blank" rel="noopener">{{ 'board.automation.live.open'|trans }}</a></twig:block>
+    </twig:Ds:Flash>
     {% if failedComment %}
         {% set cause = failedComment.cause ?? '' %}
         <div class="lp-connect-alert" data-fix-run-comment-failure>
@@ -49,4 +59,5 @@
         </twig:Ds:FormActions>
     {{ form_end(form) }}
 </twig:Ds:Panel>
+</div>
 {% endblock %}

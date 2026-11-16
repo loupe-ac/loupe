@@ -1,0 +1,16 @@
+{# The bands that live_fetch.js copies into the page. A script keeps the markup out of the document, so a page holds one flash for each real flash: the stopped band of a live region and the lost-access bands. #}
+<script type="text/html" data-live-band-template="stopped">
+    <twig:Ds:Flash severity="warning">{{ 'live.band.stopped'|trans }}</twig:Ds:Flash>
+</script>
+<script type="text/html" data-live-band-template="signed-out">
+    <twig:Ds:Flash severity="warning">
+        {{ 'live.band.signed_out'|trans }}
+        <twig:block name="actions"><a href="{{ path('app_login') }}" data-turbo="false">{{ 'live.band.sign_in'|trans }}</a></twig:block>
+    </twig:Ds:Flash>
+</script>
+<script type="text/html" data-live-band-template="project-deleted">
+    <twig:Ds:Flash severity="warning">{{ 'live.band.project_deleted'|trans }}</twig:Ds:Flash>
+</script>
+<script type="text/html" data-live-band-template="generic">
+    <twig:Ds:Flash severity="warning">{{ 'live.band.generic'|trans }}</twig:Ds:Flash>
+</script>

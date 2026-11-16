@@ -53,6 +53,18 @@ final readonly class ProjectTopicBuilder
         return $this->projectIdFrom($topic, '/dashboard');
     }
 
+    /** The topic the Analytics pages of a project listen on. The message names an area and an id, never a name or a number. */
+    public function forAnalytics(Uuid $projectId): string
+    {
+        return rtrim($this->appUrl, '/').'/projects/'.$projectId.'/analytics';
+    }
+
+    /** The project a forAnalytics() topic names, or null for any other string. */
+    public function projectIdFromAnalyticsTopic(string $topic): ?Uuid
+    {
+        return $this->projectIdFrom($topic, '/analytics');
+    }
+
     /** The topic the worker run pages of a project listen on. The message names no run. */
     public function forWorkerRuns(Uuid $projectId): string
     {
@@ -99,6 +111,30 @@ final readonly class ProjectTopicBuilder
     public function projectIdFromOpenRouterTopic(string $topic): ?Uuid
     {
         return $this->projectIdFrom($topic, '/openrouter');
+    }
+
+    /** The topic the documents list of a project listens on. The message names a document, never a title. */
+    public function forDocuments(Uuid $projectId): string
+    {
+        return rtrim($this->appUrl, '/').'/projects/'.$projectId.'/documents';
+    }
+
+    /** The project a forDocuments() topic names, or null for any other string. */
+    public function projectIdFromDocumentsTopic(string $topic): ?Uuid
+    {
+        return $this->projectIdFrom($topic, '/documents');
+    }
+
+    /** The topic the artifact pages of a project listen on. The message names an artifact id and a version number only. */
+    public function forArtifacts(Uuid $projectId): string
+    {
+        return rtrim($this->appUrl, '/').'/projects/'.$projectId.'/artifacts';
+    }
+
+    /** The project a forArtifacts() topic names, or null for any other string. */
+    public function projectIdFromArtifactsTopic(string $topic): ?Uuid
+    {
+        return $this->projectIdFrom($topic, '/artifacts');
     }
 
     /** The topic the review page of one document listens on. */

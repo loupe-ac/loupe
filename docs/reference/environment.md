@@ -40,9 +40,9 @@ Email verification is **mandatory**, so nobody can register until mail works.
 
 ## Live updates (Mercure)
 
-Optional. The hub carries live updates for the board, the inbox count, worker
-runs and live review. Without it, a page shows changes by others on its next
-load. Review submissions still save but never reach a running agent, and the
+Optional. The hub carries live updates for the board, documents, artifacts,
+Insights, project and account pages, the inbox count, worker runs and live
+review. Without it, a page shows changes by others on its next load. Review submissions still save but never reach a running agent, and the
 app only logs the publish failure.
 
 | Variable | Purpose | Add by hand? |
@@ -51,15 +51,17 @@ app only logs the publish failure.
 | `MERCURE_URL` | Where the app POSTs updates — the hub on the internal network. | No |
 | `MERCURE_PUBLIC_URL` | Where clients subscribe. A genuinely separate host (the bridge CLI reaches it directly), so it cannot be derived from `DEFAULT_URI`. | No |
 
-An open board also subscribes to the hub, so it reloads when someone changes a
-column. The `live_updates.enabled` flag controls this, so a switched-off flag
-stops the live refresh. Agent push has its own flag, `agent.push.enabled`.
-The board response sets a cookie that authorizes the browser for that one
-board. Two rules follow for a hub on its own host:
+An open page subscribes to the hub, so it updates when another person or an
+agent changes what it shows. The `live_updates.enabled` flag controls this, so a
+switched-off flag stops the live refresh. Agent push has its own flag,
+`agent.push.enabled`. The page response sets one cookie that lists the topics
+that the viewer may follow. A page that loses its access, such as after a
+sign-out or a project deletion, shows a warning band and stops updating. Two
+rules follow for a hub on its own host:
 
 - Put the hub under the parent domain of `DEFAULT_URI`, such as
   `hub.example.com` beside `loupe.example.com`. A hub on another domain cannot
-  read the cookie, so boards work but do not refresh live.
+  read the cookie, so pages work but do not refresh live.
 - Name the app's origin in the hub's `cors_origins` directive.
   `docker/compose/prod.yaml` sets it from `DEFAULT_URI`. Give `DEFAULT_URI`
   no trailing slash, because the hub compares the origin exactly.

@@ -44,7 +44,8 @@ final class DevAnalysesSeederTest extends KernelTestCase
         $project = $this->seeded();
 
         $analyses = $this->service(AnalysisRepository::class)->findByProject($project);
-        self::assertCount(4, $analyses);
+        // The four named analyses and the 50 older reports that put rows on page 2 of the list.
+        self::assertCount(54, $analyses);
         $time = array_values(array_filter($analyses, static fn ($analysis): bool => AnalysisTopic::Time === $analysis->topic));
         self::assertCount(1, $time);
         self::assertSame(AnalysisState::Done, $time[0]->state);
@@ -72,7 +73,7 @@ final class DevAnalysesSeederTest extends KernelTestCase
         $this->service(DevAnalysesSeeder::class)->seed(SeedContextFactory::create(self::getContainer()));
 
         $this->em()->clear();
-        self::assertCount(4, $this->service(AnalysisRepository::class)->findByProject($project));
+        self::assertCount(54, $this->service(AnalysisRepository::class)->findByProject($project));
         self::assertCount(3, $this->service(InsightsBucketRuleRepository::class)->findOrdered($project));
     }
 

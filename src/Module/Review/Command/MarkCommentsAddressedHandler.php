@@ -6,10 +6,13 @@ namespace App\Module\Review\Command;
 
 use App\Module\Review\Entity\Comment;
 use App\Module\Review\Entity\CommentStatus;
+use App\Module\Review\Event\CommentThreadChanged;
+use App\Module\Review\Event\CommentThreadScope;
 use App\Module\Review\Repository\CommentRepository;
 use App\Module\Review\Repository\DocumentVersionRepository;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
@@ -25,6 +28,7 @@ final readonly class MarkCommentsAddressedHandler
         private DocumentVersionRepository $documentVersions,
         private EntityManagerInterface $em,
         private Auditor $auditor,
+        private EventDispatcherInterface $events,
     ) {
     }
 
@@ -96,6 +100,15 @@ final readonly class MarkCommentsAddressedHandler
                 ],
                 new AuditSubject('comment', (string) $comment->id),
             );
+
+            if (MarkCommentAddressedOutcome::Addressed === $outcome) {
+                $this->events->dispatch(new CommentThreadChanged(
+                    $comment->version->document->project->id ?? throw new \LogicException('A persisted project has an id.'),
+                    $comment->version->document->id ?? throw new \LogicException('A persisted document has an id.'),
+                    $comment->id ?? throw new \LogicException('A persisted comment has an id.'),
+                    CommentThreadScope::Collection,
+                ));
+            }
         }
 
         return $outcomes;

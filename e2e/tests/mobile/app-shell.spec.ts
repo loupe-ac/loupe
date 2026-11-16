@@ -245,7 +245,7 @@ test('account panels fit narrow screens and enlarged text', async ({
         { path: '/account/data', panelCount: 2 },
     ];
     const panels = page.locator(
-        '.lp-settings-content > section:not([data-testid="billing-section"])',
+        '.lp-settings-content section[data-testid]:not([data-testid="billing-section"])',
     );
     // One load per page: a resize reflows the layout without a reload.
     for (const { path, panelCount } of sections) {

@@ -1,0 +1,7 @@
+{# Props: document. The Finish review button of the history top bar, which an open review keeps.
+   The wrapper stays when there is no button, so a live replace has a target. #}
+<div id="history-topbar-actions">
+{% if document.status.value in ['draft', 'in-review'] %}
+{% include '@Review/_finish_review_button.html.twig' with {inReviewBar: false} only %}
+{% endif %}
+</div>
