@@ -282,6 +282,8 @@ func TestParseWorkRequestRejectsEachMalformedContextValue(t *testing.T) {
 		"an epic branch lock end":     `{"epicBranch":"epic/1.lock"}`,
 		"an epic branch lock dir":     `{"epicBranch":"epic.lock/1"}`,
 		"an epic branch past 265":     `{"epicBranch":"` + strings.Repeat("a", 266) + `"}`,
+		"an epic branch dot start":    `{"epicBranch":".epic/1"}`,
+		"an epic branch with a shell": `{"epicBranch":"epic/$(id)"}`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			payload := strings.Replace(workRequestPayload, `"resumeSessionId":null`, `"resumeSessionId":null,"context":`+context, 1)
