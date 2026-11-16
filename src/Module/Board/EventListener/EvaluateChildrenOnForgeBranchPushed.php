@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace App\Module\Board\EventListener;
 
 use App\Module\Board\Repository\CardRepository;
+use App\Module\Forge\Event\ForgeBranchPresenceChanged;
 use App\Module\Forge\Event\ForgeBranchPushed;
 use App\Module\Workflow\Contract\CardEvaluations;
 use App\Module\Workflow\Contract\EpicBranches;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 
-/** A child waits in Next until the epic branch of its parent exists, so a push of that branch evaluates it again. */
+/** A child waits in Next until the epic branch of its parent exists, so a push of that branch, or a new stored answer for it, evaluates it again. */
 #[AsEventListener]
 final readonly class EvaluateChildrenOnForgeBranchPushed
 {
@@ -21,7 +22,7 @@ final readonly class EvaluateChildrenOnForgeBranchPushed
     ) {
     }
 
-    public function __invoke(ForgeBranchPushed $event): void
+    public function __invoke(ForgeBranchPushed|ForgeBranchPresenceChanged $event): void
     {
         if (!$this->trigger->isOn()) {
             return;
