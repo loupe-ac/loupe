@@ -3720,6 +3720,10 @@
                 <source>account.system_status.sentry.no_excimer</source>
                 <target>SENTRY_DSN is set and profiles are sampled, but the Excimer PHP extension is not loaded, so Sentry receives traces and no profiles. Install Excimer, or set SENTRY_PROFILES_SAMPLE_RATE to 0.</target>
             </trans-unit>
+            <trans-unit id="account.system_status.sentry.no_samples">
+                <source>account.system_status.sentry.no_samples</source>
+                <target>SENTRY_DSN is set and Excimer is loaded, but a 50 ms test collected fewer than 2 profiler samples, so Sentry drops every profile. A sandboxed kernel can stop the profiler timer.</target>
+            </trans-unit>
             <trans-unit id="check.sentry_browser.label">
                 <source>check.sentry_browser.label</source>
                 <target>Sentry in the browser</target>
