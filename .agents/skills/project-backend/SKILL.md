@@ -290,6 +290,12 @@ Read the file before you work on the topic.
 - `references/env-vars.md` before you add an environment variable. Never put JSON in one. A new key reaches seven places, and `DeploymentConfigParityCheck` reports one that `docs/reference/environment.md` lacks.
 - `references/gamache.md` before you conclude that gamache has no rule for something, or before you change a rule's configuration. `just gamache` runs only one of its five layers.
 
+## Seeding a new feature flag
+
+A new flag needs a per-flag migration, because `/install` seeds flags only once. Seed the flag on in that migration, so an upgraded instance matches a fresh install.
+
+Seed it off only for a rollout risk: old and new builds cannot run side by side with the flag on. An example is a new row claim that an old worker never releases. Name the risk in the pull request. Put the switch-on step in the deploy notes, after the step that confirms every container runs the new build. `workflow.merge_queued_evaluations` stayed off for 17 days because nobody did that step.
+
 ## Migration names, bundle pins and entity mapping
 
 Give a Doctrine migration a real current-datetime timestamp in its `VersionYYYYMMDDHHMMSS` class name. Never use a round placeholder such as `…000000`. Two parallel branches that both use a round number collide on the version prefix. The class names still differ, but the collision is confusing and it breaks `migrate-diff` ordering assumptions.
