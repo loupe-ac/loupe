@@ -21,14 +21,20 @@ use App\Module\Bridge\Experiment\GoalState;
 use App\Module\Bridge\Experiment\Interval;
 use App\Module\Bridge\Metric\Formula\BinaryNode;
 use App\Module\Bridge\Metric\Formula\FormulaNode;
+use App\Module\Bridge\Metric\Formula\MetricFormula;
+use App\Module\Bridge\Metric\MetricChangeKind;
+use App\Module\Bridge\Metric\MetricComparison;
+use App\Module\Bridge\Metric\MetricGroupKey;
 use App\Module\Bridge\Metric\MetricPoint;
 use App\Module\Bridge\Metric\MetricRow;
 use App\Module\Bridge\Metric\MetricSeries;
+use App\Module\Bridge\Metric\MetricSign;
 use App\Module\Bridge\Metric\MetricWindow;
 use App\Module\Insights\Entity\InsightsKeptResult;
 use App\Module\Insights\View\KeptGraphResult;
 use App\Module\Insights\View\MetricsQuery;
 use App\Module\Insights\View\PublicExperimentResult;
+use App\Module\Workflow\Contract\TemplateMetricSet;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\PropertyInfo\Extractor\PhpStanExtractor;
 use Symfony\Component\PropertyInfo\Extractor\ReflectionExtractor;
@@ -43,6 +49,22 @@ final class InsightsKeptResultTest extends TestCase
         $at = new \DateTimeImmutable('2026-11-08 12:00:00 UTC');
         $series = new MetricSeries(null, [], new MetricPoint(null, null, 0), [new MetricRow(Uuid::v7(), 1, null, $at, 2.0)]);
         $result = new KeptGraphResult($at, new MetricsQuery(), [$series], [], new MetricWindow($at, $at), null);
+
+        self::assertEquals($result, InsightsKeptResult::decode(InsightsKeptResult::encode($result)));
+    }
+
+    public function test_a_graph_result_with_a_formula_and_a_comparison_survives_a_round_trip(): void
+    {
+        $at = new \DateTimeImmutable('2026-11-08 12:00:00 UTC');
+        $formula = MetricFormula::parse('A:cache-read-tokens:sum,B:cache-write-tokens:sum', '-(A / B) * 2 + 1', 'auto', new TemplateMetricSet([]));
+        self::assertNull($formula->problem);
+        self::assertNotNull($formula->tree);
+        $interval = new Interval(-0.4, -0.2, -0.3);
+        $comparison = new MetricComparison(new MetricPoint($at, 1.0, 2), 0.5, MetricChangeKind::Relative, $interval, $interval, $interval, MetricSign::Clear, 6, 7);
+        $key = new MetricGroupKey('bridge', 'account', 'window');
+        $rows = [new MetricRow(Uuid::v7(), 1, 'g', $at, 2.0, $key), new MetricRow(Uuid::v4(), null, null, $at, null)];
+        $series = new MetricSeries('g', [new MetricPoint($at, 2.0, 1)], new MetricPoint(null, 2.0, 1), $rows, $comparison, [new MetricPoint($at, 1.0, 1)], $key);
+        $result = new KeptGraphResult($at, new MetricsQuery(formula: $formula), [$series], ['bridge' => 'Name'], new MetricWindow($at, $at), new MetricWindow($at, $at));
 
         self::assertEquals($result, InsightsKeptResult::decode(InsightsKeptResult::encode($result)));
     }
@@ -81,7 +103,7 @@ final class InsightsKeptResultTest extends TestCase
     public function test_the_class_list_holds_every_class_a_result_can_reach(): void
     {
         $extractor = new PropertyInfoExtractor([new ReflectionExtractor()], [new PhpStanExtractor(), new ReflectionExtractor()]);
-        $allowed = InsightsKeptResult::RESULT_CLASSES;
+        $allowed = new \ReflectionClassConstant(InsightsKeptResult::class, 'RESULT_CLASSES')->getValue();
         $missing = [];
         $seen = [];
         $queue = [KeptGraphResult::class, PublicExperimentResult::class];

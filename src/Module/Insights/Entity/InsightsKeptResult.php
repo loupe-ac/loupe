@@ -68,7 +68,7 @@ class InsightsKeptResult
      * Every class a kept result holds. Enums are absent because allowed_classes does not apply to them. The Uuid forms
      * are present because Uuid::fromString() returns the concrete version class.
      */
-    public const array RESULT_CLASSES = [
+    private const array RESULT_CLASSES = [
         KeptGraphResult::class, PublicExperimentResult::class, MetricsQuery::class,
         MetricSeries::class, MetricPoint::class, MetricRow::class, MetricComparison::class, MetricGroupKey::class,
         MetricKey::class, MetricShape::class, MetricWindow::class,
