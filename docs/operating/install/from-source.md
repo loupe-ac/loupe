@@ -21,8 +21,8 @@ just exec bin/console league:oauth2-server:generate-keypair --skip-if-exists   #
 ```
 
 `just --list` shows every recipe. `just mercure-up` also starts the Mercure
-hub. The hub carries live updates for the board, the inbox count, worker runs
-and live review.
+hub. The hub carries live updates for the board, documents, artifacts, Insights,
+project and account pages, the inbox count, worker runs and live review.
 
 
 Once you are in, the seed command above is what gives you an account —
