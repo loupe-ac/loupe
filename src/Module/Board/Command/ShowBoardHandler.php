@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Board\Command;
 
+use App\Module\Board\Entity\Card;
 use App\Module\Board\Repository\BoardColumnRepository;
 use App\Module\Board\Repository\CardDocumentRepository;
 use App\Module\Board\Repository\CardRepository;
@@ -17,6 +18,7 @@ use App\Module\Board\Service\LaneDecks;
 use App\Module\Board\Service\StoredCardMarkers;
 use App\Module\Bridge\Service\CardRunWarnings;
 use App\Module\Workflow\Contract\CardTypeCatalog;
+use Symfony\Component\Uid\Uuid;
 
 final readonly class ShowBoardHandler
 {
@@ -97,7 +99,10 @@ final readonly class ShowBoardHandler
         // a query per card, on the page that renders the most of them.
         $pendingComments = $this->cardSiteReviewComments->pendingCountsForProject($project);
         $documentCounts = $this->cardDocuments->countsForProject($project);
-        $runWarnings = $this->runWarnings->forProject($project);
+        $runWarnings = $this->runWarnings->forCards($project, array_values(array_merge(...array_map(
+            static fn (BoardColumnView $view): array => array_map(static fn (Card $card): Uuid => $card->id ?? throw new \LogicException('Card has no id.'), $view->cards),
+            $columns,
+        ))));
         $shownCards = array_merge(...array_map(static fn (BoardColumnView $view): array => $view->cards, $columns), ...array_map(static fn (BoardLaneView $lane): array => null === $lane->epic ? [] : [$lane->epic], $lanes));
         $markers = [];
         foreach ($shownCards as $card) {

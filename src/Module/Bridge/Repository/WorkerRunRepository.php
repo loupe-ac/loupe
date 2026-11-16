@@ -1615,21 +1615,26 @@ class WorkerRunRepository extends ServiceEntityRepository
      * replaced or skipped run never ran, and hides nothing. In the same second,
      * the insertion order of the state changes decides.
      *
+     * The caller names the cards, so a board reads the runs of the cards it
+     * shows and never the whole history of the project.
+     *
+     * @param list<Uuid> $cardIds
+     *
      * @return list<array{id: string, card_id: string, state: string, output: string, closed_at: string}>
      */
-    public function findWarningRowsOfProject(Project $project): array
+    public function findWarningRowsOfCards(Project $project, array $cardIds): array
     {
-        return $this->findWarningRows($project, null);
+        return $this->findWarningRows($project, $cardIds);
     }
 
     /**
-     * The warning of one card, by the rule of {@see findWarningRowsOfProject()}.
+     * The warning of one card, by the rule of {@see findWarningRowsOfCards()}.
      *
      * @return array{id: string, card_id: string, state: string, output: string, closed_at: string}|null
      */
     public function findWarningRowOfCard(Project $project, Uuid $cardId): ?array
     {
-        return $this->findWarningRows($project, $cardId)[0] ?? null;
+        return $this->findWarningRows($project, [$cardId])[0] ?? null;
     }
 
     /**
@@ -1670,9 +1675,17 @@ class WorkerRunRepository extends ServiceEntityRepository
         return $rows;
     }
 
-    /** @return list<array{id: string, card_id: string, state: string, output: string, closed_at: string}> */
-    private function findWarningRows(Project $project, ?Uuid $cardId): array
+    /**
+     * @param list<Uuid> $cardIds
+     *
+     * @return list<array{id: string, card_id: string, state: string, output: string, closed_at: string}>
+     */
+    private function findWarningRows(Project $project, array $cardIds): array
     {
+        if ([] === $cardIds) {
+            return [];
+        }
+
         $outcomes = array_values(array_map(
             static fn (WorkerRunState $state): string => $state->value,
             array_filter(WorkerRunState::cases(), static fn (WorkerRunState $state): bool => $state->isOutcome()),
@@ -1686,11 +1699,7 @@ class WorkerRunRepository extends ServiceEntityRepository
             )),
             'setAside' => [WorkerRunState::Replaced->value, WorkerRunState::Skipped->value],
         ];
-        $cardFilter = '';
-        if (null !== $cardId) {
-            $cardFilter = 'AND r.subject_id = :card';
-            $params['card'] = (string) $cardId;
-        }
+        $params['cards'] = array_map(static fn (Uuid $id): string => (string) $id, $cardIds);
 
         // A late report can record an outcome the run does not hold, so the
         // close is the latest change to the run's own state.
@@ -1709,7 +1718,7 @@ class WorkerRunRepository extends ServiceEntityRepository
                         ORDER BY s.sequence DESC
                         LIMIT 1
                     ) closed ON true
-                    WHERE r.project_id = :project AND r.subject_type = 'card' AND r.state IN (:outcomes) {$cardFilter}
+                    WHERE r.project_id = :project AND r.subject_type = 'card' AND r.state IN (:outcomes) AND r.subject_id IN (:cards)
                     ORDER BY r.subject_id, COALESCE(closed.received_at, r.received_at) DESC, closed.sequence DESC NULLS LAST, r.id DESC
                 ) latest
                 WHERE latest.state IN (:warnings) AND NOT EXISTS (
@@ -1723,7 +1732,7 @@ class WorkerRunRepository extends ServiceEntityRepository
                 )
                 SQL,
             $params,
-            ['outcomes' => ArrayParameterType::STRING, 'warnings' => ArrayParameterType::STRING, 'setAside' => ArrayParameterType::STRING],
+            ['outcomes' => ArrayParameterType::STRING, 'warnings' => ArrayParameterType::STRING, 'setAside' => ArrayParameterType::STRING, 'cards' => ArrayParameterType::STRING],
         )->fetchAllAssociative();
 
         return $rows;
