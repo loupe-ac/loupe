@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Module\Workflow\Service;
 
 use App\Module\Workflow\Contract\ProjectsReadingFacts;
+use Symfony\Component\DependencyInjection\Attribute\AsAlias;
 use Symfony\Component\Uid\Uuid;
 
+#[AsAlias(ProjectsReadingFacts::class)]
 final readonly class TemplateProjectsReadingFacts implements ProjectsReadingFacts
 {
     public function __construct(

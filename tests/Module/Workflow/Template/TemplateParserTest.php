@@ -1205,6 +1205,15 @@ final class TemplateParserTest extends TestCase
         self::assertFalse($this->parser->parse($unrelated)->readsFacts(AccountUsageFacts::class));
     }
 
+    public function test_a_template_reads_account_usage_through_a_named_fact(): void
+    {
+        $template = self::valid();
+        $template['facts'] = ['hot' => ['bridge.account.usage' => ['account' => 'mac/work', 'window' => 'week', 'above' => 80]]];
+        $template['rules'][2]['when'] = ['all' => [['pr.open' => []], ['fact.hot' => []]]];
+
+        self::assertTrue($this->parser->parse($template)->readsFacts(AccountUsageFacts::class));
+    }
+
     public function test_a_document_condition_takes_a_tag_and_an_optional_status(): void
     {
         $template = self::valid();
