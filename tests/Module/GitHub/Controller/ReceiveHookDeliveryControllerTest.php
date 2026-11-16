@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\GitHub\Controller;
 
 use App\Module\Forge\Entity\ForgeRepositorySource;
+use App\Module\Forge\Event\ForgeDeliveryReceived;
 use App\Module\Forge\EventListener\RateLimitForgeDeliveries;
 use App\Module\GitHub\Entity\GitHubHook;
 use App\Module\GitHub\Entity\GitHubHookHealth;
@@ -15,6 +16,7 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\RouterInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\AuditOutcome;
 
 /**
@@ -281,5 +283,35 @@ final class ReceiveHookDeliveryControllerTest extends WebTestCase
 
         self::assertNotSame([], $this->outboxSubjects($project));
         self::assertNotSame([], $this->outboxSubjects($other));
+    }
+
+    public function test_a_delivery_whose_handling_failed_runs_again_when_redelivered(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $project = $this->project('hook-redelivery');
+        $hook = $this->hook($project);
+        $this->linkedCard($project, 'acme/x', 14);
+        $this->trackedPullRequest($project, 'acme/x', 14, 'aaa111');
+        $path = '/webhooks/forge/github/'.$hook->hookKey;
+        $payload = $this->merged(652, 'acme/x', 14);
+        $failing = true;
+        $dispatcher = static::getContainer()->get('event_dispatcher');
+        self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
+        $dispatcher->addListener(ForgeDeliveryReceived::class, static function () use (&$failing): void {
+            if ($failing) {
+                throw new \RuntimeException('Handling failed.');
+            }
+        }, 1_000);
+
+        $this->deliver($client, $path, 'pull_request', $payload, $hook->secret);
+        self::assertResponseStatusCodeSame(Response::HTTP_INTERNAL_SERVER_ERROR);
+        self::assertSame([], $this->outboxSubjects($project));
+
+        $failing = false;
+        $this->deliver($client, $path, 'pull_request', $payload, $hook->secret);
+
+        self::assertResponseIsSuccessful();
+        self::assertNotSame([], $this->outboxSubjects($project));
     }
 }
