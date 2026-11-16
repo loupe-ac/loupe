@@ -29,6 +29,7 @@ use App\Module\Project\Entity\Project;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Support\DispatchedEvents;
 use App\Tests\Support\RecordingAuditor;
+use App\Tests\Support\RunsFactJobs;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Mercure\Jwt\StaticTokenProvider;
@@ -1227,6 +1228,7 @@ final class ReportWorkerRunStateHandlerTest extends KernelTestCase
 
     private function storedPeak(WorkerRun $run, string $table, string $key): ?int
     {
+        RunsFactJobs::run(self::getContainer());
         $peak = $this->em()->getConnection()->fetchOne(
             \sprintf('SELECT peak_context_tokens FROM %s WHERE %s = ?', $table, $key),
             [(string) $run->id],

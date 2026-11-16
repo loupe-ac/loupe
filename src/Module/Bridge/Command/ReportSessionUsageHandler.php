@@ -6,13 +6,13 @@ namespace App\Module\Bridge\Command;
 
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Event\WorkerRunUsageRecorded;
+use App\Module\Bridge\EventListener\WorkerRunFactListener;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Bridge\Service\WorkerRunUsageRecorder;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
-use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
@@ -34,14 +34,14 @@ final readonly class ReportSessionUsageHandler
         private WorkerRunChangedPublisher $publisher,
         private LoggerInterface $logger,
         private EventDispatcherInterface $events,
+        private WorkerRunFactListener $factListener,
     ) {
     }
 
     public function __invoke(ReportSessionUsageCommand $command): ReportSessionUsageResult
     {
         /** @var array{ReportSessionUsageResult, Project|null} $outcome */
-        $outcome = $this->em->wrapInTransaction(function () use ($command): array {
-            // The same lock a state report takes, so the two never write the usage of one run at once.
+        $outcome = $this->factListener->deferredTransaction($this->em, function () use ($command): array {
             $project = $this->lockedProject($command);
             if (null === $project) {
                 return [new ReportSessionUsageResult(null, \count($command->processes), 0), null];
@@ -119,7 +119,7 @@ final readonly class ReportSessionUsageHandler
             return null;
         }
 
-        $this->em->lock($project, LockMode::PESSIMISTIC_WRITE);
+        $this->projects->lockForReport($project);
 
         return $this->projects->findOneByIdOrSlugForOwner($command->handle, $command->owner);
     }

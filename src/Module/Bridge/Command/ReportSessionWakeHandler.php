@@ -6,10 +6,10 @@ namespace App\Module\Bridge\Command;
 
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Event\WorkerRunWakesRecorded;
+use App\Module\Bridge\EventListener\WorkerRunFactListener;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
-use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
@@ -28,6 +28,7 @@ final readonly class ReportSessionWakeHandler
         private EntityManagerInterface $em,
         private LoggerInterface $logger,
         private EventDispatcherInterface $events,
+        private WorkerRunFactListener $factListener,
     ) {
     }
 
@@ -36,8 +37,7 @@ final readonly class ReportSessionWakeHandler
         $count = \count($command->wakes);
         $projectId = null;
         /** @var ReportSessionWakeResult $result */
-        $result = $this->em->wrapInTransaction(function () use ($command, $count, &$projectId): ReportSessionWakeResult {
-            // The same lock a state report takes, so the two never write one run at once.
+        $result = $this->factListener->deferredTransaction($this->em, function () use ($command, $count, &$projectId): ReportSessionWakeResult {
             $project = $this->lockedProject($command);
             if (null === $project) {
                 return new ReportSessionWakeResult(null, $count, 0);
@@ -102,7 +102,7 @@ final readonly class ReportSessionWakeHandler
             return null;
         }
 
-        $this->em->lock($project, LockMode::PESSIMISTIC_WRITE);
+        $this->projects->lockForReport($project);
 
         return $this->projects->findOneByIdOrSlugForOwner($command->handle, $command->owner);
     }
