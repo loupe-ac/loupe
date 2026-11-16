@@ -50,12 +50,12 @@ final class InsightsKeptResultTest extends TestCase
     public function test_an_experiment_result_with_a_populated_headline_survives_a_round_trip(): void
     {
         $interval = new Interval(-0.4, -0.2, -0.3);
-        $metric = new ExperimentMetric('cost', ['a' => 1.0], true);
+        $metric = new ExperimentMetric('cost', ['a' => $interval], true);
         $arm = new ExperimentArm('a', 1.0, 3);
         $control = new ExperimentControl('cost', 'a', 'any', 0.5, 0.4, 3, 3, ControlResult::Failed);
         $comparison = new ExperimentComparison('b', GoalState::Held, $arm, true, $interval, new GoalHold(ControlResult::Failed, [$control], 1), [new ExperimentGuardChange('cost', 1.0, $interval)]);
         $headline = new ExperimentHeadline(new ExperimentGoal($metric, GoalDirection::Lower), 'a', new Confidence(0.9), $arm, [$comparison], [new ExperimentGuard($metric, 1.0)], [$control]);
-        $result = new PublicExperimentResult(new \DateTimeImmutable('2026-11-08 12:00:00 UTC'), 'exp', $headline, [new ExperimentVariant('a', ['m'], 1, 3, 3, 4, 10, 10)], [$metric]);
+        $result = new PublicExperimentResult(new \DateTimeImmutable('2026-11-08 12:00:00 UTC'), 'exp', $headline, [new ExperimentVariant('a', ['m'], 1, 3, 3, 4, 10, 10)], ['cost' => $metric]);
 
         self::assertEquals($result, InsightsKeptResult::decode(InsightsKeptResult::encode($result)));
     }
@@ -94,16 +94,17 @@ final class InsightsKeptResultTest extends TestCase
             if (!\in_array($class, $allowed, true)) {
                 $missing[] = $class;
             }
-            if ((new \ReflectionClass($class))->isInternal()) {
+            if (new \ReflectionClass($class)->isInternal()) {
                 continue;
             }
             foreach ($extractor->getProperties($class) ?? [] as $property) {
                 $type = $extractor->getType($class, $property);
                 foreach ($type?->traverse() ?? [] as $part) {
-                    if (!$part instanceof ObjectType || enum_exists($part->getClassName())) {
+                    $name = $part instanceof ObjectType ? $part->getClassName() : '';
+                    if (enum_exists($name) || !(class_exists($name) || interface_exists($name))) {
                         continue;
                     }
-                    foreach (self::concrete($part->getClassName()) as $next) {
+                    foreach (self::concrete($name) as $next) {
                         $queue[] = $next;
                     }
                 }
@@ -118,16 +119,21 @@ final class InsightsKeptResultTest extends TestCase
         self::assertContains(BinaryNode::class, self::concrete(FormulaNode::class));
     }
 
-    /** @return list<class-string> */
+    /**
+     * @param class-string $class
+     *
+     * @return list<class-string>
+     */
     private static function concrete(string $class): array
     {
         if (!interface_exists($class)) {
             return [$class];
         }
         $found = [];
-        $directory = \dirname((new \ReflectionClass($class))->getFileName());
+        $reflection = new \ReflectionClass($class);
+        $directory = \dirname($reflection->getFileName() ?: throw new \LogicException('No file for '.$class));
         foreach (glob($directory.'/*.php') ?: [] as $file) {
-            $candidate = (new \ReflectionClass($class))->getNamespaceName().'\\'.basename($file, '.php');
+            $candidate = $reflection->getNamespaceName().'\\'.basename($file, '.php');
             if (class_exists($candidate) && is_subclass_of($candidate, $class)) {
                 $found[] = $candidate;
             }
