@@ -25,7 +25,9 @@ use Symfony\Component\HttpFoundation\Session\Storage\Handler\PdoSessionHandler;
  * pgsql, so `sslmode` never reaches the connection.
  *
  * Its own connection, not Doctrine's PDO: it takes a transactional lock while
- * reading a session, which would nest inside the request's transaction.
+ * reading a session, which would nest inside the request's transaction. Under
+ * PHP-FPM the connection is persistent. Its `application_name` differs from
+ * Doctrine's, so PHP never hands both handlers one kept connection.
  */
 final readonly class PdoSessionHandlerFactory
 {
@@ -42,9 +44,10 @@ final readonly class PdoSessionHandlerFactory
         'sslkey',
         'sslrootcert',
         'sslcrl',
-        'application_name',
         'connect_timeout',
     ];
+
+    public const string APPLICATION_NAME = 'loupe-session';
 
     public function __construct(
         private Connection $connection,
@@ -53,6 +56,7 @@ final readonly class PdoSessionHandlerFactory
         private string $databaseUrl,
         private RequestStack $requestStack,
         private RequestTimeline $timeline,
+        private string $sapi = \PHP_SAPI,
     ) {
     }
 
@@ -73,11 +77,20 @@ final readonly class PdoSessionHandlerFactory
     {
         $parts = $this->urlParts();
 
-        return new PdoSessionHandler($this->sessionDsn(), [
+        $persistent = 'fpm-fcgi' === $this->sapi;
+        $options = [
             'db_username' => rawurldecode($parts['user'] ?? ''),
             'db_password' => rawurldecode($parts['pass'] ?? ''),
             'lock_mode' => $lockMode,
-        ]);
+        ];
+
+        if (!$persistent) {
+            return new PdoSessionHandler($this->sessionDsn(), $options);
+        }
+
+        $options['db_connection_options'] = [\PDO::ATTR_PERSISTENT => true];
+
+        return new PersistentPdoSessionHandler($this->sessionDsn(), $options);
     }
 
     /**
@@ -109,7 +122,7 @@ final readonly class PdoSessionHandlerFactory
             }
         }
 
-        return rtrim($dsn, ';');
+        return $dsn.'application_name='.self::APPLICATION_NAME;
     }
 
     /**

@@ -72,7 +72,7 @@ final class ReadOnlyAwareSessionHandlerLockTest extends KernelTestCase
         }
     }
 
-    public function test_a_read_only_request_reads_through_the_lock_and_writes_nothing(): void
+    public function test_a_read_only_request_reads_through_the_lock_and_writes_nothing_over_an_existing_session(): void
     {
         $request = Request::create('/projects/x/inbox/open-count');
         $request->attributes->set(ReadOnlyAwareSessionHandler::READ_ONLY, true);

@@ -72,7 +72,7 @@ final class ReadOnlyAwareSessionHandlerTest extends TestCase
     }
 
     #[DataProvider('readOnlyRequests')]
-    public function test_a_read_only_request_reads_without_a_lock_and_writes_nothing(Request $request): void
+    public function test_a_read_only_request_reads_without_a_lock_and_only_extends_the_expiry(Request $request): void
     {
         $locking = $this->inner();
         $nonLocking = $this->inner();
@@ -83,7 +83,7 @@ final class ReadOnlyAwareSessionHandlerTest extends TestCase
         $nonLocking->expects($this->once())->method('read')->with('sid')->willReturn('data');
         $nonLocking->expects($this->once())->method('close')->willReturn(true);
         $nonLocking->expects($this->never())->method('write');
-        $nonLocking->expects($this->never())->method('updateTimestamp');
+        $nonLocking->expects($this->once())->method('updateTimestamp')->with('sid', 'new')->willReturn(true);
         $nonLocking->expects($this->never())->method('destroy');
         $nonLocking->expects($this->never())->method('gc');
 
@@ -108,18 +108,54 @@ final class ReadOnlyAwareSessionHandlerTest extends TestCase
         $locking->method('open')->willReturn(true);
         $locking->expects($this->once())->method('write')->willReturn(true);
         $nonLocking->method('open')->willReturn(true);
+        $nonLocking->method('read')->willReturn('data');
         $nonLocking->expects($this->never())->method('write');
 
         $handler = new ReadOnlyAwareSessionHandler($locking, $nonLocking, $requests, new RequestTimeline($this->createStub(HubInterface::class)));
 
         $requests->push(self::marked(true, Request::create('/count')));
         $handler->open('', 'PHPSESSID');
+        $handler->read('sid');
         $handler->write('sid', 'ignored');
         $requests->pop();
 
         $requests->push(Request::create('/board', Request::METHOD_POST));
         $handler->open('', 'PHPSESSID');
         $handler->write('sid', 'kept');
+    }
+
+    public function test_a_read_only_request_saves_a_session_that_it_created(): void
+    {
+        $locking = $this->inner();
+        $nonLocking = $this->inner();
+
+        $locking->expects($this->never())->method($this->anything());
+        $nonLocking->method('open')->willReturn(true);
+        $nonLocking->method('read')->willReturn('');
+        $nonLocking->expects($this->once())->method('write')->with('sid', 'new')->willReturn(true);
+
+        $handler = $this->handler($locking, $nonLocking, self::marked(true, Request::create('/count')));
+
+        $handler->open('', 'PHPSESSID');
+        $handler->read('sid');
+        self::assertTrue($handler->write('sid', 'new'));
+    }
+
+    public function test_a_read_only_request_saves_a_session_under_a_new_id(): void
+    {
+        $locking = $this->inner();
+        $nonLocking = $this->inner();
+
+        $locking->expects($this->never())->method($this->anything());
+        $nonLocking->method('open')->willReturn(true);
+        $nonLocking->method('read')->willReturn('data');
+        $nonLocking->expects($this->once())->method('write')->with('fresh', 'new')->willReturn(true);
+
+        $handler = $this->handler($locking, $nonLocking, self::marked(true, Request::create('/count')));
+
+        $handler->open('', 'PHPSESSID');
+        $handler->read('old');
+        self::assertTrue($handler->write('fresh', 'new'));
     }
 
     public function test_it_traces_each_read_with_the_lock_it_took(): void
