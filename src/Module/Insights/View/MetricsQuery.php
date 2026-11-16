@@ -10,6 +10,7 @@ use App\Module\Bridge\Metric\Formula\MetricFormula;
 use App\Module\Bridge\Metric\Metric;
 use App\Module\Bridge\Metric\MetricBucket;
 use App\Module\Bridge\Metric\MetricCompare;
+use App\Module\Bridge\Metric\MetricFacts;
 use App\Module\Bridge\Metric\MetricGroup;
 use App\Module\Bridge\Metric\MetricKey;
 use App\Module\Bridge\Metric\MetricRange;
@@ -74,9 +75,9 @@ final readonly class MetricsQuery
         return null === $this->formula ? $this->statistic : null;
     }
 
-    public function command(Project $project, ?\DateTimeImmutable $now = null): MetricQueryCommand
+    public function command(Project $project, ?\DateTimeImmutable $now = null, ?MetricFacts $facts = null): MetricQueryCommand
     {
-        return new MetricQueryCommand($project, $this->unit, $this->metric, $this->statistic, $this->group, $this->range, $this->bucket, $this->compare, $now, $this->formula);
+        return new MetricQueryCommand($project, $this->unit, $this->metric, $this->statistic, $this->group, $this->range, $this->bucket, $this->compare, $now, $this->formula, $facts);
     }
 
     /**
