@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\FeatureFlag;
 
+use Psr\Cache\CacheItemPoolInterface;
+use Symfony\Component\Cache\Adapter\ApcuAdapter;
 use Symfony\Component\DependencyInjection\Attribute\AsDecorator;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\DependencyInjection\Attribute\AutowireDecorated;
@@ -36,6 +38,9 @@ final class ApcuFeatureFlagReader implements FeatureFlagReaderInterface, ResetIn
 
         #[Autowire(param: 'kernel.environment')]
         private readonly string $environment,
+
+        #[Autowire(expression: 'null')]
+        private ?CacheItemPoolInterface $pool = null,
     ) {
     }
 
@@ -50,19 +55,23 @@ final class ApcuFeatureFlagReader implements FeatureFlagReaderInterface, ResetIn
             return $this->loaded;
         }
 
-        if (!$this->cacheEnabled()) {
+        $pool = $this->pool();
+
+        if (null === $pool) {
             return $this->loaded = $this->inner->all();
         }
 
-        $hit = apcu_fetch(self::KEY, $found);
+        $item = $pool->getItem(self::KEY);
+        $hit = $item->get();
 
-        if ($found && is_array($hit)) {
+        if ($item->isHit() && is_array($hit)) {
             /* @var array<string, ResolvedFlag> $hit */
             return $this->loaded = $hit;
         }
 
         $flags = $this->inner->all();
-        apcu_store(self::KEY, $flags, self::TTL_SECONDS);
+        $item->set($flags)->expiresAfter(self::TTL_SECONDS);
+        $pool->save($item);
 
         return $this->loaded = $flags;
     }
@@ -76,11 +85,16 @@ final class ApcuFeatureFlagReader implements FeatureFlagReaderInterface, ResetIn
         }
     }
 
-    private function cacheEnabled(): bool
+    private function pool(): ?CacheItemPoolInterface
     {
-        return 'prod' === $this->environment
-            && function_exists('apcu_fetch')
-            && filter_var(ini_get('apc.enabled'), FILTER_VALIDATE_BOOLEAN)
-            && ('cli' !== PHP_SAPI || filter_var(ini_get('apc.enable_cli'), FILTER_VALIDATE_BOOLEAN));
+        if (null !== $this->pool) {
+            return $this->pool;
+        }
+
+        if ('prod' === $this->environment && ApcuAdapter::isSupported()) {
+            return $this->pool = new ApcuAdapter('app_flags');
+        }
+
+        return null;
     }
 }
