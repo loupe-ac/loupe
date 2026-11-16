@@ -1,5 +1,7 @@
 import { Controller } from '@hotwired/stimulus';
 
+/* stimulusFetch: 'lazy' */
+
 /**
  * Scrolls to the heading or block that a sheet row links to. The paper scrolls
  * inside .lp-main rather than the window, so the jump names an element and lets

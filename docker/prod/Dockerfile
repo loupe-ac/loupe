@@ -172,7 +172,7 @@ RUN set -eux; \
 # Only app.built.css is needed past build time. The runtime stage copies this
 # stage's final tree rather than its layers, so this removal is real wherever it
 # sits.
-RUN bin/console tailwind:build \
+RUN bin/console tailwind:build --minify \
 	&& find var/tailwind -mindepth 1 -maxdepth 1 ! -name 'app.built.css' -exec rm -rf {} +
 RUN bin/console asset-map:compile
 RUN bin/console cache:warmup --env=prod
