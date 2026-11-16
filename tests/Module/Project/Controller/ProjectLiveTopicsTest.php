@@ -8,10 +8,12 @@ use App\Mercure\ProjectTopicBuilder;
 use App\Module\Account\Entity\User;
 use App\Module\Inbox\Install\InboxInstallFlags;
 use App\Module\Project\Entity\Project;
+use App\Module\Project\Service\CurrentProjectProvider;
 use App\Tests\Module\Board\BoardColumnFixtures;
 use App\Tests\Support\AcceptedTerms;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\BrowserKit\Cookie;
 use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Uid\Uuid;
@@ -63,6 +65,25 @@ final class ProjectLiveTopicsTest extends WebTestCase
         foreach ([$builder->forWorkerRuns($projectId), $builder->forInbox($projectId), $builder->forDocuments($projectId)] as $topic) {
             self::assertNotContains($topic, $beforeVisit);
             self::assertContains($topic, $afterVisit);
+        }
+    }
+
+    public function test_an_account_page_keeps_the_topics_of_the_project_in_the_last_visited_cookie(): void
+    {
+        $client = static::createClient();
+        [$owner, $id] = $this->ownerWithProject('live-cookie@example.com');
+        $this->switchInbox(true);
+        $client->loginUser($owner);
+
+        $beforeCookie = $this->topics($client->request(Request::METHOD_GET, '/account/profile'));
+        $client->getCookieJar()->set(new Cookie(CurrentProjectProvider::LAST_VISITED_COOKIE, $id));
+        $afterCookie = $this->topics($client->request(Request::METHOD_GET, '/account/profile'));
+
+        $builder = static::getContainer()->get(ProjectTopicBuilder::class);
+        $projectId = Uuid::fromString($id);
+        foreach ([$builder->forWorkerRuns($projectId), $builder->forInbox($projectId), $builder->forDocuments($projectId)] as $topic) {
+            self::assertNotContains($topic, $beforeCookie);
+            self::assertContains($topic, $afterCookie);
         }
     }
 
