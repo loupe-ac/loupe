@@ -62,6 +62,8 @@ final class ProjectLiveTopicsTest extends WebTestCase
     }
 
     /**
+     * @param non-empty-string $email
+     *
      * @return array{User, string}
      */
     private function ownerWithProject(string $email): array
