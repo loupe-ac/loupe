@@ -258,7 +258,13 @@ final class WorkerRunRepositoryTest extends KernelTestCase
 
         self::assertEqualsCanonicalizing(
             [(string) $failedLate->id, (string) $replacedWarning->id, (string) $skippedWarning->id, (string) $sameSecondWarning->id],
-            array_column($runs->findWarningRowsOfProject($project), 'id'),
+            array_column($runs->findWarningRowsOfCards($project, [$hiddenByQueued, $keptByEarlierOpen, $hiddenByInteractive, $hiddenByTimedOut, $keptByReplaced, $keptBySkipped, $hiddenInTheSameSecond, $keptInTheSameSecond]), 'id'),
+        );
+        self::assertSame([], $runs->findWarningRowsOfCards($project, []));
+        // A card outside the list gets no warning, though it has one.
+        self::assertSame(
+            [(string) $skippedWarning->id],
+            array_column($runs->findWarningRowsOfCards($project, [$keptBySkipped, $hiddenByQueued]), 'id'),
         );
         self::assertNull($runs->findWarningRowOfCard($project, $hiddenByQueued));
         self::assertNull($runs->findWarningRowOfCard($project, $hiddenInTheSameSecond));
