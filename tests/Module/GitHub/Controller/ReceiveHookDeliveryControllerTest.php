@@ -235,4 +235,51 @@ final class ReceiveHookDeliveryControllerTest extends WebTestCase
 
         return $hooks->findOneBy(['hookKey' => $hook->hookKey]) ?? throw new \LogicException('The hook is gone.');
     }
+
+    public function test_a_copy_of_an_accepted_delivery_changes_nothing_and_leaves_the_hook_time_alone(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $project = $this->project('hook-replay');
+        $hook = $this->hook($project);
+        $this->linkedCard($project, 'acme/v', 12);
+        $this->trackedPullRequest($project, 'acme/v', 12, 'aaa111');
+        $path = '/webhooks/forge/github/'.$hook->hookKey;
+        $payload = $this->merged(650, 'acme/v', 12);
+
+        $this->deliver($client, $path, 'pull_request', $payload, $hook->secret);
+        $first = $this->outboxSubjects($project);
+        self::assertNotSame([], $first, 'The first delivery must reach the outbox, or the copy proves nothing.');
+        $this->em()->clear();
+        $acceptedAt = $this->em()->find(GitHubHook::class, $hook->id)?->lastAcceptedAt;
+        self::assertNotNull($acceptedAt);
+
+        $this->deliver($client, $path, 'pull_request', $payload, $hook->secret);
+
+        self::assertResponseIsSuccessful();
+        self::assertSame($first, $this->outboxSubjects($project));
+        $this->em()->clear();
+        self::assertEquals($acceptedAt, $this->em()->find(GitHubHook::class, $hook->id)?->lastAcceptedAt);
+    }
+
+    public function test_the_same_body_sent_to_two_hooks_runs_twice(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $project = $this->project('two-hooks');
+        $other = $this->project('two-hooks-other');
+        $one = $this->hook($project);
+        $two = $this->hook($other);
+        foreach ([$project, $other] as $target) {
+            $this->linkedCard($target, 'acme/w', 13);
+            $this->trackedPullRequest($target, 'acme/w', 13, 'aaa111');
+        }
+        $payload = $this->merged(651, 'acme/w', 13);
+
+        $this->deliver($client, '/webhooks/forge/github/'.$one->hookKey, 'pull_request', $payload, $one->secret);
+        $this->deliver($client, '/webhooks/forge/github/'.$two->hookKey, 'pull_request', $payload, $two->secret);
+
+        self::assertNotSame([], $this->outboxSubjects($project));
+        self::assertNotSame([], $this->outboxSubjects($other));
+    }
 }

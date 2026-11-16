@@ -376,7 +376,7 @@ final class ReceiveAppDeliveryControllerTest extends WebTestCase
 
         $this->deliver($client, self::PATH, 'installation', ['action' => 'unsuspend', ...$installation], self::SECRET);
         self::assertNull($this->storedInstallation(9_000_609)->suspendedAt);
-        $this->deliver($client, self::PATH, 'pull_request', $this->merged(609, 'acme/h', 3, $installation), self::SECRET);
+        $this->deliver($client, self::PATH, 'pull_request', $this->merged(609, 'acme/h', 3, [...$installation, 'again' => true]), self::SECRET);
         self::assertSame([[$tracked, false]], $this->queuedRefreshes());
     }
 
@@ -632,5 +632,85 @@ final class ReceiveAppDeliveryControllerTest extends WebTestCase
         self::assertInstanceOf(GitHubInstallationRepository::class, $installations);
 
         return $installations->findOneByInstallationId($installationId) ?? throw new \LogicException('The installation is gone.');
+    }
+
+    public function test_a_copy_of_an_accepted_delivery_changes_nothing(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $project = $this->project('replayed');
+        $this->installation(9_000_640, GitHubRepositorySelection::All);
+        $this->owned($project, 640, 'acme/r', ForgeRepositorySource::Installation, 9_000_640);
+        $this->linkedCard($project, 'acme/r', 4);
+        $this->trackedPullRequest($project, 'acme/r', 4, 'aaa111');
+        $payload = $this->merged(640, 'acme/r', 4, ['installation' => ['id' => 9_000_640]]);
+
+        $this->deliver($client, self::PATH, 'pull_request', $payload, self::SECRET);
+        $first = $this->outboxSubjects($project);
+        self::assertNotSame([], $first, 'The first delivery must reach the outbox, or the copy proves nothing.');
+
+        $this->deliver($client, self::PATH, 'pull_request', $payload, self::SECRET);
+
+        self::assertResponseIsSuccessful();
+        self::assertSame($first, $this->outboxSubjects($project));
+    }
+
+    public function test_a_replayed_suspend_leaves_an_unsuspended_installation_active(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $this->installation(9_000_641, GitHubRepositorySelection::All);
+        $installation = ['installation' => ['id' => 9_000_641]];
+
+        $this->deliver($client, self::PATH, 'installation', ['action' => 'suspend', ...$installation], self::SECRET);
+        $this->deliver($client, self::PATH, 'installation', ['action' => 'unsuspend', ...$installation], self::SECRET);
+        self::assertNull($this->storedInstallation(9_000_641)->suspendedAt);
+
+        $this->deliver($client, self::PATH, 'installation', ['action' => 'suspend', ...$installation], self::SECRET);
+
+        self::assertResponseIsSuccessful();
+        self::assertNull($this->storedInstallation(9_000_641)->suspendedAt);
+    }
+
+    public function test_a_replayed_repository_removal_keeps_an_added_back_repository(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $project = $this->project('removed-twice');
+        $this->installation(9_000_642, accountId: 77);
+        $this->owned($project, 6420, 'acme/back', ForgeRepositorySource::Installation, 9_000_642);
+        $installation = ['installation' => ['id' => 9_000_642, 'account' => ['id' => 77, 'login' => 'acme']]];
+        $repositories = [['id' => 6420, 'full_name' => 'acme/back']];
+
+        $this->deliver($client, self::PATH, 'installation_repositories', ['action' => 'removed', 'repositories_removed' => $repositories, ...$installation], self::SECRET);
+        self::assertNotNull($this->installationOwnerOf(6420)?->accessLostAt);
+        $this->deliver($client, self::PATH, 'installation_repositories', ['action' => 'added', 'repositories_added' => $repositories, ...$installation], self::SECRET);
+        self::assertNull($this->installationOwnerOf(6420)?->accessLostAt);
+
+        $this->deliver($client, self::PATH, 'installation_repositories', ['action' => 'removed', 'repositories_removed' => $repositories, ...$installation], self::SECRET);
+
+        self::assertResponseIsSuccessful();
+        self::assertNull($this->installationOwnerOf(6420)?->accessLostAt);
+    }
+
+    public function test_a_copy_with_another_delivery_id_is_still_a_copy(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $this->installation(9_000_643, GitHubRepositorySelection::All);
+        $installation = ['installation' => ['id' => 9_000_643]];
+
+        $this->deliver($client, self::PATH, 'installation', ['action' => 'suspend', ...$installation], self::SECRET);
+        $this->deliver($client, self::PATH, 'installation', ['action' => 'unsuspend', ...$installation], self::SECRET);
+        $body = json_encode(['action' => 'suspend', ...$installation], \JSON_THROW_ON_ERROR);
+        $client->request(Request::METHOD_POST, self::PATH, server: [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_X_GITHUB_EVENT' => 'installation',
+            'HTTP_X_GITHUB_DELIVERY' => 'a-new-id',
+            'HTTP_X_HUB_SIGNATURE_256' => 'sha256='.hash_hmac('sha256', $body, self::SECRET),
+        ], content: $body);
+
+        self::assertResponseIsSuccessful();
+        self::assertNull($this->storedInstallation(9_000_643)->suspendedAt);
     }
 }

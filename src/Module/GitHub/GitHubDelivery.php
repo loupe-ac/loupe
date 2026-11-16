@@ -26,6 +26,7 @@ final readonly class GitHubDelivery
     private function __construct(
         public string $event,
         private array $payload,
+        public string $bodyHash,
     ) {
     }
 
@@ -52,7 +53,7 @@ final readonly class GitHubDelivery
             throw new InvalidGitHubDelivery(InvalidGitHubDelivery::BAD_PAYLOAD);
         }
 
-        return new self($request->headers->get(self::EVENT_HEADER, ''), $payload);
+        return new self($request->headers->get(self::EVENT_HEADER, ''), $payload, hash('sha256', $body));
     }
 
     public function action(): ?string
