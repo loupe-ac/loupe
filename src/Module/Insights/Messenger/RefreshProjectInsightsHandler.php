@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\Module\Insights\Messenger;
 
+use App\Module\Bridge\Command\MetricQueryCommand;
+use App\Module\Bridge\Metric\MetricFacts;
+use App\Module\Bridge\Metric\MetricRowSource;
+use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\Repository\InsightsKeptResultRepository;
 use App\Module\Insights\Repository\InsightsSavedGraphRepository;
 use App\Module\Insights\Repository\PublicLinkRepository;
@@ -17,10 +21,14 @@ use App\Module\Insights\Service\InsightsRefreshRequester;
 use App\Module\Insights\Service\InsightsRefreshSettings;
 use App\Module\Insights\Service\InsightsResultKeeper;
 use App\Module\Insights\Service\SavedGraphHealth;
+use App\Module\Insights\View\MetricsQuery;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
+use App\Module\Workflow\Contract\TemplateMetrics;
+use App\Module\Workflow\Contract\TemplateMetricSet;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\HttpFoundation\InputBag;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 /**
@@ -44,6 +52,8 @@ final readonly class RefreshProjectInsightsHandler
         private InsightsRefreshHolds $holds,
         private InsightsRefreshRequester $requester,
         private SavedGraphHealth $health,
+        private TemplateMetrics $templateMetrics,
+        private MetricRowSource $metricRows,
         private DashboardChangedPublisher $dashboardChanges,
         private InsightsProjectActivities $activities,
         private InsightsKeptResultRepository $insightsKeptResults,
@@ -84,18 +94,36 @@ final readonly class RefreshProjectInsightsHandler
         $graphs = $this->insightsSavedGraphs->findActive($project);
         $rows = InsightsDataKind::Sweep === $kind ? $this->insightsKeptResults->findStampsForGraphs($graphs) : [];
         $stale = $this->clock->now()->modify('-'.$this->settings->sweepIntervalMinutes().' minutes');
+        $wanted = [];
         foreach ($graphs as $graph) {
             $graphId = (string) $graph->id;
-            $wanted = match ($kind) {
+            $reads = match ($kind) {
                 InsightsDataKind::Wake => true,
                 InsightsDataKind::Sweep => $this->dataKinds->sweeps($graph) && (!isset($rows[$graphId]) || $rows[$graphId]->computedAt < $stale),
                 default => \in_array($kind, $this->dataKinds->reads($graph), true),
             };
-            if (!$wanted || $this->holds->holds($graphId) || [] !== $this->health->check($project, [$graph])) {
-                continue;
+            if ($reads && !$this->holds->holds($graphId)) {
+                $wanted[] = $graph;
             }
+        }
+        if ([] === $wanted) {
+            return [];
+        }
+
+        // One clock reading, one template read and one fact load serve every graph of the message.
+        $stamp = $this->insightsKeptResults->databaseNow();
+        $templates = $this->templateMetrics->forProject($project->requireId());
+        $broken = $this->health->check($project, $wanted, $templates);
+        $healthy = array_values(array_filter($wanted, static fn (InsightsSavedGraph $graph): bool => !isset($broken[(string) $graph->id])));
+        $facts = new MetricFacts($project, $stamp);
+        $this->metricRows->loadFor($facts, array_map(
+            fn (InsightsSavedGraph $graph): MetricQueryCommand => $this->commandOf($project, $graph, $templates, $stamp),
+            $healthy,
+        ));
+        foreach ($healthy as $graph) {
+            $graphId = (string) $graph->id;
             try {
-                if ($this->keeper->graphById((string) $project->id, $graphId)) {
+                if ($this->keeper->graphById((string) $project->id, $graphId, $facts)) {
                     $kept[] = $graphId;
                 }
             } catch (\Throwable $e) {
@@ -105,6 +133,14 @@ final readonly class RefreshProjectInsightsHandler
         }
 
         return $kept;
+    }
+
+    private function commandOf(Project $project, InsightsSavedGraph $graph, TemplateMetricSet $templates, \DateTimeImmutable $stamp): MetricQueryCommand
+    {
+        /** @var InputBag<string> $settings */
+        $settings = new InputBag($graph->settings());
+
+        return MetricsQuery::fromQuery($settings, $templates)->command($project, $stamp);
     }
 
     /** @return list<string> the shared experiments that read the kind and have a switched-on link */
