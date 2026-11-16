@@ -295,11 +295,11 @@ final class ReceiveHookDeliveryControllerTest extends WebTestCase
         $this->trackedPullRequest($project, 'acme/x', 14, 'aaa111');
         $path = '/webhooks/forge/github/'.$hook->hookKey;
         $payload = $this->merged(652, 'acme/x', 14);
-        $failing = true;
+        $failing = new \ArrayObject(['on' => true]);
         $dispatcher = static::getContainer()->get('event_dispatcher');
         self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
-        $dispatcher->addListener(ForgeDeliveryReceived::class, static function () use (&$failing): void {
-            if ($failing) {
+        $dispatcher->addListener(ForgeDeliveryReceived::class, static function () use ($failing): void {
+            if ($failing['on']) {
                 throw new \RuntimeException('Handling failed.');
             }
         }, 1_000);
@@ -308,7 +308,7 @@ final class ReceiveHookDeliveryControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(Response::HTTP_INTERNAL_SERVER_ERROR);
         self::assertSame([], $this->outboxSubjects($project));
 
-        $failing = false;
+        $failing['on'] = false;
         $this->deliver($client, $path, 'pull_request', $payload, $hook->secret);
 
         self::assertResponseIsSuccessful();
