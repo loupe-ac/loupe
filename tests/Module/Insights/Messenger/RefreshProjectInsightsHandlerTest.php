@@ -18,6 +18,8 @@ use App\Module\Insights\Messenger\RefreshProjectInsightsHandler;
 use App\Module\Insights\Service\InsightsDataKind;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\TemplateMetrics;
+use App\Module\Workflow\Entity\WorkflowSlotLink;
+use App\Module\Workflow\Repository\WorkflowSlotLinkRepository;
 use App\Tests\Module\Board\BoardColumnFixtures;
 use App\Tests\Module\Insights\InsightsScenario;
 use Symfony\Bridge\Doctrine\Middleware\Debug\DebugDataHolder;
@@ -259,7 +261,8 @@ final class RefreshProjectInsightsHandlerTest extends KernelTestCase
     {
         self::ensureKernelShutdown();
         self::bootKernel();
-        self::getContainer()->set(TemplateMetrics::class, $reads = new ScriptedTemplateMetrics());
+        $reads = new SavedSlotTemplateMetrics(self::getContainer()->get(WorkflowSlotLinkRepository::class));
+        self::getContainer()->set(TemplateMetrics::class, $reads);
         $project = $this->scenarioProject('project-refresh-slot');
         $this->seedColumns($project);
         $this->em()->flush();
@@ -269,6 +272,8 @@ final class RefreshProjectInsightsHandlerTest extends KernelTestCase
         $this->em()->persist($card);
         $this->em()->persist(new CardEvent($card, $project, CardEventKind::Moved, Actor::Agent, null, ['to' => CardEvent::columnDetail($review)], new \DateTimeImmutable('-3 days')));
         $this->em()->persist(new CardEvent($card, $project, CardEventKind::Moved, Actor::Agent, null, ['from' => CardEvent::columnDetail($review)], new \DateTimeImmutable('-3 days +5 hours')));
+        $link = new WorkflowSlotLink($project, 'review', $this->column($project, 'backlog')->id);
+        $this->em()->persist($link);
         $graph = $this->seedSavedGraph($project, 'Review time', 0);
         $graph->metric = 'review-time';
         $graph->unit = MetricUnit::Card;
@@ -276,21 +281,24 @@ final class RefreshProjectInsightsHandlerTest extends KernelTestCase
         $this->em()->flush();
         $projectId = (string) $project->id;
         $graphId = $graph->id;
+        $linkId = $link->id;
         $reviewId = $review->id;
         $this->em()->clear();
 
-        // The batch read sees the slot on another column. The reads after the lock see the column that the card moved through.
-        $reads->first = ScriptedTemplateMetrics::reviewTime(Uuid::v7());
-        $reads->later = [ScriptedTemplateMetrics::reviewTime($reviewId), ScriptedTemplateMetrics::reviewTime($reviewId)];
+        // The batch read sees the slot on another column. The column change is saved before the lock of the graph.
+        $reads->afterFirstRead = function () use ($linkId, $reviewId): void {
+            $this->em()->getConnection()->executeStatement('UPDATE workflow_slot_links SET column_id = :column WHERE id = :id', ['column' => $reviewId, 'id' => $linkId], ['column' => UuidType::NAME, 'id' => UuidType::NAME]);
+            $this->em()->clear();
+        };
         $this->handler()(new RefreshProjectInsights($projectId, InsightsDataKind::Wake->value));
 
         self::assertSame(1, $this->keptFor($graphId));
-        self::assertSame(3, $reads->calls);
         self::assertStringContainsString("'value' => 5.0,", $this->keptText($graphId));
 
-        // The slot has no column after the lock: the graph finds no review time.
-        $reads->calls = 0;
-        $reads->later = [ScriptedTemplateMetrics::reviewTime(null), ScriptedTemplateMetrics::reviewTime(null)];
+        // The slot has no column once saved again: the next refresh finds no review time.
+        $this->em()->getConnection()->executeStatement('UPDATE workflow_slot_links SET column_id = NULL WHERE id = :id', ['id' => $linkId], ['id' => UuidType::NAME]);
+        $this->em()->clear();
+        $reads->afterFirstRead = null;
         $this->handler()(new RefreshProjectInsights($projectId, InsightsDataKind::Wake->value));
 
         self::assertStringNotContainsString("'value' => 5.0,", $this->keptText($graphId));
