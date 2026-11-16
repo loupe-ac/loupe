@@ -235,12 +235,16 @@ dispatches `App\Module\Board\Event\CardChanged` after its commit.
 `PublishCardChangedOnCardChanged` turns the event into a `board.card_changed`
 update with `cardId`, `change` and `contentChanged`, and no card content.
 
-The `board_live` controller receives the update. It fetches
-`/projects/{projectId}/board/cards/{cardId}/placement` with the session of the
-viewer, and renders the Turbo Stream it gets back. The server builds that
-stream for the viewer, so each viewer sees only the cards they may see. A burst
-of updates for one card costs one fetch, and a card in a drag waits until the
-drag ends.
+The `board_live` controller receives the update. It collects the cards that
+changed within a short moment, and fetches
+`/projects/{projectId}/board/placements?cards=<id>,<id>,...` with the session
+of the viewer. A request holds up to 50 cards, and the controller sends the
+rest in the next request. It renders the Turbo Stream it gets back, which has
+one `board-place` action for each card, in the order of the request. The server
+builds that stream for the viewer, so each viewer sees only the cards they may
+see. A burst of updates for one card costs one placement, and a card in a drag
+waits until the drag ends. After a reconnect, all the cards the page missed
+share one request instead of one request each.
 
 A new path that writes a card must dispatch `CardChanged`, or open boards miss
 the change until they reload. A change to the columns dispatches
