@@ -42,6 +42,11 @@ final class SweepRowMemo implements SweepProjectRows
         }
 
         $value = $read();
+        foreach ($this->kept as $oldKey => $old) {
+            if ($old['at']->modify('+'.self::LIFETIME_SECONDS.' seconds') <= $now) {
+                unset($this->kept[$oldKey]);
+            }
+        }
         $this->kept[$key] = ['at' => $now, 'value' => $value];
 
         return $value;

@@ -70,6 +70,19 @@ final class SweepRowMemoTest extends TestCase
         self::assertSame('first', $memo->remember('row', static fn (): string => 'second'), 'The second sweep message gets the kept row.');
     }
 
+    public function test_an_expired_row_leaves_memory_when_another_key_is_stored(): void
+    {
+        $clock = new MockClock('2026-11-16 12:00:00');
+        $memo = new SweepRowMemo($this->handling('card_sweep'), $clock);
+        $memo->remember('old', static fn (): int => 1);
+        $clock->sleep(61);
+        $memo->remember('new', static fn (): int => 2);
+
+        $kept = new \ReflectionProperty($memo, 'kept')->getValue($memo);
+        self::assertIsArray($kept);
+        self::assertSame(['new'], array_keys($kept));
+    }
+
     private function handling(string $transport): HandledMessage
     {
         $handled = new HandledMessage();

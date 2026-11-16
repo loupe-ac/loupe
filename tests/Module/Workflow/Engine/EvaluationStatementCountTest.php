@@ -7,6 +7,8 @@ namespace App\Tests\Module\Workflow\Engine;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardDocument;
 use App\Module\Board\Entity\CardPullRequest;
+use App\Module\Board\Entity\Forge;
+use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\DocumentStatus;
 use App\Module\Review\Entity\Tag;
@@ -38,7 +40,10 @@ final class EvaluationStatementCountTest extends KernelTestCase
         $document->tags->add($tag);
         $this->em()->persist($document);
         $this->em()->persist(new CardDocument($card, $document));
-        $this->em()->persist(new CardPullRequest($card, 'https://github.com/acme/app/pull/1'));
+        $this->em()->persist(new CardPullRequest($card, 'https://github.com/acme/app/pull/1', Forge::GitHub, 'acme/app', 1));
+        $pullRequest = new ForgePullRequest($project, 'github', 'acme/app', 1);
+        $pullRequest->headSha = str_repeat('a', 40);
+        $this->em()->persist($pullRequest);
         $this->em()->flush();
         $this->em()->clear();
 
@@ -56,6 +61,7 @@ final class EvaluationStatementCountTest extends KernelTestCase
 
         // Guard: the evaluation ran and opened at least one fact pass, so an empty duplicate list proves the memo and not a skipped run.
         self::assertContains('SAVEPOINT workflow_fact_provider []', $statements);
+        self::assertNotEmpty(array_filter($statements, static fn (string $sql): bool => str_contains($sql, 'FROM agent_reviews')), 'The fixture must reach the agent review read.');
         self::assertSame([], $this->repeatedInsideAPass($statements));
     }
 
