@@ -80,6 +80,26 @@ final class ReportWorkerRunStateHandlerTest extends KernelTestCase
         self::assertSame([], $changes->events());
     }
 
+    public function test_two_first_reports_of_one_run_leave_one_run_row_and_the_handler_takes_the_run_key_lock(): void
+    {
+        self::bootKernel();
+        [$owner, $project] = $this->scenario('handler-first-twice');
+        $connection = $this->em()->getConnection();
+        $runKey = Uuid::v4();
+        $held = static fn (): int => (int) $connection->fetchOne("SELECT COUNT(*) FROM pg_locks WHERE locktype = 'advisory' AND pid = pg_backend_pid()");
+        $before = $held();
+
+        $first = $this->report($owner, $project, $runKey, WorkerRunState::Queued);
+        $afterFirst = $held();
+        $second = $this->report($owner, $project, $runKey, WorkerRunState::Queued);
+
+        self::assertGreaterThan($before, $afterFirst, 'The handler must take the run key advisory lock, which the test transaction keeps.');
+        self::assertSame($afterFirst, $held(), 'A second report of the same run waits on the same lock key.');
+        self::assertTrue($first->newState);
+        self::assertFalse($second->newState);
+        self::assertSame(1, (int) $connection->fetchOne('SELECT COUNT(*) FROM bridge_worker_runs WHERE run_key = ?', [$runKey->toRfc4122()]));
+    }
+
     private const string BRIDGE = '0199a0e2-9d4c-7c5e-9f2a-3b1c6d7e8f90';
 
     private const string SESSION = '5f0c2b1e-8d4a-4c3b-9e2f-1a0b3c4d5e6f';
