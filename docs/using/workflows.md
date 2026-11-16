@@ -1127,7 +1127,9 @@ Some rules act from any slot:
    `epic-branch-sync` merges `main` into the epic branch first, and the
    condition `card.parent.epic_branch.synced` is true when that is done. It also
    waits until the condition `card.parent.epic_branch.exists` is true, which
-   needs the epic branch in the repository that the bridge clones. It waits while the epic has work in
+   needs the epic branch in the repository that the bridge clones. Loupe reads a
+   stored answer for this check, which a push to the branch or a background
+   check keeps current, so a new branch can take a few minutes to count. It waits while the epic has work in
    progress. That work is any open worker run of the epic, and any work that the
    workflow requested for the epic and no bridge finished. When the last such
    work ends, the epic evaluates its children again, in any column. A change to
