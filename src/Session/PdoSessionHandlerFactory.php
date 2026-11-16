@@ -85,7 +85,7 @@ final readonly class PdoSessionHandlerFactory
         ];
 
         if (!$persistent) {
-            return new PdoSessionHandler($this->sessionDsn(), $options);
+            return new SkipLockedPdoSessionHandler($this->sessionDsn(), $options);
         }
 
         $options['db_connection_options'] = [\PDO::ATTR_PERSISTENT => true];

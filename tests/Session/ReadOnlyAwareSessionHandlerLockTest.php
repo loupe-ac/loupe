@@ -124,7 +124,7 @@ final class ReadOnlyAwareSessionHandlerLockTest extends KernelTestCase
         self::assertSame(0, (int) $count->fetchColumn());
     }
 
-    public function test_a_read_only_request_extends_the_expiry_of_the_session_it_read(): void
+    public function test_a_read_only_request_extends_the_expiry_through_write_when_the_data_changed(): void
     {
         $this->releaseHolder();
         $lifetime = self::connectionOf($this->factory->create(PdoSessionHandler::LOCK_NONE));
@@ -136,7 +136,6 @@ final class ReadOnlyAwareSessionHandlerLockTest extends KernelTestCase
         $handler->open('', 'PHPSESSID');
         $handler->read($this->sessionId);
         $handler->write($this->sessionId, 'changed');
-        $handler->updateTimestamp($this->sessionId, 'changed');
         $handler->close();
 
         $statement = $lifetime->prepare('SELECT sess_lifetime FROM sessions WHERE sess_id = ?');

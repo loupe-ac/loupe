@@ -83,7 +83,7 @@ final class ReadOnlyAwareSessionHandlerTest extends TestCase
         $nonLocking->expects($this->once())->method('read')->with('sid')->willReturn('data');
         $nonLocking->expects($this->once())->method('close')->willReturn(true);
         $nonLocking->expects($this->never())->method('write');
-        $nonLocking->expects($this->once())->method('updateTimestamp')->with('sid', 'new')->willReturn(true);
+        $nonLocking->expects($this->exactly(2))->method('updateTimestamp')->with('sid', 'new')->willReturn(true);
         $nonLocking->expects($this->never())->method('destroy');
         $nonLocking->expects($this->never())->method('gc');
 

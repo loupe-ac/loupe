@@ -76,8 +76,9 @@ final class ReadOnlyAwareSessionHandler implements \SessionHandlerInterface, \Se
     #[\Override]
     public function write(#[\SensitiveParameter] string $id, string $data): bool
     {
+        // PHP calls write() when the data changed, and the metadata bag changes it on every request.
         if (SessionLockMode::ReadOnly === $this->mode && $this->loadedId === $id) {
-            return true;
+            return $this->inner()->updateTimestamp($id, $data);
         }
 
         return $this->inner()->write($id, $data);
