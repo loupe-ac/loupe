@@ -26,7 +26,7 @@ Record each item of the change that the deploy must handle:
 
 - An environment variable, with its value or its source. `DeploymentConfigParityCheck` cross-checks `.env`, Terraform, the prod compose files and `docs/reference/environment.md`. Set a `terraform.tfvars` value before the deploy.
 - A migration and its risk. The pre-deploy job runs it. Name long locks, backfills and irreversible steps.
-- A new feature flag. `/install` seeds flags once, so ship a per-flag migration that seeds the flag on. A flag that a rollout risk keeps off needs a switch-on step after the code ships.
+- A new feature flag. `/install` seeds flags once, so ship a per-flag migration that seeds the flag on. A flag that a rollout risk keeps off gets a follow-up card, which turns it on with a migration in a later release.
 - A new messenger transport or schedule. It must reach `worker_command` in `terraform/main.tf` and the `worker` service in `docker/compose/prod.yaml`.
 - A new CSP origin in `config/packages/nelmio_security.yaml`.
 - A new external service and its `DiagnosticInterface` check.
@@ -99,7 +99,7 @@ Production runs `<live sha>`. This release adds <M> pull requests.
 1. Switch the checkout to `main` at `<origin/main sha>`.
 2. <each deploy note step that comes before the code, such as a `terraform apply`>
 3. Run `just deploy`.
-4. <each deploy note step that comes after the code, such as a flag switch-on>
+4. <each deploy note step that comes after the code>
 5. Run the checks of "After a deploy", and <each check the deploy notes ask for>.
 ```
 
