@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Module\Account\Controller\Install;
 
 use App\Controller\AppController;
+use App\Exception\DomainErrors;
+use App\Module\Account\Command\UnlockInstallCommand;
+use App\Module\Account\Command\UnlockInstallHandler;
 use App\Module\Account\Form\InstallUnlockFormType;
 use App\Module\Account\Form\InstallUnlockRequest;
 use App\Module\Account\Service\InstallAccessGuard;
@@ -31,6 +34,7 @@ final class UnlockController extends AppController
 {
     public function __construct(
         private readonly InstallAccessGuard $installAccessGuard,
+        private readonly UnlockInstallHandler $unlockInstall,
         private readonly Auditor $auditor,
         private readonly TranslatorInterface $translator,
 
@@ -60,14 +64,13 @@ final class UnlockController extends AppController
                     ->setStatusCode(Response::HTTP_TOO_MANY_REQUESTS);
             }
 
-            if ($this->installAccessGuard->unlock($request, $data->token ?? '')) {
-                $this->auditor->record('account.install_unlock', AuditOutcome::Success);
+            try {
+                ($this->unlockInstall)(new UnlockInstallCommand($request->getSession(), $data->token ?? ''));
 
                 return $this->redirectToRoute('app_install_flags');
+            } catch (DomainErrors $e) {
+                $this->applyDomainErrors($form, $e);
             }
-
-            $this->auditor->record('account.install_unlock', AuditOutcome::Refused);
-            $form->get('token')->addError(new FormError($this->translator->trans('account.install.unlock.error.invalid')));
         }
 
         return $this->renderFormResponse('@Account/install/unlock.html.twig', $form);

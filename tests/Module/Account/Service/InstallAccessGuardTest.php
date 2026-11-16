@@ -62,7 +62,7 @@ final class InstallAccessGuardTest extends TestCase
         $guard = new InstallAccessGuard($this->installationState(0), 'secret-token', 'test');
         $request = $this->requestWithSession();
 
-        self::assertFalse($guard->unlock($request, 'wrong'));
+        self::assertFalse($guard->unlock($request->getSession(), 'wrong'));
         self::assertFalse($guard->isUnlocked($request));
     }
 
@@ -82,7 +82,7 @@ final class InstallAccessGuardTest extends TestCase
         $request->getSession()->start();
         $before = $request->getSession()->getId();
 
-        self::assertTrue($guard->unlock($request, 'secret-token'));
+        self::assertTrue($guard->unlock($request->getSession(), 'secret-token'));
         self::assertNotSame($before, $request->getSession()->getId());
 
         // A later step's request reuses the same session and is not re-challenged.
@@ -95,7 +95,7 @@ final class InstallAccessGuardTest extends TestCase
     {
         $guard = new InstallAccessGuard($this->installationState(0), '', 'test');
 
-        self::assertFalse($guard->unlock($this->requestWithSession(), ''));
+        self::assertFalse($guard->unlock($this->requestWithSession()->getSession(), ''));
     }
 
     public function test_production_without_a_configured_token_404s_rather_than_opening(): void
@@ -114,7 +114,7 @@ final class InstallAccessGuardTest extends TestCase
         $request = $this->requestWithSession();
 
         $guard->ensureOpen();
-        self::assertTrue($guard->unlock($request, 'secret-token'));
+        self::assertTrue($guard->unlock($request->getSession(), 'secret-token'));
         self::assertTrue($guard->isUnlocked($request));
     }
 }

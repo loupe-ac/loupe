@@ -6,6 +6,7 @@ namespace App\Module\Account\Service;
 
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Session\SessionInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
@@ -58,13 +59,12 @@ final readonly class InstallAccessGuard
         return true === $request->getSession()->get(self::SESSION_TOKEN_VERIFIED);
     }
 
-    public function unlock(Request $request, string $submitted): bool
+    public function unlock(SessionInterface $session, string $submitted): bool
     {
         if ('' === $this->installToken || !hash_equals($this->installToken, $submitted)) {
             return false;
         }
 
-        $session = $request->getSession();
         // A new session id means an id that an attacker planted before the
         // unlock does not gain the flag.
         $session->migrate(true);
