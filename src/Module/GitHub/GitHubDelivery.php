@@ -201,6 +201,19 @@ final readonly class GitHubDelivery
         return '' === $branch ? null : $branch;
     }
 
+    /** The branch a push deleted, or null for any other delivery. */
+    public function deletedBranch(): ?string
+    {
+        $ref = $this->payload['ref'] ?? null;
+        if ('push' !== $this->event || true !== ($this->payload['deleted'] ?? null) || !\is_string($ref) || !str_starts_with($ref, 'refs/heads/')) {
+            return null;
+        }
+
+        $branch = substr($ref, \strlen('refs/heads/'));
+
+        return '' === $branch ? null : $branch;
+    }
+
     /** The head branch of a pull request that opened, closed, reopened or got a commit, or null for any other delivery. */
     public function pullRequestHeadBranch(): ?string
     {
