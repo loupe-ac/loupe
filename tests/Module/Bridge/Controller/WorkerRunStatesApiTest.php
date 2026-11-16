@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Bridge\Controller;
 
+use App\Module\Account\Entity\User;
+use App\Module\Board\Entity\Card;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunStateChange;
 use App\Module\Bridge\Repository\WorkerRunRepository;
@@ -14,9 +16,11 @@ use App\Module\Bridge\ValueObject\WorkerRunReason;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkerRunUsageSource;
 use App\Module\Bridge\ValueObject\WorkerRunWakeTrigger;
+use App\Module\Project\Entity\Project;
 use App\Outbox\AgentPush;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Support\AgentCredential;
+use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -27,7 +31,20 @@ use Symfony\Component\Uid\Uuid;
 
 final class WorkerRunStatesApiTest extends WebTestCase
 {
-    use BridgeScenario;
+    use BridgeScenario {
+        project as private projectOnly;
+    }
+
+    private string $cardId = '';
+
+    /** The project holds a card, which the default payload names. */
+    private function project(EntityManagerInterface $em, User $owner, string $name): Project
+    {
+        $project = $this->projectOnly($em, $owner, $name);
+        $this->cardId = (string) $this->seedCard($em, $project)->id;
+
+        return $project;
+    }
 
     public function test_the_first_state_of_an_unknown_run_creates_the_run(): void
     {
@@ -37,7 +54,7 @@ final class WorkerRunStatesApiTest extends WebTestCase
         $project = $this->project($em, $owner, 'Run States Create');
         $raw = $this->agentToken($client, $owner);
         $runId = (string) Uuid::v4();
-        $cardId = (string) Uuid::v7();
+        $cardId = $this->cardId;
 
         $this->put($client, $this->path($project->id, $runId), $raw, $this->payload(['subjectId' => $cardId, 'cardNumber' => 7]));
 
@@ -59,15 +76,103 @@ final class WorkerRunStatesApiTest extends WebTestCase
         $owner = $this->user($em, 'run-states-other-subject@example.com');
         $project = $this->project($em, $owner, 'Run States Other Subject');
         $raw = $this->agentToken($client, $owner);
-        $subjectId = (string) Uuid::v7();
+        $subjectId = (string) $this->seedInboxItem($em, $project)->id;
 
-        $this->put($client, $this->path($project->id, (string) Uuid::v4()), $raw, $this->payload(['subjectType' => 'analysis', 'subjectId' => $subjectId, 'cardNumber' => null]));
+        $this->put($client, $this->path($project->id, (string) Uuid::v4()), $raw, $this->payload(['subjectType' => 'inbox-item', 'subjectId' => $subjectId, 'cardNumber' => null]));
 
         self::assertResponseStatusCodeSame(201);
         $run = $this->onlyRun();
-        self::assertSame('analysis', $run->subjectType);
+        self::assertSame('inbox-item', $run->subjectType);
         self::assertSame($subjectId, (string) $run->subjectId);
         self::assertNull($run->cardNumber);
+    }
+
+    public function test_a_card_of_another_project_is_refused_and_stores_nothing(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'run-states-foreign-card@example.com');
+        $this->project($em, $this->user($em, 'run-states-foreign-card-theirs@example.com'), 'Run States Foreign Card Theirs');
+        $foreignCardId = $this->cardId;
+        $project = $this->project($em, $owner, 'Run States Foreign Card');
+        $raw = $this->agentToken($client, $owner);
+
+        $this->put($client, $this->path($project->id, (string) Uuid::v4()), $raw, $this->payload(['subjectId' => $foreignCardId]));
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame('subject_not_found', $this->problemCode($client));
+        self::assertSame([], $this->allRuns());
+    }
+
+    public function test_a_subject_that_does_not_exist_is_refused_with_the_same_code(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'run-states-missing-subject@example.com');
+        $project = $this->project($em, $owner, 'Run States Missing Subject');
+        $raw = $this->agentToken($client, $owner);
+
+        foreach (['card' => 1, 'inbox-item' => null] as $type => $cardNumber) {
+            $this->put($client, $this->path($project->id, (string) Uuid::v4()), $raw, $this->payload(['subjectType' => $type, 'subjectId' => (string) Uuid::v7(), 'cardNumber' => $cardNumber]));
+
+            self::assertResponseStatusCodeSame(422);
+            self::assertSame('subject_not_found', $this->problemCode($client));
+        }
+        self::assertSame([], $this->allRuns());
+    }
+
+    public function test_a_subject_type_that_no_module_registers_is_refused(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'run-states-unknown-type@example.com');
+        $project = $this->project($em, $owner, 'Run States Unknown Type');
+        $raw = $this->agentToken($client, $owner);
+
+        $this->put($client, $this->path($project->id, (string) Uuid::v4()), $raw, $this->payload(['subjectType' => 'unheard-of', 'cardNumber' => null]));
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame('unknown_subject_type', $this->problemCode($client));
+        self::assertSame([], $this->allRuns());
+    }
+
+    public function test_a_work_request_of_another_project_or_another_card_is_refused(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'run-states-foreign-request@example.com');
+        $theirs = $this->project($em, $this->user($em, 'run-states-foreign-request-theirs@example.com'), 'Run States Foreign Request Theirs');
+        $foreign = $this->seedWorkRequest($em, $theirs, Uuid::fromString($this->cardId));
+        $project = $this->project($em, $owner, 'Run States Foreign Request');
+        $sibling = $this->seedWorkRequest($em, $project, $this->seedCard($em, $project, 2)->id);
+        $raw = $this->agentToken($client, $owner);
+
+        foreach ([$foreign->id, $sibling->id, Uuid::v7()] as $id) {
+            $this->put($client, $this->path($project->id, (string) Uuid::v4()), $raw, $this->payload(['workRequestId' => (string) $id, 'workKind' => 'fix']));
+
+            self::assertResponseStatusCodeSame(422);
+            self::assertSame('work_request_not_found', $this->problemCode($client));
+        }
+        self::assertSame([], $this->allRuns());
+    }
+
+    public function test_a_later_report_of_a_stored_run_whose_card_is_gone_still_succeeds(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'run-states-card-gone@example.com');
+        $project = $this->project($em, $owner, 'Run States Card Gone');
+        $raw = $this->agentToken($client, $owner);
+        $runId = (string) Uuid::v4();
+
+        $this->put($client, $this->path($project->id, $runId), $raw, $this->payload());
+        self::assertResponseStatusCodeSame(201);
+
+        $em->createQuery('DELETE FROM '.Card::class.' c')->execute();
+        $this->put($client, $this->path($project->id, $runId), $raw, $this->payload(self::outcome()));
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame(WorkerRunState::Succeeded, $this->onlyRun()->state);
     }
 
     /** The bridge leaves cardNumber out for a subject that is no card. */
@@ -78,7 +183,7 @@ final class WorkerRunStatesApiTest extends WebTestCase
         $owner = $this->user($em, 'run-states-no-card-number@example.com');
         $project = $this->project($em, $owner, 'Run States No Card Number');
         $raw = $this->agentToken($client, $owner);
-        $payload = $this->payload(['subjectType' => 'analysis']);
+        $payload = $this->payload(['subjectType' => 'inbox-item', 'subjectId' => (string) $this->seedInboxItem($em, $project)->id]);
         unset($payload['cardNumber']);
 
         $this->put($client, $this->path($project->id, (string) Uuid::v4()), $raw, $payload);
@@ -122,7 +227,8 @@ final class WorkerRunStatesApiTest extends WebTestCase
         $raw = $this->agentToken($client, $owner);
 
         $this->put($client, $this->path($project->id, (string) Uuid::v4()), $raw, $this->payload(array_merge(self::outcome(), [
-            'subjectType' => 'analysis',
+            'subjectType' => 'inbox-item',
+            'subjectId' => (string) $this->seedInboxItem($em, $project)->id,
             'cardNumber' => null,
             'output' => 'migration applied cleanly',
         ])));
@@ -1097,7 +1203,7 @@ final class WorkerRunStatesApiTest extends WebTestCase
         $owner = $this->user($em, 'run-states-work@example.com');
         $project = $this->project($em, $owner, 'Run States Work');
         $raw = $this->agentToken($client, $owner);
-        $workRequestId = (string) Uuid::v7();
+        $workRequestId = (string) $this->seedWorkRequest($em, $project, Uuid::fromString($this->cardId))->id;
 
         $this->put($client, $this->path($project->id, (string) Uuid::v4()), $raw, $this->payload(['workRequestId' => $workRequestId, 'workKind' => 'fix', 'ruleId' => 'fix-on-red']));
 
@@ -1458,16 +1564,17 @@ final class WorkerRunStatesApiTest extends WebTestCase
         $em = $this->em();
         $owner = $this->user($em, 'run-states-limit@example.com');
         $project = $this->project($em, $owner, 'Run States Limit');
+        $firstCardId = $this->cardId;
         $other = $this->user($em, 'run-states-limit-other@example.com');
         $otherProject = $this->project($em, $other, 'Run States Limit Other');
         $first = $this->agentToken($client, $owner);
         // Two access tokens of one grant share a bucket, so the second budget needs a second account.
         $second = $this->agentToken($client, $other);
 
-        $this->put($client, $this->path($project->id, (string) Uuid::v4()), $first, $this->payload(), '203.0.113.7');
+        $this->put($client, $this->path($project->id, (string) Uuid::v4()), $first, $this->payload(['subjectId' => $firstCardId]), '203.0.113.7');
         self::assertResponseStatusCodeSame(201);
 
-        $this->put($client, $this->path($project->id, (string) Uuid::v4()), $first, $this->payload(), '198.51.100.4');
+        $this->put($client, $this->path($project->id, (string) Uuid::v4()), $first, $this->payload(['subjectId' => $firstCardId]), '198.51.100.4');
         self::assertResponseStatusCodeSame(429);
 
         $this->put($client, $this->path($otherProject->id, (string) Uuid::v4()), $second, $this->payload(), '203.0.113.7');
@@ -1506,7 +1613,7 @@ final class WorkerRunStatesApiTest extends WebTestCase
             'state' => 'queued',
             'at' => '2026-09-23T10:00:00+00:00',
             'subjectType' => 'card',
-            'subjectId' => '0199a0e2-b1f3-7a44-9c11-2d3e4f506172',
+            'subjectId' => $this->cardId,
             'cardNumber' => 1,
             'workKind' => 'plan',
         ], $overrides);
@@ -1536,6 +1643,14 @@ final class WorkerRunStatesApiTest extends WebTestCase
         self::assertIsArray($body);
 
         return (string) $body['id'];
+    }
+
+    private function problemCode(KernelBrowser $client): mixed
+    {
+        $body = json_decode((string) $client->getResponse()->getContent(), true, flags: \JSON_THROW_ON_ERROR);
+        self::assertIsArray($body);
+
+        return $body['code'] ?? null;
     }
 
     /** @return list<WorkerRun> */

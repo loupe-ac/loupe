@@ -1,5 +1,10 @@
 import { expect } from '@playwright/test';
-import { agentAccessToken, createTest, suppressWidget } from '../fixtures';
+import {
+    agentAccessToken,
+    createTest,
+    mcpCards,
+    suppressWidget,
+} from '../fixtures';
 
 const test = createTest({
     email: `e2e-bridge-names-${Date.now()}@example.com`,
@@ -16,6 +21,7 @@ test('a bridge shows its name, and a second claim of the name shows a clash', as
     expect(seed.status()).toBe(201);
     const { projectId } = await seed.json();
     const token = await agentAccessToken(page);
+    const card = await (await mcpCards(page, projectId))('Bridge names card');
     const headers = { Authorization: `Bearer ${token}` };
     const heartbeat = async (bridgeId: string, name?: string) => {
         const response = await page.request.put(
@@ -41,8 +47,8 @@ test('a bridge shows its name, and a second claim of the name shows a clash', as
                     at: '2026-10-02T10:00:00+00:00',
                     workKind: 'implement',
                     subjectType: 'card',
-                    subjectId: crypto.randomUUID(),
-                    cardNumber: 7,
+                    subjectId: card.id,
+                    cardNumber: card.number,
                     state: 'queued',
                 },
             },

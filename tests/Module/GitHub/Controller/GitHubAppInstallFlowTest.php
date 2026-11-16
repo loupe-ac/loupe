@@ -1333,7 +1333,7 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
         $waits = static::getContainer()->get(InitInstallWaits::class);
         self::assertInstanceOf(InitInstallWaits::class, $waits);
-        $waits->clear($init);
+        $waits->clear($init, (string) $project->id);
         $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/github/init-handoff?repository=acme%2Fone&init='.$init);
         self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
         self::assertSame(['acme/one', 'acme/two'], $this->pathsOf($project));

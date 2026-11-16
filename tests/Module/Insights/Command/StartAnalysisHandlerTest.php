@@ -27,6 +27,7 @@ use App\Module\Workflow\Contract\WorkHolds;
 use App\Module\Workflow\Template\AppRules;
 use App\Outbox\OutboxWriter;
 use App\Tests\Module\Insights\InsightsScenario;
+use App\Tests\Support\NoCardTitles;
 use App\Tests\Support\RecordingAuditor;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Psr\EventDispatcher\EventDispatcherInterface;
@@ -184,7 +185,7 @@ final class StartAnalysisHandlerTest extends KernelTestCase
             $this->service(Auditor::class),
             $this->service(WorkRequestAnnouncer::class),
             $this->service(WorkerRunRepository::class),
-            new WorkSubjectHandlers([]),
+            new WorkSubjectHandlers([], new NoCardTitles()),
             $this->service(WorkHolds::class),
         );
         $handler = new StartAnalysisHandler($this->em(), $blind, $this->service(AnalysisSettings::class), new MockClock(self::NOW), $this->service(Auditor::class), $this->service(ListExperimentsHandler::class), $this->service(AppRules::class), $this->service(ContractsEventDispatcher::class));

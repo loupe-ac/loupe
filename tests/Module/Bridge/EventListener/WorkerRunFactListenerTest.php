@@ -32,6 +32,8 @@ final class WorkerRunFactListenerTest extends KernelTestCase
 {
     use BridgeScenario;
 
+    private string $cardId = '';
+
     private const string SESSION = '5f0c2b1e-8d4a-4c3b-9e2f-1a0b3c4d5e6f';
 
     public function test_a_state_report_that_closes_a_run_writes_its_fact(): void
@@ -107,7 +109,7 @@ final class WorkerRunFactListenerTest extends KernelTestCase
     public function test_a_queued_run_gets_a_fact(): void
     {
         [$owner, $project] = $this->scenario('facts-queued');
-        $cardId = Uuid::v7();
+        $cardId = Uuid::fromString($this->cardId);
 
         $run = $this->report($owner, $project, Uuid::v4(), WorkerRunState::Queued, cardId: $cardId);
 
@@ -178,7 +180,10 @@ final class WorkerRunFactListenerTest extends KernelTestCase
         $em = $this->em();
         $owner = $this->user($em, $name.'@example.com');
 
-        return [$owner, $this->project($em, $owner, 'Project '.substr(md5($name), 0, 8))];
+        $project = $this->project($em, $owner, 'Project '.substr(md5($name), 0, 8));
+        $this->cardId = (string) $this->seedCard($em, $project)->id;
+
+        return [$owner, $project];
     }
 
     private function report(User $owner, Project $project, Uuid $runKey, WorkerRunState $state, ?WorkerRunUsageReport $usage = null, ?Uuid $cardId = null): WorkerRun
@@ -195,7 +200,7 @@ final class WorkerRunFactListenerTest extends KernelTestCase
             bridgeId: Uuid::fromString('0199a0e2-9d4c-7c5e-9f2a-3b1c6d7e8f90'),
             state: $state,
             at: new \DateTimeImmutable('2026-09-23 10:0'.$state->rank().':00'),
-            subject: WorkSubject::card($cardId ?? Uuid::fromString('0199a0e2-b1f3-7a44-9c11-2d3e4f506172')),
+            subject: WorkSubject::card($cardId ?? Uuid::fromString($this->cardId)),
             cardNumber: 1,
             workRequestId: null,
             workKind: 'plan',

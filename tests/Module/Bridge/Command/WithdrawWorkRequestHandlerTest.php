@@ -18,6 +18,7 @@ use App\Outbox\OutboxWriter;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Module\Bridge\WorkSubject\RecordingWorkSubjectHandler;
 use App\Tests\Support\DispatchedEvents;
+use App\Tests\Support\NoCardTitles;
 use App\Tests\Support\RecordingAuditor;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -165,7 +166,7 @@ final class WithdrawWorkRequestHandlerTest extends KernelTestCase
             new MockClock(self::NOW),
             $this->service(Auditor::class),
             $this->service(WorkRequestAnnouncer::class),
-            new WorkSubjectHandlers(null === $subjects ? [] : [$subjects]),
+            new WorkSubjectHandlers(null === $subjects ? [] : [$subjects], new NoCardTitles()),
             $this->service(WorkHolds::class),
         );
     }

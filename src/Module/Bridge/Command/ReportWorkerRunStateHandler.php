@@ -19,6 +19,7 @@ use App\Module\Bridge\Service\WorkerRunSearchIndexer;
 use App\Module\Bridge\Service\WorkerRunUsageRecorder;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Bridge\WorkSubject\WorkSubjectHandlers;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
 use Doctrine\DBAL\LockMode;
@@ -51,6 +52,7 @@ final readonly class ReportWorkerRunStateHandler
         private WorkerRunChangedPublisher $publisher,
         private WorkerRunUsageRecorder $usageRecorder,
         private EventDispatcherInterface $events,
+        private WorkSubjectHandlers $subjects,
     ) {
     }
 
@@ -69,7 +71,14 @@ final readonly class ReportWorkerRunStateHandler
             // Read after the run lock, so a reopening never predates a timeout
             // that the sweep wrote while this report waited.
             $receivedAt = $this->clock->now();
+            $role = null;
             if (null === $run) {
+                // A run takes its subject and request once, so only a new run needs the check.
+                $error = $this->refusal($project, $command);
+                if (null !== $error) {
+                    return [new ReportWorkerRunStateResult(null, newState: false, error: $error), false, false, false];
+                }
+                $role = null === $command->workRequestId ? null : $this->workRequests->findOneOfSubject($command->workRequestId, $project, $command->subject)?->role;
                 $run = new WorkerRun(
                     project: $project,
                     bridgeId: $command->bridgeId,
@@ -86,7 +95,7 @@ final readonly class ReportWorkerRunStateHandler
                     kind: $command->kind,
                     workRequestId: $command->workRequestId,
                     ruleId: $command->ruleId,
-                    role: null === $command->workRequestId ? null : $this->workRequests->find($command->workRequestId)?->role,
+                    role: $role,
                 );
                 $this->em->persist($run);
                 $moves = true;
@@ -152,6 +161,22 @@ final readonly class ReportWorkerRunStateHandler
         }
 
         return $result;
+    }
+
+    /** The error code of a subject or a work request that the project does not hold, else null. */
+    private function refusal(Project $project, ReportWorkerRunStateCommand $command): ?string
+    {
+        if (!$this->subjects->has($command->subject->type)) {
+            return ReportWorkerRunStateResult::UNKNOWN_SUBJECT_TYPE;
+        }
+        if (!$this->subjects->belongsTo($project, $command->subject)) {
+            return ReportWorkerRunStateResult::SUBJECT_NOT_FOUND;
+        }
+        if (null !== $command->workRequestId && null === $this->workRequests->findOneOfSubject($command->workRequestId, $project, $command->subject)) {
+            return ReportWorkerRunStateResult::WORK_REQUEST_NOT_FOUND;
+        }
+
+        return null;
     }
 
     /**

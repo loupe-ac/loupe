@@ -31,6 +31,6 @@ final class DevInitHandoffSeederTest extends TestCase
 
         self::assertTrue($waits->isWaiting(DevInitHandoffSeeder::SESSION_ID, $project));
         self::assertFalse($waits->isWaiting(DevInitHandoffSeeder::SESSION_ID, 'another-project'));
-        self::assertNull($cache->getItem(InitInstallWaits::key(DevInitHandoffSeeder::SESSION_ID))->getMetadata()['expiry'] ?? null);
+        self::assertNull($cache->getItem(InitInstallWaits::key(DevInitHandoffSeeder::SESSION_ID, $project))->getMetadata()['expiry'] ?? null);
     }
 }

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Module\Bridge;
 
 use App\Module\Account\Entity\User;
+use App\Module\Board\Entity\BoardColumn;
+use App\Module\Board\Entity\Card;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\BridgeAccountReading;
 use App\Module\Bridge\Entity\BridgeCommand;
@@ -29,6 +31,9 @@ use App\Module\Bridge\ValueObject\WorkerRunToolCallReport;
 use App\Module\Bridge\ValueObject\WorkerRunUsageSource;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
+use App\Module\Inbox\Entity\InboxAskOrigin;
+use App\Module\Inbox\Entity\InboxItem;
+use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
 use App\Tests\Support\AcceptedTerms;
@@ -72,6 +77,27 @@ trait BridgeScenario
         $em->flush();
 
         return $project;
+    }
+
+    /** A card of the project, so a run report can name a subject that the project holds. */
+    private function seedCard(EntityManagerInterface $em, Project $project, int $number = 1): Card
+    {
+        $column = new BoardColumn($project, 'Implementation '.$number, 'implementation-'.$number, $number);
+        $card = new Card($project, $column, 'Card '.$number, '', $number);
+        $em->persist($column);
+        $em->persist($card);
+        $em->flush();
+
+        return $card;
+    }
+
+    private function seedInboxItem(EntityManagerInterface $em, Project $project): InboxItem
+    {
+        $item = new InboxItem(project: $project, number: 1, kind: InboxItemKind::Notice, title: 'A notice', blocking: false, origin: InboxAskOrigin::Loupe);
+        $em->persist($item);
+        $em->flush();
+
+        return $item;
     }
 
     private function agentToken(KernelBrowser $browser, User $owner): string
