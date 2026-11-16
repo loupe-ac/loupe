@@ -156,7 +156,8 @@ The workflow makes three moves on its own:
    Implementation, the child moves to Implementation, which asks for its
    implementation. The `child-unblocked` rule also waits for the condition
    `card.parent.epic_branch.exists`, which is true when the epic branch exists
-   in the repository that the bridge clones. The `implement` entry then passes
+   in the repository that the bridge clones. The app reads a stored answer for it,
+   which a push or a background check keeps current. The `implement` entry then passes
    the branch to `bridge-before.sh` as `--epic-branch={epicBranch}`, which cuts the
    worker folder from `origin/<branch>`, and names it in the prompt line
    `Epic branch: {epicBranch}.`. An empty value means the card has no epic branch.
