@@ -25,6 +25,7 @@ use App\Module\Board\Workflow\RequestWork;
 use App\Module\Board\Workflow\SetCardValue;
 use App\Module\Board\Workflow\StopWork;
 use App\Module\Bridge\Metric\BuiltInMetricKeys;
+use App\Module\Bridge\Workflow\AccountUsageFacts;
 use App\Module\Bridge\Workflow\Condition\AccountUsage;
 use App\Module\Bridge\Workflow\Condition\RunWorkActive;
 use App\Module\Inbox\Workflow\Condition\CardHasOpenQuestion;
@@ -1172,6 +1173,21 @@ final class TemplateParserTest extends TestCase
             [['account' => 'home/mac/work', 'window' => 'week', 'above' => 100], ['account' => 'mac/work-2', 'window' => '3d', 'above' => 1]],
             array_map(static fn (ConditionLeaf $leaf): array => $leaf->params, $leaves),
         );
+    }
+
+    public function test_a_template_reads_account_usage_in_a_rule_a_marker_or_a_pause_until(): void
+    {
+        $usage = ['bridge.account.usage' => ['account' => 'mac/work', 'window' => 'week', 'above' => 80]];
+        $inRule = self::valid();
+        $inRule['rules'][2]['when'] = ['all' => [['pr.open' => []], ['not' => $usage]]];
+        $inUntil = self::valid();
+        $inUntil['rules'][3]['then']['pause']['until'] = ['any' => [['pr.open' => []], $usage]];
+        $inMarker = self::valid() + ['markers' => [['key' => 'busy', 'kind' => 'chip', 'label' => 'marker.busy', 'when' => $usage]]];
+
+        self::assertFalse($this->parser->parse(self::valid())->readsFacts(AccountUsageFacts::class));
+        self::assertTrue($this->parser->parse($inRule)->readsFacts(AccountUsageFacts::class));
+        self::assertTrue($this->parser->parse($inUntil)->readsFacts(AccountUsageFacts::class));
+        self::assertTrue($this->parser->parse($inMarker)->readsFacts(AccountUsageFacts::class));
     }
 
     public function test_a_document_condition_takes_a_tag_and_an_optional_status(): void
