@@ -6,38 +6,52 @@ namespace App\Tests\Module\Project\Controller;
 
 use App\Mercure\ProjectTopicBuilder;
 use App\Module\Account\Entity\User;
+use App\Module\Inbox\Install\InboxInstallFlags;
 use App\Module\Project\Entity\Project;
+use App\Tests\Module\Board\BoardColumnFixtures;
 use App\Tests\Support\AcceptedTerms;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Contracts\Service\ResetInterface;
+use Ubermuda\FeatureFlagsBundle\Reader\FeatureFlagReaderInterface;
+use Ubermuda\FeatureFlagsBundle\Repository\FeatureFlagRepository;
 
 final class ProjectLiveTopicsTest extends WebTestCase
 {
-    public function test_the_agents_the_documents_list_and_the_workshop_ask_for_the_same_topics(): void
+    use BoardColumnFixtures;
+
+    public function test_the_board_the_agents_the_documents_list_the_inbox_and_the_workshop_ask_for_the_same_topics(): void
     {
         $client = static::createClient();
         [$owner, $id] = $this->ownerWithProject('live-same@example.com');
+        $this->switchInbox(true);
         $client->loginUser($owner);
 
+        $boardTopics = $this->topics($client->request(Request::METHOD_GET, '/projects/'.$id.'/board'));
+        $inboxTopics = $this->topics($client->request(Request::METHOD_GET, '/projects/'.$id.'/inbox'));
         $agentTopics = $this->topics($client->request(Request::METHOD_GET, '/projects/'.$id.'/agents'));
         $documentTopics = $this->topics($client->request(Request::METHOD_GET, '/projects/'.$id.'/documents'));
         $workshopTopics = $this->topics($client->request(Request::METHOD_GET, '/projects/'.$id));
 
         $builder = static::getContainer()->get(ProjectTopicBuilder::class);
         $projectId = Uuid::fromString($id);
-        self::assertContains($builder->forBoard($projectId), $agentTopics);
-        self::assertContains($builder->forDocuments($projectId), $agentTopics);
-        self::assertSame($agentTopics, $documentTopics);
-        self::assertSame($agentTopics, $workshopTopics);
+        self::assertContains($builder->forBoard($projectId), $boardTopics);
+        self::assertContains($builder->forDocuments($projectId), $boardTopics);
+        self::assertContains($builder->forInbox($projectId), $boardTopics);
+        self::assertSame($boardTopics, $inboxTopics);
+        self::assertSame($boardTopics, $agentTopics);
+        self::assertSame($boardTopics, $documentTopics);
+        self::assertSame($boardTopics, $workshopTopics);
     }
 
     public function test_an_account_page_keeps_the_topics_of_the_remembered_project(): void
     {
         $client = static::createClient();
         [$owner, $id] = $this->ownerWithProject('live-account@example.com');
+        $this->switchInbox(true);
         $client->loginUser($owner);
 
         $beforeVisit = $this->topics($client->request(Request::METHOD_GET, '/account/profile'));
@@ -45,8 +59,24 @@ final class ProjectLiveTopicsTest extends WebTestCase
         $afterVisit = $this->topics($client->request(Request::METHOD_GET, '/account/profile'));
 
         $builder = static::getContainer()->get(ProjectTopicBuilder::class);
-        self::assertNotContains($builder->forWorkerRuns(Uuid::fromString($id)), $beforeVisit);
-        self::assertContains($builder->forWorkerRuns(Uuid::fromString($id)), $afterVisit);
+        $projectId = Uuid::fromString($id);
+        foreach ([$builder->forWorkerRuns($projectId), $builder->forInbox($projectId), $builder->forDocuments($projectId)] as $topic) {
+            self::assertNotContains($topic, $beforeVisit);
+            self::assertContains($topic, $afterVisit);
+        }
+    }
+
+    private function switchInbox(bool $enabled): void
+    {
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $flags = static::getContainer()->get(FeatureFlagRepository::class);
+        self::assertInstanceOf(FeatureFlagRepository::class, $flags);
+        $flags->findAllIndexed()[InboxInstallFlags::FLAG_INBOX_ENABLED]->value = $enabled;
+        $em->flush();
+
+        $reader = static::getContainer()->get(FeatureFlagReaderInterface::class);
+        self::assertInstanceOf(ResetInterface::class, $reader);
+        $reader->reset();
     }
 
     /**
@@ -75,6 +105,7 @@ final class ProjectLiveTopicsTest extends WebTestCase
         $em->persist($owner);
         $project = new Project($owner, 'live');
         $em->persist($project);
+        $this->seedColumns($project);
         $em->flush();
         $id = (string) $project->id;
         $em->clear();
