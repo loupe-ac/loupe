@@ -64,9 +64,12 @@ A feature that wants live updates on a page adds three things:
    `DocumentsTopicAuthorizer`, `ArtifactTopicAuthorizer` and `AnalyticsTopicAuthorizer` apply the project view permission to the documents, artifacts and analytics topics of a project.
    `AccountTopicAuthorizer` allows a user only their own account topic.
 2. A call to `{% do mercure_subscribe(topic) %}` in the page template.
-3. A handler in a Stimulus controller, with `on(types, handler, options)` from
-   `assets/lib/live.js`. A handler receives each message whose JSON `type` it
-   names. See [The browser layer](#the-browser-layer).
+3. A region that uses the shared `live-region` controller. Most pages need
+   nothing more, and [Making a region live](#making-a-region-live) describes
+   it. A page with special needs adds a handler in its own Stimulus
+   controller, with `on(types, handler, options)` from `assets/lib/live.js`. A
+   handler receives each message whose JSON `type` it names. See
+   [The browser layer](#the-browser-layer).
 
 The layout asks every authorizer about the requested topics. It writes one
 `mercureAuthorization` cookie that holds the allowed topics, and it renders them
@@ -132,7 +135,7 @@ The four modes:
 | `frame` | A `<turbo-frame refresh="morph">`. Unchanged rows keep their DOM, focus and scroll. | A list or a panel. |
 | `stream` | A Turbo Stream. | One band, one comment thread or one status chip. |
 | `rows` | Turbo Streams for page 2 and later of a list. The read sends the ids of the shown rows and the cursor of the page. | A paginated list. A row that no longer matches fades out. |
-| `band` | No read. The region shows a band, with a link that opens the subject in a new tab, so typed input stays. | An edit form whose subject another actor can change. |
+| `band` | No read on a signal. The region shows a band at once, with a link that opens the subject in a new tab, so typed input stays. After a reconnect, it reads its `url` and compares the answer with `data-live-fingerprint`. | An edit form whose subject another actor can change. |
 
 Three rules hold for every region. Never morph the text of a document, the
 prototype frame of an artifact, or a form with typed text. A list keeps its
@@ -141,7 +144,10 @@ that loads new content is a plain link.
 
 The region retries a network error, a 5xx, a 408 or a 429 after 1, 3 and 9
 seconds. Then it shows a "stopped" band, and the page needs a reload. A region
-also reads again after each reconnect, because the hub keeps no history.
+also reads again after each reconnect, because the hub keeps no history. A band
+region reads its `url` then, and shows the band when the answer differs from
+`data-live-fingerprint`. A band region that has no `url` shows the band after
+every reconnect.
 
 The wait, hold and retry logic lives in `assets/lib/live_fetch.js`. A page with
 special needs calls it from its own controller, and never copies it.
