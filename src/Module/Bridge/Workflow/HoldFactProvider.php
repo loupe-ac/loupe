@@ -25,6 +25,14 @@ final readonly class HoldFactProvider implements FactProvider
     }
 
     #[\Override]
+    public function sourceTables(): array
+    {
+        return [
+            'bridge_card_holds',
+        ];
+    }
+
+    #[\Override]
     public function isOn(): bool
     {
         return true;

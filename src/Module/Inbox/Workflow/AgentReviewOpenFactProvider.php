@@ -30,6 +30,23 @@ final readonly class AgentReviewOpenFactProvider implements FactProvider
     }
 
     #[\Override]
+    public function sourceTables(): array
+    {
+        return [
+            'board_card_documents',
+            'board_cards',
+            'board_columns',
+            'document_tags',
+            'document_versions',
+            'documents',
+            'feature_flag',
+            'inbox_items',
+            'inbox_reviews',
+            'tags',
+        ];
+    }
+
+    #[\Override]
     public function isOn(): bool
     {
         return true;

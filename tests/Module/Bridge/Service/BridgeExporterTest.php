@@ -51,6 +51,7 @@ final class BridgeExporterTest extends TestCase
         $bridge->capabilities = ['commands'];
         $bridge->workKinds = ['fix', 'tech-design'];
         $bridge->narrowedAt = new \DateTimeImmutable('2026-09-14T15:20:00+00:00');
+        $bridge->cameBackAt = new \DateTimeImmutable('2026-09-14T15:10:00+00:00');
         $bridge->name = 'laptop';
         $bridge->requestedName = 'laptop';
         $gitIdentity = ['projectId' => $projectId, 'mode' => 'machine', 'commitName' => 'Riley', 'pushLogin' => 'riley-dev', 'githubUserId' => 42];
@@ -64,6 +65,7 @@ final class BridgeExporterTest extends TestCase
             'projects' => [$projectId],
             'cliVersion' => 'b4e39aa7 (dirty)',
             'lastSeenAt' => '2026-09-14T16:00:00+00:00',
+            'cameBackAt' => '2026-09-14T15:10:00+00:00',
             'updateState' => 'rolled-back',
             'updateVersion' => '1.3.0',
             'installMethod' => 'homebrew',

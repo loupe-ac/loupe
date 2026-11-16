@@ -73,6 +73,12 @@ final class ProvidedFactsProvider implements FactProvider
     }
 
     #[\Override]
+    public function sourceTables(): array
+    {
+        return ['board_cards'];
+    }
+
+    #[\Override]
     public function source(): string
     {
         if (null !== $this->sourceFailure) {

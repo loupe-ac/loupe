@@ -15,6 +15,14 @@ final readonly class CardTypeFactProvider extends BoardFactProvider
     }
 
     #[\Override]
+    public function sourceTables(): array
+    {
+        return [
+            'board_cards',
+        ];
+    }
+
+    #[\Override]
     public function legacyGroup(): string
     {
         return 'card-type';

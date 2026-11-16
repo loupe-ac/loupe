@@ -27,6 +27,16 @@ final readonly class RunStoppedFactProvider implements FactProvider
     }
 
     #[\Override]
+    public function sourceTables(): array
+    {
+        return [
+            'board_card_events',
+            'bridge_worker_run_states',
+            'bridge_worker_runs',
+        ];
+    }
+
+    #[\Override]
     public function isOn(): bool
     {
         return true;

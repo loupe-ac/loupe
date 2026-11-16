@@ -22,6 +22,14 @@ final readonly class SessionFactProvider implements FactProvider
     }
 
     #[\Override]
+    public function sourceTables(): array
+    {
+        return [
+            'bridge_worker_runs',
+        ];
+    }
+
+    #[\Override]
     public function isOn(): bool
     {
         return true;

@@ -192,6 +192,7 @@ final readonly class Engine
     {
         // Advisory, because an outbox insert takes a key-share lock on the project row,
         // and a FOR UPDATE on that row would deadlock against a claim or a settle.
+        $this->workflowRuleStates->declareCheck($cardId);
         $this->workflowRuleStates->lockCard($cardId);
         $card = $this->cards->find($cardId);
         $project = null === $card ? null : $this->projects->find($card->projectId);

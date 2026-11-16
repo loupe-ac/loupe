@@ -33,6 +33,20 @@ final readonly class SiteReviewFactProvider implements FactProvider
     }
 
     #[\Override]
+    public function sourceTables(): array
+    {
+        return [
+            'board_card_pull_requests',
+            'board_card_verdict_deliveries',
+            'board_card_verdicts',
+            'board_cards',
+            'board_site_review_check_states',
+            'forge_pull_requests',
+            'site_review_comments',
+        ];
+    }
+
+    #[\Override]
     public function isOn(): bool
     {
         return true;

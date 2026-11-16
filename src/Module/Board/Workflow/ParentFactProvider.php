@@ -15,6 +15,14 @@ final readonly class ParentFactProvider extends BoardFactProvider
     }
 
     #[\Override]
+    public function sourceTables(): array
+    {
+        return [
+            'board_cards',
+        ];
+    }
+
+    #[\Override]
     public function legacyGroup(): string
     {
         return 'parent';

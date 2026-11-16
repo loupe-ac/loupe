@@ -19,6 +19,18 @@ class WorkflowRuleStateRepository extends ServiceEntityRepository
         parent::__construct($registry, WorkflowRuleState::class);
     }
 
+    /**
+     * Tells the change triggers which card the transaction checks, until it ends. They skip the rule states and
+     * the pending baselines of that card, which the check writes itself.
+     */
+    public function declareCheck(Uuid $cardId): void
+    {
+        $this->getEntityManager()->getConnection()->executeStatement(
+            "SELECT set_config('app.workflow_checking_card', ?, true)",
+            [$cardId->toRfc4122()],
+        );
+    }
+
     /** Serialises the evaluations of one card until the transaction ends. */
     public function lockCard(Uuid $cardId): void
     {

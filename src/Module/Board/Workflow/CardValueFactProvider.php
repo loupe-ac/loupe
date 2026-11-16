@@ -25,6 +25,16 @@ final readonly class CardValueFactProvider extends BoardFactProvider
     }
 
     #[\Override]
+    public function sourceTables(): array
+    {
+        return [
+            'board_card_values',
+            'board_cards',
+            'workflow_bindings',
+        ];
+    }
+
+    #[\Override]
     public function legacyGroup(): string
     {
         return 'card-value';

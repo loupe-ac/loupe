@@ -27,6 +27,26 @@ final readonly class EpicBranchExistsFactProvider extends BoardFactProvider
     }
 
     #[\Override]
+    public function sourceTables(): array
+    {
+        return [
+            'board_cards',
+            'bridge_account_readings',
+            'bridge_account_try_now',
+            'bridge_claim_refusals',
+            'bridges',
+            'feature_flag',
+            'forge_repositories',
+            'github_installations',
+            'oauth2_refresh_token',
+            'oauth_refresh_token_login',
+            'projects',
+            'workflow_bindings',
+            'workflow_setting_overrides',
+        ];
+    }
+
+    #[\Override]
     public function legacyGroup(): string
     {
         return 'epic-branch-exists';

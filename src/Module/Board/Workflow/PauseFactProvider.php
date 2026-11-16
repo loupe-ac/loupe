@@ -24,6 +24,15 @@ final readonly class PauseFactProvider implements FactProvider
     }
 
     #[\Override]
+    public function sourceTables(): array
+    {
+        return [
+            'board_cards',
+            'card_pauses',
+        ];
+    }
+
+    #[\Override]
     public function isOn(): bool
     {
         return true;

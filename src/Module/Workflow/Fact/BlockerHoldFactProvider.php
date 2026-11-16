@@ -23,6 +23,17 @@ final readonly class BlockerHoldFactProvider implements FactProvider
     }
 
     #[\Override]
+    public function sourceTables(): array
+    {
+        return [
+            'board_card_links',
+            'board_cards',
+            'board_columns',
+            'workflow_rule_states',
+        ];
+    }
+
+    #[\Override]
     public function isOn(): bool
     {
         return true;

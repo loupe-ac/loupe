@@ -122,6 +122,9 @@ final readonly class RecordBridgeHeartbeatHandler
                 $bridge->projects = $projects;
                 $bridge->cliVersion = $command->cliVersion;
                 $bridge->lastSeenAt = $now;
+                if ($wasQuiet) {
+                    $bridge->cameBackAt = $now;
+                }
                 if (null !== $command->hooks) {
                     $bridge->hooks = $command->hooks;
                 }

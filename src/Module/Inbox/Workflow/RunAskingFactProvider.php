@@ -25,6 +25,16 @@ final readonly class RunAskingFactProvider implements FactProvider
     }
 
     #[\Override]
+    public function sourceTables(): array
+    {
+        return [
+            'bridge_worker_runs',
+            'feature_flag',
+            'inbox_asks',
+        ];
+    }
+
+    #[\Override]
     public function isOn(): bool
     {
         return true;

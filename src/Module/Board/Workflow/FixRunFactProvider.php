@@ -25,6 +25,17 @@ final readonly class FixRunFactProvider implements FactProvider
     }
 
     #[\Override]
+    public function sourceTables(): array
+    {
+        return [
+            'board_card_pull_requests',
+            'board_cards',
+            'board_pull_request_comments',
+            'bridge_worker_runs',
+        ];
+    }
+
+    #[\Override]
     public function isOn(): bool
     {
         return true;

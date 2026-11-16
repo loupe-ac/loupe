@@ -16,6 +16,14 @@ final readonly class SessionArrivalFactProvider implements FactProvider
     }
 
     #[\Override]
+    public function sourceTables(): array
+    {
+        return [
+            'board_cards',
+        ];
+    }
+
+    #[\Override]
     public function isOn(): bool
     {
         return true;

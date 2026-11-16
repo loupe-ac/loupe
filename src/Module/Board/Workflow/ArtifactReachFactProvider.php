@@ -21,6 +21,15 @@ final readonly class ArtifactReachFactProvider extends BoardFactProvider
     }
 
     #[\Override]
+    public function sourceTables(): array
+    {
+        return [
+            'board_card_artifacts',
+            'board_cards',
+        ];
+    }
+
+    #[\Override]
     public function legacyGroup(): string
     {
         return 'artifact-reach';
