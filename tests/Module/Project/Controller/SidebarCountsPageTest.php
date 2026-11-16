@@ -42,6 +42,21 @@ final class SidebarCountsPageTest extends WebTestCase
         self::assertCount(1, $crawler->filter('.lp-sidebar [data-controller~="tab-count"]'));
     }
 
+    public function test_the_stopped_notice_has_a_visible_status_line_in_the_sidebar(): void
+    {
+        $owner = $this->signedUpUser($this->em, 'page-status');
+        $project = $this->inboxProject($this->em, $owner);
+
+        $this->client->loginUser($owner);
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/documents');
+
+        $host = $crawler->filter('.lp-sidebar [data-controller="sidebar-counts"]');
+        self::assertCount(1, $host);
+        self::assertNull($host->attr('hidden'));
+        self::assertCount(1, $host->filter('p[role="status"][data-sidebar-counts-target="status"]'));
+        self::assertNotSame('', (string) $host->attr('data-sidebar-counts-stopped-value'));
+    }
+
     public function test_a_quiet_project_answers_the_first_open_check_with_no_content(): void
     {
         $owner = $this->signedUpUser($this->em, 'page-quiet');

@@ -67,11 +67,13 @@
                 <nav class="lp-sidebar__nav">
                     {# Read before any count below, so a change during the render makes the first check reload. #}
                     {% set countVersions = sidebar_count_versions(project) %}
-                    <div hidden data-controller="sidebar-counts"
+                    <div data-controller="sidebar-counts"
                          data-sidebar-counts-project-value="{{ project.id }}"
                          data-sidebar-counts-url-value="{{ path('app_project_sidebar_counts', {id: project.id}) }}"
                          data-sidebar-counts-since-value="{{ countVersions.agents }}.{{ countVersions.inbox }}"
-                         data-sidebar-counts-stopped-value="{{ 'notification.live_stopped'|trans }}"></div>
+                         data-sidebar-counts-stopped-value="{{ 'notification.live_stopped'|trans }}">
+                        <p class="lp-sidebar__live-status" role="status" data-sidebar-counts-target="status"></p>
+                    </div>
                     <span class="lp-sidebar__nav-label">{{ 'nav.group.workspace'|trans }}</span>
                     <twig:Ds:NavItem :url="path('app_project_workshop', {id: project.id})" icon="lucide:layout-dashboard" :label="'nav.link.workshop'|trans" :active="route == 'app_project_workshop'" />
                     {% if is_feature_enabled('inbox.enabled') %}
