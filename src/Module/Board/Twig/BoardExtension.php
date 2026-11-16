@@ -112,7 +112,7 @@ final class BoardExtension extends AbstractExtension
             ->createNamed(
                 MoveCardFormType::nameFor($card),
                 MoveCardFormType::class,
-                new MoveCardRequest($card->column),
+                new MoveCardRequest($card->column, origin: MoveCardRequest::ORIGIN_CARD_PAGE),
                 ['project' => $card->project],
             )
             ->createView();

@@ -9,6 +9,8 @@ use Symfony\Component\Validator\Constraints as Assert;
 
 class MoveCardRequest
 {
+    public const string ORIGIN_CARD_PAGE = 'card';
+
     public function __construct(
         #[Assert\NotNull]
         public ?BoardColumn $column = null,
@@ -24,6 +26,10 @@ class MoveCardRequest
         public ?string $afterCardId = null,
         /** Hold the card first, so a managed card may go where its workflow does not move it. */
         public bool $unmanage = false,
+
+        /** `card` when the full card page sent the move, which it answers with its own status field. */
+        #[Assert\Choice(choices: [self::ORIGIN_CARD_PAGE])]
+        public ?string $origin = null,
     ) {
     }
 }

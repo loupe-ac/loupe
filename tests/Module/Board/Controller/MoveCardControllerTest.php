@@ -146,6 +146,101 @@ final class MoveCardControllerTest extends WebTestCase
         self::assertNotNull($moved->completedAt);
     }
 
+    public function test_a_move_from_the_card_page_answers_with_its_status_field(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+
+        $owner = $this->user($em, 'move-card-page@example.com');
+        $project = $this->project($em, $owner);
+        $card = $this->card($em, $project, 'Moving here', 'backlog', 0);
+        $cardId = $card->id;
+        $nextId = (string) $this->column($project, 'next')->id;
+        $em->clear();
+
+        $client->loginUser($owner);
+        $this->move($client, $card, 'next', null, stream: true, origin: 'card');
+
+        self::assertResponseIsSuccessful();
+        $body = (string) $client->getResponse()->getContent();
+        self::assertSame(1, substr_count($body, '<turbo-stream'));
+        self::assertStringContainsString('action="replace" target="card-move-'.$cardId.'"', $body);
+        self::assertStringNotContainsString('board-place', $body);
+        self::assertMatchesRegularExpression('/<option value="'.$nextId.'"[^>]*selected/', $body);
+        $em->clear();
+        $moved = $em->find(Card::class, $cardId);
+        self::assertInstanceOf(Card::class, $moved);
+        self::assertSame('next', $moved->column->slug);
+    }
+
+    public function test_a_refused_move_from_the_card_page_shows_the_message_under_the_select(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+
+        $owner = $this->user($em, 'move-card-page-refused@example.com');
+        $project = $this->project($em, $owner);
+        $other = $this->project($em, $owner, 'other-board');
+        $card = $this->card($em, $project, 'Stays put');
+        $cardId = $card->id;
+        $backlogId = (string) $this->column($project, 'backlog')->id;
+        $foreign = (string) $this->column($other, 'next')->id;
+        $em->clear();
+
+        $client->loginUser($owner);
+        $this->move($client, $card, 'next', null, stream: true, columnId: $foreign, origin: 'card');
+
+        self::assertResponseStatusCodeSame(422);
+        $body = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('target="card-move-'.$cardId.'"', $body);
+        self::assertStringContainsString('lp-flash', $body);
+        self::assertMatchesRegularExpression('/<option value="'.$backlogId.'"[^>]*selected/', $body);
+        self::assertNull($client->getResponse()->headers->get('X-Card-Managed-Offer'));
+    }
+
+    public function test_an_epic_refused_from_the_card_page_names_its_open_children(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+
+        $owner = $this->user($em, 'move-card-page-epic@example.com');
+        $project = $this->project($em, $owner);
+        $epic = $this->typed($em, $this->card($em, $project, 'The epic', 'in-progress'), 'epic');
+        $child = $this->card($em, $project, 'Open child', 'next');
+        $child->parent = $epic;
+        $em->flush();
+        $number = $child->number;
+        $em->clear();
+
+        $client->loginUser($owner);
+        $this->move($client, $epic, 'done', null, stream: true, origin: 'card');
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertStringContainsString(\sprintf('Move #%d to a done column first.', $number), (string) $client->getResponse()->getContent());
+    }
+
+    public function test_a_stale_move_from_the_card_page_shows_the_rejection(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+
+        $owner = $this->user($em, 'move-card-page-stale@example.com');
+        $project = $this->project($em, $owner);
+        $card = $this->card($em, $project, 'Stale');
+        $url = '/projects/'.$project->id.'/board/cards/'.$card->id.'/move';
+        $name = MoveCardFormType::nameFor($card);
+        $em->clear();
+
+        $client->loginUser($owner);
+        $client->request(Request::METHOD_POST, $url, [$name => ['column' => 'not-a-column', 'origin' => 'card', '_token' => 'csrf-token']], [], [
+            'HTTP_REFERER' => 'http://localhost'.$url,
+            'HTTP_ACCEPT' => TurboBundle::STREAM_MEDIA_TYPE,
+        ]);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertStringContainsString('lp-flash', (string) $client->getResponse()->getContent());
+    }
+
     public function test_a_drag_is_published_as_a_human_action(): void
     {
         $client = static::createClient();
@@ -418,6 +513,7 @@ final class MoveCardControllerTest extends WebTestCase
         ?string $parent = null,
         ?string $before = null,
         ?string $after = null,
+        ?string $origin = null,
     ): void {
         $name = MoveCardFormType::nameFor($card);
         $url = '/projects/'.$card->project->id.'/board/cards/'.$card->id.'/move';
@@ -440,6 +536,7 @@ final class MoveCardControllerTest extends WebTestCase
                 ...(null === $parent ? [] : ['parent' => $parent]),
                 ...(null === $before ? [] : ['beforeCardId' => $before]),
                 ...(null === $after ? [] : ['afterCardId' => $after]),
+                ...(null === $origin ? [] : ['origin' => $origin]),
             ]],
             [],
             $server,
