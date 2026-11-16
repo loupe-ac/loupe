@@ -15,6 +15,7 @@ use Symfony\Component\Messenger\Event\AbstractWorkerMessageEvent;
 use Symfony\Component\Messenger\Event\WorkerMessageFailedEvent;
 use Symfony\Component\Messenger\Event\WorkerMessageHandledEvent;
 use Symfony\Component\Messenger\Event\WorkerMessageReceivedEvent;
+use Symfony\Component\Scheduler\Messenger\ServiceCallMessage;
 
 /**
  * The bundle's MessengerListener runs at priority 50, captures a failure and
@@ -24,8 +25,6 @@ use Symfony\Component\Messenger\Event\WorkerMessageReceivedEvent;
  */
 final class MessageTracingSubscriber implements EventSubscriberInterface
 {
-    private const string SCHEDULER_TRANSPORT = 'scheduler_default';
-
     private ?Transaction $transaction = null;
 
     private ?object $message = null;
@@ -55,15 +54,11 @@ final class MessageTracingSubscriber implements EventSubscriberInterface
         $this->transaction?->finish();
         $this->restore();
 
-        if (self::SCHEDULER_TRANSPORT === $event->getReceiverName()) {
-            return;
-        }
-
         $message = $event->getEnvelope()->getMessage();
         $context = TransactionContext::make()
             ->setOp('queue.process')
             ->setOrigin('auto.queue')
-            ->setName($message::class)
+            ->setName($this->nameOf($message))
             ->setSource(TransactionSource::task())
             ->setTags(['messenger.receiver_name' => $event->getReceiverName()]);
 
@@ -93,6 +88,15 @@ final class MessageTracingSubscriber implements EventSubscriberInterface
         if ($this->owns($event)) {
             $this->restore();
         }
+    }
+
+    private function nameOf(object $message): string
+    {
+        if ($message instanceof ServiceCallMessage) {
+            return $message->getServiceId().'::'.$message->getMethod();
+        }
+
+        return $message::class;
     }
 
     private function owns(AbstractWorkerMessageEvent $event): bool
