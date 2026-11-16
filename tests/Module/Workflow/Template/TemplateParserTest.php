@@ -1190,6 +1190,21 @@ final class TemplateParserTest extends TestCase
         self::assertTrue($this->parser->parse($inMarker)->readsFacts(AccountUsageFacts::class));
     }
 
+    public function test_a_template_reads_account_usage_in_a_request_refill_or_cancel_when(): void
+    {
+        $usage = ['bridge.account.usage' => ['account' => 'mac/work', 'window' => 'week', 'above' => 80]];
+        $inRefill = self::valid();
+        $inRefill['rules'][0]['then']['request']['refill'] = ['any' => [['pr.open' => []], $usage]];
+        $inCancelWhen = self::valid();
+        $inCancelWhen['rules'][0]['then']['request']['cancelWhen'] = ['any' => [['pr.open' => []], $usage]];
+        $unrelated = self::valid();
+        $unrelated['rules'][0]['then']['request']['cancelWhen'] = ['pr.open' => []];
+
+        self::assertTrue($this->parser->parse($inRefill)->readsFacts(AccountUsageFacts::class));
+        self::assertTrue($this->parser->parse($inCancelWhen)->readsFacts(AccountUsageFacts::class));
+        self::assertFalse($this->parser->parse($unrelated)->readsFacts(AccountUsageFacts::class));
+    }
+
     public function test_a_document_condition_takes_a_tag_and_an_optional_status(): void
     {
         $template = self::valid();
