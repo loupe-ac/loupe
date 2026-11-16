@@ -7,15 +7,18 @@ namespace App\Tests\Module\GitHub\Controller;
 use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Forge\Entity\ForgeRepositorySource;
 use App\Module\Forge\Entity\PullRequestReview;
+use App\Module\Forge\Event\ForgeBranchDeleted;
 use App\Module\Forge\Event\ForgeBranchPushed;
 use App\Module\Forge\Event\ForgePullRequestBranchChanged;
 use App\Module\Forge\EventListener\RateLimitForgeDeliveries;
+use App\Module\Forge\Service\ForgeBranchPresence;
 use App\Module\GitHub\Entity\GitHubInstallation;
 use App\Module\GitHub\Entity\GitHubRepositorySelection;
 use App\Module\GitHub\Repository\GitHubInstallationRepository;
 use App\Tests\Support\RecordedEvents;
 use App\Tests\Support\RecordingAuditor;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\Cache\Adapter\AdapterInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\RouterInterface;
@@ -201,7 +204,7 @@ final class ReceiveAppDeliveryControllerTest extends WebTestCase
         self::assertSame([[$onMain, true]], $this->queuedRefreshes());
     }
 
-    public function test_a_push_of_a_branch_announces_it_and_a_tag_or_a_deleted_branch_announces_nothing(): void
+    public function test_a_push_of_a_branch_announces_it_and_a_tag_announces_nothing_and_a_deleted_branch_announces_a_deletion(): void
     {
         $client = static::createClient();
         $client->disableReboot();
@@ -212,6 +215,7 @@ final class ReceiveAppDeliveryControllerTest extends WebTestCase
         $dispatcher = static::getContainer()->get('event_dispatcher');
         self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
         $dispatcher->addListener(ForgeBranchPushed::class, $announced);
+        $dispatcher->addListener(ForgeBranchDeleted::class, $announced);
         $payload = ['installation' => ['id' => 9_000_622], 'repository' => ['id' => 622, 'full_name' => 'acme/t']];
 
         $this->deliver($client, self::PATH, 'push', ['ref' => 'refs/heads/epic/852'] + $payload, self::SECRET);
@@ -222,6 +226,34 @@ final class ReceiveAppDeliveryControllerTest extends WebTestCase
         self::assertCount(1, $pushed);
         self::assertSame(['github', 'acme/t', 'epic/852'], [$pushed[0]->forge, $pushed[0]->repository, $pushed[0]->branch]);
         self::assertEquals($project->id, $pushed[0]->projectId);
+
+        $deleted = $announced->of(ForgeBranchDeleted::class);
+        self::assertCount(1, $deleted);
+        self::assertSame(['github', 'acme/t', 'epic/853'], [$deleted[0]->forge, $deleted[0]->repository, $deleted[0]->branch]);
+        self::assertEquals($project->id, $deleted[0]->projectId);
+    }
+
+    public function test_a_suspension_and_its_end_each_void_the_stored_branch_answers_of_the_installation(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $project = $this->project('suspend-marks');
+        $this->installation(9_000_626, GitHubRepositorySelection::All);
+        $this->owned($project, 626, 'acme/m', ForgeRepositorySource::Installation, 9_000_626);
+        $presence = self::getContainer()->get(ForgeBranchPresence::class);
+        self::assertInstanceOf(ForgeBranchPresence::class, $presence);
+        $row = $this->installationOwnerOf(626) ?? throw new \LogicException('The row is missing.');
+        $installation = ['installation' => ['id' => 9_000_626]];
+
+        foreach (['suspend', 'unsuspend'] as $action) {
+            $presence->record($row, 'epic/1', true, new \DateTimeImmutable());
+            self::assertTrue($presence->read($row, 'epic/1'));
+            usleep(2000);
+
+            $this->deliver($client, self::PATH, 'installation', ['action' => $action, ...$installation], self::SECRET);
+
+            self::assertNull($presence->read($row, 'epic/1'), 'The '.$action.' delivery voids the answer.');
+        }
     }
 
     public function test_a_pull_request_delivery_announces_its_head_branch_to_the_project_that_owns_the_repository(): void
@@ -377,6 +409,22 @@ final class ReceiveAppDeliveryControllerTest extends WebTestCase
         self::assertNull($this->storedInstallation(9_000_609)->suspendedAt);
         $this->deliver($client, self::PATH, 'pull_request', $this->merged(609, 'acme/h', 3, $installation), self::SECRET);
         self::assertSame([[$tracked, false]], $this->queuedRefreshes());
+    }
+
+    public function test_an_installation_event_clears_the_cached_installation_list(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $this->installation(9_000_620, GitHubRepositorySelection::All);
+        $cache = static::getContainer()->get('cache.app');
+        self::assertInstanceOf(AdapterInterface::class, $cache);
+        $item = $cache->getItem('github_app_installation_list');
+        $cache->save($item->set([]));
+        self::assertTrue($cache->hasItem('github_app_installation_list'));
+
+        $this->deliver($client, self::PATH, 'installation', ['action' => 'new_permissions_accepted', 'installation' => ['id' => 9_000_620]], self::SECRET);
+
+        self::assertFalse($cache->hasItem('github_app_installation_list'));
     }
 
     public function test_a_deleted_installation_keeps_its_rows_as_no_access(): void
