@@ -6,10 +6,9 @@ namespace App\Module\Workflow\EventListener;
 
 use App\Module\Project\Event\ProjectDeleting;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 
-/** Bulk-deletes the rule states, the pending baselines, the slot links, then the setting rows, then the binding, then the change marks, of a project inside ProjectDeleter's transaction. */
+/** Bulk-deletes the rule states, the pending baselines, the slot links, then the setting rows, then the binding, of a project inside ProjectDeleter's transaction. */
 #[AsEventListener]
 final readonly class DeleteWorkflowDataOnProjectDeleting
 {
@@ -43,15 +42,5 @@ final readonly class DeleteWorkflowDataOnProjectDeleting
         $this->em->createQuery(
             'DELETE App\Module\Workflow\Entity\WorkflowBinding b WHERE b.project = :project',
         )->setParameter('project', $event->project)->execute();
-
-        // Last, because the deletes above write marks.
-        $this->em->createQuery(
-            'DELETE App\Module\Workflow\Entity\WorkflowProjectChange c WHERE c.projectId = :projectId',
-        )->setParameter('projectId', $event->project->requireId(), UuidType::NAME)->execute();
-
-        $this->em->getConnection()->executeStatement(
-            'DELETE FROM workflow_card_changes WHERE card_id IN (SELECT id FROM board_cards WHERE project_id = :project)',
-            ['project' => $event->project->requireId()->toRfc4122()],
-        );
     }
 }
