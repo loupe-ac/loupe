@@ -80,6 +80,46 @@ final class RequestTimelineListenerTest extends TestCase
         self::assertGreaterThan(100.25, $recorded[0]->end);
     }
 
+    public function test_it_records_the_queue_wait_from_the_proxy_start_time(): void
+    {
+        $timeline = new RequestTimeline($this->hubWith(null));
+        $event = $this->event(HttpKernelInterface::MAIN_REQUEST);
+        $event->getRequest()->server->set('REQUEST_TIME_FLOAT', 100.5);
+        $event->getRequest()->server->set('REQUEST_START', '100.25');
+
+        $this->listener($timeline, null)->recordBoot($event);
+
+        $recorded = $timeline->drain();
+        self::assertCount(2, $recorded);
+        self::assertSame('http.queue', $recorded[0]->op);
+        self::assertSame(100.25, $recorded[0]->start);
+        self::assertSame(100.5, $recorded[0]->end);
+        self::assertSame('app.boot', $recorded[1]->op);
+    }
+
+    public function test_it_records_no_queue_wait_without_a_proxy_start_time(): void
+    {
+        $timeline = new RequestTimeline($this->hubWith(null));
+        $event = $this->event(HttpKernelInterface::MAIN_REQUEST);
+        $event->getRequest()->server->set('REQUEST_TIME_FLOAT', 100.5);
+
+        $this->listener($timeline, null)->recordBoot($event);
+
+        self::assertSame(['app.boot'], array_map(static fn (RecordedSpan $span): string => $span->op, $timeline->drain()));
+    }
+
+    public function test_it_records_no_queue_wait_when_the_start_time_is_not_before_the_request(): void
+    {
+        $timeline = new RequestTimeline($this->hubWith(null));
+        $event = $this->event(HttpKernelInterface::MAIN_REQUEST);
+        $event->getRequest()->server->set('REQUEST_TIME_FLOAT', 100.5);
+        $event->getRequest()->server->set('REQUEST_START', '100.75');
+
+        $this->listener($timeline, null)->recordBoot($event);
+
+        self::assertSame(['app.boot'], array_map(static fn (RecordedSpan $span): string => $span->op, $timeline->drain()));
+    }
+
     public function test_it_records_no_boot_on_a_sub_request(): void
     {
         $timeline = new RequestTimeline($this->hubWith(null));

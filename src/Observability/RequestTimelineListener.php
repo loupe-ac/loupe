@@ -31,6 +31,11 @@ final readonly class RequestTimelineListener
             return;
         }
 
+        $queueStart = $event->getRequest()->server->get('REQUEST_START');
+        if (is_numeric($queueStart) && (float) $queueStart < (float) $requestTime) {
+            $this->timeline->record('http.queue', (float) $queueStart, (float) $requestTime);
+        }
+
         $this->timeline->record('app.boot', (float) $requestTime, microtime(true));
     }
 

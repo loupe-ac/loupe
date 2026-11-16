@@ -125,6 +125,41 @@ nothing unscrubbed.
 The *Sentry in the browser* row on `/admin/status` reports a malformed
 `SENTRY_BROWSER_DSN` as a failure, in the same way as the *Sentry* row.
 
+## Spans that show waiting and after-response work
+
+A traced web request carries these spans, besides the Doctrine queries and
+outbound HTTP calls:
+
+| Operation | Covers |
+|---|---|
+| `http.queue` | The time from the moment nginx received the request to the moment a PHP-FPM process took it. A long span means every process was busy. The production image passes the receive time to PHP, and a request with no such time, such as one in development, has no span. |
+| `app.boot` | The time from the start of the PHP process request to the first listener. |
+| `outbox.drain` | The publish of the outbox rows that the request wrote. It runs after the response, so the person does not wait for it, but the PHP process stays busy. |
+| `live.publish` | The live update publish to the Mercure hub, after the response. |
+
+`outbox.drain` and `live.publish` run after the response is sent but before the
+transaction ends, so the duration of a request that changes state is longer
+than the wait of the person. Subtract these two spans to get the wait.
+
+A traced browser interaction, such as a Turbo visit or a form submit, also
+forces a full server trace of its request, whatever `SENTRY_TRACES_SAMPLE_RATE`
+says. While `SENTRY_BROWSER_TRACES_SAMPLE_RATE` is `1.0`, each visit and submit
+therefore adds a browser trace and a server trace. Read the span usage in
+Sentry Stats after you turn the browser SDK on, and lower the browser rate when
+the month projects over your quota.
+
+## Profiles
+
+Sentry drops a profile with fewer than 2 samples. The SDK writes the reason to
+the `sentry` log channel at the `warning` level, such as "The profile does not
+contain enough samples". The production image sends this channel to stderr,
+whatever the level of the rest of the log.
+
+The *Sentry* row on `/admin/status`, and `bin/console health-check:status`, run
+the profiler for 50 ms when profiles are sampled and Excimer is loaded. They
+warn when it collects fewer than 2 samples. A kernel that stops the profiler
+timer, such as some sandboxed kernels, gives this result.
+
 ## What Sentry receives
 
 - A trace for each sampled web request, with a span for each Doctrine query and
@@ -137,7 +172,8 @@ The *Sentry in the browser* row on `/admin/status` reports a malformed
 - A profile for each profiled trace, when the Excimer PHP extension is loaded.
   The production image ships Excimer. The development image does not, so a
   local instance with a DSN sends traces and no profiles. `/admin/status`
-  warns when profiles are sampled and Excimer is missing.
+  warns when profiles are sampled and Excimer is missing, or collects too few
+  samples. [Profiles](#profiles) says more.
 - Each unhandled exception from a web request, a worker message or a console
   command, except a 404 or 405 response. An access denial on a web request
   with no signed-in user is also left out, because Loupe answers it with a
