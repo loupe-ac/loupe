@@ -58,6 +58,7 @@ final class ShowBoardControllerTest extends WebTestCase
         self::assertCount(3, $crawler->filter('.lp-board__column [data-board-drag-target="group"]'));
         self::assertCount(0, $crawler->filter('[data-priority], [data-card-priority]'));
         self::assertCount(1, $crawler->filter('[data-board-drag-target="card"]'));
+        self::assertCount(1, $crawler->filter('[data-board-live-card]'));
         self::assertCount(1, $crawler->filter('dialog[data-card-drawer-target="dialog"] turbo-frame#card-drawer-frame'));
         self::assertCount(1, $crawler->filter('.lp-board-card a[data-turbo-frame="card-drawer-frame"][data-action="click->card-drawer#prepare"]'));
         self::assertCount(3, $crawler->filter('a.lp-board__add-card[data-turbo-frame="card-drawer-frame"][data-action="click->card-drawer#prepare"]'));
@@ -495,6 +496,23 @@ final class ShowBoardControllerTest extends WebTestCase
         $tooltip = $crawler->filter('.lp-tooltip[role="tooltip"]#'.$marker->attr('aria-describedby'));
         self::assertCount(1, $tooltip);
         self::assertSame($text, trim($tooltip->text()));
+    }
+
+    public function test_an_empty_board_prints_the_placements_url_and_no_card_marker(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+
+        $owner = $this->user($em, 'board-empty-marker@example.com');
+        $project = $this->project($em, $owner);
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board');
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $crawler->filter('[data-board-live-placements-value]'));
+        self::assertCount(0, $crawler->filter('[data-board-live-card]'));
     }
 
     public function test_a_card_face_shows_the_title_and_not_the_body(): void

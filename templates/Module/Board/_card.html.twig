@@ -15,6 +15,7 @@
          data-board-view-target="card"
          data-action="pointerdown->board-drag#press mouseenter->card-prefetch#enter mouseleave->card-prefetch#leave focusin->card-prefetch#enter"
          id="board-card-{{ card.id }}"
+         data-board-live-card
          data-card-digest="{{ card_digest(card, pendingComments, documentCount, progress, runWarning, markers, inboxItem) }}"{% endif %}
          data-card-id="{{ card.id }}"
          data-card-type="{{ card.type }}"
