@@ -30,6 +30,7 @@ use App\Tests\Module\Forge\QueuedHoldReconciliations;
 use App\Tests\Support\DispatchedEvents;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\NullLogger;
+use Symfony\Bridge\Doctrine\Middleware\Debug\DebugDataHolder;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
@@ -278,6 +279,33 @@ final class RunRepositoryCheckHandlerTest extends KernelTestCase
         self::assertCount($events, $this->queuedReconciliations());
         $this->terminate();
         self::assertSame([(string) $repository->id], $this->signalled());
+    }
+
+    public function test_a_fresh_page_open_read_runs_a_fixed_number_of_statements(): void
+    {
+        $repository = $this->repository();
+        $this->reader->answers = [FakeRepositorySettingsReader::blocking()];
+        $this->check($repository, CheckTrigger::Hourly);
+        $this->terminate();
+        $this->em->clear();
+        $repository = $this->em->find(ForgeRepository::class, $repository->id) ?? throw new \LogicException('The repository is stored.');
+        $holder = self::getContainer()->get('doctrine.debug_data_holder');
+        self::assertInstanceOf(DebugDataHolder::class, $holder);
+
+        $holder->reset();
+        $this->check($repository, CheckTrigger::PageOpen);
+
+        // Guard: the second run reused the read, so the forge was read once in all.
+        self::assertSame(1, $this->reader->reads);
+        $statements = [];
+        foreach ($holder->getData() as $queries) {
+            foreach ($queries as $query) {
+                $statements[] = (string) $query['sql'];
+            }
+        }
+
+        self::assertCount(1, $statements, implode("\n", $statements));
+        self::assertStringContainsString('FROM forge_repository_checks', $statements[0]);
     }
 
     public function test_a_stale_read_reads_again_and_a_fresh_failed_attempt_counts_as_fresh(): void
