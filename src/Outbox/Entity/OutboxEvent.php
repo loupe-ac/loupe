@@ -21,6 +21,7 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Entity(repositoryClass: OutboxEventRepository::class)]
 #[ORM\Index(name: 'idx_outbox_events_drain', columns: ['published_at', 'next_attempt_at'])]
 #[ORM\Index(name: 'idx_outbox_events_type', columns: ['type'])]
+#[ORM\Index(name: 'idx_outbox_events_project_sequence', columns: ['project_id', 'sequence'])]
 #[ORM\Table(name: 'outbox_events')]
 class OutboxEvent
 {

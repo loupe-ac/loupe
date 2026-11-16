@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Module\Artifact\Command;
 
 use App\Exception\DomainErrors;
-use App\Module\Artifact\Entity\ArtifactFile;
 use App\Module\Artifact\Entity\ArtifactVersion;
+use App\Module\Artifact\Repository\ArtifactFileRepository;
 use App\Module\Artifact\Repository\ArtifactVersionRepository;
 use App\Module\Artifact\Service\ArtifactContentSigner;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -18,6 +18,7 @@ final readonly class DescribeArtifactHandler
 {
     public function __construct(
         private ArtifactVersionRepository $artifactVersions,
+        private ArtifactFileRepository $artifactFiles,
         private ArtifactContentSigner $signer,
     ) {
     }
@@ -76,16 +77,9 @@ final readonly class DescribeArtifactHandler
     /** @return list<array{path: string, contentType: string, size: int}> */
     private function files(ArtifactVersion $version): array
     {
-        $files = $version->files->toArray();
-        usort($files, static fn (ArtifactFile $left, ArtifactFile $right): int => $left->path <=> $right->path);
+        $files = $this->artifactFiles->describeByVersions([$version])[(string) $version->id] ?? [];
+        usort($files, static fn (array $left, array $right): int => $left['path'] <=> $right['path']);
 
-        return array_map(
-            static fn (ArtifactFile $file): array => [
-                'path' => $file->path,
-                'contentType' => $file->contentType,
-                'size' => $file->blob->size,
-            ],
-            $files,
-        );
+        return $files;
     }
 }
