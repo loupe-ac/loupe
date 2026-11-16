@@ -14,6 +14,7 @@ use App\Module\Insights\View\BrokenGraph;
 use App\Module\Insights\View\BrokenGraphReason;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\TemplateMetrics;
+use App\Module\Workflow\Contract\TemplateMetricSet;
 
 /**
  * Finds the saved graphs that name something the project no longer has. A bucket is gone when no bucket rule
@@ -30,12 +31,13 @@ final readonly class SavedGraphHealth
 
     /**
      * @param list<InsightsSavedGraph> $graphs
+     * @param ?TemplateMetricSet       $templates the template set the caller read, or null to read it here
      *
      * @return array<string, BrokenGraph> the broken graphs, by graph id
      */
-    public function check(Project $project, array $graphs): array
+    public function check(Project $project, array $graphs, ?TemplateMetricSet $templates = null): array
     {
-        $templates = $this->templateMetrics->forProject($project->requireId());
+        $templates ??= $this->templateMetrics->forProject($project->requireId());
         $buckets = null;
         $eventKinds = null;
         $broken = [];
