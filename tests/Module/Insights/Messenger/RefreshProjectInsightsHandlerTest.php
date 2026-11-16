@@ -5,14 +5,18 @@ declare(strict_types=1);
 namespace App\Tests\Module\Insights\Messenger;
 
 use App\Module\Board\Entity\Card;
+use App\Module\Board\Entity\CardEvent;
+use App\Module\Board\Entity\CardEventKind;
 use App\Module\Bridge\Metric\MetricCompare;
 use App\Module\Bridge\Metric\MetricRange;
 use App\Module\Bridge\Metric\MetricStatistic;
 use App\Module\Bridge\Metric\MetricUnit;
+use App\Module\Insights\Entity\InsightsKeptResult;
 use App\Module\Insights\Entity\PublicLink;
 use App\Module\Insights\Messenger\RefreshProjectInsights;
 use App\Module\Insights\Messenger\RefreshProjectInsightsHandler;
 use App\Module\Insights\Service\InsightsDataKind;
+use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\TemplateMetrics;
 use App\Tests\Module\Board\BoardColumnFixtures;
 use App\Tests\Module\Insights\InsightsScenario;
@@ -249,6 +253,52 @@ final class RefreshProjectInsightsHandlerTest extends KernelTestCase
         self::assertSame(1, $this->keptFor($graphId));
         self::assertSame(2, $reads->calls);
         self::assertStringContainsString('After', (string) base64_decode((string) $this->em()->getConnection()->fetchOne('SELECT payload FROM insights_kept_results WHERE saved_graph_id = :id', ['id' => $graphId], ['id' => UuidType::NAME])));
+    }
+
+    public function test_a_slot_column_change_saved_before_the_lock_of_a_graph_reaches_its_health_check_and_its_query(): void
+    {
+        self::ensureKernelShutdown();
+        self::bootKernel();
+        self::getContainer()->set(TemplateMetrics::class, $reads = new ScriptedTemplateMetrics());
+        $project = $this->scenarioProject('project-refresh-slot');
+        $this->seedColumns($project);
+        $this->em()->flush();
+        $review = $this->column($project, 'in-progress');
+        $card = new Card(project: $project, column: $this->column($project, 'done'), title: 'Reviewed', body: '', number: 1, type: 'feature', position: 0);
+        $card->completedAt = new \DateTimeImmutable('-1 day');
+        $this->em()->persist($card);
+        $this->em()->persist(new CardEvent($card, $project, CardEventKind::Moved, Actor::Agent, null, ['to' => CardEvent::columnDetail($review)], new \DateTimeImmutable('-3 days')));
+        $this->em()->persist(new CardEvent($card, $project, CardEventKind::Moved, Actor::Agent, null, ['from' => CardEvent::columnDetail($review)], new \DateTimeImmutable('-3 days +5 hours')));
+        $graph = $this->seedSavedGraph($project, 'Review time', 0);
+        $graph->metric = 'review-time';
+        $graph->unit = MetricUnit::Card;
+        $graph->statistic = MetricStatistic::Mean;
+        $this->em()->flush();
+        $projectId = (string) $project->id;
+        $graphId = $graph->id;
+        $reviewId = $review->id;
+        $this->em()->clear();
+
+        // The batch read sees the slot on another column. The reads after the lock see the column that the card moved through.
+        $reads->first = ScriptedTemplateMetrics::reviewTime(Uuid::v7());
+        $reads->later = [ScriptedTemplateMetrics::reviewTime($reviewId), ScriptedTemplateMetrics::reviewTime($reviewId)];
+        $this->handler()(new RefreshProjectInsights($projectId, InsightsDataKind::Wake->value));
+
+        self::assertSame(1, $this->keptFor($graphId));
+        self::assertSame(3, $reads->calls);
+        self::assertStringContainsString("'value' => 5.0,", $this->keptText($graphId));
+
+        // The slot has no column after the lock: the graph finds no review time.
+        $reads->calls = 0;
+        $reads->later = [ScriptedTemplateMetrics::reviewTime(null), ScriptedTemplateMetrics::reviewTime(null)];
+        $this->handler()(new RefreshProjectInsights($projectId, InsightsDataKind::Wake->value));
+
+        self::assertStringNotContainsString("'value' => 5.0,", $this->keptText($graphId));
+    }
+
+    private function keptText(?Uuid $graphId): string
+    {
+        return var_export(InsightsKeptResult::decode((string) $this->em()->getConnection()->fetchOne('SELECT payload FROM insights_kept_results WHERE saved_graph_id = :id', ['id' => $graphId], ['id' => UuidType::NAME])), true);
     }
 
     /** @return list<string> */

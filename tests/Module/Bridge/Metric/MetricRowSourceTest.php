@@ -163,6 +163,66 @@ final class MetricRowSourceTest extends KernelTestCase
         }
     }
 
+    public function test_a_shared_fact_set_gives_the_bucket_rows_and_the_bucket_totals_of_separate_sets_in_both_windows_of_a_compare(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $project = $this->project($em, $this->user($em, 'row-source-shared-buckets-'.uniqid().'@example.com'), 'Row source shared buckets');
+        $recent = Uuid::v7();
+        $earlier = Uuid::v7();
+        $bucketTimes = $this->bucketTimeRepository();
+        $runs = [
+            $this->seedRun($em, $project, cardId: $recent, endedAt: new \DateTimeImmutable('2026-10-20 10:00:00')),
+            $this->seedRun($em, $project, workKind: 'review', cardId: $recent, endedAt: new \DateTimeImmutable('2026-10-21 10:00:00')),
+            $this->seedRun($em, $project, cardId: $earlier, endedAt: new \DateTimeImmutable('2026-09-20 10:00:00')),
+            $this->seedRun($em, $project, endedAt: new \DateTimeImmutable('2026-09-25 10:00:00')),
+        ];
+        $bucketTimes->replaceForRun($runs[0]->id ?? throw new \LogicException(), self::figures(['tests' => 40, 'git' => 2]));
+        $bucketTimes->replaceForRun($runs[1]->id ?? throw new \LogicException(), self::figures(['git' => 5]));
+        $bucketTimes->replaceForRun($runs[2]->id ?? throw new \LogicException(), self::figures(['tests' => 11]));
+        $cards = [
+            new FinishedCard($earlier, 1, 'Earlier', new \DateTimeImmutable('2026-09-21 00:00:00')),
+            new FinishedCard($recent, 2, 'Recent', new \DateTimeImmutable('2026-10-22 00:00:00')),
+        ];
+        $finished = new readonly class($cards) implements FinishedCardSourceInterface {
+            /** @param list<FinishedCard> $cards */
+            public function __construct(
+                private array $cards,
+            ) {
+            }
+
+            public function finishedCards(Project $project, ?\DateTimeImmutable $completedSince, ?\DateTimeImmutable $completedBefore = null): array
+            {
+                return array_values(array_filter($this->cards, static fn (FinishedCard $card): bool => (null === $completedSince || $card->completedAt >= $completedSince) && (null === $completedBefore || $card->completedAt < $completedBefore)));
+            }
+        };
+        $stamp = new \DateTimeImmutable('2026-11-01 00:00:00');
+        $source = $this->source($finished);
+        $shared = new MetricFacts($project, $stamp);
+        $source->load($shared, true, new \DateTimeImmutable('2026-09-01 00:00:00'), true, new \DateTimeImmutable('2026-09-01 00:00:00'));
+        $windows = [
+            [new \DateTimeImmutable('2026-10-01 00:00:00'), $stamp],
+            [new \DateTimeImmutable('2026-09-01 00:00:00'), new \DateTimeImmutable('2026-10-01 00:00:00')],
+        ];
+
+        foreach ([Metric::BucketTimeEach, Metric::BucketTimeAllEach, Metric::BucketCallsEach] as $metric) {
+            foreach ([MetricUnit::Run, MetricUnit::Card] as $unit) {
+                foreach ($windows as [$from, $to]) {
+                    $shape = new MetricShape(new MetricKey($metric));
+                    $alone = $source->rows(new MetricFacts($project, $stamp), $unit, $shape, MetricGroup::None, $from, $to);
+                    self::assertNotSame([], $alone);
+                    self::assertEquals($alone, $source->rows($shared, $unit, $shape, MetricGroup::None, $from, $to));
+                }
+            }
+        }
+        foreach ($windows as [$from]) {
+            $alone = $source->bucketTimes(new MetricFacts($project, $stamp), $from);
+            $together = $source->bucketTimes($shared, $from);
+            self::assertGreaterThan(0, $alone->runs);
+            self::assertEquals($alone, $together);
+        }
+    }
+
     public function test_a_window_before_the_loaded_start_loads_only_the_missing_part(): void
     {
         self::bootKernel();
