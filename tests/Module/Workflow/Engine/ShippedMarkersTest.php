@@ -67,8 +67,8 @@ final class ShippedMarkersTest extends KernelTestCase
 
     private const array LIFECYCLE_KEYS = [
         'paused', 'run-stopped', 'run-needs-you', 'checks-failed', 'conflicting', 'ready-not-merged', 'pull-request-idle', 'pull-requests-closed', 'nothing-happened',
-        'document-in-review', 'waits-for-merge-approval-answer', 'waits-for-approval', 'merge-blocked', 'repository-misfit', 'open-question', 'design-review-running', 'session-open', 'run-open', 'no-capable-bridge', 'no-bridge-online', 'bridge-paused', 'usage-limit', 'bridge-disconnected', 'work-requested', 'retry-scheduled',
-        'forge-request-pending', 'held-by-blocker', 'waits-for-parent-card', 'waits-for-parent-branch', 'waiting-on-checks',
+        'document-in-review', 'epic-design-changes-requested', 'waits-for-merge-approval-answer', 'waits-for-approval', 'merge-blocked', 'repository-misfit', 'open-question', 'design-review-running', 'session-open', 'run-open', 'no-capable-bridge', 'no-bridge-online', 'bridge-paused', 'usage-limit', 'bridge-disconnected', 'work-requested', 'retry-scheduled',
+        'forge-request-pending', 'held-by-blocker', 'waits-for-epic-design', 'waits-for-parent-card', 'waits-for-parent-branch', 'waiting-on-checks',
         'child-stuck', 'child-needs-you', 'child-working', 'child-waiting', 'unmanaged',
     ];
 
@@ -81,7 +81,7 @@ final class ShippedMarkersTest extends KernelTestCase
     {
         $markers = $this->template('simple')->markers;
 
-        self::assertSame(array_values(array_diff(self::LIFECYCLE_KEYS, ['pull-request-idle', 'pull-requests-closed', 'nothing-happened', 'document-in-review', 'design-review-running', 'merge-blocked', 'repository-misfit', 'waits-for-merge-approval-answer'])), array_map(static fn ($marker): string => $marker->key, $markers));
+        self::assertSame(array_values(array_diff(self::LIFECYCLE_KEYS, ['pull-request-idle', 'pull-requests-closed', 'nothing-happened', 'document-in-review', 'epic-design-changes-requested', 'waits-for-epic-design', 'design-review-running', 'merge-blocked', 'repository-misfit', 'waits-for-merge-approval-answer'])), array_map(static fn ($marker): string => $marker->key, $markers));
         foreach ($markers as $marker) {
             self::assertSame([], $marker->slots, $marker->key);
         }
@@ -499,8 +499,8 @@ final class ShippedMarkersTest extends KernelTestCase
         $marker = array_find($this->template('lifecycle')->markers, static fn ($marker): bool => 'document-in-review' === $marker->key) ?? throw new \LogicException('Lifecycle ships the marker.');
 
         self::assertSame(MarkerKind::NeedsYou, $marker->kind);
-        self::assertSame(['product-design', 'tech-design'], $marker->slots);
-        self::assertSame(['card.in_slot', 'card.document.in_review', 'card.in_slot', 'card.document.in_review', 'card.document.agent_review_open'], array_map(static fn ($leaf): string => $leaf->condition::key(), $marker->when->leaves()));
+        self::assertSame(['product-design', 'tech-design', 'implementation'], $marker->slots);
+        self::assertSame(['card.in_slot', 'card.document.in_review', 'card.in_slot', 'card.document.in_review', 'card.type', 'card.in_slot', 'card.document.in_review', 'card.document.agent_review_open'], array_map(static fn ($leaf): string => $leaf->condition::key(), $marker->when->leaves()));
         self::assertContains('document-in-review', $this->template('lifecycle')->inbox);
     }
 
@@ -526,6 +526,57 @@ final class ShippedMarkersTest extends KernelTestCase
         yield 'a product design in Product design' => ['product-design', 'product-design', true];
         yield 'a product design in Tech design' => ['tech-design', 'product-design', false];
         yield 'a tech design in Product design' => ['product-design', 'tech-design', false];
+    }
+
+    public function test_an_epic_in_implementation_with_its_tech_design_in_review_needs_the_person_and_opens_one_inbox_wait(): void
+    {
+        $review = [new DocumentFacts(['tech-design'], DocumentStatus::InReview->value, 'doc', 'The design', new \DateTimeImmutable('2026-10-01 10:00:00'), 9)];
+
+        self::assertContains('document-in-review', $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'implementation', type: 'epic', documents: $review))));
+        self::assertSame(MarkerKind::NeedsYou, $this->written('document-in-review')->kind);
+        self::assertSame(['document-in-review'], array_map(static fn (StoredMarker $marker): string => $marker->key, $this->writtenInbox ?? []));
+        self::assertNotContains('document-in-review', $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'implementation', type: 'epic', documents: [new DocumentFacts(['tech-design'], DocumentStatus::Approved->value, 'doc', 'The design')]))), 'an approved design asks for nothing');
+    }
+
+    public function test_an_epic_whose_tech_design_has_changes_requested_needs_the_person_and_names_the_design(): void
+    {
+        $requested = [new DocumentFacts(['tech-design'], DocumentStatus::ChangesRequested->value, 'doc', 'The design', new \DateTimeImmutable('2026-10-01 10:00:00'))];
+
+        self::assertSame(['epic-design-changes-requested'], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'implementation', type: 'epic', documents: $requested))));
+        self::assertSame(MarkerKind::NeedsYou, $this->written('epic-design-changes-requested')->kind);
+        self::assertSame(['%title%' => 'The design'], $this->written('epic-design-changes-requested')->params);
+        self::assertSame(['epic-design-changes-requested'], array_map(static fn (StoredMarker $marker): string => $marker->key, $this->writtenInbox ?? []));
+        self::assertSame([], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'implementation', type: 'feature', documents: $requested))), 'only an epic asks');
+    }
+
+    public function test_a_child_in_next_waits_for_the_epic_designs_it_shares_and_names_each_of_them(): void
+    {
+        $one = new DocumentFacts(['tech-design'], DocumentStatus::InReview->value, 'one', 'Design one', new \DateTimeImmutable('2026-10-01 10:00:00'));
+        $two = new DocumentFacts(['tech-design'], DocumentStatus::ChangesRequested->value, 'two', 'Design two', new \DateTimeImmutable('2026-10-01 09:00:00'));
+        $facts = static fn (array $own, array $parent): Facts => FactsMother::facts(card: FactsMother::card(slot: 'next', isChild: true, documents: $own, parentDocuments: $parent));
+
+        self::assertSame(['waits-for-epic-design'], $this->keys($facts([$one], [$one])));
+        self::assertSame(MarkerKind::Waiting, $this->written('waits-for-epic-design')->kind);
+        self::assertSame(['%count%' => 1, '%titles%' => '"Design one"', '%title%' => 'Design one'], $this->written('waits-for-epic-design')->params);
+        self::assertSame([], $this->writtenInbox ?? [], 'the child opens no inbox wait');
+
+        self::assertSame(['waits-for-epic-design'], $this->keys($facts([$one, $two], [$one, $two])));
+        self::assertSame(['%count%' => 2, '%titles%' => '"Design two", "Design one"', '%title%' => 'Design two'], $this->written('waits-for-epic-design')->params);
+
+        self::assertSame(['waits-for-epic-design'], $this->keys($facts([$one, new DocumentFacts(['tech-design'], DocumentStatus::Approved->value, 'two', 'Design two')], [$one, $two])), 'an approved shared design is not named');
+        self::assertSame(['%count%' => 1, '%titles%' => '"Design one"', '%title%' => 'Design one'], $this->written('waits-for-epic-design')->params);
+    }
+
+    public function test_a_child_in_next_with_a_design_of_its_own_or_no_design_shows_no_epic_design_marker(): void
+    {
+        $shared = new DocumentFacts(['tech-design'], DocumentStatus::InReview->value, 'shared', 'Shared', new \DateTimeImmutable('2026-10-01 10:00:00'));
+        $own = new DocumentFacts(['tech-design'], DocumentStatus::InReview->value, 'own', 'Own', new \DateTimeImmutable('2026-10-01 10:00:00'));
+        $facts = static fn (array $own, array $parent, bool $child = true): Facts => FactsMother::facts(card: FactsMother::card(slot: 'next', isChild: $child, documents: $own, parentDocuments: $parent));
+
+        self::assertSame([], $this->keys($facts([$shared, $own], [$shared])));
+        self::assertSame([], $this->keys($facts([], [$shared])));
+        self::assertSame([], $this->keys($facts([$shared], [$shared], false)));
+        self::assertSame([], $this->keys($facts([new DocumentFacts(['tech-design'], DocumentStatus::Approved->value, 'shared', 'Shared')], [$shared])));
     }
 
     public function test_a_document_in_review_shows_no_marker_outside_the_slots_of_the_document_marker(): void

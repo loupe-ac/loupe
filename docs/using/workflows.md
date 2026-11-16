@@ -159,7 +159,8 @@ The shipped markers are:
 | `pull-request-idle` | Stuck, fallback | An open pull request had no card history for the stuck delay |
 | `pull-requests-closed` | Stuck | Every pull request linked to a card in Implementation closed with no merge, no worker runs and the card is not held. A reference link does not count |
 | `nothing-happened` | Stuck, fallback | A card in Product design, Tech design, Implementation or In review had no card history for the stuck delay, no child has an open worker run, and no child history is newer, and no open child shows a working or waiting marker |
-| `document-in-review` | Needs you | A document of the card waits for your review |
+| `document-in-review` | Needs you | A document of the card waits for your review. An epic in Implementation shows it while its tech design is in review |
+| `epic-design-changes-requested` | Needs you | You asked for changes on the tech design of an epic in Implementation. The label names the design, and the card opens one inbox item |
 | `waits-for-merge-approval-answer` | Needs you | A pull request waits for your answer to the merge question. It shows above `waits-for-approval` and links the inbox, or the repositories page while the inbox is off |
 | `waits-for-approval` | Needs you | A pull request waits for your approval |
 | `open-question` | Needs you | A blocking inbox question names the card |
@@ -175,6 +176,7 @@ The shipped markers are:
 | `retry-scheduled` | Waiting | A rule of the card failed and waits for the delay before its retry. The label shows the time the retry is due |
 | `forge-request-pending` | Working | Loupe asked the forge to change a pull request and the forge did not answer |
 | `held-by-blocker` | Waiting | A card that blocks this card is still open |
+| `waits-for-epic-design` | Waiting | A child in Next has unapproved tech designs, and the epic links every one of them. The label names each design. Approving them clears the design wait, and the child moves on when nothing else holds it. A child with an unapproved design of its own that the epic does not link shows no such marker |
 | `repository-misfit` | Needs you | A rule of the card wants to ask for work, and the project holds new work because a repository has a blocking gap. The remedy line links to the Repositories tab |
 | `waits-for-parent-card` | Waiting | A pull request waits for the pull request of its parent card |
 | `waits-for-parent-branch` | Waiting | A pull request waits for a branch that no card owns |
@@ -192,7 +194,7 @@ again. Each `child-` marker names the child whose marker of that kind began
 first, and counts from that time.
 
 The Simple template declares all of these markers except `pull-request-idle`,
-`pull-requests-closed`, `nothing-happened`, `document-in-review` and `design-review-running`, because Simple has no slots.
+`pull-requests-closed`, `nothing-happened`, `document-in-review`, `epic-design-changes-requested`, `waits-for-epic-design` and `design-review-running`, because Simple has no slots.
 
 The engine checks the markers of a card on every evaluation. This includes a held
 card and a board with the automation off. It stores the result on the card, with
@@ -343,11 +345,11 @@ all work counts.
 
 The top-level `inbox:` list names the markers that open an item in the inbox.
 Each entry is a marker key. The Lifecycle template lists `waits-for-approval`,
-`document-in-review`, `run-needs-you` and `paused`. The Simple template lists
+`document-in-review`, `epic-design-changes-requested`, `run-needs-you` and `paused`. The Simple template lists
 `waits-for-approval`, `run-needs-you` and `paused`.
 
 ```yaml
-inbox: [waits-for-approval, document-in-review, run-needs-you, paused]
+inbox: [waits-for-approval, document-in-review, epic-design-changes-requested, run-needs-you, paused]
 ```
 
 A listed marker opens one wait for each thing that makes it true. The thing is a
@@ -1129,7 +1131,8 @@ Some rules act from any slot:
    evaluates the child. An older bridge that sends no run key reports a run only
    after it ends, so its run does not hold the children. In a workflow file, the
    condition `card.parent.document.approved` with a `tag` is true when the parent
-   card has a document with that tag and every such document is approved. The condition `card.parent.in_slot`
+   card has a document with that tag and every such document is approved. The condition
+   `card.document.shared_with_parent_unapproved` with a `tag` is true when the card has a document with that tag that is not approved, and the parent card links every such document. The condition `card.parent.in_slot`
    with a `slot` is true when the parent card sits in that slot.
 4. A child in Next that links no approved tech design asks the owner what to do,
    once the epic has an approved tech design and no work in progress. The rule
