@@ -6,7 +6,9 @@ namespace App\Tests\Module\Board\Workflow\Condition;
 
 use App\Module\Board\Workflow\CardActivityFacts;
 use App\Module\Board\Workflow\ChildActivityFacts;
+use App\Module\Board\Workflow\Condition\CardDocumentChangesRequested;
 use App\Module\Board\Workflow\Condition\CardDocumentInReview;
+use App\Module\Board\Workflow\Condition\CardDocumentSharedWithParentUnapproved;
 use App\Module\Board\Workflow\Condition\CardPaused;
 use App\Module\Board\Workflow\Condition\CardQuietFor;
 use App\Module\Board\Workflow\Condition\PullRequestReadyFor;
@@ -80,6 +82,62 @@ final class CardMarkerConditionsTest extends TestCase
 
         self::assertEquals(new Evidence(['%title%' => 'No version'], new MarkerSubject(MarkerSubjectType::Document, ['document' => $document->id, 'version' => '0'])), new CardDocumentInReview()->evidence($facts, ['tag' => 'tech-design']));
         self::assertNull(new CardDocumentInReview()->evidence(self::documents(), ['tag' => 'tech-design']));
+    }
+
+    public function test_the_changes_requested_document_that_waited_longest_gives_the_evidence(): void
+    {
+        $facts = self::documents(
+            self::document(['tech-design'], 'changes-requested', 'Later', '2026-10-01 10:00:00'),
+            self::document(['tech-design'], 'changes-requested', 'Earlier', '2026-10-01 08:00:00'),
+            self::document(['tech-design'], 'in-review', 'In review', '2026-10-01 07:00:00'),
+        );
+
+        self::assertEquals(new Evidence(['%title%' => 'Earlier']), new CardDocumentChangesRequested()->evidence($facts, ['tag' => 'tech-design']));
+        self::assertNull(new CardDocumentChangesRequested()->evidence(self::documents(self::document(['tech-design'], 'approved')), ['tag' => 'tech-design']));
+    }
+
+    public function test_a_document_shared_with_the_parent_matches_only_when_the_parent_links_every_unapproved_document(): void
+    {
+        $condition = new CardDocumentSharedWithParentUnapproved();
+        $params = ['tag' => 'tech-design'];
+        $shared = self::document(['tech-design'], 'in-review', 'Shared');
+        $requested = self::document(['tech-design'], 'changes-requested', 'Requested');
+        $own = self::document(['tech-design'], 'in-review', 'Own');
+        $approved = self::document(['tech-design'], 'approved', 'Approved');
+        $other = self::document(['product-design'], 'in-review', 'Other tag');
+
+        self::assertTrue($condition->evaluate(self::pair([$shared], [$shared]), $params));
+        self::assertTrue($condition->evaluate(self::pair([$requested], [$requested]), $params));
+        self::assertTrue($condition->evaluate(self::pair([$shared, $approved, $other], [$shared]), $params), 'an approved document and another tag do not count');
+        self::assertFalse($condition->evaluate(self::pair([$shared, $own], [$shared]), $params), 'a design of its own that is not approved');
+        self::assertTrue($condition->evaluate(self::pair([$shared, $requested], [$requested, $shared]), $params));
+        self::assertFalse($condition->evaluate(self::pair([$approved], [$approved]), $params));
+        self::assertFalse($condition->evaluate(self::pair([], [$shared]), $params));
+        self::assertFalse($condition->evaluate(self::pair([$shared], []), $params));
+    }
+
+    public function test_the_shared_documents_give_their_count_and_their_titles_oldest_wait_first(): void
+    {
+        $condition = new CardDocumentSharedWithParentUnapproved();
+        $params = ['tag' => 'tech-design'];
+        $later = self::document(['tech-design'], 'in-review', 'Later', '2026-10-01 10:00:00', 3);
+        $earlier = self::document(['tech-design'], 'changes-requested', 'Earlier', '2026-10-01 08:00:00', 4);
+        $approved = self::document(['tech-design'], 'approved', 'Approved', '2026-10-01 07:00:00');
+
+        self::assertEquals(
+            new Evidence(['%count%' => 2, '%titles%' => '"Earlier", "Later"', '%title%' => 'Earlier'], new MarkerSubject(MarkerSubjectType::Document, ['document' => $earlier->id, 'version' => '4'])),
+            $condition->evidence(self::pair([$later, $earlier, $approved], [$later, $earlier, $approved]), $params),
+        );
+        self::assertNull($condition->evidence(self::pair([$approved], [$approved]), $params));
+    }
+
+    /**
+     * @param list<DocumentFacts> $own
+     * @param list<DocumentFacts> $parent
+     */
+    private static function pair(array $own, array $parent): Facts
+    {
+        return FactsMother::facts(card: FactsMother::card(isChild: true, documents: $own, parentDocuments: $parent), now: new \DateTimeImmutable(self::NOW));
     }
 
     public function test_a_card_is_quiet_once_the_delay_after_its_newest_event_passed(): void

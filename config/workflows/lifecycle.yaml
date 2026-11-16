@@ -1,5 +1,5 @@
 key: lifecycle
-version: 44
+version: 45
 defaultType: feature
 skillPackages: [loupe, loupe-lifecycle]
 needsProfile: true
@@ -1052,7 +1052,7 @@ rules:
       when: { card.follows.finished: {} }
       then: { move: { to: next, from: '@backlog' } }
 
-inbox: [waits-for-approval, document-in-review, run-needs-you, paused, repository-misfit]
+inbox: [waits-for-approval, document-in-review, epic-design-changes-requested, run-needs-you, paused, repository-misfit]
 markers:
     - key: paused
       kind: stuck
@@ -1168,7 +1168,7 @@ markers:
       kind: needs-you
       label: marker.document_in_review
       remedy: marker.document_in_review.remedy
-      slots: [product-design, tech-design]
+      slots: [product-design, tech-design, implementation]
       when:
           all:
               - any:
@@ -1178,7 +1178,20 @@ markers:
                     - all:
                           - card.in_slot: { slot: tech-design }
                           - card.document.in_review: { tag: tech-design }
+                    - all:
+                          - card.type: { types: [epic] }
+                          - card.in_slot: { slot: implementation }
+                          - card.document.in_review: { tag: tech-design }
               - not: { card.document.agent_review_open: {} }
+    - key: epic-design-changes-requested
+      kind: needs-you
+      label: marker.epic_design_changes_requested
+      remedy: marker.epic_design_changes_requested.remedy
+      slots: [implementation]
+      when:
+          all:
+              - card.type: { types: [epic] }
+              - card.document.changes_requested: { tag: tech-design }
     - key: waits-for-merge-approval-answer
       kind: needs-you
       label: marker.waits_for_merge_approval_answer
@@ -1297,6 +1310,15 @@ markers:
       label: marker.held_by_blocker
       remedy: marker.held_by_blocker.remedy
       when: { card.rule.held_by_blocker: {} }
+    - key: waits-for-epic-design
+      kind: waiting
+      label: marker.waits_for_epic_design
+      remedy: marker.waits_for_epic_design.remedy
+      slots: [next]
+      when:
+          all:
+              - card.parent.exists: {}
+              - card.document.shared_with_parent_unapproved: { tag: tech-design }
     - key: waits-for-parent-card
       kind: waiting
       label: marker.waits_for_parent_card

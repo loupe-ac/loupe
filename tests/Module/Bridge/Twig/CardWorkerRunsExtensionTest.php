@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Bridge\Twig;
 
 use App\Module\Bridge\Entity\Bridge;
+use App\Module\Bridge\Service\CardRunWarnings;
 use App\Module\Bridge\Twig\CardWorkerRunsExtension;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
@@ -122,7 +123,7 @@ final class CardWorkerRunsExtensionTest extends KernelTestCase
         $this->seedRun($em, $other, receivedAt: $at('10:00'), cardId: $elsewhere, state: WorkerRunState::GaveUp, hasResult: true);
         $em->flush();
 
-        $warnings = self::getContainer()->get(CardWorkerRunsExtension::class)->cardRunWarnings($project);
+        $warnings = self::getContainer()->get(CardRunWarnings::class)->forCards($project, [$gaveUp, $blocked, $cleared, $stillRunning, $failed, $onForge, $forgeAfterGaveUp, $elsewhere]);
 
         ksort($warnings);
         $expected = [(string) $gaveUp, (string) $blocked, (string) $failed];
@@ -178,7 +179,7 @@ final class CardWorkerRunsExtensionTest extends KernelTestCase
         $em = $this->em();
         $project = $this->project($em, $this->user($em, 'card-no-warnings@example.com'), 'Calm');
 
-        self::assertSame([], self::getContainer()->get(CardWorkerRunsExtension::class)->cardRunWarnings($project));
+        self::assertSame([], self::getContainer()->get(CardRunWarnings::class)->forCards($project, [Uuid::v7()]));
     }
 
     public function test_the_usage_total_sums_every_row_of_the_card_even_when_its_run_is_gone(): void
