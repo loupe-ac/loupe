@@ -174,7 +174,8 @@ RUN set -eux; \
 # sits.
 RUN bin/console tailwind:build --minify \
 	&& find var/tailwind -mindepth 1 -maxdepth 1 ! -name 'app.built.css' -exec rm -rf {} +
-RUN bin/console asset-map:compile
+RUN bin/console asset-map:compile \
+	&& test -n "$(find public/assets -name '*.gz' -print -quit)"
 RUN bin/console cache:warmup --env=prod
 # Creates every attribute of every routed controller, as a request would. A
 # class that the vendor tree lacks fails here and not on the first request.
