@@ -58,6 +58,7 @@ final class ShowBoardControllerTest extends WebTestCase
         self::assertCount(3, $crawler->filter('.lp-board__column [data-board-drag-target="group"]'));
         self::assertCount(0, $crawler->filter('[data-priority], [data-card-priority]'));
         self::assertCount(1, $crawler->filter('[data-board-drag-target="card"]'));
+        self::assertCount(1, $crawler->filter('[data-board-live-card]'));
         self::assertCount(1, $crawler->filter('dialog[data-card-drawer-target="dialog"] turbo-frame#card-drawer-frame'));
         self::assertCount(1, $crawler->filter('.lp-board-card a[data-turbo-frame="card-drawer-frame"][data-action="click->card-drawer#prepare"]'));
         self::assertCount(3, $crawler->filter('a.lp-board__add-card[data-turbo-frame="card-drawer-frame"][data-action="click->card-drawer#prepare"]'));
@@ -497,6 +498,23 @@ final class ShowBoardControllerTest extends WebTestCase
         self::assertSame($text, trim($tooltip->text()));
     }
 
+    public function test_an_empty_board_prints_the_placements_url_and_no_card_marker(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+
+        $owner = $this->user($em, 'board-empty-marker@example.com');
+        $project = $this->project($em, $owner);
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board');
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $crawler->filter('[data-board-live-placements-value]'));
+        self::assertCount(0, $crawler->filter('[data-board-live-card]'));
+    }
+
     public function test_a_card_face_shows_the_title_and_not_the_body(): void
     {
         $client = static::createClient();
@@ -538,7 +556,7 @@ final class ShowBoardControllerTest extends WebTestCase
         self::assertNotEmpty($boardDigest);
         self::assertSame($boardDigest, $this->listOf($client, $project)->filter('#board-row-'.$card->id)->attr('data-card-digest'));
 
-        $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board/cards/'.$card->id.'/placement');
+        $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board/placements?cards='.$card->id);
         self::assertResponseIsSuccessful();
         $placement = new Crawler((string) $client->getResponse()->getContent());
         self::assertSame($boardDigest, $placement->filter('#board-card-'.$card->id)->attr('data-card-digest'));
@@ -568,7 +586,7 @@ final class ShowBoardControllerTest extends WebTestCase
         $boardDigest = $crawler->filter('#board-card-'.$epic->id)->attr('data-card-digest');
         self::assertSame($boardDigest, $this->listOf($client, $project)->filter('#board-row-'.$epic->id)->attr('data-card-digest'));
 
-        $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board/cards/'.$epic->id.'/placement');
+        $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board/placements?cards='.$epic->id);
         self::assertResponseIsSuccessful();
         $placement = new Crawler((string) $client->getResponse()->getContent());
         self::assertSame($boardDigest, $placement->filter('#board-card-'.$epic->id)->attr('data-card-digest'));
@@ -675,7 +693,7 @@ final class ShowBoardControllerTest extends WebTestCase
         foreach ([$stuck, $chipOnly, $plain] as $card) {
             $boardDigest = $crawler->filter('#board-card-'.$card->id)->attr('data-card-digest');
             self::assertSame($boardDigest, $list->filter('#board-row-'.$card->id)->attr('data-card-digest'));
-            $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board/cards/'.$card->id.'/placement');
+            $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board/placements?cards='.$card->id);
             self::assertResponseIsSuccessful();
             $placement = new Crawler((string) $client->getResponse()->getContent());
             self::assertSame($boardDigest, $placement->filter('#board-card-'.$card->id)->attr('data-card-digest'));
@@ -759,7 +777,7 @@ final class ShowBoardControllerTest extends WebTestCase
         self::assertCount(0, $list->filter('#board-row-'.$asked->id.' a.lp-tooltip__link'));
         self::assertSame($crawler->filter('#board-card-'.$asked->id)->attr('data-card-digest'), $list->filter('#board-row-'.$asked->id)->attr('data-card-digest'));
 
-        $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board/cards/'.$asked->id.'/placement');
+        $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board/placements?cards='.$asked->id);
         $placement = new Crawler((string) $client->getResponse()->getContent());
         self::assertSame('/projects/'.$project->id.'/inbox?item=7', $placement->filter('#board-card-'.$asked->id.' [data-card-inbox-item]')->attr('href'));
         self::assertSame($crawler->filter('#board-card-'.$asked->id)->attr('data-card-digest'), $placement->filter('#board-card-'.$asked->id)->attr('data-card-digest'));
