@@ -4,6 +4,7 @@ namespace App;
 
 use App\Mercure\MercureHubTimeoutPass;
 use App\Module\OAuth\Grant\LoopbackPortAuthCodeGrantPass;
+use App\Observability\SentryReleasePass;
 use App\Routing\ControllerServiceClassPass;
 use Symfony\Bundle\FrameworkBundle\Kernel\MicroKernelTrait;
 use Symfony\Component\DependencyInjection\Compiler\PassConfig;
@@ -32,6 +33,7 @@ class Kernel extends BaseKernel
     {
         $container->addCompilerPass(new MercureHubTimeoutPass());
         $container->addCompilerPass(new LoopbackPortAuthCodeGrantPass());
+        $container->addCompilerPass(new SentryReleasePass());
         $container->addCompilerPass(new ControllerServiceClassPass(), PassConfig::TYPE_BEFORE_REMOVING);
     }
 }
