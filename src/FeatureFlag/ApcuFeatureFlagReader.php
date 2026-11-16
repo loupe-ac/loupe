@@ -57,7 +57,7 @@ final class ApcuFeatureFlagReader implements FeatureFlagReaderInterface, ResetIn
         $hit = apcu_fetch(self::KEY, $found);
 
         if ($found && is_array($hit)) {
-            /** @var array<string, ResolvedFlag> $hit */
+            /* @var array<string, ResolvedFlag> $hit */
             return $this->loaded = $hit;
         }
 
