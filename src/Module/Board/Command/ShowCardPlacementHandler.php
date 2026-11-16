@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Module\Board\Command;
 
 use App\Module\Board\Entity\BoardColumn;
-use App\Module\Board\Entity\Card;
 use App\Module\Board\Repository\BoardColumnRepository;
 use App\Module\Board\Repository\CardDocumentRepository;
 use App\Module\Board\Repository\CardRepository;
@@ -62,10 +61,7 @@ final readonly class ShowCardPlacementHandler
         $card = $command->card;
         $types = $this->catalog->forProject($command->project->requireId());
         $columnId = null === $card ? null : $this->columnCards->shownColumnId($card, $windowStart);
-        $laneEpicIds = null === $columnId ? [] : array_map(
-            static fn (Card $epic): string => (string) $epic->id,
-            $this->cards->findLaneEpics($command->project, $types->withLane()),
-        );
+        $laneEpicIds = null === $columnId ? [] : $this->cards->findLaneEpicIds($command->project, $types->withLane());
         $laneIndex = null === $card ? false : array_search((string) $card->id, $laneEpicIds, true);
         $laneHead = \is_int($laneIndex);
         $laneAfter = $laneHead && $laneIndex > 0 ? $laneEpicIds[$laneIndex - 1] : null;
@@ -124,7 +120,7 @@ final readonly class ShowCardPlacementHandler
             $laneAfter,
             $laneHead ? ($this->laneDecks->forEpics($backlog, [(string) $card->id])[(string) $card->id] ?? null) : null,
             markers: $markers->isEmpty() || $card->column->terminal ? null : $markers,
-            inboxItem: $this->openInboxItems->forProject($command->project)[(string) $card->id] ?? null,
+            inboxItem: $this->openInboxItems->forCards($command->project, [$card->id ?? throw new \LogicException('A placed card has an id.')])[(string) $card->id] ?? null,
         );
     }
 }

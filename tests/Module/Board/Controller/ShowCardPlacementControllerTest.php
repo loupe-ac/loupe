@@ -9,13 +9,21 @@ use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunStateChange;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkSubject;
+use App\Module\Inbox\Entity\InboxAskOrigin;
+use App\Module\Inbox\Entity\InboxItem;
+use App\Module\Inbox\Entity\InboxItemCard;
+use App\Module\Inbox\Entity\InboxItemKind;
+use App\Module\Inbox\Install\InboxInstallFlags;
 use App\Tests\Support\RefusedPage;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Contracts\Service\ResetInterface;
 use Symfony\UX\Turbo\TurboBundle;
+use Ubermuda\FeatureFlagsBundle\Reader\FeatureFlagReaderInterface;
+use Ubermuda\FeatureFlagsBundle\Repository\FeatureFlagRepository;
 
 final class ShowCardPlacementControllerTest extends WebTestCase
 {
@@ -466,6 +474,39 @@ final class ShowCardPlacementControllerTest extends WebTestCase
         $client->loginUser($owner);
 
         self::assertSame($this->pageDigest($client, $child), $this->streamDigest($client, $child));
+    }
+
+    public function test_the_stream_digest_of_a_card_with_an_open_inbox_item_is_the_page_and_manifest_digest(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $flags = static::getContainer()->get(FeatureFlagRepository::class);
+        self::assertInstanceOf(FeatureFlagRepository::class, $flags);
+        $flags->findAllIndexed()[InboxInstallFlags::FLAG_INBOX_ENABLED]->value = true;
+        $em->flush();
+        $reader = static::getContainer()->get(FeatureFlagReaderInterface::class);
+        self::assertInstanceOf(ResetInterface::class, $reader);
+        $reader->reset();
+
+        $owner = $this->user($em, 'placement-digest-inbox@example.com');
+        $project = $this->project($em, $owner);
+        $card = $this->card($em, $project, 'Asked', 'next');
+        $item = new InboxItem(project: $project, number: 1, kind: InboxItemKind::Question, title: 'Which way?', blocking: true, origin: InboxAskOrigin::Agent);
+        $em->persist($item);
+        $em->persist(new InboxItemCard($item, $card));
+        $em->flush();
+        $em->clear();
+
+        $client->loginUser($owner);
+
+        $streamed = $this->streamDigest($client, $card);
+        self::assertSame($this->pageDigest($client, $card), $streamed);
+        $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board/manifest');
+        self::assertResponseIsSuccessful();
+        $manifest = json_decode((string) $client->getResponse()->getContent(), true, 512, \JSON_THROW_ON_ERROR);
+        self::assertIsArray($manifest);
+        self::assertSame($streamed, array_column($manifest['cards'], 1, 0)[(string) $card->id] ?? null);
     }
 
     public function test_the_stream_digest_of_an_epic_with_progress_and_a_warning_is_the_page_digest(): void

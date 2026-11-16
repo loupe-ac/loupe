@@ -1169,6 +1169,10 @@ class CardRepository extends ServiceEntityRepository
         }
 
         return $this->createQueryBuilder('c')
+            ->join('c.column', 'k')
+            ->addSelect('k')
+            ->leftJoin('c.parent', 'p')
+            ->addSelect('p')
             ->andWhere('c.id = :cardId')
             ->andWhere('c.project = :projectId')
             ->setParameter('cardId', Uuid::fromString($cardId), UuidType::NAME)
@@ -1453,6 +1457,37 @@ class CardRepository extends ServiceEntityRepository
             ->addOrderBy('c.id', 'ASC')
             ->getQuery()
             ->getResult());
+    }
+
+    /**
+     * The ids of the lane epics, in the order findLaneEpics() gives them, with no card row hydrated.
+     *
+     * @param list<string> $laneTypes the type keys with the lane capability
+     *
+     * @return list<string>
+     */
+    public function findLaneEpicIds(Project $project, array $laneTypes): array
+    {
+        if ([] === $laneTypes) {
+            return [];
+        }
+
+        return array_values(array_map(strval(...), $this->createQueryBuilder('c')
+            ->select('c.id')
+            ->join('c.column', 'k')
+            ->andWhere('c.project = :project')
+            ->andWhere('c.type IN (:laneTypes)')
+            ->andWhere('c.laneEnabled = true')
+            ->andWhere('k.terminal = false')
+            ->setParameter('project', $project)
+            ->setParameter('laneTypes', $laneTypes)
+            ->orderBy('k.position', 'ASC')
+            ->addOrderBy('k.id', 'ASC')
+            ->addOrderBy('c.position', 'ASC')
+            ->addOrderBy('c.createdAt', 'ASC')
+            ->addOrderBy('c.id', 'ASC')
+            ->getQuery()
+            ->getSingleColumnResult()));
     }
 
     /** The id of the last card the board shows in the column, or null when it shows none. */
