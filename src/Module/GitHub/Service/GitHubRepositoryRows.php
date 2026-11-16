@@ -51,7 +51,7 @@ final readonly class GitHubRepositoryRows
             $check,
             null === $check ? [] : $this->lines->forCheck($check),
             $suggests,
-            $suggests && $requestCheck && $this->checks->requestPageOpenCheck($repository),
+            $suggests && $requestCheck && $this->checks->requestPageOpenCheck($repository, $check),
             null === $check ? new RepositoryGuide([]) : $this->guide->forCheck($check),
             null === $repository->accessLostAt ? null : $this->fixAccessUrl($repository),
         );
