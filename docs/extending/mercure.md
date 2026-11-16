@@ -105,12 +105,17 @@ Declare the region in the template, and subscribe the page to the topic with
 
 ```twig
 {% do mercure_subscribe(topic) %}
-<turbo-frame id="documents-list" refresh="morph"
+<turbo-frame id="documents-live" refresh="morph" target="_top"
     data-controller="live-region"
-    data-live-region-types-value="{{ ['documents.changed']|json_encode }}"
+    data-live-region-types-value="{{ ['documents.changed']|json_encode|e('html_attr') }}"
     data-live-region-mode-value="frame"
-    data-live-region-url-value="{{ app.request.requestUri }}">
+    data-live-region-url-value="{{ path('app_project_documents', {id: project.id}) }}">
+    {# the list markup #}
+</turbo-frame>
 ```
+
+The answer of the route must hold a frame with the same `id`. The region
+finds its content by that `id`.
 
 | Value | Meaning |
 |---|---|
@@ -130,9 +135,9 @@ The four modes:
 | `band` | No read. The region shows a band, with a link that opens the subject in a new tab, so typed input stays. | An edit form whose subject another actor can change. |
 
 Three rules hold for every region. Never morph the text of a document, the
-prototype frame of an artifact, a form with typed text, or the rows of page 2
-and later. Never use a page refresh for a live update. A button that loads new
-content is a plain link.
+prototype frame of an artifact, or a form with typed text. A list keeps its
+page and its row order stable, and each shown row can still morph in place. Never use a page refresh for a live update. A button
+that loads new content is a plain link.
 
 The region retries a network error, a 5xx, a 408 or a 429 after 1, 3 and 9
 seconds. Then it shows a "stopped" band, and the page needs a reload. A region
