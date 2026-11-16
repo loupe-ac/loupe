@@ -13,6 +13,7 @@ use App\Module\Bridge\Metric\MetricBucket;
 use App\Module\Bridge\Metric\MetricCompare;
 use App\Module\Bridge\Metric\MetricComparer;
 use App\Module\Bridge\Metric\MetricComparison;
+use App\Module\Bridge\Metric\MetricFacts;
 use App\Module\Bridge\Metric\MetricGroupKey;
 use App\Module\Bridge\Metric\MetricGroupSplit;
 use App\Module\Bridge\Metric\MetricPoint;
@@ -77,10 +78,15 @@ final readonly class MetricQueryHandler
         // Both periods count back from one clock reading.
         $now = $command->now ?? $this->clock->now();
         $from = $command->range->startFrom($now);
-        if (null !== $formula) {
-            return $this->formulaView($command, $formula, $now, $from);
+        $facts = $command->facts;
+        if (null === $facts) {
+            $facts = new MetricFacts($command->project, $now);
+            $this->rows->loadFor($facts, [$command]);
         }
-        $rows = $this->rows->rows($command->project, $command->unit, $metric, $command->group, $from, $now);
+        if (null !== $formula) {
+            return $this->formulaView($command, $facts, $formula, $now, $from);
+        }
+        $rows = $this->rows->rows($facts, $command->unit, $metric, $command->group, $from, $now);
 
         $previousWindow = null;
         $previousRows = [];
@@ -91,7 +97,7 @@ final readonly class MetricQueryHandler
             // The previous rows move forward by the length, so they fall into the same buckets as the current rows.
             $previousRows = array_map(
                 static fn (MetricRow $row): MetricRow => $row->movedBy($length),
-                $this->rows->rows($command->project, $command->unit, $metric, $command->group, $previousFrom, $from),
+                $this->rows->rows($facts, $command->unit, $metric, $command->group, $previousFrom, $from),
             );
             if (true === $metric->key->metric?->isBucketEach()) {
                 $names = array_values(array_unique(array_map(static fn (MetricRow $row): string => (string) $row->group, [...$rows, ...$previousRows])));
@@ -148,11 +154,11 @@ final readonly class MetricQueryHandler
         return $errors;
     }
 
-    private function formulaView(MetricQueryCommand $command, MetricFormula $formula, \DateTimeImmutable $now, ?\DateTimeImmutable $from): MetricQueryView
+    private function formulaView(MetricQueryCommand $command, MetricFacts $facts, MetricFormula $formula, \DateTimeImmutable $now, ?\DateTimeImmutable $from): MetricQueryView
     {
         $shapes = array_map(static fn (FormulaRow $row): MetricShape => $row->shape, $formula->rows);
         $letters = array_map(static fn (FormulaRow $row): string => $row->letter, $formula->rows);
-        $rows = array_combine($letters, $this->rows->rowsForMany($command->project, $command->unit, $shapes, $command->group, $from, $now));
+        $rows = array_combine($letters, $this->rows->rowsForMany($facts, $command->unit, $shapes, $command->group, $from, $now));
 
         $previousWindow = null;
         $previousRows = null;
@@ -163,7 +169,7 @@ final readonly class MetricQueryHandler
             // The previous rows move forward by the length, so they fall into the same buckets as the current rows.
             $previousRows = array_map(
                 static fn (array $letterRows): array => array_map(static fn (MetricRow $row): MetricRow => $row->movedBy($length), $letterRows),
-                array_combine($letters, $this->rows->rowsForMany($command->project, $command->unit, $shapes, $command->group, $previousFrom, $from)),
+                array_combine($letters, $this->rows->rowsForMany($facts, $command->unit, $shapes, $command->group, $previousFrom, $from)),
             );
         }
 
