@@ -14,7 +14,8 @@ use App\Module\Project\Entity\Project;
  * Hands a project a push token for one of its own repositories. The caller
  * names the repository, and the issuer serves it only from an installation row
  * of the project. GitHub refuses any other repository, because the token names
- * this one alone.
+ * this one alone. The list of installations and the tokens come from the
+ * shared cache when they can. Every refusal rests on a live answer from GitHub.
  */
 final readonly class GitHubGitTokenIssuer
 {
@@ -25,6 +26,8 @@ final readonly class GitHubGitTokenIssuer
         private ForgeRepositoryRepository $forgeRepositories,
         private GitHubInstallationRepository $gitHubInstallations,
         private GitHubAppApi $api,
+        private GitHubAppInstallationList $installationList,
+        private GitHubRepositoryTokenStore $tokenStore,
         private GitHubAppConfiguration $configuration,
     ) {
     }
@@ -32,20 +35,52 @@ final readonly class GitHubGitTokenIssuer
     /** @throws GitHubGitTokenRefused */
     public function issue(Project $project, string $repositoryPath): GitHubScopedToken
     {
-        [$installationId, $repositoryId, $permissions] = $this->resolve($project, $repositoryPath);
+        [$installationId, $repositoryId, $permissions, $fromCache] = $this->resolve($project, $repositoryPath, false);
 
         try {
-            return $this->api->repositoryToken($installationId, $repositoryId, $permissions);
+            return $this->mint($installationId, $repositoryId, $permissions);
+        } catch (GitHubAppApiFailed $failed) {
+            // A 404 or 422 can mean that a stale list picked a grant that is gone, so only the live list can say.
+            if (!$fromCache || $failed->rateLimited || !\in_array($failed->status, [404, 422], true)) {
+                throw new GitHubGitTokenRefused(GitHubGitTokenRefused::GITHUB_UNAVAILABLE);
+            }
+        }
+
+        [$liveInstallationId, $liveRepositoryId, $livePermissions] = $this->resolve($project, $repositoryPath, true);
+        if ($liveInstallationId === $installationId && $liveRepositoryId === $repositoryId && $livePermissions === $permissions) {
+            throw new GitHubGitTokenRefused(GitHubGitTokenRefused::GITHUB_UNAVAILABLE);
+        }
+
+        try {
+            return $this->mint($liveInstallationId, $liveRepositoryId, $livePermissions);
         } catch (GitHubAppApiFailed) {
             throw new GitHubGitTokenRefused(GitHubGitTokenRefused::GITHUB_UNAVAILABLE);
         }
+    }
+
+    /**
+     * @param array<string, string> $permissions
+     *
+     * @throws GitHubAppApiFailed
+     */
+    private function mint(int $installationId, int $repositoryId, array $permissions): GitHubScopedToken
+    {
+        $kept = $this->tokenStore->find($installationId, $repositoryId, $permissions);
+        if (null !== $kept) {
+            return $kept;
+        }
+
+        $token = $this->api->repositoryToken($installationId, $repositoryId, $permissions);
+        $this->tokenStore->keep($installationId, $repositoryId, $permissions, $token);
+
+        return $token;
     }
 
     /** The reason `issue()` would refuse every repository of the project now, or null when one would get a token. */
     public function refusal(Project $project): ?GitHubGitTokenRefused
     {
         try {
-            $this->resolve($project, null);
+            $this->resolve($project, null, false);
         } catch (GitHubGitTokenRefused $refused) {
             return $refused;
         }
@@ -56,14 +91,16 @@ final readonly class GitHubGitTokenIssuer
     /**
      * Serves the first candidate repository whose installation grants the push.
      * When none does, the refusal of the first candidate stands for them all.
+     * A refusal never rests on the cached list: the live list decides it.
      *
      * @param ?string $repositoryPath the `owner/name` to serve, or null for any repository of the project
+     * @param bool    $live           read the list from GitHub, and not from the cache
      *
-     * @return array{int, int, array<string, string>} the installation id, the repository id and the permissions to ask for
+     * @return array{int, int, array<string, string>, bool} the installation id, the repository id, the permissions to ask for, and whether the list came from the cache
      *
      * @throws GitHubGitTokenRefused
      */
-    private function resolve(Project $project, ?string $repositoryPath): array
+    private function resolve(Project $project, ?string $repositoryPath, bool $live): array
     {
         if (!$this->configuration->canReadForge()) {
             throw new GitHubGitTokenRefused(GitHubGitTokenRefused::APP_NOT_CONFIGURED);
@@ -72,11 +109,33 @@ final readonly class GitHubGitTokenIssuer
         $candidates = $this->candidates($project, $repositoryPath);
 
         try {
-            $installations = $this->api->installations();
+            $cached = $live ? null : $this->installationList->cached();
+            if (null !== $cached) {
+                try {
+                    return [...$this->pick($candidates, $cached), true];
+                } catch (GitHubGitTokenRefused) {
+                    $this->installationList->forget();
+                }
+            }
+
+            $installations = $this->installationList->live();
         } catch (GitHubAppApiFailed) {
             throw new GitHubGitTokenRefused(GitHubGitTokenRefused::GITHUB_UNAVAILABLE);
         }
 
+        return [...$this->pick($candidates, $installations), false];
+    }
+
+    /**
+     * @param non-empty-list<array{int, int}>   $candidates
+     * @param list<GitHubAppInstallationAccess> $installations
+     *
+     * @return array{int, int, array<string, string>}
+     *
+     * @throws GitHubGitTokenRefused
+     */
+    private function pick(array $candidates, array $installations): array
+    {
         $first = null;
         foreach ($candidates as [$installationId, $repositoryId]) {
             $access = array_find($installations, fn ($candidate) => $candidate->id === $installationId);
