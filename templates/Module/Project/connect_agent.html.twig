@@ -12,7 +12,7 @@
 
 {% block settings_content %}
 {% do mercure_subscribe(worker_runs_topic(project)) %}
-<div class="lp-connect-settings">
+<div class="lp-connect-settings" data-live-content>
     <twig:Ds:Panel as="section" id="agent-connection">
         <twig:Ds:SectionHeading>{{ 'project.connect.machines.title'|trans }}</twig:Ds:SectionHeading>
         {% include '@Project/_connect_machines_frame.html.twig' with {project: project, machines: machines} only %}

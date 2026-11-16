@@ -12,7 +12,7 @@
 {% block body %}
 {% set backlogPath = path('app_project_board_backlog', {projectId: project.id}) %}
 {% do mercure_subscribe(board_topic(project)) %}
-<twig:Ds:Workspace class="lp-core-prototype-page lp-core-documents" data-controller="backlog-select card-drawer">
+<twig:Ds:Workspace class="lp-core-prototype-page lp-core-documents" data-live-content data-controller="backlog-select card-drawer">
     <twig:Ds:PageHeader :title="backlog.label|trans" :description="'board.backlog.page.description'|trans" titleClass="lp-workspace-title--doc" />
 
     <div id="backlog-confirmation" aria-live="polite"></div>

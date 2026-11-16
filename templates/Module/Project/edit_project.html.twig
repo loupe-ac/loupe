@@ -11,7 +11,7 @@
 {% block settings_section 'general' %}
 
 {% block settings_content %}
-<div id="general">
+<div id="general" data-live-content>
     <twig:Ds:Panel as="section">
         <twig:Ds:SectionHeading>{{ 'project.edit.general.title'|trans }}</twig:Ds:SectionHeading>
     <div data-controller="live-region" data-live-region-types-value="{{ ['project.updated']|json_encode }}" data-live-region-url-value="{{ path('app_project_settings_fingerprint', {id: project.id}) }}" data-live-region-mode-value="band" data-live-fingerprint="{{ project_settings_fingerprint(project) }}">

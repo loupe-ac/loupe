@@ -12,7 +12,7 @@
 
 {% block settings_content %}
 {% do mercure_subscribe(board_topic(project)) %}
-<div data-controller="live-region"
+<div data-live-content data-controller="live-region"
     data-live-region-types-value="{{ ['board.automation_changed']|json_encode }}"
     data-live-region-mode-value="band"
     data-live-region-url-value="{{ path('app_board_automation_settings_check', {id: project.id}) }}"
