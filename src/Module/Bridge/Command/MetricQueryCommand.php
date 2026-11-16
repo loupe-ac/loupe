@@ -7,6 +7,7 @@ namespace App\Module\Bridge\Command;
 use App\Module\Bridge\Metric\Formula\MetricFormula;
 use App\Module\Bridge\Metric\MetricBucket;
 use App\Module\Bridge\Metric\MetricCompare;
+use App\Module\Bridge\Metric\MetricFacts;
 use App\Module\Bridge\Metric\MetricGroup;
 use App\Module\Bridge\Metric\MetricRange;
 use App\Module\Bridge\Metric\MetricShape;
@@ -29,6 +30,8 @@ final readonly class MetricQueryCommand
         public ?\DateTimeImmutable $now = null,
         /** Set for a formula query. The metric and the statistic then hold the earliest row of the formula. */
         public ?MetricFormula $formula = null,
+        /** The facts a refresh loaded once for all its graphs. Null makes the handler load its own. */
+        public ?MetricFacts $facts = null,
     ) {
     }
 }
