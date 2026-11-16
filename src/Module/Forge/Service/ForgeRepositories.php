@@ -31,6 +31,7 @@ final readonly class ForgeRepositories
         private RepositoryHoldSummaries $summaries,
         private ForgeRepositoryCheckRepository $forgeRepositoryChecks,
         private EventDispatcherInterface $events,
+        private ForgeBranchPresence $branchPresence,
     ) {
     }
 
@@ -77,6 +78,9 @@ final readonly class ForgeRepositories
             $tookOver = false;
             if (ForgeRepositorySource::Installation === $source) {
                 $tookOver = ForgeRepositorySource::Installation !== $existing->source;
+                if ($tookOver || $existing->sourceRef !== $sourceRef) {
+                    $this->branchPresence->markAccessChanged($existing);
+                }
                 $existing->source = ForgeRepositorySource::Installation;
                 $existing->sourceRef = $sourceRef;
                 $existing->accessLostAt = null;
@@ -139,9 +143,21 @@ final readonly class ForgeRepositories
             $this->summaries->change($repositories[0]->project, function (RepositoryChange $change) use ($repositories, $at): void {
                 foreach ($repositories as $repository) {
                     $repository->accessLostAt = $at;
+                    $this->branchPresence->markAccessChanged($repository);
                     $change->signal($repository->id ?? throw new \LogicException('A persisted repository has an id.'));
                 }
             });
+        }
+    }
+
+    /**
+     * Voids the stored branch answers of every row one installation holds. Call it inside the transaction that
+     * changes the installation, so the change and its mark commit together.
+     */
+    public function markInstallationAccessChanged(string $forge, string $sourceRef): void
+    {
+        foreach ($this->forgeRepositories->findByInstallation($forge, $sourceRef) as $repository) {
+            $this->branchPresence->markAccessChanged($repository);
         }
     }
 
@@ -167,6 +183,7 @@ final readonly class ForgeRepositories
             $repository->sourceRef = $sourceRef;
             $repository->accessLostAt = null;
             $repository->path = $path;
+            $this->branchPresence->markAccessChanged($repository);
             $change->signal($repository->id ?? throw new \LogicException('A persisted repository has an id.'));
         });
 
