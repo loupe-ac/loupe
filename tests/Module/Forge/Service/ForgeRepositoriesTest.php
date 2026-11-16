@@ -11,6 +11,7 @@ use App\Module\Forge\Event\ForgeRepositoryJoined;
 use App\Module\Forge\Event\ForgeRepositoryLeft;
 use App\Module\Forge\Repository\ForgeRepositoryCheckRepository;
 use App\Module\Forge\Repository\ForgeRepositoryRepository;
+use App\Module\Forge\Service\ForgeBranchPresence;
 use App\Module\Forge\Service\ForgeClaim;
 use App\Module\Forge\Service\ForgeClaimOutcome;
 use App\Module\Forge\Service\ForgeRepositories;
@@ -276,6 +277,56 @@ final class ForgeRepositoriesTest extends KernelTestCase
         self::assertNull($this->repositories->lostAccessRowOf('github', '1022'));
     }
 
+    public function test_a_loss_and_a_return_of_access_void_the_stored_branch_answers(): void
+    {
+        $project = $this->project('voided');
+        $this->installation($project, '1060', 'acme/voided', '14');
+        $row = $this->rowOf($project, '1060') ?? self::fail('The row is missing.');
+        $presence = $this->branchPresence();
+        $presence->record($row, 'epic/1', true, new \DateTimeImmutable());
+        self::assertTrue($presence->read($row, 'epic/1'));
+        usleep(2000);
+
+        $this->repositories->loseAccess('github', '14');
+        self::assertNull($presence->read($row, 'epic/1'));
+
+        $presence->record($row, 'epic/1', true, new \DateTimeImmutable());
+        self::assertTrue($presence->read($row, 'epic/1'));
+        usleep(2000);
+
+        $lost = $this->repositories->lostAccessRowOf('github', '1060') ?? self::fail('The row says no access.');
+        $this->repositories->reconnect($lost, '14', 'acme/voided');
+        self::assertNull($presence->read($row, 'epic/1'));
+    }
+
+    public function test_a_take_over_of_a_hook_row_by_an_installation_voids_the_stored_branch_answers(): void
+    {
+        $project = $this->project('take-over');
+        $this->hook($project, '1061', 'acme/taken');
+        $row = $this->rowOf($project, '1061') ?? self::fail('The row is missing.');
+        $presence = $this->branchPresence();
+        $presence->record($row, 'epic/1', true, new \DateTimeImmutable());
+        usleep(2000);
+
+        $this->installation($project, '1061', 'acme/taken', '15');
+
+        self::assertNull($presence->read($row, 'epic/1'));
+    }
+
+    public function test_a_repeated_claim_by_the_same_installation_keeps_the_stored_branch_answers(): void
+    {
+        $project = $this->project('same-installation');
+        $this->installation($project, '1062', 'acme/same', '16');
+        $row = $this->rowOf($project, '1062') ?? self::fail('The row is missing.');
+        $presence = $this->branchPresence();
+        $presence->record($row, 'epic/1', true, new \DateTimeImmutable());
+        usleep(2000);
+
+        $this->installation($project, '1062', 'acme/same', '16');
+
+        self::assertTrue($presence->read($row, 'epic/1'));
+    }
+
     public function test_a_claim_leaves_a_no_access_row_untouched(): void
     {
         $project = $this->project('claim-lost');
@@ -350,9 +401,17 @@ final class ForgeRepositoriesTest extends KernelTestCase
         return $this->forgeRepositoryRepository()->findOneForProject($project, 'github', $externalId);
     }
 
+    private function branchPresence(): ForgeBranchPresence
+    {
+        $presence = self::getContainer()->get(ForgeBranchPresence::class);
+        self::assertInstanceOf(ForgeBranchPresence::class, $presence);
+
+        return $presence;
+    }
+
     private function withLogger(RecordingLogger $logger): ForgeRepositories
     {
-        return new ForgeRepositories($this->forgeRepositoryRepository(), $this->em, $logger, $this->summaries(), $this->checkRepository(), new \Symfony\Component\EventDispatcher\EventDispatcher());
+        return new ForgeRepositories($this->forgeRepositoryRepository(), $this->em, $logger, $this->summaries(), $this->checkRepository(), new \Symfony\Component\EventDispatcher\EventDispatcher(), $this->branchPresence());
     }
 
     private function checkRepository(): ForgeRepositoryCheckRepository
