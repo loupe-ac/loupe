@@ -18,6 +18,7 @@ use App\Module\Inbox\Install\InboxInstallFlags;
 use App\Tests\Support\RefusedPage;
 use Doctrine\Bundle\DoctrineBundle\DataCollector\DoctrineDataCollector;
 use Doctrine\ORM\EntityManagerInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
@@ -28,7 +29,7 @@ use Symfony\UX\Turbo\TurboBundle;
 use Ubermuda\FeatureFlagsBundle\Reader\FeatureFlagReaderInterface;
 use Ubermuda\FeatureFlagsBundle\Repository\FeatureFlagRepository;
 
-final class ShowCardPlacementControllerTest extends WebTestCase
+final class ShowCardPlacementsControllerTest extends WebTestCase
 {
     use BoardScenario;
 
@@ -295,6 +296,85 @@ final class ShowCardPlacementControllerTest extends WebTestCase
         $content = (string) $client->getResponse()->getContent();
         self::assertStringContainsString('lp-state-mark--stuck', $content);
         self::assertStringNotContainsString('data-card-run-warning', $content);
+    }
+
+    public function test_several_cards_come_back_in_the_order_asked_with_a_repeat_dropped(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+
+        $owner = $this->user($em, 'placements-order@example.com');
+        $project = $this->project($em, $owner);
+        $this->addTriageColumn($project);
+        $em->flush();
+        $first = $this->card($em, $project, 'First', 'next', 0);
+        $second = $this->card($em, $project, 'Second', 'next', 1);
+        $gone = '01920000-0000-7000-8000-000000000000';
+        $url = '/projects/'.$project->id.'/board/placements?cards='.$second->id.','.$gone.','.$first->id.','.$second->id;
+        $em->clear();
+
+        $client->loginUser($owner);
+        $client->request(Request::METHOD_GET, $url);
+
+        self::assertResponseIsSuccessful();
+        $content = (string) $client->getResponse()->getContent();
+        self::assertSame(3, substr_count($content, '<turbo-stream'));
+        $secondAt = strpos($content, 'target="board-card-'.$second->id.'"');
+        $goneAt = strpos($content, 'target="board-card-'.$gone.'"');
+        $firstAt = strpos($content, 'target="board-card-'.$first->id.'"');
+        self::assertIsInt($secondAt);
+        self::assertIsInt($goneAt);
+        self::assertIsInt($firstAt);
+        self::assertLessThan($goneAt, $secondAt);
+        self::assertLessThan($firstAt, $goneAt);
+        self::assertStringContainsString('data-removed="1"', substr($content, $goneAt, 800));
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function badCardLists(): iterable
+    {
+        yield 'no card' => [''];
+        yield 'not a uuid' => ['nope'];
+        yield 'one bad id among good ones' => ['01920000-0000-7000-8000-000000000000,nope'];
+        yield 'a trailing comma' => ['01920000-0000-7000-8000-000000000000,'];
+    }
+
+    #[DataProvider('badCardLists')]
+    public function test_a_bad_card_list_is_refused(string $cards): void
+    {
+        $client = static::createClient(['debug' => false]);
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+
+        $owner = $this->user($em, 'placements-bad@example.com');
+        $project = $this->project($em, $owner);
+        $em->flush();
+        $url = '/projects/'.$project->id.'/board/placements?cards='.$cards;
+        $em->clear();
+
+        $client->loginUser($owner);
+        $client->request(Request::METHOD_GET, $url);
+
+        self::assertResponseStatusCodeSame(400);
+    }
+
+    public function test_more_than_fifty_cards_are_refused_and_fifty_are_placed(): void
+    {
+        $client = static::createClient(['debug' => false]);
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+
+        $owner = $this->user($em, 'placements-cap@example.com');
+        $project = $this->project($em, $owner);
+        $em->flush();
+        $ids = array_map(static fn (): string => (string) Uuid::v7(), range(1, 51));
+        $em->clear();
+
+        $client->loginUser($owner);
+        $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board/placements?cards='.implode(',', $ids));
+        self::assertResponseStatusCodeSame(400);
+
+        $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board/placements?cards='.implode(',', \array_slice($ids, 0, 50)));
+        self::assertResponseIsSuccessful();
+        self::assertSame(50, substr_count((string) $client->getResponse()->getContent(), '<turbo-stream'));
     }
 
     public function test_an_outsider_is_refused(): void
@@ -790,7 +870,7 @@ final class ShowCardPlacementControllerTest extends WebTestCase
 
     private function placementUrl(string $projectId, string $cardId): string
     {
-        return '/projects/'.$projectId.'/board/cards/'.$cardId.'/placement';
+        return '/projects/'.$projectId.'/board/placements?cards='.$cardId;
     }
 
     /** @return array<string, int> */
