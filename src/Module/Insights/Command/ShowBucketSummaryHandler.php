@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Insights\Command;
 
 use App\Module\Bridge\Metric\Metric;
+use App\Module\Bridge\Metric\MetricFacts;
 use App\Module\Bridge\Metric\MetricKey;
 use App\Module\Bridge\Metric\MetricRowSource;
 use App\Module\Bridge\Metric\MetricShape;
@@ -27,7 +28,9 @@ final readonly class ShowBucketSummaryHandler
 
     public function __invoke(ShowBucketSummaryCommand $command): ShowBucketSummaryView
     {
-        $bucketTimes = $this->metricRows->bucketTimes($command->project, $command->range->startFrom($this->clock->now()));
+        $now = $this->clock->now();
+        $facts = new MetricFacts($command->project, $now);
+        $bucketTimes = $this->metricRows->bucketTimes($facts, $command->range->startFrom($now));
 
         $named = array_map(static fn (InsightsBucketRule $rule): string => $rule->bucket, $this->insightsBucketRules->findOrdered($command->project));
         $named[] = BucketRule::FALLBACK;
