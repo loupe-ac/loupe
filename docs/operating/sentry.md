@@ -15,7 +15,7 @@ Copy the DSN from the *Client Keys* page of your Sentry project, and set it in
 | Variable | Default | Purpose |
 |---|---|---|
 | `SENTRY_DSN` | empty | Where events go. **Secret.** Empty turns Sentry off. |
-| `SENTRY_TRACES_SAMPLE_RATE` | `0.05` | The share of web requests, worker messages and console commands that Sentry traces, from `0.0` to `1.0`. A card evaluation message has its own rate, which [Card evaluation rate](#card-evaluation-rate) describes. |
+| `SENTRY_TRACES_SAMPLE_RATE` | `0.05` | The share of web requests, worker messages, scheduled tasks and console commands that Sentry traces, from `0.0` to `1.0`. A card evaluation message has its own rate, which [Card evaluation rate](#card-evaluation-rate) describes. |
 | `SENTRY_PROFILES_SAMPLE_RATE` | `1.0` | The share of traces that Sentry also profiles, from `0.0` to `1.0`. |
 
 [Environment variables](../reference/environment.md) lists them with the rest.
@@ -33,6 +33,8 @@ Change the flag at `/admin/feature-flags`. The next card evaluation reads the
 new value, so the change needs no deploy and no restart. If Loupe cannot read
 the flag, it uses the default. `SENTRY_TRACES_SAMPLE_RATE` has no effect on
 card evaluations.
+
+A scheduled task gets a trace named after its service, such as `App\Observability\Scheduler\ReportQueueDepthTask::__invoke`, and uses the same rate.
 
 A malformed DSN does not stop the instance. The Sentry SDK ignores it and
 writes a debug log line, so nothing goes to Sentry. The *Sentry* row on
@@ -148,7 +150,6 @@ The *Sentry in the browser* row on `/admin/status` reports a malformed
   public, widget and bridge routes. A 5xx answer still reaches Sentry, and so
   does a 403 access denial for a signed-in caller. The
   [API refusal metric](#api-refusal-metric) counts the refusals instead.
-- The errors of scheduled tasks. Scheduled tasks send no traces.
 - The queue metrics of [Queue metrics](#queue-metrics).
 
 Twig and cache spans are off. A render or cache span between two queries hides
