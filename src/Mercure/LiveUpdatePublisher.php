@@ -6,9 +6,11 @@ namespace App\Mercure;
 
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\ConsoleEvents;
+use Symfony\Component\Console\Event\ConsoleTerminateEvent;
 use Symfony\Component\DependencyInjection\Attribute\AutowireServiceClosure;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\HttpKernel\Event\TerminateEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
@@ -80,7 +82,7 @@ final class LiveUpdatePublisher implements ResetInterface
     #[AsEventListener(WorkerMessageFailedEvent::class, priority: -16)]
     #[AsEventListener(KernelEvents::TERMINATE)]
     #[AsEventListener(ConsoleEvents::TERMINATE)]
-    public function publish(): void
+    public function publish(?object $event = null): void
     {
         foreach ($this->transactions->takeCommitted() as $update) {
             $this->add($update['topic'], $update['data']);
@@ -95,6 +97,7 @@ final class LiveUpdatePublisher implements ResetInterface
         foreach ($pending as $update) {
             try {
                 ($this->hub)()->publish(new Update($update['topic'], $update['data'], private: true));
+                \Sentry\traceMetrics()->count('live.published', 1, ['type' => $this->typeOf($update['data']), 'cause' => $this->causeOf($event)]);
             } catch (\Throwable $e) {
                 $this->logger->warning('live_updates.publish_failed', [
                     'topic' => $update['topic'],
@@ -114,6 +117,27 @@ final class LiveUpdatePublisher implements ResetInterface
     private function add(string $topic, string $data): void
     {
         $this->pending[$topic."\n".$data] = ['topic' => $topic, 'data' => $data];
+    }
+
+    private function typeOf(string $data): string
+    {
+        $payload = json_decode($data, true);
+        $type = \is_array($payload) ? ($payload['type'] ?? null) : null;
+
+        return \is_string($type) ? $type : 'unknown';
+    }
+
+    /** The route in a web request, the message class in a worker and the command name in a console run. */
+    private function causeOf(?object $event): string
+    {
+        $cause = match (true) {
+            $event instanceof TerminateEvent => $event->getRequest()->attributes->get('_route'),
+            $event instanceof ConsoleTerminateEvent => $event->getCommand()?->getName(),
+            $event instanceof WorkerMessageHandledEvent, $event instanceof WorkerMessageFailedEvent => new \ReflectionClass($event->getEnvelope()->getMessage())->getShortName(),
+            default => null,
+        };
+
+        return \is_string($cause) && '' !== $cause ? $cause : 'unknown';
     }
 
     private function origin(): ?string
