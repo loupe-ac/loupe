@@ -114,6 +114,55 @@ final class MetricRowSourceTest extends KernelTestCase
         self::assertSame(4, \count($shared->closedRuns ?? []));
     }
 
+    public function test_a_shared_fact_set_gives_the_card_rows_the_all_range_and_the_formula_rows_of_separate_sets(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $project = $this->project($em, $this->user($em, 'row-source-shared-cards-'.uniqid().'@example.com'), 'Row source shared cards');
+        $recent = Uuid::v7();
+        $earlier = Uuid::v7();
+        $this->seedRun($em, $project, cardId: $recent, endedAt: new \DateTimeImmutable('2026-10-20 10:00:00'));
+        $this->seedRun($em, $project, workKind: 'review', cardId: $recent, endedAt: new \DateTimeImmutable('2026-10-21 10:00:00'));
+        $this->seedRun($em, $project, cardId: $earlier, endedAt: new \DateTimeImmutable('2026-09-20 10:00:00'));
+        $cards = [
+            new FinishedCard($earlier, 1, 'Earlier', new \DateTimeImmutable('2026-09-21 00:00:00')),
+            new FinishedCard($recent, 2, 'Recent', new \DateTimeImmutable('2026-10-22 00:00:00')),
+        ];
+        $finished = new readonly class($cards) implements FinishedCardSourceInterface {
+            /** @param list<FinishedCard> $cards */
+            public function __construct(
+                private array $cards,
+            ) {
+            }
+
+            public function finishedCards(Project $project, ?\DateTimeImmutable $completedSince, ?\DateTimeImmutable $completedBefore = null): array
+            {
+                return array_values(array_filter($this->cards, static fn (FinishedCard $card): bool => (null === $completedSince || $card->completedAt >= $completedSince) && (null === $completedBefore || $card->completedAt < $completedBefore)));
+            }
+        };
+        $stamp = new \DateTimeImmutable('2026-11-01 00:00:00');
+        $source = $this->source($finished);
+        $shapes = [new MetricShape(new MetricKey(Metric::Cost)), new MetricShape(new MetricKey(Metric::Duration))];
+
+        $shared = new MetricFacts($project, $stamp);
+        $source->load($shared, true, null, true, null);
+
+        $windows = [
+            [new \DateTimeImmutable('2026-10-02 00:00:00'), $stamp],
+            [new \DateTimeImmutable('2026-09-02 00:00:00'), new \DateTimeImmutable('2026-10-02 00:00:00')],
+            [null, $stamp],
+        ];
+        foreach ([MetricGroup::None, MetricGroup::Stage] as $group) {
+            foreach ($windows as [$from, $to]) {
+                foreach ([MetricUnit::Card, MetricUnit::Run] as $unit) {
+                    $alone = $source->rowsForMany(new MetricFacts($project, $stamp), $unit, $shapes, $group, $from, $to);
+                    self::assertNotSame([[], []], $alone);
+                    self::assertEquals($alone, $source->rowsForMany($shared, $unit, $shapes, $group, $from, $to));
+                }
+            }
+        }
+    }
+
     public function test_a_window_before_the_loaded_start_loads_only_the_missing_part(): void
     {
         self::bootKernel();
