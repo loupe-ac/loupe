@@ -40,10 +40,10 @@ final readonly class DocumentWorkLinks implements DocumentWorkLinksInterface
     {
         $selected = null === $document ? [] : $this->selectedIds($document);
         $choices = [];
-        foreach ($this->cards->findBy(['project' => $project], ['number' => 'DESC']) as $card) {
-            $id = (string) $card->id;
-            if (!$card->column->terminal || \in_array($id, $selected, true)) {
-                $choices[\sprintf('#%d %s', $card->number, $card->title)] = $id;
+        foreach ($this->cards->findPickerRows($project) as $row) {
+            $id = (string) $row['id'];
+            if (!$row['terminal'] || \in_array($id, $selected, true)) {
+                $choices[\sprintf('#%d %s', $row['number'], $row['title'])] = $id;
             }
         }
 

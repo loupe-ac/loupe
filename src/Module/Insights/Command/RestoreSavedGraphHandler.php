@@ -91,7 +91,7 @@ final readonly class RestoreSavedGraphHandler
         $this->dashboard->graphChanged($project, $graphId, DashboardChange::Restored);
 
         // A removed graph keeps its row, so a restore asks for a compute only when the row is missing or fits other settings.
-        if ($this->insightsKeptResults->findForGraph($graph)?->settingsHash !== InsightsKeptResult::hashOf($graph)) {
+        if ($this->insightsKeptResults->findStampForGraph($graph)?->settingsHash !== InsightsKeptResult::hashOf($graph)) {
             $this->refreshes->graph($graph);
         }
     }
