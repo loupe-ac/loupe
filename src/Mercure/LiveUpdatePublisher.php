@@ -23,6 +23,9 @@ use Ubermuda\FeatureFlagsBundle\FeatureFlagService;
  *
  * It publishes after the response or the message, so a hub that hangs never
  * slows a change, and a failure is only logged: the page catches up on reload.
+ * At terminate it runs below the outbox drain (16) and above the end of the
+ * Sentry transaction (5), so its hub calls stay in the trace. A listener that
+ * queues a live update at terminate must run above 8.
  */
 final class LiveUpdatePublisher implements ResetInterface
 {
@@ -78,7 +81,7 @@ final class LiveUpdatePublisher implements ResetInterface
      */
     #[AsEventListener(WorkerMessageHandledEvent::class)]
     #[AsEventListener(WorkerMessageFailedEvent::class, priority: -16)]
-    #[AsEventListener(KernelEvents::TERMINATE)]
+    #[AsEventListener(KernelEvents::TERMINATE, priority: 8)]
     #[AsEventListener(ConsoleEvents::TERMINATE)]
     public function publish(): void
     {
