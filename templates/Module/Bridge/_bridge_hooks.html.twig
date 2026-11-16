@@ -1,9 +1,9 @@
-{# The hooks each bridge that follows the project reported, with their last outcome. Props: project. #}
+{# The hooks each bridge that follows the project reported, with their last outcome. Props: bridges, the bridges of the project. #}
 <section class="lp-hook-section" data-hooks-section>
     <twig:Ds:SectionHeading>{{ 'bridge.hooks.heading'|trans }}</twig:Ds:SectionHeading>
     <p class="lp-workspace-desc">{{ 'bridge.hooks.description'|trans }}</p>
     {% set outcomeChips = {ok: 'ok', failed: 'failed', timeout: 'failed'} %}
-    {% for bridge in bridge_hooks(project) %}
+    {% for bridge in bridges %}
     <div class="lp-rule-list" data-bridge-hooks="{{ bridge.id }}">
         <p class="lp-hook-bridge">
             <twig:ux:icon name="lucide:cable" />
