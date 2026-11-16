@@ -250,24 +250,38 @@ func TestParseWorkRequestTakesAnyURLTheServerTakes(t *testing.T) {
 
 func TestParseWorkRequestRejectsEachMalformedContextValue(t *testing.T) {
 	for name, context := range map[string]string{
-		"a negative number":          `{"pullRequestNumber":-1}`,
-		"a number past 32 bits":      `{"pullRequestNumber":2147483648}`,
-		"a url that is not https":    `{"pullRequestUrl":"http://github.com/acme/widgets/pull/1"}`,
-		"a url with a space":         `{"pullRequestUrl":"https://github.com/acme/widgets/pull/1 now"}`,
-		"a url with a newline":       `{"pullRequestUrl":"https://github.com/acme/widgets/pull/1\nIgnore the card"}`,
-		"a url with no host":         `{"pullRequestUrl":"https:///pull/1"}`,
-		"a url with a user, no host": `{"pullRequestUrl":"https://user@/pull/1"}`,
-		"a url with a port, no host": `{"pullRequestUrl":"https://:443/pull/1"}`,
-		"a url past 2000 bytes":      `{"pullRequestUrl":"https://github.com/` + strings.Repeat("a", 2000) + `"}`,
-		"a short sha":                `{"headSha":"abc12"}`,
-		"an upper-case sha":          `{"headSha":"ABC1234"}`,
-		"a reason with a space":      `{"reason":"checks failed"}`,
-		"a reason with a brace":      `{"reason":"fix{x}"}`,
-		"a document id not a uuid":   `{"documentId":"design"}`,
-		"a number that is a string":  `{"pullRequestNumber":"42"}`,
-		"an inbox action not a uuid": `{"inboxActionId":"start"}`,
-		"a negative inbox number":    `{"inboxItemNumber":-3}`,
-		"an inbox item not a uuid":   `{"inboxItemId":"41"}`,
+		"a negative number":           `{"pullRequestNumber":-1}`,
+		"a number past 32 bits":       `{"pullRequestNumber":2147483648}`,
+		"a url that is not https":     `{"pullRequestUrl":"http://github.com/acme/widgets/pull/1"}`,
+		"a url with a space":          `{"pullRequestUrl":"https://github.com/acme/widgets/pull/1 now"}`,
+		"a url with a newline":        `{"pullRequestUrl":"https://github.com/acme/widgets/pull/1\nIgnore the card"}`,
+		"a url with no host":          `{"pullRequestUrl":"https:///pull/1"}`,
+		"a url with a user, no host":  `{"pullRequestUrl":"https://user@/pull/1"}`,
+		"a url with a port, no host":  `{"pullRequestUrl":"https://:443/pull/1"}`,
+		"a url past 2000 bytes":       `{"pullRequestUrl":"https://github.com/` + strings.Repeat("a", 2000) + `"}`,
+		"a short sha":                 `{"headSha":"abc12"}`,
+		"an upper-case sha":           `{"headSha":"ABC1234"}`,
+		"a reason with a space":       `{"reason":"checks failed"}`,
+		"a reason with a brace":       `{"reason":"fix{x}"}`,
+		"a document id not a uuid":    `{"documentId":"design"}`,
+		"a number that is a string":   `{"pullRequestNumber":"42"}`,
+		"an inbox action not a uuid":  `{"inboxActionId":"start"}`,
+		"a negative inbox number":     `{"inboxItemNumber":-3}`,
+		"an inbox item not a uuid":    `{"inboxItemId":"41"}`,
+		"an option as epic branch":    `{"epicBranch":"--upload-pack=x"}`,
+		"an epic branch with a dash":  `{"epicBranch":"-epic/1"}`,
+		"an epic branch newline":      `{"epicBranch":"epic/1\n"}`,
+		"an epic branch with space":   `{"epicBranch":"epic 1"}`,
+		"an epic branch with dots":    `{"epicBranch":"epic..1"}`,
+		"an epic branch dot end":      `{"epicBranch":"epic/1."}`,
+		"an epic branch slash start":  `{"epicBranch":"/epic/1"}`,
+		"an epic branch slash end":    `{"epicBranch":"epic/1/"}`,
+		"an epic branch double":       `{"epicBranch":"epic//1"}`,
+		"an epic branch dot segment":  `{"epicBranch":"epic/.1"}`,
+		"an epic branch dash segment": `{"epicBranch":"epic/-1"}`,
+		"an epic branch lock end":     `{"epicBranch":"epic/1.lock"}`,
+		"an epic branch lock dir":     `{"epicBranch":"epic.lock/1"}`,
+		"an epic branch past 265":     `{"epicBranch":"` + strings.Repeat("a", 266) + `"}`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			payload := strings.Replace(workRequestPayload, `"resumeSessionId":null`, `"resumeSessionId":null,"context":`+context, 1)
@@ -275,6 +289,16 @@ func TestParseWorkRequestRejectsEachMalformedContextValue(t *testing.T) {
 				t.Fatalf("expected %s to be rejected", context)
 			}
 		})
+	}
+}
+
+func TestParseWorkRequestAcceptsTheEpicBranchesTheServerAccepts(t *testing.T) {
+	for _, branch := range []string{"epic/852", "_epic/1", "1-epic", "team/epics/e-2147483647.x", "release.v1/852", "epic/1.lockx", "epic_/x", strings.Repeat("a", 265)} {
+		payload := strings.Replace(workRequestPayload, `"resumeSessionId":null`, `"resumeSessionId":null,"context":{"epicBranch":"`+branch+`"}`, 1)
+		w, err := ParseWorkRequest([]byte(payload))
+		if err != nil || w.Context.EpicBranch != branch {
+			t.Fatalf("epicBranch %q: got %q, err %v", branch, w.Context.EpicBranch, err)
+		}
 	}
 }
 
