@@ -12,10 +12,9 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
  * Gates the install wizard behind a deploy-time INSTALL_TOKEN, on top of
  * InstallationState::isOpen(). An unset/empty token preserves the previous
  * "first visitor wins" behaviour dev, test, and worktree provisioning depend
- * on; a set token must be supplied once (via the `token` query parameter) and
- * is then remembered for the rest of the session so later wizard steps don't
- * need to repeat it. A missing/wrong token 404s — the same response as an
- * already-closed wizard, so the two states aren't distinguishable.
+ * on. A set token is submitted once through the unlock form and remembered for
+ * the rest of the session. It never travels in the URL, so the access log and
+ * the browser history never hold it.
  */
 final readonly class InstallAccessGuard
 {
@@ -32,36 +31,45 @@ final readonly class InstallAccessGuard
     ) {
     }
 
-    public function ensureAccessible(Request $request): void
+    /**
+     * 404s while the wizard is closed, so an installed instance shows nothing.
+     */
+    public function ensureOpen(): void
     {
         if (!$this->installationState->isOpen()) {
             throw new NotFoundHttpException();
         }
 
-        if ('' === $this->installToken) {
-            // Unconfigured fails CLOSED in production: a forgotten env var must
-            // not leave an admin-minting endpoint publicly reachable. Elsewhere
-            // it stays open, because dev, the test suite and every
-            // `just worktree-up` run the wizard unattended.
-            if ('prod' === $this->environment) {
-                throw new NotFoundHttpException();
-            }
+        // Unconfigured fails CLOSED in production: a forgotten env var must
+        // not leave an admin-minting endpoint publicly reachable. Elsewhere
+        // it stays open, because dev, the test suite and every
+        // `just worktree-up` run the wizard unattended.
+        if ('' === $this->installToken && 'prod' === $this->environment) {
+            throw new NotFoundHttpException();
+        }
+    }
 
-            return;
+    public function isUnlocked(Request $request): bool
+    {
+        if ('' === $this->installToken) {
+            return true;
+        }
+
+        return true === $request->getSession()->get(self::SESSION_TOKEN_VERIFIED);
+    }
+
+    public function unlock(Request $request, string $submitted): bool
+    {
+        if ('' === $this->installToken || !hash_equals($this->installToken, $submitted)) {
+            return false;
         }
 
         $session = $request->getSession();
-        if (true === $session->get(self::SESSION_TOKEN_VERIFIED)) {
-            return;
-        }
-
-        // A non-string `token` (e.g. ?token[]=x) must 404 like any other wrong
-        // token, not 500 — getString() throws on that shape.
-        $submitted = $request->query->all()['token'] ?? null;
-        if (!is_string($submitted) || !hash_equals($this->installToken, $submitted)) {
-            throw new NotFoundHttpException();
-        }
-
+        // A new session id means an id that an attacker planted before the
+        // unlock does not gain the flag.
+        $session->migrate(true);
         $session->set(self::SESSION_TOKEN_VERIFIED, true);
+
+        return true;
     }
 }
