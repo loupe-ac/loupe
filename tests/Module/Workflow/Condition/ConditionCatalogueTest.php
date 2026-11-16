@@ -46,6 +46,7 @@ final class ConditionCatalogueTest extends KernelTestCase
         'card.document.newest_approval_by_workflow' => 'workflow.source.board',
         'card.document.published_in_column' => 'workflow.source.board',
         'card.document.rejected_before' => 'workflow.source.board',
+        'card.document.shared_with_parent_unapproved' => 'workflow.source.board',
         'card.fix_run.uncommented' => 'workflow.source.board',
         'card.follows.finished' => 'workflow.source.board',
         'card.held' => 'workflow.source.bridge',

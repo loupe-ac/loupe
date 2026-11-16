@@ -295,6 +295,30 @@ final class ShowBoardManifestControllerTest extends WebTestCase
         self::assertSame($this->page($client, $project)['cards'], array_column($after['cards'], 1, 0));
     }
 
+    public function test_a_recent_done_card_with_a_run_warning_keeps_the_page_digest(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $owner = $this->user($em, 'manifest-done-warning@example.com');
+        $project = $this->project($em, $owner);
+        $this->addTriageColumn($project);
+        $em->flush();
+        $card = $this->card($em, $project, 'Finished with a warning', 'done');
+        $em->clear();
+
+        $client->loginUser($owner);
+        $before = $this->digestOf($this->manifest($client, $project), $card);
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $this->warn($em, $em->find(Project::class, $project->id) ?? throw new \LogicException('No project.'), $card);
+        $em->clear();
+        $after = $this->manifest($client, $project);
+        $page = $this->page($client, $project);
+
+        self::assertNotSame($before, $this->digestOf($after, $card));
+        self::assertSame($page['cards'][(string) $card->id], $this->digestOf($after, $card));
+        self::assertSame($page['cards'], array_column($after['cards'], 1, 0));
+    }
+
     public function test_a_digest_changes_with_a_stored_marker_and_stays_the_page_one(): void
     {
         $client = static::createClient();

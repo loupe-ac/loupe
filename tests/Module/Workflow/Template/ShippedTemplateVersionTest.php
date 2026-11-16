@@ -17,7 +17,7 @@ final class ShippedTemplateVersionTest extends KernelTestCase
         $shipped = self::getContainer()->get(ShippedTemplates::class);
         self::assertInstanceOf(ShippedTemplates::class, $shipped);
 
-        self::assertSame(44, $shipped->source('lifecycle')['version']);
+        self::assertSame(45, $shipped->source('lifecycle')['version']);
         self::assertSame(15, $shipped->source('simple')['version']);
     }
 

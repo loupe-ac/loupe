@@ -19,21 +19,23 @@ final readonly class CardRunWarnings
     }
 
     /**
-     * One query for the whole board, keyed by card id.
+     * One query for the named cards, keyed by card id.
+     *
+     * @param list<Uuid> $cardIds
      *
      * @return array<string, CardRunWarning>
      */
-    public function forProject(Project $project): array
+    public function forCards(Project $project, array $cardIds): array
     {
         $warnings = [];
-        foreach ($this->workerRuns->findWarningRowsOfProject($project) as $row) {
+        foreach ($this->workerRuns->findWarningRowsOfCards($project, $cardIds) as $row) {
             $warnings[$row['card_id']] = new CardRunWarning($row['id'], WorkerRunState::from($row['state']), $row['output'], new \DateTimeImmutable($row['closed_at']));
         }
 
         return $warnings;
     }
 
-    /** One card placed alone reads its own warning, not the whole board's. */
+    /** One card placed alone reads its own warning, not the board's. */
     public function forCard(Project $project, Uuid $cardId): ?CardRunWarning
     {
         $row = $this->workerRuns->findWarningRowOfCard($project, $cardId);
