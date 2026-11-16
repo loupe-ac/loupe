@@ -13,6 +13,10 @@ use App\Module\Insights\Messenger\RefreshProjectInsights;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Support\DispatchedEvents;
+use Doctrine\DBAL\Connection;
+use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Mapping\ClassMetadata;
+use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 use Symfony\Component\Uid\Uuid;
@@ -87,18 +91,65 @@ final class WriteWorkerRunFactsHandlerTest extends KernelTestCase
         self::assertSame($before + 1, $held());
     }
 
-    public function test_the_report_lock_leaves_a_second_report_lock_alone(): void
+    public function test_the_report_lock_is_key_share_so_reports_pass_each_other_and_an_exclusive_writer_blocks_them(): void
     {
+        $statements = [];
+        $projects = new ProjectRepository($this->registryRecording($statements));
         self::bootKernel();
         $em = $this->em();
-        $project = $this->project($em, $this->user($em, 'facts-report-lock@example.com'), 'Facts report lock');
-        $projects = self::getContainer()->get(ProjectRepository::class);
-        self::assertInstanceOf(ProjectRepository::class, $projects);
+        $project = $this->project($em, $this->user($em, 'lock-mode@example.com'), 'Lock mode');
 
         $projects->lockForReport($project);
         $projects->lockForReport($project);
 
-        self::assertSame(1, (int) $em->getConnection()->fetchOne('SELECT COUNT(*) FROM projects WHERE id = ?', [(string) $project->id]));
+        self::assertCount(2, $statements, 'Each call must reach the database.');
+        foreach ($statements as $sql) {
+            self::assertStringEndsWith('FOR KEY SHARE', $sql, 'FOR KEY SHARE conflicts with FOR UPDATE and with no other report.');
+        }
+        self::assertNotSame($statements[0], ProjectRepository::WRITE_LOCK);
+        self::assertStringNotContainsString('FOR UPDATE', $statements[0]);
+    }
+
+    public function test_the_run_key_lock_names_one_run_so_two_first_reports_of_it_wait_for_each_other(): void
+    {
+        $params = [];
+        $runs = new WorkerRunRepository($this->registryRecording($params, true));
+        self::bootKernel();
+        $em = $this->em();
+        $project = $this->project($em, $this->user($em, 'run-key@example.com'), 'Run key');
+        $bridgeId = Uuid::v7();
+        $runKey = Uuid::v7();
+
+        $runs->lockRunKey($project, $bridgeId, $runKey);
+        $runs->lockRunKey($project, $bridgeId, $runKey);
+        $runs->lockRunKey($project, $bridgeId, Uuid::v7());
+
+        self::assertCount(3, $params);
+        self::assertSame($params[0], $params[1], 'Two reports of one run take the same lock key.');
+        self::assertNotSame($params[0], $params[2], 'A report of another run takes another key.');
+    }
+
+    /**
+     * @param list<string> $recorded
+     */
+    private function registryRecording(array &$recorded, bool $params = false): ManagerRegistry
+    {
+        $connection = $this->createStub(Connection::class);
+        $connection->method('executeStatement')->willReturnCallback(
+            static function (string $sql, array $args = []) use (&$recorded, $params): int {
+                $recorded[] = $params ? ($args[0] ?? '') : $sql;
+
+                return 1;
+            },
+        );
+        $em = $this->createStub(EntityManagerInterface::class);
+        $em->method('getConnection')->willReturn($connection);
+        $em->method('getClassMetadata')->willReturnCallback(static fn (string $class): ClassMetadata => new ClassMetadata(\stdClass::class));
+        $registry = $this->createStub(ManagerRegistry::class);
+        $registry->method('getManagerForClass')->willReturn($em);
+        $registry->method('getManager')->willReturn($em);
+
+        return $registry;
     }
 
     private function handler(): WriteWorkerRunFactsHandler
@@ -109,7 +160,7 @@ final class WriteWorkerRunFactsHandlerTest extends KernelTestCase
         return $handler;
     }
 
-    private function baseDepth(\Doctrine\ORM\EntityManagerInterface $em): int
+    private function baseDepth(EntityManagerInterface $em): int
     {
         return $em->getConnection()->getTransactionNestingLevel();
     }
