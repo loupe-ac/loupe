@@ -553,17 +553,16 @@ final class ShippedMarkersTest extends KernelTestCase
     {
         $one = new DocumentFacts(['tech-design'], DocumentStatus::InReview->value, 'one', 'Design one', new \DateTimeImmutable('2026-10-01 10:00:00'));
         $two = new DocumentFacts(['tech-design'], DocumentStatus::ChangesRequested->value, 'two', 'Design two', new \DateTimeImmutable('2026-10-01 09:00:00'));
-        $facts = static fn (array $own, array $parent): Facts => FactsMother::facts(card: FactsMother::card(slot: 'next', isChild: true, documents: $own, parentDocuments: $parent));
 
-        self::assertSame(['waits-for-epic-design'], $this->keys($facts([$one], [$one])));
+        self::assertSame(['waits-for-epic-design'], $this->keys(self::childInNext([$one], [$one])));
         self::assertSame(MarkerKind::Waiting, $this->written('waits-for-epic-design')->kind);
         self::assertSame(['%count%' => 1, '%titles%' => '"Design one"', '%title%' => 'Design one'], $this->written('waits-for-epic-design')->params);
         self::assertSame([], $this->writtenInbox ?? [], 'the child opens no inbox wait');
 
-        self::assertSame(['waits-for-epic-design'], $this->keys($facts([$one, $two], [$one, $two])));
+        self::assertSame(['waits-for-epic-design'], $this->keys(self::childInNext([$one, $two], [$one, $two])));
         self::assertSame(['%count%' => 2, '%titles%' => '"Design two", "Design one"', '%title%' => 'Design two'], $this->written('waits-for-epic-design')->params);
 
-        self::assertSame(['waits-for-epic-design'], $this->keys($facts([$one, new DocumentFacts(['tech-design'], DocumentStatus::Approved->value, 'two', 'Design two')], [$one, $two])), 'an approved shared design is not named');
+        self::assertSame(['waits-for-epic-design'], $this->keys(self::childInNext([$one, new DocumentFacts(['tech-design'], DocumentStatus::Approved->value, 'two', 'Design two')], [$one, $two])), 'an approved shared design is not named');
         self::assertSame(['%count%' => 1, '%titles%' => '"Design one"', '%title%' => 'Design one'], $this->written('waits-for-epic-design')->params);
     }
 
@@ -571,12 +570,20 @@ final class ShippedMarkersTest extends KernelTestCase
     {
         $shared = new DocumentFacts(['tech-design'], DocumentStatus::InReview->value, 'shared', 'Shared', new \DateTimeImmutable('2026-10-01 10:00:00'));
         $own = new DocumentFacts(['tech-design'], DocumentStatus::InReview->value, 'own', 'Own', new \DateTimeImmutable('2026-10-01 10:00:00'));
-        $facts = static fn (array $own, array $parent, bool $child = true): Facts => FactsMother::facts(card: FactsMother::card(slot: 'next', isChild: $child, documents: $own, parentDocuments: $parent));
 
-        self::assertSame([], $this->keys($facts([$shared, $own], [$shared])));
-        self::assertSame([], $this->keys($facts([], [$shared])));
-        self::assertSame([], $this->keys($facts([$shared], [$shared], false)));
-        self::assertSame([], $this->keys($facts([new DocumentFacts(['tech-design'], DocumentStatus::Approved->value, 'shared', 'Shared')], [$shared])));
+        self::assertSame([], $this->keys(self::childInNext([$shared, $own], [$shared])));
+        self::assertSame([], $this->keys(self::childInNext([], [$shared])));
+        self::assertSame([], $this->keys(self::childInNext([$shared], [$shared], false)));
+        self::assertSame([], $this->keys(self::childInNext([new DocumentFacts(['tech-design'], DocumentStatus::Approved->value, 'shared', 'Shared')], [$shared])));
+    }
+
+    /**
+     * @param list<DocumentFacts> $own
+     * @param list<DocumentFacts> $parent
+     */
+    private static function childInNext(array $own, array $parent, bool $child = true): Facts
+    {
+        return FactsMother::facts(card: FactsMother::card(slot: 'next', isChild: $child, documents: $own, parentDocuments: $parent));
     }
 
     public function test_a_document_in_review_shows_no_marker_outside_the_slots_of_the_document_marker(): void
