@@ -58,6 +58,8 @@ final class ReadOnlyAwareSessionHandler implements \SessionHandlerInterface, \Se
     {
         $data = $this->traced(fn (): string|false => $this->inner()->read($id));
 
+        // An empty read means no live session: the inner handler destroys a session whose
+        // data is empty instead of storing it, so a stored row is never empty.
         if (\is_string($data) && '' !== $data) {
             $this->loadedId = $id;
         }

@@ -106,6 +106,46 @@ final class ReadOnlyAwareSessionHandlerLockTest extends KernelTestCase
         self::assertSame('changed', $this->storedData());
     }
 
+    public function test_the_handler_never_stores_an_empty_session_so_an_empty_read_is_a_session_to_create(): void
+    {
+        $this->releaseHolder();
+        $id = $this->sessionId.'-empty';
+
+        $writer = $this->factory->create(PdoSessionHandler::LOCK_NONE);
+        $writer->open('', 'PHPSESSID');
+        $writer->read($id);
+        self::assertTrue($writer->write($id, ''));
+        $writer->close();
+
+        $reader = $this->factory->create(PdoSessionHandler::LOCK_NONE);
+        $count = self::connectionOf($reader)->prepare('SELECT COUNT(*) FROM sessions WHERE sess_id = ?');
+        $count->execute([$id]);
+
+        self::assertSame(0, (int) $count->fetchColumn());
+    }
+
+    public function test_a_read_only_request_extends_the_expiry_of_the_session_it_read(): void
+    {
+        $this->releaseHolder();
+        $lifetime = self::connectionOf($this->factory->create(PdoSessionHandler::LOCK_NONE));
+        $lifetime->prepare('UPDATE sessions SET sess_lifetime = ? WHERE sess_id = ?')->execute([time() + 60, $this->sessionId]);
+
+        $request = Request::create('/projects/x/inbox/open-count');
+        $request->attributes->set(ReadOnlyAwareSessionHandler::READ_ONLY, true);
+        $handler = $this->handlerFor($request);
+        $handler->open('', 'PHPSESSID');
+        $handler->read($this->sessionId);
+        $handler->write($this->sessionId, 'changed');
+        $handler->updateTimestamp($this->sessionId, 'changed');
+        $handler->close();
+
+        $statement = $lifetime->prepare('SELECT sess_lifetime FROM sessions WHERE sess_id = ?');
+        $statement->execute([$this->sessionId]);
+
+        self::assertGreaterThan(time() + 600, (int) $statement->fetchColumn());
+        self::assertSame(self::SEEDED, $this->storedData());
+    }
+
     private function handlerFor(Request $request): ReadOnlyAwareSessionHandler
     {
         $locking = $this->factory->create(PdoSessionHandler::LOCK_TRANSACTIONAL);
