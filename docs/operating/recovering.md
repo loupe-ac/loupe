@@ -29,5 +29,6 @@ every install flag falls back to exactly the value the wizard would have written
 instance behaves like a wizard-installed one with the defaults accepted. To
 change any of them, visit the admin **Feature flags** page — its scan view lists
 every flag the code references but the database does not define, and creates the
-rows on request.
+rows on request. A flag change reaches each web container within 60 seconds,
+because every container keeps the flag list in memory for that long.
 

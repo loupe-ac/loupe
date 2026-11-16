@@ -55,6 +55,8 @@ RUN apk add --no-cache postgresql-libs libzip libxslt icu-libs icu-data-full bas
  && find /usr/share/fonts/dejavu -type f ! -name 'DejaVuSans.ttf' ! -name 'DejaVuSans-Bold.ttf' -delete \
  && apk add --no-cache --virtual .build-deps $PHPIZE_DEPS postgresql-dev libzip-dev libxslt-dev icu-dev \
  && docker-php-ext-install bcmath pdo_pgsql zip intl xsl \
+ && pecl install apcu \
+ && docker-php-ext-enable apcu \
  && curl -fsSL -o /tmp/excimer.tgz https://github.com/wikimedia/php-excimer/archive/refs/tags/1.2.6.tar.gz \
  && echo "0f4cb07ed735cb8d517d837ade3dde43de7967ea5e02fee194a1deaef8f3850e  /tmp/excimer.tgz" | sha256sum -c - \
  && mkdir /tmp/excimer && tar xzf /tmp/excimer.tgz -C /tmp/excimer --strip-components=1 \
