@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Bridge\Metric;
 
+use App\Module\Bridge\Command\MetricQueryCommand;
 use App\Module\Bridge\Cost\FinishedCard;
 use App\Module\Bridge\Cost\FinishedCardSourceInterface;
 use App\Module\Bridge\Entity\WorkerRunFact;
@@ -39,20 +40,20 @@ final readonly class MetricRowSource
      *
      * @return list<MetricRow>
      */
-    public function rows(Project $project, MetricUnit $unit, MetricShape $shape, MetricGroup $group, ?\DateTimeImmutable $from, ?\DateTimeImmutable $to = null): array
+    public function rows(MetricFacts $facts, MetricUnit $unit, MetricShape $shape, MetricGroup $group, ?\DateTimeImmutable $from, ?\DateTimeImmutable $to = null): array
     {
         if (null !== $shape->template) {
-            return MetricUnit::Card === $unit ? $this->templateRows($project, $shape->template, $group, $from, $to) : [];
+            return MetricUnit::Card === $unit ? $this->templateRows($facts, $shape->template, $group, $from, $to) : [];
         }
         $metric = $shape->key->metric ?? throw new \LogicException('A key has a built-in metric or a template metric.');
         if ($metric->isBucketEach()) {
-            return $this->bucketEachRows($project, $unit, $metric, $from, $to);
+            return $this->bucketEachRows($facts, $unit, $metric, $from, $to);
         }
         if (MetricUnit::Reading === $unit) {
-            return Metric::AccountUsage === $metric ? $this->readingRows($project, $from, $to) : [];
+            return Metric::AccountUsage === $metric ? $this->readingRows($facts->project, $from, $to) : [];
         }
 
-        return $this->rowsForMany($project, $unit, [$shape], $group, $from, $to)[0];
+        return $this->rowsForMany($facts, $unit, [$shape], $group, $from, $to)[0];
     }
 
     /**
@@ -63,7 +64,7 @@ final readonly class MetricRowSource
      *
      * @return list<list<MetricRow>>
      */
-    public function rowsForMany(Project $project, MetricUnit $unit, array $shapes, MetricGroup $group, ?\DateTimeImmutable $from, ?\DateTimeImmutable $to = null): array
+    public function rowsForMany(MetricFacts $facts, MetricUnit $unit, array $shapes, MetricGroup $group, ?\DateTimeImmutable $from, ?\DateTimeImmutable $to = null): array
     {
         foreach ($shapes as $shape) {
             if (null !== $shape->template || true === $shape->key->metric?->isBucketEach()) {
@@ -72,8 +73,8 @@ final readonly class MetricRowSource
         }
 
         return match ($unit) {
-            MetricUnit::Run => $this->runRowsMany($project, $shapes, $group, $from, $to),
-            MetricUnit::Card => $this->cardRowsMany($project, $shapes, $group, $from, $to),
+            MetricUnit::Run => $this->runRowsMany($facts, $shapes, $group, $from, $to),
+            MetricUnit::Card => $this->cardRowsMany($facts, $shapes, $group, $from, $to),
             MetricUnit::Reading => throw new \LogicException('A reading is not read in a batch.'),
         };
     }
@@ -85,21 +86,21 @@ final readonly class MetricRowSource
      *
      * @return list<MetricRow>
      */
-    private function bucketEachRows(Project $project, MetricUnit $unit, Metric $metric, ?\DateTimeImmutable $from, ?\DateTimeImmutable $to): array
+    private function bucketEachRows(MetricFacts $facts, MetricUnit $unit, Metric $metric, ?\DateTimeImmutable $from, ?\DateTimeImmutable $to): array
     {
         if (MetricUnit::Run === $unit) {
-            $facts = $this->workerRunFacts->findClosedSince($project, $from, false, $to);
+            $runs = $this->closedRuns($facts, $from, $to, false);
             $cards = [];
         } else {
-            $cards = $this->finishedCards->finishedCards($project, $from, $to);
+            $cards = $this->finishedCardsOf($facts, $from, $to);
             $ids = array_map(static fn (FinishedCard $card): Uuid => $card->id, $cards);
-            $facts = [] === $ids ? [] : $this->workerRunFacts->findOfCards($project, $ids);
+            $runs = array_merge(...array_values($this->runsOfCards($facts, $ids)));
         }
-        if ([] === $facts) {
+        if ([] === $runs) {
             return [];
         }
 
-        $runIds = array_map(static fn (WorkerRunFact $fact): Uuid => $fact->runId, $facts);
+        $runIds = array_map(static fn (WorkerRunFact $fact): Uuid => $fact->runId, $runs);
         $figures = $this->workerRunBucketTimes->findAllSubagentFiguresOfRuns($runIds);
         $times = $this->workerRunBucketTimes->findAllMillisecondsOfRuns($runIds);
         $figureOf = static fn (string $runId, string $bucket): ?int => match ($metric) {
@@ -120,7 +121,7 @@ final readonly class MetricRowSource
 
         $rows = [];
         if (MetricUnit::Run === $unit) {
-            foreach ($facts as $fact) {
+            foreach ($runs as $fact) {
                 $runId = (string) $fact->runId;
                 if (!isset($times[$runId])) {
                     continue;
@@ -134,7 +135,7 @@ final readonly class MetricRowSource
         }
 
         $factsByCard = [];
-        foreach ($facts as $fact) {
+        foreach ($runs as $fact) {
             $factsByCard[(string) $fact->subjectId][] = $fact;
         }
         foreach ($cards as $card) {
@@ -214,16 +215,16 @@ final readonly class MetricRowSource
     }
 
     /** Reads the same runs as a run query with no stage grouping. */
-    public function bucketTimes(Project $project, ?\DateTimeImmutable $from): BucketTimes
+    public function bucketTimes(MetricFacts $facts, ?\DateTimeImmutable $from): BucketTimes
     {
-        $facts = $this->workerRunFacts->findClosedSince($project, $from, false);
+        $runs = $this->closedRuns($facts, $from, null, false);
 
-        $runIds = array_map(static fn (WorkerRunFact $fact): Uuid => $fact->runId, $facts);
+        $runIds = array_map(static fn (WorkerRunFact $fact): Uuid => $fact->runId, $runs);
 
         return new BucketTimes(
-            \count($facts),
-            [] === $facts ? [] : $this->workerRunBucketTimes->findAllMillisecondsOfRuns($runIds),
-            [] === $facts ? [] : $this->workerRunBucketTimes->findAllSubagentFiguresOfRuns($runIds),
+            \count($runs),
+            [] === $runs ? [] : $this->workerRunBucketTimes->findAllMillisecondsOfRuns($runIds),
+            [] === $runs ? [] : $this->workerRunBucketTimes->findAllSubagentFiguresOfRuns($runIds),
         );
     }
 
@@ -232,17 +233,17 @@ final readonly class MetricRowSource
      *
      * @return list<list<MetricRow>>
      */
-    private function runRowsMany(Project $project, array $shapes, MetricGroup $group, ?\DateTimeImmutable $from, ?\DateTimeImmutable $to): array
+    private function runRowsMany(MetricFacts $facts, array $shapes, MetricGroup $group, ?\DateTimeImmutable $from, ?\DateTimeImmutable $to): array
     {
         // A stage belongs to the card workflow, so a stage grouping reads card runs alone.
-        $facts = $this->workerRunFacts->findClosedSince($project, $from, MetricGroup::Stage === $group, $to);
-        $types = MetricGroup::CardType === $group ? $this->cardReports->typesFor($project, self::cardIdsOf($facts)) : [];
+        $runs = $this->closedRuns($facts, $from, $to, MetricGroup::Stage === $group);
+        $types = MetricGroup::CardType === $group ? $this->cardReports->typesFor($facts->project, self::cardIdsOf($runs)) : [];
 
         $result = [];
         foreach ($shapes as $shape) {
             $metric = $shape->key->metric ?? throw new \LogicException('A key has a built-in metric or a template metric.');
             $name = $shape->key->name;
-            $times = $this->namedRunValues($facts, $metric, $name);
+            $times = $this->namedRunValues($runs, $metric, $name);
             $result[] = array_map(
                 static fn (WorkerRunFact $fact): MetricRow => new MetricRow(
                     $fact->runId,
@@ -252,7 +253,7 @@ final readonly class MetricRowSource
                     null === $name ? self::runValue($fact, $metric) : $times[(string) $fact->runId] ?? null,
                     self::keyOf($group, self::groupOf($fact, $group, $types)),
                 ),
-                $facts,
+                $runs,
             );
         }
 
@@ -265,17 +266,17 @@ final readonly class MetricRowSource
      *
      * @return list<MetricRow>
      */
-    private function templateRows(Project $project, TemplateMetric $template, MetricGroup $group, ?\DateTimeImmutable $from, ?\DateTimeImmutable $to): array
+    private function templateRows(MetricFacts $facts, TemplateMetric $template, MetricGroup $group, ?\DateTimeImmutable $from, ?\DateTimeImmutable $to): array
     {
-        $cards = $this->finishedCards->finishedCards($project, $from, $to);
+        $cards = $this->finishedCardsOf($facts, $from, $to);
         if ([] === $cards) {
             return [];
         }
 
         $ids = array_map(static fn (FinishedCard $card): Uuid => $card->id, $cards);
-        $values = $this->templateValues->valuesOf($project, $ids, $template);
-        $types = MetricGroup::CardType === $group ? $this->cardReports->typesFor($project, $ids) : [];
-        $variants = MetricGroup::Variant === $group ? $this->variantsOf($project, $ids) : [];
+        $values = $this->templateValues->valuesOf($facts->project, $ids, $template);
+        $types = MetricGroup::CardType === $group ? $this->cardReports->typesFor($facts->project, $ids) : [];
+        $variants = MetricGroup::Variant === $group ? $this->variantsOf($facts, $ids) : [];
 
         $rows = [];
         foreach ($cards as $card) {
@@ -294,11 +295,13 @@ final readonly class MetricRowSource
      *
      * @return array<string, list<?string>> card id => each variant its runs name, null for a run with none
      */
-    private function variantsOf(Project $project, array $ids): array
+    private function variantsOf(MetricFacts $facts, array $ids): array
     {
         $variants = [];
-        foreach ($this->workerRunFacts->findOfCards($project, $ids) as $fact) {
-            $variants[(string) $fact->subjectId][$fact->variant ?? ''] = $fact->variant;
+        foreach ($this->runsOfCards($facts, $ids) as $runs) {
+            foreach ($runs as $fact) {
+                $variants[(string) $fact->subjectId][$fact->variant ?? ''] = $fact->variant;
+            }
         }
 
         return array_map(array_values(...), $variants);
@@ -309,36 +312,33 @@ final readonly class MetricRowSource
      *
      * @return list<list<MetricRow>>
      */
-    private function cardRowsMany(Project $project, array $shapes, MetricGroup $group, ?\DateTimeImmutable $from, ?\DateTimeImmutable $to): array
+    private function cardRowsMany(MetricFacts $facts, array $shapes, MetricGroup $group, ?\DateTimeImmutable $from, ?\DateTimeImmutable $to): array
     {
-        $cards = $this->finishedCards->finishedCards($project, $from, $to);
+        $cards = $this->finishedCardsOf($facts, $from, $to);
         if ([] === $cards) {
             return array_map(static fn (MetricShape $shape): array => [], $shapes);
         }
 
         $ids = array_map(static fn (FinishedCard $card): Uuid => $card->id, $cards);
-        $factsByCard = [];
-        foreach ($this->workerRunFacts->findOfCards($project, $ids) as $fact) {
-            $factsByCard[(string) $fact->subjectId][] = $fact;
-        }
+        $factsByCard = $this->runsOfCards($facts, $ids);
         $allFacts = array_merge(...array_values($factsByCard));
-        $types = MetricGroup::CardType === $group ? $this->cardReports->typesFor($project, $ids) : [];
+        $types = MetricGroup::CardType === $group ? $this->cardReports->typesFor($facts->project, $ids) : [];
 
         // The partitions of a card depend on the grouping alone, so every metric shares them.
         $partitionsOf = [];
         foreach ($cards as $card) {
             $id = (string) $card->id;
-            $facts = $factsByCard[$id] ?? [];
+            $cardRuns = $factsByCard[$id] ?? [];
             /** @var array<string, array{group: ?string, facts: list<WorkerRunFact>}> $partitions */
             $partitions = [];
-            if ($group->isRunGrouping() && [] !== $facts) {
-                foreach ($facts as $fact) {
+            if ($group->isRunGrouping() && [] !== $cardRuns) {
+                foreach ($cardRuns as $fact) {
                     $key = self::groupOf($fact, $group, $types);
                     $partitions[null === $key ? '' : 'key:'.$key]['group'] = $key;
                     $partitions[null === $key ? '' : 'key:'.$key]['facts'][] = $fact;
                 }
             } else {
-                $partitions[] = ['group' => $group->isRunGrouping() ? null : $types[$id] ?? null, 'facts' => $facts];
+                $partitions[] = ['group' => $group->isRunGrouping() ? null : $types[$id] ?? null, 'facts' => $cardRuns];
             }
             $partitionsOf[$id] = $partitions;
         }
@@ -366,6 +366,154 @@ final readonly class MetricRowSource
         }
 
         return $result;
+    }
+
+    /**
+     * Loads what the windows of a refresh need, so the reads of every graph find it in the fact set. A null start
+     * loads all time. Each load reads only the part the set lacks.
+     */
+    public function load(MetricFacts $facts, bool $runs, ?\DateTimeImmutable $runsFrom, bool $cards, ?\DateTimeImmutable $cardsFrom): void
+    {
+        if ($runs) {
+            $this->ensureClosedRuns($facts, $runsFrom);
+        }
+        if ($cards) {
+            $this->ensureFinishedCards($facts, $cardsFrom);
+            $this->runsOfCards($facts, array_map(static fn (FinishedCard $card): Uuid => $card->id, $facts->finishedCards ?? []));
+        }
+    }
+
+    /**
+     * Loads the facts that the windows of these queries read, with one start for the run reads and one for the card
+     * reads. A query that reads neither, such as a reading query or a formula with a problem, loads nothing.
+     *
+     * @param list<MetricQueryCommand> $commands
+     */
+    public function loadFor(MetricFacts $facts, array $commands): void
+    {
+        $runs = false;
+        $runsFrom = null;
+        $cards = false;
+        $cardsFrom = null;
+        foreach ($commands as $command) {
+            if (null !== $command->formula?->problem) {
+                continue;
+            }
+            $from = self::earliestStart($command, $facts->to);
+            if (MetricUnit::Run === $command->unit) {
+                $runsFrom = $runs ? self::earlier($runsFrom, $from) : $from;
+                $runs = true;
+            } elseif (MetricUnit::Card === $command->unit) {
+                $cardsFrom = $cards ? self::earlier($cardsFrom, $from) : $from;
+                $cards = true;
+            }
+        }
+
+        $this->load($facts, $runs, $runsFrom, $cards, $cardsFrom);
+    }
+
+    /** The start of the earliest window the query reads, the previous period included. Null is all time. */
+    private static function earliestStart(MetricQueryCommand $command, \DateTimeImmutable $now): ?\DateTimeImmutable
+    {
+        $from = $command->range->startFrom($now);
+        $length = $command->range->length();
+        if (null === $from || MetricCompare::Previous !== $command->compare || null === $length) {
+            return $from;
+        }
+
+        return $from->sub($length);
+    }
+
+    /** The earlier of two starts, where null is all time. */
+    private static function earlier(?\DateTimeImmutable $a, ?\DateTimeImmutable $b): ?\DateTimeImmutable
+    {
+        return null === $a || null === $b ? null : min($a, $b);
+    }
+
+    private function ensureClosedRuns(MetricFacts $facts, ?\DateTimeImmutable $from): void
+    {
+        if (null === $facts->closedRuns) {
+            $facts->closedRuns = $this->workerRunFacts->findClosedSince($facts->project, $from, false, $facts->to);
+            $facts->runsFrom = $from;
+
+            return;
+        }
+        if (null !== $facts->runsFrom && (null === $from || $from < $facts->runsFrom)) {
+            $facts->closedRuns = [...$this->workerRunFacts->findClosedSince($facts->project, $from, false, $facts->runsFrom), ...$facts->closedRuns];
+            $facts->runsFrom = $from;
+        }
+    }
+
+    private function ensureFinishedCards(MetricFacts $facts, ?\DateTimeImmutable $from): void
+    {
+        if (null === $facts->finishedCards) {
+            $facts->finishedCards = $this->finishedCards->finishedCards($facts->project, $from, $facts->to);
+            $facts->cardsFrom = $from;
+
+            return;
+        }
+        if (null !== $facts->cardsFrom && (null === $from || $from < $facts->cardsFrom)) {
+            $facts->finishedCards = [...$this->finishedCards->finishedCards($facts->project, $from, $facts->cardsFrom), ...$facts->finishedCards];
+            $facts->cardsFrom = $from;
+        }
+    }
+
+    /**
+     * The closed runs of the window with the conditions of WorkerRunFactRepository::findClosedSince(). A null end is
+     * the stamp.
+     *
+     * @return list<WorkerRunFact>
+     */
+    private function closedRuns(MetricFacts $facts, ?\DateTimeImmutable $from, ?\DateTimeImmutable $to, bool $cardsOnly): array
+    {
+        $to ??= $facts->to;
+        if ($to > $facts->to) {
+            throw new \LogicException('A window must not end after the stamp of its fact set.');
+        }
+        $this->ensureClosedRuns($facts, $from);
+
+        return array_values(array_filter($facts->closedRuns ?? [], static function (WorkerRunFact $fact) use ($from, $to, $cardsOnly): bool {
+            $time = $fact->endedAt ?? $fact->receivedAt;
+
+            return (null === $from || $time >= $from) && $time < $to && (!$cardsOnly || 'card' === $fact->subjectType);
+        }));
+    }
+
+    /** @return list<FinishedCard> */
+    private function finishedCardsOf(MetricFacts $facts, ?\DateTimeImmutable $from, ?\DateTimeImmutable $to): array
+    {
+        $to ??= $facts->to;
+        if ($to > $facts->to) {
+            throw new \LogicException('A window must not end after the stamp of its fact set.');
+        }
+        $this->ensureFinishedCards($facts, $from);
+
+        return array_values(array_filter($facts->finishedCards ?? [], static fn (FinishedCard $card): bool => (null === $from || $card->completedAt >= $from) && $card->completedAt < $to));
+    }
+
+    /**
+     * @param list<Uuid> $ids
+     *
+     * @return array<string, list<WorkerRunFact>> card id => its runs, with a list for every id
+     */
+    private function runsOfCards(MetricFacts $facts, array $ids): array
+    {
+        $missing = array_values(array_filter($ids, static fn (Uuid $id): bool => !isset($facts->runsOfCards[(string) $id])));
+        if ([] !== $missing) {
+            foreach ($missing as $id) {
+                $facts->runsOfCards[(string) $id] = [];
+            }
+            foreach ($this->workerRunFacts->findOfCards($facts->project, $missing) as $fact) {
+                $facts->runsOfCards[(string) $fact->subjectId][] = $fact;
+            }
+        }
+
+        $runs = [];
+        foreach ($ids as $id) {
+            $runs[(string) $id] = $facts->runsOfCards[(string) $id];
+        }
+
+        return $runs;
     }
 
     /**
