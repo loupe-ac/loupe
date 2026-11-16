@@ -83,6 +83,8 @@ class CardRepository extends ServiceEntityRepository
         return array_values($this->createQueryBuilder('c')
             ->join('c.column', 'k')
             ->addSelect('k')
+            ->leftJoin('c.parent', 'p')
+            ->addSelect('p')
             ->andWhere('c.project = :project')
             ->andWhere('c.id IN (:ids)')
             ->setParameter('project', $project)
