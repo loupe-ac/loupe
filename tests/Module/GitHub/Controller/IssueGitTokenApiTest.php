@@ -13,16 +13,19 @@ use App\Module\GitHub\Service\GitHubAppApi;
 use App\Module\GitHub\Service\GitHubAppConfiguration;
 use App\Module\GitHub\Service\GitHubGitTokenIssuer;
 use App\Module\GitHub\Service\GitHubGitTokenRefused;
+use App\Module\GitHub\Service\GitHubRepositoryTokenStore;
 use App\Module\Project\Entity\Project;
 use App\Tests\Support\AgentCredential;
 use App\Tests\Support\OAuthScenario;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\Cache\Adapter\AdapterInterface;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Ubermuda\DoctrineExtra\Encryption\Encryptor;
 
 final class IssueGitTokenApiTest extends WebTestCase
 {
@@ -43,6 +46,9 @@ final class IssueGitTokenApiTest extends WebTestCase
         $this->client = static::createClient();
         $this->client->disableReboot();
         $this->scenario = new OAuthScenario(static::getContainer());
+        $cache = static::getContainer()->get('cache.app');
+        self::assertInstanceOf(AdapterInterface::class, $cache);
+        $cache->clear();
     }
 
     public function test_a_request_with_no_token_is_unauthorized(): void
@@ -269,6 +275,111 @@ final class IssueGitTokenApiTest extends WebTestCase
         self::assertSame('github_unavailable', $this->json()['code']);
     }
 
+    public function test_the_next_request_reuses_the_token_and_the_installation_list(): void
+    {
+        [$owner, $project] = $this->managedProject('reuse', ['contents' => 'write', 'pull_requests' => 'write']);
+        $this->responses[] = $this->answer(['token' => 'ghs_scoped', 'expires_at' => '2026-10-18T14:00:00Z'], 201);
+        $credential = AgentCredential::agentToken(static::getContainer(), $owner);
+
+        $this->call($credential, (string) $project->id);
+        $this->call($credential, (string) $project->id);
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame(['token' => 'ghs_scoped', 'expiresAt' => '2026-10-18T14:00:00+00:00'], $this->json());
+        self::assertCount(2, $this->requests);
+    }
+
+    public function test_it_mints_again_when_less_than_fifteen_minutes_of_the_kept_token_remain(): void
+    {
+        [$owner, $project] = $this->managedProject('short', ['contents' => 'write', 'pull_requests' => 'write']);
+        $this->responses[] = $this->answer(['token' => 'ghs_short', 'expires_at' => '2026-10-18T13:04:00Z'], 201);
+        $this->responses[] = $this->answer(['token' => 'ghs_next', 'expires_at' => '2026-10-18T14:00:00Z'], 201);
+        $credential = AgentCredential::agentToken(static::getContainer(), $owner);
+
+        $this->call($credential, (string) $project->id);
+        $this->call($credential, (string) $project->id);
+
+        self::assertSame('ghs_next', $this->json()['token']);
+        self::assertCount(3, $this->requests);
+    }
+
+    public function test_a_refusal_from_the_cached_list_is_decided_again_on_the_live_list(): void
+    {
+        [$owner, $project] = $this->managedProject('fixed-grant', ['contents' => 'read', 'pull_requests' => 'write']);
+        $refusal = $this->issuer()->refusal($project);
+        self::assertSame(GitHubGitTokenRefused::MISSING_GRANT, $refusal?->cause);
+        $this->responses[] = $this->answer([['id' => self::INSTALLATION, 'account' => ['login' => 'acme'], 'permissions' => ['contents' => 'write', 'pull_requests' => 'write']]]);
+        $this->responses[] = $this->answer(['token' => 'ghs_scoped', 'expires_at' => '2026-10-18T14:00:00Z'], 201);
+
+        $this->call(AgentCredential::agentToken(static::getContainer(), $owner), (string) $project->id);
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertCount(3, $this->requests);
+    }
+
+    public function test_a_mint_the_live_list_changes_runs_once_more(): void
+    {
+        [$owner, $project] = $this->managedProject('lost-workflows', ['contents' => 'write', 'pull_requests' => 'write', 'workflows' => 'write']);
+        self::assertNull($this->issuer()->refusal($project));
+        $this->responses[] = $this->answer(['message' => 'Validation Failed'], 422);
+        $this->responses[] = $this->answer([['id' => self::INSTALLATION, 'account' => ['login' => 'acme'], 'permissions' => ['contents' => 'write', 'pull_requests' => 'write']]]);
+        $this->responses[] = $this->answer(['token' => 'ghs_scoped', 'expires_at' => '2026-10-18T14:00:00Z'], 201);
+
+        $this->call(AgentCredential::agentToken(static::getContainer(), $owner), (string) $project->id);
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertCount(4, $this->requests);
+        self::assertStringContainsString('"permissions":{"contents":"write","pull_requests":"write"}', $this->requests[3]['body']);
+    }
+
+    public function test_a_failed_mint_that_the_live_list_does_not_change_is_not_tried_again(): void
+    {
+        [$owner, $project] = $this->managedProject('spam', ['contents' => 'write', 'pull_requests' => 'write']);
+        self::assertNull($this->issuer()->refusal($project));
+        $this->responses[] = $this->answer(['message' => 'spam'], 422);
+        $this->responses[] = $this->answer([['id' => self::INSTALLATION, 'account' => ['login' => 'acme'], 'permissions' => ['contents' => 'write', 'pull_requests' => 'write']]]);
+
+        $this->call(AgentCredential::agentToken(static::getContainer(), $owner), (string) $project->id);
+
+        self::assertResponseStatusCodeSame(502);
+        self::assertSame('github_unavailable', $this->json()['code']);
+        self::assertCount(3, $this->requests);
+    }
+
+    public function test_a_failed_mint_on_a_list_read_in_the_same_request_is_not_tried_again(): void
+    {
+        [$owner, $project] = $this->managedProject('live-list', ['contents' => 'write', 'pull_requests' => 'write']);
+        $this->responses[] = $this->answer(['message' => 'gone'], 404);
+
+        $this->call(AgentCredential::agentToken(static::getContainer(), $owner), (string) $project->id);
+
+        self::assertResponseStatusCodeSame(502);
+        self::assertCount(2, $this->requests);
+    }
+
+    /** @return iterable<string, array{int, array<string, string>}> */
+    public static function failuresThatNeverRetry(): iterable
+    {
+        yield 'a 401' => [401, []];
+        yield 'a rate-limited 403' => [403, ['x-ratelimit-remaining' => '0']];
+        yield 'a 429' => [429, ['retry-after' => '30']];
+        yield 'a 500' => [500, []];
+    }
+
+    /** @param array<string, string> $headers */
+    #[\PHPUnit\Framework\Attributes\DataProvider('failuresThatNeverRetry')]
+    public function test_other_mint_failures_on_a_cached_list_are_not_tried_again(int $status, array $headers): void
+    {
+        [$owner, $project] = $this->managedProject('no-retry-'.$status, ['contents' => 'write', 'pull_requests' => 'write']);
+        self::assertNull($this->issuer()->refusal($project));
+        $this->responses[] = new MockResponse('{}', ['http_code' => $status, 'response_headers' => $headers]);
+
+        $this->call(AgentCredential::agentToken(static::getContainer(), $owner), (string) $project->id);
+
+        self::assertResponseStatusCodeSame(502);
+        self::assertCount(2, $this->requests);
+    }
+
     public function test_it_names_a_missing_app_signing_key_as_a_setup_problem(): void
     {
         $owner = $this->scenario->createUser('git-token-no-key@example.com');
@@ -343,7 +454,13 @@ final class IssueGitTokenApiTest extends WebTestCase
         }, 'https://api.github.com');
         $configuration = new GitHubAppConfiguration(null, null, null, null, '123456', $pem);
         static::getContainer()->set(GitHubAppConfiguration::class, $configuration);
-        static::getContainer()->set(GitHubAppApi::class, new GitHubAppApi($http, $configuration, new MockClock('2026-10-18 13:00:00')));
+        $clock = new MockClock('2026-10-18 13:00:00');
+        static::getContainer()->set(GitHubAppApi::class, new GitHubAppApi($http, $configuration, $clock));
+        $cache = static::getContainer()->get('cache.app');
+        $encryptor = static::getContainer()->get(Encryptor::class);
+        self::assertInstanceOf(AdapterInterface::class, $cache);
+        self::assertInstanceOf(Encryptor::class, $encryptor);
+        static::getContainer()->set(GitHubRepositoryTokenStore::class, new GitHubRepositoryTokenStore($cache, $encryptor, $clock));
     }
 
     /** @param ?string $repository the repository to ask for, or null to send an empty object */
