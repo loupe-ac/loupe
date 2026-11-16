@@ -217,6 +217,8 @@ A marker reads the same conditions as a rule. These conditions suit markers:
 - `card.value`: the card holds a value for the value key in `key`. With `equals`, the held value must equal it. A key with no valid value is unset, so `equals: true` is false. The template must declare the key in its `values` list, or it fails to load.
 - `card.document.in_review` with a `tag`: a linked document with that tag is in
   review.
+- `card.document.changes_requested` with a `tag`: you asked for changes on a
+  linked document with that tag.
 - `card.quiet_for`: nothing happened on the card for the `delay`, in minutes.
   With `children: true`, the newest history event of any child counts too, and
   the condition is false while a child has an open worker run.
