@@ -216,6 +216,11 @@ final class ShowCardPlacementControllerTest extends WebTestCase
         $forSmall = $this->requestStatements($client, $em, $this->placementUrl($small[0], $small[1]));
         $forBig = $this->requestStatements($client, $em, $this->placementUrl($big[0], $big[1]));
 
+        // Both boards place a child with a parent, so a missing parent join adds the same lazy load to each count.
+        foreach ([$forSmall, $forBig] as $statements) {
+            $lazyLoads = array_filter($statements, static fn (string $sql): bool => str_contains($sql, 'FROM board_cards t0 WHERE t0.id = ?'));
+            self::assertSame([], array_values($lazyLoads), 'The request loaded a card by id on its own.');
+        }
         self::assertSame(\count($forSmall), \count($forBig), "The request read more on the bigger board:\n".implode("\n", $forBig));
     }
 
