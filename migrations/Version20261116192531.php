@@ -26,11 +26,6 @@ final class Version20261116192531 extends AbstractMigration
         'inbox_items' => ['search_vector', 'search_language', 'updated_at'],
     ];
 
-    /** The columns that this migration adds, which the catalog does not hold yet when it builds the triggers. */
-    private const array ADDED_COLUMNS = [
-        'bridges' => ['came_back_at'],
-    ];
-
     /**
      * Each entry gives one trigger pair. The first trigger fires on the inserts and the deletes that the entry names,
      * and the second on the updates of the watched columns that change a value. 'only' narrows the watched columns,
@@ -120,7 +115,7 @@ final class Version20261116192531 extends AbstractMigration
         'workflow_touch_session_cards(UUID, UUID, UUID)',
         'workflow_touch_document_cards(UUID)',
         'workflow_touch_pull_request_cards_by_id(UUID)',
-        'workflow_touch_pull_request_cards(forge_pull_requests)',
+        'workflow_touch_pull_request_cards(UUID, TEXT, TEXT, BIGINT, TEXT)',
         'workflow_touch_card_scope(UUID, TEXT)',
         'workflow_touch_login_projects(UUID)',
         'workflow_touch_all_projects()',
@@ -189,51 +184,20 @@ final class Version20261116192531 extends AbstractMigration
         }
 
         if (\in_array('update', $events, true)) {
-            $columns = $this->watchedColumns($table, $trigger['only'] ?? null);
-            $guard = array_map(
-                static fn (array $column): string => 'json' === $column['type']
-                    ? \sprintf('OLD.%1$s::jsonb IS DISTINCT FROM NEW.%1$s::jsonb', $column['name'])
-                    : \sprintf('OLD.%1$s IS DISTINCT FROM NEW.%1$s', $column['name']),
-                $columns,
-            );
-            $statements[] = \sprintf(
-                'CREATE TRIGGER %s_update AFTER UPDATE OF %s ON %s FOR EACH ROW WHEN (%s) %s',
-                $name,
-                implode(', ', array_column($columns, 'name')),
-                $table,
-                implode(' OR ', $guard),
-                $execute,
-            );
+            $only = $trigger['only'] ?? null;
+            if (null === $only) {
+                $quiet = "ARRAY['".implode("', '", self::QUIET_COLUMNS[$table] ?? [])."']::text[]";
+                $guard = \sprintf('(to_jsonb(OLD) - %1$s) IS DISTINCT FROM (to_jsonb(NEW) - %1$s)', $quiet);
+            } else {
+                $guard = implode(' OR ', array_map(
+                    static fn (string $column): string => \sprintf("(to_jsonb(OLD) -> '%1\$s') IS DISTINCT FROM (to_jsonb(NEW) -> '%1\$s')", $column),
+                    $only,
+                ));
+            }
+            $statements[] = \sprintf('CREATE TRIGGER %s_update AFTER UPDATE ON %s FOR EACH ROW WHEN (%s) %s', $name, $table, $guard, $execute);
         }
 
         return $statements;
-    }
-
-    /**
-     * @param list<string>|null $only
-     *
-     * @return non-empty-list<array{name: string, type: string}>
-     */
-    private function watchedColumns(string $table, ?array $only): array
-    {
-        /** @var list<array{name: string, type: string}> $columns */
-        $columns = $this->connection->fetchAllAssociative(
-            'SELECT column_name AS name, data_type AS type FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = :table ORDER BY ordinal_position',
-            ['table' => $table],
-        );
-        foreach (self::ADDED_COLUMNS[$table] ?? [] as $added) {
-            $columns[] = ['name' => $added, 'type' => 'timestamp without time zone'];
-        }
-        $quiet = self::QUIET_COLUMNS[$table] ?? [];
-        $columns = array_values(array_filter(
-            $columns,
-            static fn (array $column): bool => null === $only ? !\in_array($column['name'], $quiet, true) : \in_array($column['name'], $only, true),
-        ));
-        if ([] === $columns) {
-            throw new \LogicException(\sprintf('The table %s has no column to watch.', $table));
-        }
-
-        return $columns;
     }
 
     /** @return list<string> */
@@ -312,18 +276,18 @@ final class Version20261116192531 extends AbstractMigration
                 SQL,
             // The cards that link the pull request, those that link a pull request stacked on it, and their parents and children.
             <<<'SQL'
-                CREATE FUNCTION workflow_touch_pull_request_cards(pr forge_pull_requests) RETURNS void AS $$
+                CREATE FUNCTION workflow_touch_pull_request_cards(pr_project UUID, pr_forge TEXT, pr_repository TEXT, pr_number BIGINT, pr_head_branch TEXT) RETURNS void AS $$
                 BEGIN
                     PERFORM workflow_touch_card_scope(c.id, 'parent,children')
                     FROM board_card_pull_requests l
                     JOIN board_cards c ON c.id = l.card_id
-                    WHERE c.project_id = pr.project_id AND l.forge = pr.forge AND lower(l.repository) = lower(pr.repository) AND l.number = pr.number;
-                    IF pr.head_branch IS NOT NULL THEN
+                    WHERE c.project_id = pr_project AND l.forge = pr_forge AND lower(l.repository) = lower(pr_repository) AND l.number = pr_number;
+                    IF pr_head_branch IS NOT NULL THEN
                         PERFORM workflow_touch_card_scope(c.id, 'parent,children')
                         FROM forge_pull_requests s
                         JOIN board_card_pull_requests l ON l.forge = s.forge AND lower(l.repository) = lower(s.repository) AND l.number = s.number
                         JOIN board_cards c ON c.id = l.card_id AND c.project_id = s.project_id
-                        WHERE s.project_id = pr.project_id AND s.forge = pr.forge AND lower(s.repository) = lower(pr.repository) AND s.base_branch = pr.head_branch;
+                        WHERE s.project_id = pr_project AND s.forge = pr_forge AND lower(s.repository) = lower(pr_repository) AND s.base_branch = pr_head_branch;
                     END IF;
                 END;
                 $$ LANGUAGE plpgsql
@@ -332,7 +296,7 @@ final class Version20261116192531 extends AbstractMigration
                 CREATE FUNCTION workflow_touch_pull_request_cards_by_id(target UUID) RETURNS void AS $$
                 BEGIN
                     IF target IS NOT NULL THEN
-                        PERFORM workflow_touch_pull_request_cards(p) FROM forge_pull_requests p WHERE p.id = target;
+                        PERFORM workflow_touch_pull_request_cards(p.project_id, p.forge, p.repository, p.number, p.head_branch) FROM forge_pull_requests p WHERE p.id = target;
                     END IF;
                 END;
                 $$ LANGUAGE plpgsql
@@ -446,14 +410,14 @@ final class Version20261116192531 extends AbstractMigration
                 BEGIN
                     IF TG_OP <> 'DELETE' THEN
                         PERFORM workflow_touch_card_scope(NEW.card_id, 'parent,children');
-                        PERFORM workflow_touch_pull_request_cards(p)
+                        PERFORM workflow_touch_pull_request_cards(p.project_id, p.forge, p.repository, p.number, p.head_branch)
                         FROM board_cards c
                         JOIN forge_pull_requests p ON p.project_id = c.project_id AND p.forge = NEW.forge AND lower(p.repository) = lower(NEW.repository) AND p.number = NEW.number
                         WHERE c.id = NEW.card_id;
                     END IF;
                     IF TG_OP <> 'INSERT' THEN
                         PERFORM workflow_touch_card_scope(OLD.card_id, 'parent,children');
-                        PERFORM workflow_touch_pull_request_cards(p)
+                        PERFORM workflow_touch_pull_request_cards(p.project_id, p.forge, p.repository, p.number, p.head_branch)
                         FROM board_cards c
                         JOIN forge_pull_requests p ON p.project_id = c.project_id AND p.forge = OLD.forge AND lower(p.repository) = lower(OLD.repository) AND p.number = OLD.number
                         WHERE c.id = OLD.card_id;
@@ -470,7 +434,7 @@ final class Version20261116192531 extends AbstractMigration
                 BEGIN
                     FOREACH target IN ARRAY ARRAY[CASE WHEN TG_OP <> 'DELETE' THEN NEW.card_id END, CASE WHEN TG_OP <> 'INSERT' THEN OLD.card_id END] LOOP
                         PERFORM workflow_touch_card_scope(target, 'parent');
-                        PERFORM workflow_touch_pull_request_cards(p)
+                        PERFORM workflow_touch_pull_request_cards(p.project_id, p.forge, p.repository, p.number, p.head_branch)
                         FROM board_card_pull_requests l
                         JOIN board_cards c ON c.id = l.card_id
                         JOIN forge_pull_requests p ON p.project_id = c.project_id AND p.forge = l.forge AND lower(p.repository) = lower(l.repository) AND p.number = l.number
@@ -559,10 +523,10 @@ final class Version20261116192531 extends AbstractMigration
                 CREATE FUNCTION workflow_mark_pull_request() RETURNS trigger AS $$
                 BEGIN
                     IF TG_OP <> 'DELETE' THEN
-                        PERFORM workflow_touch_pull_request_cards(NEW);
+                        PERFORM workflow_touch_pull_request_cards(NEW.project_id, NEW.forge, NEW.repository, NEW.number, NEW.head_branch);
                     END IF;
                     IF TG_OP <> 'INSERT' THEN
-                        PERFORM workflow_touch_pull_request_cards(OLD);
+                        PERFORM workflow_touch_pull_request_cards(OLD.project_id, OLD.forge, OLD.repository, OLD.number, OLD.head_branch);
                     END IF;
                     RETURN NULL;
                 END;
@@ -612,7 +576,7 @@ final class Version20261116192531 extends AbstractMigration
                     PERFORM workflow_touch_card_scope(v.card_id, 'parent')
                     FROM board_card_verdicts v
                     WHERE v.notes @> jsonb_build_array(jsonb_build_object('id', comment_id::text));
-                    PERFORM workflow_touch_pull_request_cards(p)
+                    PERFORM workflow_touch_pull_request_cards(p.project_id, p.forge, p.repository, p.number, p.head_branch)
                     FROM board_card_verdicts v
                     JOIN board_card_pull_requests l ON l.card_id = v.card_id
                     JOIN board_cards c ON c.id = v.card_id
