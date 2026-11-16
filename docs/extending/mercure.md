@@ -1,13 +1,16 @@
 ---
 title: "Mercure hub"
-description: "Optional. Needed for live-review push, the live board and the live inbox count; without it, submissions still save."
+description: "Optional. Needed for live-review push and for live pages across the app; without it, submissions still save and pages update on the next load."
 ---
 
-Live-review push, the live board, the worker run lists and the live inbox count are the things that need a Mercure hub. Leaving it off is a
-supported state: submissions reach the outbox first and a scheduled drain
+Live-review push and the live pages need a Mercure hub. The live pages are the
+board, the documents, the artifacts, Insights, the project and account pages,
+the activity page, the worker run lists and the inbox count. Leaving the hub off
+is a supported state: submissions reach the outbox first and a scheduled drain
 replays them once a hub exists, so nothing is lost — but nothing reaches a
-running agent either, and the publish failure is only logged. It degrades
-silently rather than erroring.
+running agent either, and the publish failure is only logged. An open page shows
+the changes of other people on its next load. It degrades silently rather than
+erroring.
 
 The hub is in-memory. A restart drops undelivered updates, which is exactly why
 submissions are recorded in the `outbox_events` outbox and the bridge
@@ -26,7 +29,7 @@ Two feature flags use the hub, and each switches on its own:
 | Flag | Switches |
 |---|---|
 | `agent.push.enabled` | The outbox drain, the bridge CLI's subscriber credentials at `GET /api/v1/bridge/events`, its catch-up read at `GET /api/v1/bridge/events/replay`, and its worker-run reports at `PUT /api/v1/bridge/projects/{handle}/worker-runs/{runId}`, and `PUT /api/v1/bridge/bridges/{bridgeId}/runs`. |
-| `live_updates.enabled` | Live updates in the browser: the subscriber cookie, the page element, `POST /mercure/authorize`, every publish of `LiveUpdatePublisher`, the live board, the worker run lists, the inbox count in the sidebar, and the inbox page. |
+| `live_updates.enabled` | Live updates in the browser: the subscriber cookie, the page element, `POST /mercure/authorize`, every publish of `LiveUpdatePublisher`, and every live page: the live regions, the lost-access band, the worker run lists, the inbox count in the sidebar, and the inbox page. |
 
 Both flags require all three variables. With any of them blank, the flag reads
 as off whatever the admin page stores. Both ship on. An instance that upgrades
@@ -58,6 +61,8 @@ A feature that wants live updates on a page adds three things:
    allows a user only their own `/users/{id}/inbox` topic, while the inbox is on.
    `InboxPageTopicAuthorizer` allows the `/projects/{id}/inbox` topic to whoever may view the project, while the inbox is on.
    `NotificationTopicAuthorizer` allows a user only their own `/users/{id}/notifications` topic, whatever the inbox flag says.
+   `DocumentsTopicAuthorizer`, `ArtifactTopicAuthorizer` and `AnalyticsTopicAuthorizer` apply the project view permission to the documents, artifacts and analytics topics of a project.
+   `AccountTopicAuthorizer` allows a user only their own account topic.
 2. A call to `{% do mercure_subscribe(topic) %}` in the page template.
 3. A handler in a Stimulus controller, with `on(types, handler, options)` from
    `assets/lib/live.js`. A handler receives each message whose JSON `type` it
@@ -79,6 +84,89 @@ With the hub unconfigured or `live_updates.enabled` off, the layout renders no
 element, and a page opens no connection. A renewal then answers an empty topic
 list and sets no cookie. `agent.push.enabled` has no effect on a page.
 
+## Making a region live
+
+Most pages need no JavaScript of their own. A page marks a region, and the
+`live-region` Stimulus controller keeps it current. The loop is the same for
+every region:
+
+1. A writer commits a change and queues a signal that names only ids.
+2. The open page receives the signal. It skips a signal that it caused itself.
+3. The region waits for 300 ms of quiet, and at most 2 seconds. It waits longer
+   while a drag runs, a dialog is open, or a field in the region holds typed
+   text.
+4. The region reads its `url`, with the header `X-Loupe-Live-Refresh: 1`. The
+   server renders the answer for the current viewer, and the voters decide what
+   the viewer sees.
+5. The region applies the answer by its mode.
+
+Declare the region in the template, and subscribe the page to the topic with
+`mercure_subscribe()`:
+
+```twig
+{% do mercure_subscribe(topic) %}
+<turbo-frame id="documents-list" refresh="morph"
+    data-controller="live-region"
+    data-live-region-types-value="{{ ['documents.changed']|json_encode }}"
+    data-live-region-mode-value="frame"
+    data-live-region-url-value="{{ app.request.requestUri }}">
+```
+
+| Value | Meaning |
+|---|---|
+| `types` | The signal types that the region reacts to. |
+| `url` | The route that renders the answer. |
+| `mode` | One of the four modes below. The default is `frame`. |
+| `match` | Payload keys that must equal given values, such as the id of one artifact. |
+| `quiet`, `max` | The wait of the region in milliseconds, when the defaults do not fit. |
+
+The four modes:
+
+| Mode | The answer | Use it for |
+|---|---|---|
+| `frame` | A `<turbo-frame refresh="morph">`. Unchanged rows keep their DOM, focus and scroll. | A list or a panel. |
+| `stream` | A Turbo Stream. | One band, one comment thread or one status chip. |
+| `rows` | Turbo Streams for page 2 and later of a list. The read sends the ids of the shown rows and the cursor of the page. | A paginated list. A row that no longer matches fades out. |
+| `band` | No read. The region shows a band, with a link that opens the subject in a new tab, so typed input stays. | An edit form whose subject another actor can change. |
+
+Three rules hold for every region. Never morph the text of a document, the
+prototype frame of an artifact, a form with typed text, or the rows of page 2
+and later. Never use a page refresh for a live update. A button that loads new
+content is a plain link.
+
+The region retries a network error, a 5xx, a 408 or a 429 after 1, 3 and 9
+seconds. Then it shows a "stopped" band, and the page needs a reload. A region
+also reads again after each reconnect, because the hub keeps no history.
+
+The wait, hold and retry logic lives in `assets/lib/live_fetch.js`. A page with
+special needs calls it from its own controller, and never copies it.
+
+## When a page loses access
+
+A page that stays open can lose its access: the session ends, the account is
+suspended, the project is deleted, or a paywall starts. A live read must not
+follow the redirect to the login page, because that answers 200 with the wrong
+page. `AnswerLiveRefreshOnLostAccess` acts only on a request with
+`X-Loupe-Live-Refresh: 1`:
+
+| Cause | Answer |
+|---|---|
+| No session, or a suspended account | 401 with `X-Loupe-Live-Lost: signed-out` |
+| A project route whose project no longer exists | 410 with `X-Loupe-Live-Lost: project-deleted` |
+| An account with no active subscription | 402, and the region shows the stopped band |
+
+`handleLostAccess(response)` in `live_fetch.js` takes such an answer. It hides
+each `[data-live-content]` element, stops every live region, and shows one
+warning band with the cause. A sign-out band also holds a **Sign in** link.
+Every live controller sends the header and passes each 401 or 410 to that
+function.
+
+A project deletion queues `project.deleted` on the worker run topic of the
+project. Every page with the project sidebar, and the full-screen artifact page,
+hears it. A page that names its project in `data-live-project` reads itself
+once, gets the 410 and shows the band. A sign-out sends no signal: the next live
+read, or the next renewal of the subscription, gets the 401.
+
 ## Publishing a live update
 
 Send every browser update through `App\Mercure\LiveUpdatePublisher`. Call
@@ -93,6 +181,13 @@ update queued twice in one request goes out once.
 The publisher adds an `origin` to each payload that has none. The value is the
 `X-Loupe-Origin` header of the request, which the browser layer sets on each
 Turbo request. A page compares it with its own id to tell its own changes.
+
+A signal waits for its change to commit. The publisher holds each signal while
+a database transaction is open, and drops it on a rollback. Queue from an event
+listener or a Doctrine listener as you like: the signal goes out only after the
+commit. A change that flushes with no explicit transaction queues from a
+Doctrine `postPersist`, `postUpdate` or `postRemove` listener, because Doctrine
+runs those inside the flush.
 
 The publisher reads `live_updates.enabled` when it publishes, and sends nothing
 while the flag is off. A failed publish is only logged, as
