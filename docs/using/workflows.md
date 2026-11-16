@@ -139,7 +139,8 @@ act, chips included. A card with only a chip shows a neutral mark.
 A marker with no slots applies in every column that is not terminal. A marker
 with slots applies only while the card sits in a column that links to one of
 them. A card in a terminal column has no markers. A card in Next with no blocker
-and no parent has no marker, because no marker names the Next slot.
+and no parent has no marker. A child in Next shows `waits-for-epic-design` when
+it shares every unapproved tech design with its epic.
 
 A fallback marker counts only when no other marker of a state kind matches.
 `nothing-happened` and `pull-request-idle` are fallbacks. They show **Stuck**

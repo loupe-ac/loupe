@@ -6,6 +6,7 @@ namespace App\Tests\Module\Workflow\Engine;
 
 use App\Module\AgentReview\Workflow\DocumentReviewFacts;
 use App\Module\AgentReview\Workflow\DocumentReviewState;
+use App\Module\Board\Service\CardMarkerText;
 use App\Module\Board\Workflow\CardActivityFacts;
 use App\Module\Board\Workflow\ChildActivityFacts;
 use App\Module\Board\Workflow\ChildMark;
@@ -575,6 +576,56 @@ final class ShippedMarkersTest extends KernelTestCase
         self::assertSame([], $this->keys(self::childInNext([], [$shared])));
         self::assertSame([], $this->keys(self::childInNext([$shared], [$shared], false)));
         self::assertSame([], $this->keys(self::childInNext([new DocumentFacts(['tech-design'], DocumentStatus::Approved->value, 'shared', 'Shared')], [$shared])));
+    }
+
+    public function test_a_shared_tech_design_through_revision_change_request_and_approval_moves_the_markers_of_the_epic_and_the_child(): void
+    {
+        $at = new \DateTimeImmutable('2026-10-01 10:00:00');
+        $design = static fn (DocumentStatus $status): DocumentFacts => new DocumentFacts(['tech-design'], $status->value, 'doc', 'The design', $at);
+        $epic = fn (DocumentStatus $status): array => [$this->keys(FactsMother::facts(card: FactsMother::card(slot: 'implementation', type: 'epic', documents: [$design($status)]))), $this->writtenInbox ?? []];
+        $child = fn (DocumentStatus $status): array => [$this->keys(self::childInNext([$design($status)], [$design($status)])), $this->writtenInbox ?? []];
+
+        [$keys, $inbox] = $epic(DocumentStatus::Approved);
+        self::assertSame([], $keys, 'the approved epic asks for nothing');
+        [$keys, $inbox] = $child(DocumentStatus::Approved);
+        self::assertSame([], $keys, 'the child of an approved design waits for nothing');
+
+        [$keys, $inbox] = $epic(DocumentStatus::InReview);
+        self::assertSame(['document-in-review'], $keys);
+        self::assertSame(['document-in-review'], array_map(static fn (StoredMarker $marker): string => $marker->key, $inbox));
+        [$keys, $inbox] = $child(DocumentStatus::InReview);
+        self::assertSame(['waits-for-epic-design'], $keys);
+        self::assertSame([], $inbox);
+
+        [$keys, $inbox] = $epic(DocumentStatus::ChangesRequested);
+        self::assertSame(['epic-design-changes-requested'], $keys);
+        self::assertSame(['epic-design-changes-requested'], array_map(static fn (StoredMarker $marker): string => $marker->key, $inbox));
+        [$keys, $inbox] = $child(DocumentStatus::ChangesRequested);
+        self::assertSame(['waits-for-epic-design'], $keys);
+        self::assertSame([], $inbox);
+
+        [$keys, $inbox] = $epic(DocumentStatus::Approved);
+        self::assertSame([], $keys, 'the approval clears the epic marker');
+        [$keys, $inbox] = $child(DocumentStatus::Approved);
+        self::assertSame([], $keys, 'the approval clears the child marker');
+        self::assertSame([], $inbox);
+    }
+
+    public function test_the_child_label_reads_in_one_and_in_two_designs(): void
+    {
+        $text = static::getContainer()->get(CardMarkerText::class);
+        self::assertInstanceOf(CardMarkerText::class, $text);
+        $one = new DocumentFacts(['tech-design'], DocumentStatus::InReview->value, 'one', 'Design one', new \DateTimeImmutable('2026-10-01 10:00:00'));
+        $two = new DocumentFacts(['tech-design'], DocumentStatus::ChangesRequested->value, 'two', 'Design two', new \DateTimeImmutable('2026-10-01 09:00:00'));
+
+        $this->keys(self::childInNext([$one], [$one]));
+        self::assertSame('Waits for the approval of the epic design "Design one".', $text->label($this->written('waits-for-epic-design')));
+
+        $this->keys(self::childInNext([$one, $two], [$one, $two]));
+        self::assertSame('Waits for the approval of 2 epic designs: "Design two", "Design one".', $text->label($this->written('waits-for-epic-design')));
+
+        $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'implementation', type: 'epic', documents: [$two])));
+        self::assertSame('You asked for changes on "Design two".', $text->label($this->written('epic-design-changes-requested')));
     }
 
     /**
