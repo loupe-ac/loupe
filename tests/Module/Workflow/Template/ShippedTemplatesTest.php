@@ -176,6 +176,7 @@ final class ShippedTemplatesTest extends KernelTestCase
             'lifecycle' => [
                 'waits-for-approval' => MarkerSubjectType::PullRequest,
                 'document-in-review' => MarkerSubjectType::Document,
+                'epic-design-changes-requested' => null,
                 'run-needs-you' => MarkerSubjectType::WorkerRun,
                 'paused' => MarkerSubjectType::CardPause,
                 'repository-misfit' => null,
