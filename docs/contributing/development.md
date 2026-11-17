@@ -157,6 +157,17 @@ link work with nothing draining the queue.
 The suite cannot be parallelised: Mailpit is shared, so mail-asserting specs
 across concurrent runs read each other's messages.
 
+## Pin a GitHub Action
+
+Pin each remote action in `.github/` to a full commit SHA, with its release in a
+comment, such as `actions/checkout@<sha> # v7.0.1`. Resolve the SHA from the
+action's own repository with `gh api repos/<owner>/<repo>/commits/<tag> --jq .sha`.
+Dependabot opens a grouped pull request each month that moves the SHAs and their
+comments. Read the release notes before you merge one.
+
+Dependabot does not read the GoReleaser `version` input of
+`.github/workflows/cli-release.yml`. Bump that version by hand.
+
 ## Mutation testing
 
 ```sh
