@@ -68,8 +68,18 @@ func TestRestartFilteredExecsOnceWithFilteredEnv(t *testing.T) {
 
 	got = nil
 	t.Setenv(envallow.FilteredMarker, "A")
+	t.Setenv("BRIDGE_ENV_SECRET", "")
+	os.Unsetenv("BRIDGE_ENV_SECRET")
 	if err := restartFiltered(rulesPath); err != nil || got != nil {
-		t.Fatalf("a marked bridge restarted again: err=%v env=%v", err, got)
+		t.Fatalf("a marked, clean bridge restarted again: err=%v env=%v", err, got)
+	}
+
+	t.Setenv("BRIDGE_ENV_SECRET", "x")
+	if err := restartFiltered(rulesPath); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(strings.Join(got, "\n"), "BRIDGE_ENV_SECRET=x") || got == nil {
+		t.Fatalf("a pre-set marker kept a disallowed variable: %v", got)
 	}
 	t.Cleanup(func() { envallow.SetPass(nil); startupPass = nil })
 }

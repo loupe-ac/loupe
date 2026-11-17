@@ -17,19 +17,24 @@ var startupPass []string
 
 // restartFiltered makes the bridge run on an environment that holds only the
 // base lists of both harnesses and the passEnv names of the rule file. It
-// execs this binary once, in place, and the marker keeps the new image from
-// doing it again. The marker value lists the dropped names, never a value.
+// execs this binary in place. A marker skips the exec only when the actual
+// environment already holds no disallowed name, so an inherited marker cannot
+// keep a secret. The marker value lists the dropped names, never a value.
 func restartFiltered(path string) error {
-	if _, done := os.LookupEnv(envallow.FilteredMarker); done {
-		startupPass = rules.PassEnvOf(path)
+	pass := rules.PassEnvOf(path)
+	patterns := append(envallow.Union(), pass...)
+	dropped := envallow.Dropped(os.Environ(), append(slices.Clone(patterns), envallow.FilteredMarker))
+	if _, marked := os.LookupEnv(envallow.FilteredMarker); marked && len(dropped) == 0 {
+		startupPass = pass
 		envallow.SetPass(startupPass)
 
 		return nil
 	}
-	pass := rules.PassEnvOf(path)
-	patterns := append(envallow.Union(), pass...)
-	dropped := envallow.Dropped(os.Environ(), patterns)
-	env := append(envallow.Filter(os.Environ(), patterns), envallow.FilteredMarker+"="+strings.Join(dropped, ","))
+	names := dropped
+	if v := os.Getenv(envallow.FilteredMarker); v != "" {
+		names = append(strings.Split(v, ","), dropped...)
+	}
+	env := append(envallow.Filter(os.Environ(), patterns), envallow.FilteredMarker+"="+strings.Join(names, ","))
 	exe, err := os.Executable()
 	if err != nil {
 		return fmt.Errorf("find the bridge binary: %w", err)
