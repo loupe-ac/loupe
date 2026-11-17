@@ -82,8 +82,11 @@ func (s *State) save(dir string) error {
 
 // AddRevoked adds fingerprints to the revoked set in update.json of dir and
 // reports whether the set grew. It reads the file first, so it keeps what other
-// writers added.
+// writers added. It also holds the keys in memory for the life of the process,
+// so LoadRevoked and StagedRevoked enforce them when the file cannot be read or
+// saved.
 func AddRevoked(dir string, fingerprints []string) (bool, error) {
+	hold(dir, fingerprints)
 	stateMu.Lock()
 	defer stateMu.Unlock()
 	st, err := LoadState(dir)
@@ -110,7 +113,38 @@ func StagedRevoked(dir, version string) bool {
 	}
 	signer, ok := st.Signers[version]
 
-	return ok && slices.Contains(st.Revoked, signer)
+	return ok && slices.Contains(mergeKeys(st.Revoked, heldKeys(dir)), signer)
+}
+
+var (
+	heldMu    sync.Mutex
+	heldByDir = map[string][]string{}
+)
+
+// hold remembers revoked keys for dir in this process.
+func hold(dir string, fingerprints []string) {
+	heldMu.Lock()
+	defer heldMu.Unlock()
+	heldByDir[dir] = mergeKeys(heldByDir[dir], fingerprints)
+}
+
+func heldKeys(dir string) []string {
+	heldMu.Lock()
+	defer heldMu.Unlock()
+
+	return slices.Clone(heldByDir[dir])
+}
+
+// mergeKeys returns a with the keys of b that it lacks, ignoring empty ones.
+func mergeKeys(a, b []string) []string {
+	out := slices.Clone(a)
+	for _, f := range b {
+		if f != "" && !slices.Contains(out, f) {
+			out = append(out, f)
+		}
+	}
+
+	return out
 }
 
 func (s *State) addRevoked(fingerprints []string) bool {

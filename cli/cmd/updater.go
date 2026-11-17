@@ -767,6 +767,11 @@ func (u *updater) stage(ctx context.Context, st *update.State, signed update.Sig
 	st.Signers[to] = signed.Signer
 	if err := st.Save(u.dir); err != nil {
 		u.log.Warn("update_stage_failed", "from", u.version, "to", to, "error", err.Error())
+		_ = os.RemoveAll(filepath.Dir(path))
+		delete(st.Staged, to)
+		delete(st.Signers, to)
+
+		return "", fmt.Errorf("record the signer of %s: %w", to, err)
 	}
 
 	return path, nil

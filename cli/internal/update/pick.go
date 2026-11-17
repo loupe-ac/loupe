@@ -50,13 +50,14 @@ func PickSigned(ctx context.Context, hc *http.Client, releases []Release, goos, 
 	return Signed{Reads: reads}, false, nil
 }
 
-// LoadRevoked reads the revoked key fingerprints of update.json in dir. An
-// unreadable file gives none.
+// LoadRevoked reads the revoked key fingerprints of update.json in dir, with
+// the keys that this process revoked even when it could not save them. An
+// unreadable file gives only the latter.
 func LoadRevoked(dir string) []string {
 	st, err := LoadState(dir)
 	if err != nil {
-		return nil
+		return heldKeys(dir)
 	}
 
-	return st.Revoked
+	return mergeKeys(st.Revoked, heldKeys(dir))
 }

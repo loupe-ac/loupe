@@ -608,6 +608,11 @@ func (s selfUpdate) runSkillsOnly(ctx context.Context, out io.Writer) {
 	if len(names) == 0 {
 		return
 	}
+	if err := s.applyRevocations(ctx, dir); err != nil {
+		fmt.Fprintf(out, "skills: not updated (%v)\n", err)
+
+		return
+	}
 	releases, err := update.FetchReleases(ctx, u.hc, s.apiBase)
 	if err != nil {
 		fmt.Fprintf(out, "skills: not updated (%v)\n", err)
@@ -615,6 +620,17 @@ func (s selfUpdate) runSkillsOnly(ctx context.Context, out io.Writer) {
 		return
 	}
 	s.refreshSkills(ctx, out, u, releases, names)
+}
+
+// applyRevocations stores the revoked release keys of the server before a skill
+// check. A server that cannot be read leaves the stored keys in force.
+func (s selfUpdate) applyRevocations(ctx context.Context, dir string) error {
+	policy, _ := s.serverPolicy(ctx)
+	if _, err := update.AddRevoked(dir, policy.revoked); err != nil {
+		return fmt.Errorf("store the revoked release keys: %w", err)
+	}
+
+	return nil
 }
 
 // printSkillResults prints one line for each skill package.
@@ -647,6 +663,9 @@ func skillLine(r skills.Result) string {
 // binary to the default setup.
 func (s selfUpdate) runPanelOnly(ctx context.Context, out io.Writer, u *updater, setup config.Setup) error {
 	fmt.Fprintf(out, "the setup %s runs the shared binary, which updates from the default setup\n", setup.Dir)
+	if err := s.applyRevocations(ctx, u.dir); err != nil {
+		return err
+	}
 	releases, err := update.FetchReleases(ctx, u.hc, u.apiBase)
 	if err != nil {
 		return err

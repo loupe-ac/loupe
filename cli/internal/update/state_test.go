@@ -100,3 +100,16 @@ func TestStagedRevokedReadsTheFileEachTime(t *testing.T) {
 		t.Fatal("StagedRevoked missed the signer, or flagged an unknown version")
 	}
 }
+
+func TestRevokedKeysHoldWhenTheFileCannotBeSaved(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, stateFile), []byte("{broken"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := AddRevoked(dir, []string{"SHA256:a"}); err == nil {
+		t.Fatal("a broken update.json saved")
+	}
+	if got := LoadRevoked(dir); len(got) != 1 || got[0] != "SHA256:a" {
+		t.Fatalf("revoked = %v, want the key held in memory", got)
+	}
+}

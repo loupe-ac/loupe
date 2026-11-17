@@ -682,3 +682,25 @@ func TestUpdatePrintsTheSkillLinesOfEachBridge(t *testing.T) {
 		}
 	}
 }
+
+func TestUpdateOnHomebrewAppliesTheRevokedKeysOfTheServerToSkills(t *testing.T) {
+	shortConfigHome(t)
+	gh := newFakeGitHub(t, "new binary", "cli/v1.2.0")
+	gh.publishGoodSkill(t, "loupe", "1.1.0", `{}`)
+	self, _ := selfUpdateAgainst(t, gh, "1.0.0")
+	_, link := homebrewBinary(t)
+	self.executable = func() (string, error) { return link, nil }
+	self.serverPolicy = func(context.Context) (serverPolicy, error) {
+		return serverPolicy{cliRange: "^1.0", revoked: []string{gh.key.Fingerprint}}, nil
+	}
+	holdSkill(t, mustConfigDir(t), "loupe", "1.0.0")
+
+	out, _ := updateCmd(t, self)
+
+	if heldVersion(mustConfigDir(t), "loupe") != "1.0.0" {
+		t.Fatalf("a skill signed by a revoked key was installed: %q", out)
+	}
+	if !strings.Contains(out, "loupe") || strings.Contains(out, "1.1.0 installed") {
+		t.Fatalf("out = %q", out)
+	}
+}
