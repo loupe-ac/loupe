@@ -73,8 +73,7 @@ final readonly class ResolveSocialLoginHandler
 
             // The provider proved ownership of this verified email — a pending
             // click-through verification is superseded. Revoking the token is
-            // what makes that true: VerifyEmailHandler never checks isVerified()
-            // and VerifyEmailController logs in whoever presents a valid token,
+            // what makes that true: VerifyEmailHandler never checks isVerified(),
             // so a link left outstanding here keeps working afterwards.
             $newlyVerified = !$byEmail->isVerified();
             $byEmail->emailVerifiedAt ??= new \DateTimeImmutable();
