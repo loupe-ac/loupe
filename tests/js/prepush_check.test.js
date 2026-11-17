@@ -262,6 +262,30 @@ describe('prepush-check.sh', () => {
         expect(r.out).toContain('cites its inbox item');
     });
 
+    it('exits 1 when the inbox citation belongs to another accepted state', () => {
+        const r = run(
+            `## Preview\n\n${dataLine}\n- Run list: Not proven: accepted by the owner: reached only by a POST\n- Export: Not proven: accepted by the owner: needs a paid plan\n`,
+            { notes: cited },
+        );
+        expect(r.status).toBe(1);
+        expect(r.out).toContain('Export: Not proven');
+        expect(r.out).not.toContain(
+            'gap: accepted Not proven line has no build notes entry that cites its inbox item: - Run list',
+        );
+    });
+
+    it('exits 0 when each accepted state has its own inbox citation', () => {
+        const r = run(
+            `## Preview\n\n${dataLine}\n- Run list: Not proven: accepted by the owner: reached only by a POST\n- Export: Not proven: accepted by the owner: needs a paid plan\n`,
+            {
+                notes:
+                    cited +
+                    '- Export: Not proven: accepted by the owner: needs a paid plan (inbox item 01a1e72d-0812-7891-bed2-4138642bbbc)\n',
+            },
+        );
+        expect(r.status).toBe(0);
+    });
+
     it('exits 1 when a gap sits next to a Not proven line', () => {
         const r = run('## Summary\n\n- Run list: Not proven: cannot seed\n');
         expect(r.status).toBe(1);
