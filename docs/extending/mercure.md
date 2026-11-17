@@ -63,7 +63,11 @@ A feature that wants live updates on a page adds three things:
    `NotificationTopicAuthorizer` allows a user only their own `/users/{id}/notifications` topic, whatever the inbox flag says.
    `DocumentsTopicAuthorizer`, `ArtifactTopicAuthorizer` and `AnalyticsTopicAuthorizer` apply the project view permission to the documents, artifacts and analytics topics of a project.
    `AccountTopicAuthorizer` allows a user only their own account topic.
-2. A call to `{% do mercure_subscribe(topic) %}` in the page template.
+2. A call to `{% do mercure_subscribe(topic) %}` in the page template. A
+   topic that every page of a project needs belongs in
+   `_mercure_project_topics.html.twig` instead. A connection stays open across a
+   Turbo visit only when it carries every topic of the next page, so a project
+   page that asks for a topic outside that set reconnects on each visit.
 3. A region that uses the shared `live-region` controller. Most pages need
    nothing more, and [Making a region live](#making-a-region-live) describes
    it. A page with special needs adds a handler in its own Stimulus
