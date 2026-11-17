@@ -364,7 +364,12 @@ export async function confirmEmailLink(
     link: string,
 ): Promise<void> {
     await page.goto(link);
-    await page.getByRole('button', { name: 'Confirm email address' }).click();
+    const confirm = page.getByRole('button', { name: 'Confirm email address' });
+    await confirm.click();
+    // Turbo submits the form as XHR, so the click resolves before the POST
+    // finishes. Wait until the confirmation page is gone, so a caller never
+    // navigates while the account is still unverified.
+    await expect(confirm).toBeHidden({ timeout: coverageScaled(15000) });
 }
 
 /**
