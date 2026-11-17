@@ -162,6 +162,9 @@ func startBridge(cmd *cobra.Command, o bridgeRunOptions) error {
 	if err != nil {
 		return err
 	}
+	if err := restartFiltered(path); err != nil {
+		return err
+	}
 	pin, err := makeSetupPin()
 	if err != nil {
 		return err
@@ -350,6 +353,7 @@ func logBridgeStart(log *slog.Logger, cmd *cobra.Command, set *rules.Set, path, 
 		}
 		log.Warn("max_workers_flag_ignored", "flag_value", flag, "max_workers", set.MaxWorkers(), "message", message)
 	}
+	logDroppedEnv(log)
 	log.Info("bridge_started", "rules", path, "projects", set.Projects(), "work_kinds", set.WorkKinds(),
 		"max_workers", set.MaxWorkers(), "worker_pools", poolSizes(set), "log_file", logPath, "bridge_id", bridgeID, "version", cliVersion())
 }

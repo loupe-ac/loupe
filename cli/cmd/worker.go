@@ -20,6 +20,7 @@ import (
 
 	"github.com/loupe-ac/loupe/cli/internal/api"
 	"github.com/loupe-ac/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/envallow"
 	"github.com/loupe-ac/loupe/cli/internal/envfile"
 	harn "github.com/loupe-ac/loupe/cli/internal/harness"
 	"github.com/loupe-ac/loupe/cli/internal/rules"
@@ -303,7 +304,7 @@ const githubInsteadOfKey = "url.https://github.com/.insteadOf"
 // credentials from the bridge replaces or loses. The bridge sets no GH_TOKEN,
 // because the gh wrapper sets it for one call.
 var credentialEnvOverrides = []string{
-	"GH_TOKEN", "GITHUB_TOKEN", runIDEnv, controlSocketEnv, "GIT_TERMINAL_PROMPT", "GIT_ASKPASS", "GCM_INTERACTIVE",
+	"GH_TOKEN", "GITHUB_TOKEN", "SSH_AUTH_SOCK", runIDEnv, controlSocketEnv, "GIT_TERMINAL_PROMPT", "GIT_ASKPASS", "GCM_INTERACTIVE",
 }
 
 // agentEnvOverrides are the inherited git identity variables that an agent
@@ -435,7 +436,7 @@ func startWorker(ctx context.Context, spec workerSpec) (*exec.Cmd, string, *atom
 	// The shell always starts, so a program it cannot run must fail here to
 	// read as a run that never started.
 	h := spec.adapter()
-	if _, err := envfile.LookPath(h.Program(), envfile.Overlay(os.Environ(), spec.env), spec.dir); err != nil {
+	if _, err := envfile.LookPath(h.Program(), envfile.Overlay(envallow.Environ(spec.harnessName), spec.env), spec.dir); err != nil {
 		return nil, "", nil, err
 	}
 	if spec.runID == "" {
@@ -470,7 +471,7 @@ func startWorker(ctx context.Context, spec workerSpec) (*exec.Cmd, string, *atom
 	}
 
 	status := filepath.Join(dir, "status")
-	command := spec.harnessCommand(workerEnv(envfile.Overlay(os.Environ(), spec.env), spec.sessionID, spec.socket, spec.agent, creds))
+	command := spec.harnessCommand(workerEnv(envfile.Overlay(envallow.Environ(spec.harnessName), spec.env), spec.sessionID, spec.socket, spec.agent, creds))
 	for path, content := range command.Files {
 		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 			return nil, dir, nil, fmt.Errorf("write worker file: %w", err)
