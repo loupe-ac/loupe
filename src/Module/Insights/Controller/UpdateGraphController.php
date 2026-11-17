@@ -18,7 +18,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
-#[IsGranted(ProjectVoter::VIEW, subject: 'project')]
+#[IsGranted(ProjectVoter::MANAGE, subject: 'project')]
 #[Route(
     '/projects/{id:project}/analytics/metrics/graphs/{graphId}',
     name: 'app_project_analytics_update_graph',
