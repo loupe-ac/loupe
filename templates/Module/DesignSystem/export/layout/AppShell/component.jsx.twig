@@ -226,6 +226,7 @@ export function {{ entry.name }}({ projectName = 'Project', projectPage = true, 
                             </div>
                         </div>
                         <nav className="lp-sidebar__nav">
+                            <p className="lp-sidebar__live-status" role="status"></p>
                             <span className="lp-sidebar__nav-label">Workspace</span>
                             {WORKSPACE_LINKS.filter(shown).map((link) => (
                                 <NavLink key={link.key} link={link} active={active} counts={counts} />

@@ -18,6 +18,14 @@ An empty `STRIPE_WEBHOOK_SECRET` makes `/webhooks/stripe` refuse every delivery
 with 503. The endpoint also answers 429 after 120 requests a minute from one
 client address. Stripe retries both answers.
 
+Checkout and the customer portal open on `checkout.stripe.com` and
+`billing.stripe.com`, and the production Content Security Policy (CSP) lets a
+form send people to those two hosts. A Stripe account with a custom domain
+opens them on that domain instead. Set `STRIPE_CUSTOM_DOMAIN_ORIGIN` to its
+origin, such as `https://payments.example.com`. Without it, the browser blocks
+Subscribe and Manage billing, and only the browser console names the cause.
+Leave it unset when your account has no custom domain.
+
 ## What it adds
 
 The *Billing* tab of the account settings, at `/account/billing`, offers the

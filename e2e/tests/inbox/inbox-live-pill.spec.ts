@@ -86,12 +86,16 @@ test('an answer in one browser lowers the pill in another without a reload', asy
     const projectId: string = first.projectId;
 
     const watcher = await signedInPage(browser, email, PASSWORD);
-    await watcher.goto(`/projects/${projectId}/documents`);
-    const link = watcher.locator(
-        'a[data-live-pill-url-value$="/inbox/open-count"]',
-    );
     // The hub keeps no history, so a change made before this connects is lost.
-    await expect(link).toHaveAttribute('data-live-pill-connected', '');
+    // The first check of the sidebar counts runs once the page listens.
+    const firstCheck = watcher.waitForResponse(
+        (response) =>
+            response.url().includes(`/projects/${projectId}/sidebar-counts`) &&
+            response.status() === 204,
+    );
+    await watcher.goto(`/projects/${projectId}/documents`);
+    await firstCheck;
+    const link = watcher.locator(`a[href$="/projects/${projectId}/inbox"]`);
     const pill = link.locator('[data-inbox-open-count]');
     await expect(pill).toHaveText('2');
     await expect(watcher).toHaveTitle(/^\(2\) /);
@@ -107,8 +111,8 @@ test('an answer in one browser lowers the pill in another without a reload', asy
     await expect(watcher).toHaveTitle(/^\(1\) /);
 
     // A reload that fails, as an expired session or a down server would, keeps
-    // the pill it had instead of writing Turbo's error into the link.
-    const countUrl = `**/projects/${projectId}/inbox/open-count`;
+    // the pill it had instead of writing an error into the link.
+    const countUrl = new RegExp(`/projects/${projectId}/sidebar-counts`);
     await watcher.route(countUrl, (route) =>
         // HTML, as a proxy error page is: Turbo ignores any other body.
         route.fulfill({
@@ -119,14 +123,14 @@ test('an answer in one browser lowers the pill in another without a reload', asy
     );
     const failedReload = watcher.waitForResponse(
         (response) =>
-            response.url().endsWith('/inbox/open-count') &&
+            response.url().includes('/sidebar-counts') &&
             response.status() === 502,
     );
 
     await closeAsk(editor, projectId, second.questionNumber, second.todoNumber);
 
     await failedReload;
-    await expect(watcher).toHaveTitle(/^(?!\()/);
+    await expect(watcher).toHaveTitle(/^\(1\) /);
     await expect(pill).toHaveText('1');
     await expect(link).not.toContainText('Content missing');
     expect(
@@ -139,7 +143,7 @@ test('an answer in one browser lowers the pill in another without a reload', asy
     await watcher.reload();
     await expect(
         watcher.locator(
-            'a[data-live-pill-url-value$="/inbox/open-count"] [data-inbox-open-count]',
+            `a[href$="/projects/${projectId}/inbox"] [data-inbox-open-count]`,
         ),
     ).toHaveCount(0);
 

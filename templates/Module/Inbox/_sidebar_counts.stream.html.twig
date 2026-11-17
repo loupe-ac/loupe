@@ -1,0 +1,7 @@
+{#- The inbox pill of the project and the open total of the viewer. Props: project (Project), openCount (int), total (int). -#}
+<turbo-stream action="replace" target="inbox-open-count-{{ project.id }}">
+    <template>{% include '@Inbox/_open_count.html.twig' with {project: project, openCount: openCount} only %}</template>
+</turbo-stream>
+<turbo-stream action="replace" target="inbox-open-total">
+    <template>{% include '@Inbox/_open_total.html.twig' with {total: total} only %}</template>
+</turbo-stream>

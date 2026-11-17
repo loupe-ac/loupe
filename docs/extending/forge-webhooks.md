@@ -147,6 +147,13 @@ Each allows 300 deliveries a minute for one key. GitHub delivers for every
 customer from one shared pool of addresses, so a per-project webhook uses its
 hook key as the key.
 
+GitHub signs the body and not the `X-GitHub-Delivery` header, so Loupe
+identifies a delivery by a hash of its body. For 30 days after Loupe accepts a
+delivery, a second copy of the same body to the same route answers 200 and has
+no effect. This includes a redelivery from the GitHub page of the App or the
+webhook. A delivery whose handling failed with an error is not remembered, so
+its redelivery still runs.
+
 The per-project webhook claims each repository it reports for its project. The
 App route reads the installation id in the body. An installation belongs to no
 project, so the route finds the repository row that names the installation and

@@ -39,10 +39,12 @@ final readonly class DeliveryAnnouncer
     /**
      * Claims the repository, and announces a move when the claim found this
      * project's row under an older path. Answers null when the claim is refused.
+     *
+     * @param ?string $claimantAccountId the GitHub user id of the person who links the repository, or null to keep the recorded one
      */
-    public function claim(Project $project, GitHubRepositoryRef $repository, ForgeRepositorySource $source, ?int $installationId = null): ?ForgeClaim
+    public function claim(Project $project, GitHubRepositoryRef $repository, ForgeRepositorySource $source, ?int $installationId = null, ?string $claimantAccountId = null): ?ForgeClaim
     {
-        $claim = $this->forgeRepositories->claim($project, GitHubDelivery::FORGE, $repository->externalId(), $repository->fullName, $source, null === $installationId ? null : (string) $installationId);
+        $claim = $this->forgeRepositories->claim($project, GitHubDelivery::FORGE, $repository->externalId(), $repository->fullName, $source, null === $installationId ? null : (string) $installationId, $claimantAccountId);
         if (ForgeClaimOutcome::Refused === $claim->outcome || null === $claim->repository) {
             $this->logger->info('github.repository_refused', [
                 'projectId' => (string) $project->id,

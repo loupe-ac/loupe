@@ -678,16 +678,7 @@ class InboxItemRepository extends ServiceEntityRepository
 
         /** @var list<array{project_id: string, total: int|string}> $rows */
         $rows = $this->getEntityManager()->getConnection()->executeQuery(
-            "SELECT project_id, COUNT(*) AS total FROM (
-                 SELECT a.project_id FROM inbox_asks a
-                 WHERE a.project_id IN (:projects) AND a.closed_at IS NULL
-                   AND EXISTS (SELECT 1 FROM inbox_ask_items l WHERE l.ask_id = a.id)
-                 UNION ALL
-                 SELECT i.project_id FROM inbox_items i
-                 WHERE i.project_id IN (:projects) AND i.state = 'open'
-                   AND NOT EXISTS (SELECT 1 FROM inbox_ask_items l JOIN inbox_asks a ON a.id = l.ask_id WHERE l.item_id = i.id AND a.closed_at IS NULL)
-             ) open_rows
-             GROUP BY project_id",
+            'SELECT project_id, COUNT(*) AS total FROM ('.self::openRowsSql('IN (:projects)').') open_rows GROUP BY project_id',
             ['projects' => array_map(static fn (Project $project): string => (string) ($project->id ?? throw new \LogicException('Project has no id.')), $projects)],
             ['projects' => ArrayParameterType::STRING],
         )->fetchAllAssociative();
@@ -698,5 +689,26 @@ class InboxItemRepository extends ServiceEntityRepository
         }
 
         return $counts;
+    }
+
+    /** How many open rows the inbox pages list over every project the user owns, in one statement. */
+    public function countOpenRowsOfOwner(User $owner): int
+    {
+        return (int) $this->getEntityManager()->getConnection()->fetchOne(
+            'SELECT COUNT(*) FROM ('.self::openRowsSql('IN (SELECT id FROM projects WHERE owner_id = :owner)').') open_rows',
+            ['owner' => (string) ($owner->id ?? throw new \LogicException('User has no id.'))],
+        );
+    }
+
+    /** One row for each open ask that holds an item, and one for each open item that no open ask holds. */
+    private static function openRowsSql(string $projectScope): string
+    {
+        return "SELECT a.project_id FROM inbox_asks a
+                 WHERE a.project_id {$projectScope} AND a.closed_at IS NULL
+                   AND EXISTS (SELECT 1 FROM inbox_ask_items l WHERE l.ask_id = a.id)
+                 UNION ALL
+                 SELECT i.project_id FROM inbox_items i
+                 WHERE i.project_id {$projectScope} AND i.state = 'open'
+                   AND NOT EXISTS (SELECT 1 FROM inbox_ask_items l JOIN inbox_asks a ON a.id = l.ask_id WHERE l.item_id = i.id AND a.closed_at IS NULL)";
     }
 }

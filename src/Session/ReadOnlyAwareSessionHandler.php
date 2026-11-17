@@ -16,12 +16,19 @@ use Symfony\Component\HttpFoundation\RequestStack;
  * write back over that request's flash. A full-page prefetch keeps its writes, which
  * a reset or invite link needs. Other safe requests read with no lock, and every
  * other request keeps the row lock.
+ *
+ * A read-only request still extends the expiry of the session it read, so an idle
+ * tab that only fetches counters does not log in again through remember-me on each
+ * fetch. It also saves a session that it created itself, such as the one that a
+ * remember-me login starts, and never one that existed when it read.
  */
 final class ReadOnlyAwareSessionHandler implements \SessionHandlerInterface, \SessionUpdateTimestampHandlerInterface
 {
     public const string READ_ONLY = '_session_read_only';
 
     private SessionLockMode $mode = SessionLockMode::Locking;
+
+    private ?string $loadedId = null;
 
     public function __construct(
         public readonly \SessionHandlerInterface&\SessionUpdateTimestampHandlerInterface $locking,
@@ -35,6 +42,7 @@ final class ReadOnlyAwareSessionHandler implements \SessionHandlerInterface, \Se
     public function open(string $path, string $name): bool
     {
         $this->mode = $this->modeFor($this->requestStack->getMainRequest());
+        $this->loadedId = null;
         $inner = $this->inner();
 
         // A DSN PdoSessionHandler drops its PDO in close() and connects again in open().
@@ -48,7 +56,15 @@ final class ReadOnlyAwareSessionHandler implements \SessionHandlerInterface, \Se
     #[\Override]
     public function read(#[\SensitiveParameter] string $id): string|false
     {
-        return $this->traced(fn (): string|false => $this->inner()->read($id));
+        $data = $this->traced(fn (): string|false => $this->inner()->read($id));
+
+        // An empty read means no live session: the inner handler destroys a session whose
+        // data is empty instead of storing it, so a stored row is never empty.
+        if (\is_string($data) && '' !== $data) {
+            $this->loadedId = $id;
+        }
+
+        return $data;
     }
 
     #[\Override]
@@ -60,13 +76,18 @@ final class ReadOnlyAwareSessionHandler implements \SessionHandlerInterface, \Se
     #[\Override]
     public function write(#[\SensitiveParameter] string $id, string $data): bool
     {
-        return SessionLockMode::ReadOnly === $this->mode || $this->inner()->write($id, $data);
+        // PHP calls write() when the data changed, and the metadata bag changes it on every request.
+        if (SessionLockMode::ReadOnly === $this->mode && $this->loadedId === $id) {
+            return $this->inner()->updateTimestamp($id, $data);
+        }
+
+        return $this->inner()->write($id, $data);
     }
 
     #[\Override]
     public function updateTimestamp(#[\SensitiveParameter] string $id, string $data): bool
     {
-        return SessionLockMode::ReadOnly === $this->mode || $this->inner()->updateTimestamp($id, $data);
+        return $this->inner()->updateTimestamp($id, $data);
     }
 
     #[\Override]

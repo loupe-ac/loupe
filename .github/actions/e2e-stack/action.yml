@@ -9,6 +9,10 @@ runs:
         node: 'true'
         docker: 'true'
 
+    # The review page imports Mermaid from public/vendor/, which git does not hold.
+    - shell: bash
+      run: bin/vendor-mermaid.sh
+
     # By name, not a bare `up`: the `tailwind` service is a watcher, and it
     # would race the stylesheet build in the setup action. The worker is not
     # needed either — every message dispatched under the X-Playwright header
@@ -41,7 +45,7 @@ runs:
         mkdir -p var/log
         sudo chmod -R a+rwX var
 
-    - uses: actions/cache@v6
+    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ~/.cache/ms-playwright
         key: playwright-${{ runner.os }}-${{ hashFiles('e2e/package-lock.json') }}

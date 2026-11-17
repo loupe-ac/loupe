@@ -488,3 +488,70 @@ func TestTheNextRunOfACardStartsInItsWorktree(t *testing.T) {
 		t.Fatalf("worker = %+v, want two runs in %s", calls, tree)
 	}
 }
+
+// A failed before command that made one worktree claims it for the card, so
+// the same card passes the guard there and another card does not.
+func TestAFailedBeforeCommandClaimsTheWorktreeItMade(t *testing.T) {
+	project := guardProject(t)
+	runDir := snapshotOf(t, project)
+	tree := addTree(t, project, "card-1")
+
+	claimMadeWorktree(context.Background(), project, runDir, "c1")
+
+	if got := claimOf(t, tree); got != "c1" {
+		t.Fatalf("claim = %q, want c1", got)
+	}
+	next := snapshotOf(t, project)
+	if why := checkFolder(context.Background(), folderCheck{folder: tree, project: project, card: "c1", runDir: next}); why != "" {
+		t.Fatalf("same card refused: %s", why)
+	}
+	if why := checkFolder(context.Background(), folderCheck{folder: tree, project: project, card: "c2", runDir: next}); !strings.Contains(why, "card c1 claims it") {
+		t.Fatalf("other card: %q", why)
+	}
+}
+
+// A failed before command claims nothing when it made more than one worktree,
+// or when the run holds no worktree list.
+func TestAFailedBeforeCommandClaimsNothingItCannotTellApart(t *testing.T) {
+	project := guardProject(t)
+	runDir := snapshotOf(t, project)
+	one, two := addTree(t, project, "card-1"), addTree(t, project, "card-2")
+
+	claimMadeWorktree(context.Background(), project, runDir, "c1")
+	claimMadeWorktree(context.Background(), project, t.TempDir(), "c1")
+
+	if claimOf(t, one) != "" || claimOf(t, two) != "" {
+		t.Fatalf("claims = %q, %q, want none", claimOf(t, one), claimOf(t, two))
+	}
+}
+
+// The next run of a card starts in the worktree that a failed first run made.
+func TestTheNextRunOfACardStartsInTheWorktreeAFailedRunMade(t *testing.T) {
+	var tree string
+	h := gitBridge(t, nil)
+	recordAdoptionFor(t, h.dir)
+	h.router.worker.before = func(ctx context.Context, spec procSpec, onStart func(workerProc)) procResult {
+		onStart(workerProc{pid: 4242})
+		runs, err := config.RunsDir()
+		if err != nil {
+			t.Fatal(err)
+		}
+		runDir := filepath.Join(runs, spec.runID)
+		if tree == "" {
+			tree = addTree(t, spec.dir, "card-87")
+
+			return procResult{exitCode: 1, runDir: runDir}
+		}
+
+		return procResult{dir: tree, runDir: runDir}
+	}
+	rec := h.states()
+
+	h.send(cardMoved(87))
+	h.send(cardMoved(87))
+
+	wantStates(t, rec.states(), api.RunQueued, api.RunPreparing, api.RunFailed, api.RunQueued, api.RunPreparing, api.RunRunning, api.RunSucceeded)
+	if calls := h.worker.recorded(); len(calls) != 1 || calls[0].dir != tree {
+		t.Fatalf("worker = %+v, want one run in %s", calls, tree)
+	}
+}

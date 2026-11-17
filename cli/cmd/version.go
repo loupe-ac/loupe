@@ -55,8 +55,9 @@ func userAgent() string {
 }
 
 // withUserAgent sends each request with the User-Agent of this build.
-func withUserAgent(base http.RoundTripper) http.RoundTripper {
-	return api.UserAgent{Value: userAgent(), Base: base}
+// It refuses plain HTTP to another machine unless allowHTTP is true.
+func withUserAgent(base http.RoundTripper, allowHTTP bool) http.RoundTripper {
+	return api.UserAgent{Value: userAgent(), Base: base, AllowHTTP: allowHTTP}
 }
 
 func newVersionCmd() *cobra.Command {

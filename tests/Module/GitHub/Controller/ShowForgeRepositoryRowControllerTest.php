@@ -13,9 +13,11 @@ use App\Module\Workflow\Contract\RepositorySuggestionKey;
 use App\Module\Workflow\Contract\RepositorySuggestions;
 use App\Module\Workflow\Contract\SuggestionMark;
 use App\Tests\Support\RefusedPage;
+use Doctrine\Bundle\DoctrineBundle\DataCollector\DoctrineDataCollector;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Profiler\Profile;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 use Symfony\Component\Uid\Uuid;
 
@@ -70,6 +72,42 @@ final class ShowForgeRepositoryRowControllerTest extends WebTestCase
         self::assertStringNotContainsString('data-repository-checking', $content);
         self::assertStringNotContainsString('Checking…', $content);
         self::assertSame([], $this->queuedChecks());
+    }
+
+    /** One live reconnect fetches one row for each repository, so the cost of a row request is the cost of a reconnect for each row. */
+    public function test_a_row_request_runs_a_fixed_number_of_statements(): void
+    {
+        $client = static::createClient();
+        $this->suggestMergeMethod();
+        $owner = $this->signedUpUser('row-count');
+        $project = $this->projectOf($owner);
+        $repository = $this->repositoryOf($project, 'acme/app');
+        $this->checkOf($repository, [$this->gap('merge-method', 'blocking', RepositorySuggestionCatalog::GAP_NO_MERGE_METHOD)], new \DateTimeImmutable('-2 hours'));
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $client->enableProfiler();
+        $this->fetchRow($client, $project->id, $repository->id);
+
+        self::assertResponseIsSuccessful();
+        // Guard: the row drew its check list, so the request ran the row read and not a refusal.
+        self::assertStringContainsString('No merge method is usable', (string) $client->getResponse()->getContent());
+        $profile = $client->getProfile();
+        self::assertInstanceOf(Profile::class, $profile);
+        $collector = $profile->getCollector('db');
+        self::assertInstanceOf(DoctrineDataCollector::class, $collector);
+        $statements = [];
+        foreach ($collector->getQueries() as $queries) {
+            foreach ($queries as $query) {
+                // The profiler also holds the setup writes, so only the reads of the request count.
+                if (str_starts_with((string) $query['sql'], 'SELECT')) {
+                    $statements[] = (string) $query['sql'];
+                }
+            }
+        }
+
+        self::assertCount(9, $statements, implode("\n", $statements));
+        self::assertCount(1, array_filter($statements, static fn (string $sql): bool => str_contains($sql, 'FROM forge_repository_checks')));
     }
 
     public function test_a_request_that_does_not_ask_for_a_stream_goes_to_the_page(): void

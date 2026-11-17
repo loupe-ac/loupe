@@ -33,6 +33,7 @@ use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Scheduler\TimeOutQuietWorkerRunsTask;
 use App\Module\Bridge\Service\InteractiveRuns;
+use App\Module\Bridge\Service\SidebarCountsSignal;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Bridge\ValueObject\BridgeCommandKind;
 use App\Module\Bridge\ValueObject\BridgeCommandState;
@@ -386,7 +387,7 @@ final class WorkerRunChangedPublisherTest extends KernelTestCase
             },
         );
 
-        new WorkerRunChangedPublisher($this->service(ProjectTopicBuilder::class), $live)->runsChanged($this->project);
+        new WorkerRunChangedPublisher($this->service(ProjectTopicBuilder::class), $live, $this->service(SidebarCountsSignal::class))->runsChanged($this->project);
         $live->publish();
 
         self::assertFalse($hubBuilt);
@@ -421,7 +422,7 @@ final class WorkerRunChangedPublisherTest extends KernelTestCase
             ),
         );
 
-        $publisher = new WorkerRunChangedPublisher($this->service(ProjectTopicBuilder::class), $live);
+        $publisher = new WorkerRunChangedPublisher($this->service(ProjectTopicBuilder::class), $live, $this->service(SidebarCountsSignal::class));
 
         $publisher->runsChanged($this->project);
         $publisher->runsChanged($other);
@@ -552,8 +553,8 @@ final class WorkerRunChangedPublisherTest extends KernelTestCase
             'http://mercure/.well-known/mercure',
             new StaticTokenProvider('token'),
             function (Update $update): string {
-                // A project written in setup also signals the projects list, which this test does not cover.
-                if (str_contains($update->getData(), '"account.changed"')) {
+                // A project written in setup also signals the projects list, and the sidebar counts have a test of their own.
+                if (str_contains($update->getData(), '"account.changed"') || str_contains($update->getData(), SidebarCountsSignal::TYPE)) {
                     return 'id';
                 }
                 $this->published[] = $update;

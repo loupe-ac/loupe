@@ -21,6 +21,7 @@ type PendingSignIn struct {
 	Interval   int       `json:"interval"`
 	ExpiresAt  time.Time `json:"expiresAt"`
 	NextPollAt time.Time `json:"nextPollAt"`
+	AllowHTTP  bool      `json:"allowHttp,omitempty"`
 }
 
 // LoadPendingSignIn gives the waiting sign-in, or nil when none waits.
@@ -39,6 +40,10 @@ func LoadPendingSignIn() (*PendingSignIn, error) {
 	var p PendingSignIn
 	if err := json.Unmarshal(b, &p); err != nil || p.DeviceCode == "" {
 		// A file this cannot read holds no sign-in to finish.
+		return nil, ClearPendingSignIn()
+	}
+
+	if err := CheckServerURL(p.BaseURL, p.AllowHTTP || AllowHTTPFromEnv()); err != nil {
 		return nil, ClearPendingSignIn()
 	}
 

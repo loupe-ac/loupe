@@ -170,7 +170,7 @@ final class ClientMetadataDocumentFlowTest extends WebTestCase
         $this->browser->request(Request::METHOD_GET, $this->authorizeUrl());
 
         self::assertResponseStatusCodeSame(400);
-        self::assertFalse($this->browser->getResponse()->headers->has('Location'));
+        self::assertSame('', OAuthScenario::clientLocation($this->browser));
         self::assertSame('invalid_client', json_decode((string) $this->browser->getResponse()->getContent(), true)['error'] ?? null);
         // Scoped to this client: the device flow seeds a client row of its own.
         $rows = static::getContainer()->get(EntityManagerInterface::class)->getConnection()->fetchOne(
@@ -206,7 +206,7 @@ final class ClientMetadataDocumentFlowTest extends WebTestCase
         ]));
 
         self::assertResponseStatusCodeSame(401);
-        self::assertFalse($this->browser->getResponse()->headers->has('Location'));
+        self::assertSame('', OAuthScenario::clientLocation($this->browser));
     }
 
     public function test_a_document_client_gets_no_other_scope(): void
@@ -214,7 +214,7 @@ final class ClientMetadataDocumentFlowTest extends WebTestCase
         $this->browser->loginUser($this->user);
         $this->browser->request(Request::METHOD_GET, $this->scenario->authorizeUrl('agent', $this->authorizeOverrides()));
 
-        $query = OAuthScenario::redirectQuery((string) $this->browser->getResponse()->headers->get('Location'));
+        $query = OAuthScenario::redirectQuery(OAuthScenario::clientLocation($this->browser));
         self::assertSame('invalid_scope', $query['error'] ?? null);
     }
 

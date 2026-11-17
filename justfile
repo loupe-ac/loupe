@@ -415,6 +415,21 @@ garage-reset:
         echo "garage: no volumes to remove" >&2
     fi
 
+# Install the Mermaid build that the review page imports into public/vendor/.
+vendor-mermaid:
+    bin/vendor-mermaid.sh
+
+# Print every place that pins the Mermaid version, for an upgrade to <version>.
+# Edit package.json, run `npm install --package-lock-only`, update the other
+# references, then run `just vendor-mermaid`.
+vendor-mermaid-upgrade version:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    current=$(node -p "require('./package.json').dependencies.mermaid")
+    echo "Upgrade Mermaid {{version}} (now $current). Update each reference:"
+    grep -rnF "$current" package.json config/services.yaml tests/Module/Review/Controller/ShowDocumentMermaidTest.php e2e/tests/review/mermaid-diagrams.spec.ts bin/worktrees/worktree-bootstrap.sh || true
+    echo "Then: npm install --package-lock-only, and just vendor-mermaid."
+
 # Provision the dedicated e2e target: a disposable database plus an nginx sidecar
 # serving THIS checkout. Idempotent. The suite truncates every table, so it must
 # never point at the dev database.
@@ -426,6 +441,8 @@ e2e-up:
     project=$(grep -E '^COMPOSE_PROJECT_NAME=' "$main/.env" | head -1 | cut -d= -f2-)
     host="e2e.${project}.dev.localhost"
     db="app_e2e"
+
+    bin/vendor-mermaid.sh
 
     # fastcgi_param lands in $_SERVER; Symfony's Dotenv skips names already
     # there, so these beat .env.local. WORKTREE_DB_SUFFIX is the same knob a
@@ -899,7 +916,7 @@ build-demo platform=host_platform:
 push-demo:
     DEMO_IMAGE={{demo_image}} APP_VERSION="$(just _app-version)" docker buildx bake -f docker/bake.hcl demo --push
 
-# Loopback-bound: the demo's admin password is published, so a demo on a laptop
+# Loopback-bound: the demo has no TLS and discards mail, so a demo on a laptop
 # must not be reachable from the rest of the network.
 demo port="8080": build-demo
     docker run --rm -it -p 127.0.0.1:{{port}}:80 -e DEFAULT_URI=http://localhost:{{port}} {{demo_image}}

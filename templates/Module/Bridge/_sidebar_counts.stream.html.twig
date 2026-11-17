@@ -1,0 +1,7 @@
+{#- The Agents pill and the Activity pill of the project sidebar. Props: project (Project), figures (?AgentsFigures), openCount (int). -#}
+<turbo-stream action="replace" target="agents-count-{{ project.id }}">
+    <template>{% include '@Bridge/_agents_count.html.twig' with {project: project, figures: figures} only %}</template>
+</turbo-stream>
+<turbo-stream action="replace" target="activity-open-count-{{ project.id }}">
+    <template>{% include '@Bridge/_activity_open_count.html.twig' with {project: project, openCount: openCount} only %}</template>
+</turbo-stream>

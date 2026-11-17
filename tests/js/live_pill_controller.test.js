@@ -52,11 +52,13 @@ afterEach(() => {
 });
 
 it('subscribes to the events it is given', async () => {
-    mount(['inbox.open_count_changed']);
+    mount(['inbox.sidebar_count_changed']);
     await Promise.resolve();
 
     expect(live.subscriptions).toHaveLength(1);
-    expect(live.subscriptions[0].types).toEqual(['inbox.open_count_changed']);
+    expect(live.subscriptions[0].types).toEqual([
+        'inbox.sidebar_count_changed',
+    ]);
 });
 
 it('loads the frame from the url on the first open, then reloads it', async () => {
@@ -84,21 +86,21 @@ it('reloads on a change with no project and on one of its project, and ignores a
     const { handler } = live.subscriptions[0];
 
     handler({ type: 'worker_run.changed' });
-    handler({ type: 'inbox.open_count_changed', projectId: PROJECT });
+    handler({ type: 'inbox.sidebar_count_changed', projectId: PROJECT });
     expect(frame.reload).toHaveBeenCalledTimes(2);
 
-    handler({ type: 'inbox.open_count_changed', projectId: 'another' });
+    handler({ type: 'inbox.sidebar_count_changed', projectId: 'another' });
     expect(frame.reload).toHaveBeenCalledTimes(2);
 });
 
 it('reloads on a change of any project when it names none', async () => {
-    mount(['inbox.open_count_changed'], '');
+    mount(['inbox.sidebar_count_changed'], '');
     await Promise.resolve();
     frame.setAttribute('src', URL);
     const { handler } = live.subscriptions[0];
 
-    handler({ type: 'inbox.open_count_changed', projectId: 'another' });
-    handler({ type: 'inbox.open_count_changed', projectId: PROJECT });
+    handler({ type: 'inbox.sidebar_count_changed', projectId: 'another' });
+    handler({ type: 'inbox.sidebar_count_changed', projectId: PROJECT });
     expect(frame.reload).toHaveBeenCalledTimes(2);
 });
 
