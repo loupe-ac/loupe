@@ -225,9 +225,10 @@ A check of a full sweep that finds a change in a card with no mark logs the erro
 rules that fired, the rules that opened a work request, and whether the markers
 changed. It also names the changed rules and the markers whose stored time came
 before the check, because a clock can explain such a change. A time alone does not
-hide the change. The error also says whether a writer marked the card after the check
-cleared its mark. That write explains only its own change, so the error still
-shows an earlier one. With a usable `SENTRY_DSN`, the error reaches Sentry.
+hide the change. When a writer marked the card after the check cleared its mark, that
+write can explain the change, and the pass cannot tell the two apart. The check then
+logs the info event `workflow.change_after_late_mark` with the same fields, and sends
+no error, so no alert fires. With a usable `SENTRY_DSN`, the error reaches Sentry.
 
 The sweep every ten minutes also sends two gauges. With no usable `SENTRY_DSN`,
 it sends nothing.

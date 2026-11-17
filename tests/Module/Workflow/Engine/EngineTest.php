@@ -317,16 +317,18 @@ final class EngineTest extends KernelTestCase
         self::assertTrue($context['markersDue']);
     }
 
-    public function test_a_writer_that_marked_the_card_after_the_clear_does_not_hide_an_earlier_miss(): void
+    public function test_a_writer_that_marked_the_card_after_the_clear_raises_no_miss_error(): void
     {
         $card = $this->boundCard([self::requestRule('work', self::ALWAYS)]);
         self::assertTrue($this->service(WorkflowCardChangeRepository::class)->isMarked($card->id ?? throw new \LogicException('A flushed card has an id.')), 'Creating the card marked it.');
 
         $this->engine()->evaluate($card->id, new \DateTimeImmutable(self::NOON), reportMiss: true);
 
-        $misses = $this->missRecords();
-        self::assertCount(1, $misses);
-        self::assertTrue($misses[0]['context']['markedAfterClear']);
+        self::assertSame([], $this->missRecords());
+        $late = array_values(array_filter($this->logger->records, static fn (array $record): bool => 'workflow.change_after_late_mark' === $record['message']));
+        self::assertCount(1, $late);
+        self::assertSame('info', $late[0]['level']);
+        self::assertContains('work', $late[0]['context']['rules']);
     }
 
     public function test_an_ordinary_check_reports_no_miss_for_the_same_change(): void

@@ -177,8 +177,8 @@ final readonly class Engine
     /**
      * A check that a full sweep queued for a card with no mark found a change, so the marks missed it.
      * A time that came before the pass can explain a change, but it does not prove it, so the log carries those times
-     * beside the change. A writer that marked the card after the check cleared it explains only its own write, so the
-     * log carries that fact as context and still reports the change.
+     * beside the change. A writer that marked the card after the check cleared it can explain the change it made, and
+     * the pass cannot tell that change from an earlier one, so the report drops to an info event with no alert.
      */
     private function reportMiss(Evaluation $run): void
     {
@@ -186,7 +186,7 @@ final readonly class Engine
             return;
         }
 
-        $this->logger->error('workflow.change_missed', [
+        $context = [
             'cardId' => $run->card->id->toRfc4122(),
             'rules' => array_keys($run->changedRules),
             'dueRules' => array_keys(array_intersect_key($run->dueRules, $run->changedRules)),
@@ -194,8 +194,14 @@ final readonly class Engine
             'opened' => $run->opened,
             'markersChanged' => $run->markersChanged,
             'markersDue' => $run->markersDue,
-            'markedAfterClear' => $run->markedAfterClear,
-        ]);
+        ];
+        if ($run->markedAfterClear) {
+            $this->logger->info('workflow.change_after_late_mark', $context);
+
+            return;
+        }
+
+        $this->logger->error('workflow.change_missed', $context);
     }
 
     /** The delay from the card event that queued the check to each work request the pass opened. */
