@@ -6,11 +6,13 @@ namespace App\Tests\Module\GitHub\Controller;
 
 use App\Module\Forge\Entity\ForgeRepository;
 use App\Module\Forge\Entity\ForgeRepositorySource;
+use App\Module\Forge\Repository\ForgeRepositoryRepository;
 use App\Module\GitHub\Entity\GitHubInstallation;
 use App\Module\GitHub\Entity\GitHubRepositorySelection;
 use App\Module\GitHub\Repository\GitHubInstallationRepository;
 use App\Module\GitHub\Service\GitHubAppApi;
 use App\Module\GitHub\Service\GitHubAppConfiguration;
+use App\Module\GitHub\Service\GitHubAppInstallationList;
 use App\Module\GitHub\Service\GitHubGitTokenIssuer;
 use App\Module\GitHub\Service\GitHubGitTokenRefused;
 use App\Module\GitHub\Service\GitHubRepositoryTokenStore;
@@ -20,7 +22,7 @@ use App\Tests\Support\OAuthScenario;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
-use Symfony\Component\Cache\Adapter\AdapterInterface;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
@@ -46,9 +48,6 @@ final class IssueGitTokenApiTest extends WebTestCase
         $this->client = static::createClient();
         $this->client->disableReboot();
         $this->scenario = new OAuthScenario(static::getContainer());
-        $cache = static::getContainer()->get('cache.app');
-        self::assertInstanceOf(AdapterInterface::class, $cache);
-        $cache->clear();
     }
 
     public function test_a_request_with_no_token_is_unauthorized(): void
@@ -455,12 +454,24 @@ final class IssueGitTokenApiTest extends WebTestCase
         $configuration = new GitHubAppConfiguration(null, null, null, null, '123456', $pem);
         static::getContainer()->set(GitHubAppConfiguration::class, $configuration);
         $clock = new MockClock('2026-10-18 13:00:00');
-        static::getContainer()->set(GitHubAppApi::class, new GitHubAppApi($http, $configuration, $clock));
-        $cache = static::getContainer()->get('cache.app');
+        // A private pool, because parallel workers share the filesystem pool and other tests clear it.
+        $cache = new ArrayAdapter();
         $encryptor = static::getContainer()->get(Encryptor::class);
-        self::assertInstanceOf(AdapterInterface::class, $cache);
         self::assertInstanceOf(Encryptor::class, $encryptor);
-        static::getContainer()->set(GitHubRepositoryTokenStore::class, new GitHubRepositoryTokenStore($cache, $encryptor, $clock));
+        $api = new GitHubAppApi($http, $configuration, $clock);
+        $tokenStore = new GitHubRepositoryTokenStore($cache, $encryptor, $clock);
+        $installationList = new GitHubAppInstallationList($api, $cache);
+        static::getContainer()->set(GitHubAppApi::class, $api);
+        static::getContainer()->set(GitHubRepositoryTokenStore::class, $tokenStore);
+        static::getContainer()->set(GitHubAppInstallationList::class, $installationList);
+        static::getContainer()->set(GitHubGitTokenIssuer::class, new GitHubGitTokenIssuer(
+            static::getContainer()->get(ForgeRepositoryRepository::class),
+            static::getContainer()->get(GitHubInstallationRepository::class),
+            $api,
+            $installationList,
+            $tokenStore,
+            $configuration,
+        ));
     }
 
     /** @param ?string $repository the repository to ask for, or null to send an empty object */

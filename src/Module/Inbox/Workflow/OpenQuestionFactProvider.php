@@ -28,6 +28,16 @@ final readonly class OpenQuestionFactProvider implements FactProvider
     }
 
     #[\Override]
+    public function sourceTables(): array
+    {
+        return [
+            'feature_flag',
+            'inbox_item_cards',
+            'inbox_items',
+        ];
+    }
+
+    #[\Override]
     public function isOn(): bool
     {
         return true;

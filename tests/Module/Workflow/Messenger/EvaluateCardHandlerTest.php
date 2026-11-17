@@ -14,6 +14,7 @@ use App\Module\Workflow\Contract\PersonWaitingCardEvaluated;
 use App\Module\Workflow\Engine\Engine;
 use App\Module\Workflow\Messenger\EvaluateCard;
 use App\Module\Workflow\Messenger\EvaluateCardHandler;
+use App\Module\Workflow\Repository\WorkflowCardChangeRepository;
 use App\Module\Workflow\Repository\WorkflowQueuedEvaluationRepository;
 use App\Tests\Module\Workflow\Action\ActionScenario;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -95,6 +96,7 @@ final class EvaluateCardHandlerTest extends KernelTestCase
         return new EvaluateCardHandler(
             new EvaluateWorkflowCardHandler($this->service(Engine::class), new MockClock('2026-10-02 12:00:00')),
             $this->service(WorkflowQueuedEvaluationRepository::class),
+            $this->service(WorkflowCardChangeRepository::class),
             $events ?? new EventDispatcher(),
         );
     }

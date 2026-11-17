@@ -279,6 +279,10 @@ final class RecordBridgeHeartbeatHandlerTest extends KernelTestCase
 
         $handler(new RecordBridgeHeartbeatCommand($owner, $quiet->id, $projects, 'b4e39aa7', workerPools: [self::pool()]));
         self::assertSame($projects, $this->publishedProjects());
+
+        $em->clear();
+        self::assertNull($em->find(Bridge::class, ['owner' => $owner->id, 'id' => $live->id])?->cameBackAt, 'A live bridge did not come back.');
+        self::assertEquals(new \DateTimeImmutable('2026-09-23 12:00:00'), $em->find(Bridge::class, ['owner' => $owner->id, 'id' => $quiet->id])?->cameBackAt);
     }
 
     public function test_a_change_of_the_followed_projects_tells_the_pages_of_both_sets_to_reload(): void

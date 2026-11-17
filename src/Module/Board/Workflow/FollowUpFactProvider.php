@@ -22,6 +22,16 @@ final readonly class FollowUpFactProvider implements FactProvider
     }
 
     #[\Override]
+    public function sourceTables(): array
+    {
+        return [
+            'board_card_links',
+            'board_cards',
+            'board_columns',
+        ];
+    }
+
+    #[\Override]
     public function isOn(): bool
     {
         return true;
