@@ -67,6 +67,15 @@ final readonly class BridgeLiveness
         return $statuses;
     }
 
+    /** The first instant at which a bridge that last beat at $lastSeenAt reads quiet: one second after its window ends, because quiet is a strict comparison in whole seconds. */
+    public function quietAt(\DateTimeImmutable $lastSeenAt): \DateTimeImmutable
+    {
+        $now = $this->clock->now();
+        $window = $now->getTimestamp() - $this->quietBefore($now)->getTimestamp();
+
+        return $lastSeenAt->setTimestamp($lastSeenAt->getTimestamp() + $window + 1);
+    }
+
     /** A bridge whose last heartbeat came before this moment is quiet. Whole seconds, like the column. */
     public function quietBefore(\DateTimeImmutable $now): \DateTimeImmutable
     {

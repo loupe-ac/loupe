@@ -12,6 +12,7 @@ use App\Module\Bridge\Workflow\RunNeedsPersonFacts;
 use App\Module\Inbox\Workflow\AgentReviewOpenFacts;
 use App\Module\Workflow\Contract\ChecksState;
 use App\Module\Workflow\Contract\DocumentFacts;
+use App\Module\Workflow\Contract\Facts;
 use App\Module\Workflow\Contract\MarkerKind;
 use App\Module\Workflow\Contract\MarkerSubject;
 use App\Module\Workflow\Contract\MarkerSubjectType;
@@ -200,6 +201,49 @@ final class MarkerPassTest extends KernelTestCase
 
         self::assertSame(['plain'], $keys);
         self::assertEquals(new \DateTimeImmutable('2026-10-01 12:20:00'), $this->writtenDueAt);
+    }
+
+    public function test_a_timed_condition_of_a_rule_gives_a_due_time(): void
+    {
+        self::bootKernel();
+        $rule = ['id' => 'work', 'slot' => 'one', 'when' => ['card.quiet_for' => ['delay' => 30]], 'then' => ['request' => ['kind' => 'work']]];
+        $template = $this->markerTemplate([], rules: [$rule]);
+        $facts = FactsMother::facts(card: FactsMother::card(slot: 'one'), provided: [CardActivityFacts::class => new CardActivityFacts(new \DateTimeImmutable('2026-10-01 11:50:00'))]);
+
+        $this->pass($template, $facts);
+        self::assertEquals(new \DateTimeImmutable('2026-10-01 12:20:00'), $this->writtenDueAt);
+
+        $this->pass($template, FactsMother::facts(card: FactsMother::card(slot: 'two'), provided: [CardActivityFacts::class => new CardActivityFacts(new \DateTimeImmutable('2026-10-01 11:50:00'))]));
+        self::assertNull($this->writtenDueAt, 'a rule of another slot does not apply');
+    }
+
+    public function test_a_timed_condition_of_a_rule_that_already_holds_gives_no_due_time(): void
+    {
+        self::bootKernel();
+        $rule = ['id' => 'work', 'slot' => 'one', 'when' => ['card.quiet_for' => ['delay' => 30]], 'then' => ['request' => ['kind' => 'work']]];
+        $facts = FactsMother::facts(card: FactsMother::card(slot: 'one'), provided: [CardActivityFacts::class => new CardActivityFacts(new \DateTimeImmutable('2026-10-01 11:00:00'))]);
+
+        $this->pass($this->markerTemplate([], rules: [$rule]), $facts);
+
+        self::assertNull($this->writtenDueAt);
+    }
+
+    public function test_the_time_of_timed_facts_counts_only_after_the_clock_and_the_earliest_wins(): void
+    {
+        self::bootKernel();
+        $rule = ['id' => 'work', 'slot' => 'one', 'when' => ['card.quiet_for' => ['delay' => 30]], 'then' => ['request' => ['kind' => 'work']]];
+        $template = $this->markerTemplate([], rules: [$rule]);
+        $activity = new CardActivityFacts(new \DateTimeImmutable('2026-10-01 11:50:00'));
+        $facts = static fn (string $at): Facts => FactsMother::facts(card: FactsMother::card(slot: 'one'), provided: [CardActivityFacts::class => $activity, FixedTimedFacts::class => new FixedTimedFacts(new \DateTimeImmutable($at))]);
+
+        $this->pass($template, $facts('2026-10-01 12:05:00'));
+        self::assertEquals(new \DateTimeImmutable('2026-10-01 12:05:00'), $this->writtenDueAt);
+
+        $this->pass($template, $facts('2026-10-01 12:00:00'));
+        self::assertEquals(new \DateTimeImmutable('2026-10-01 12:20:00'), $this->writtenDueAt, 'a time at the clock of the pass is already in the answer');
+
+        $this->pass($template, $facts('2026-10-01 11:59:59'));
+        self::assertEquals(new \DateTimeImmutable('2026-10-01 12:20:00'), $this->writtenDueAt, 'a past time never hides a later one');
     }
 
     public function test_a_timed_condition_that_already_holds_leaves_no_due_time(): void

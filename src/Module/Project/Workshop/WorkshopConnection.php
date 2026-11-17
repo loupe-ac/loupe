@@ -23,6 +23,8 @@ final readonly class WorkshopConnection
         public bool $reportsGitIdentities = false,
         /** Whether the bridge is quiet because its login can no longer refresh. */
         public bool $loginExpired = false,
+        /** The first instant at which the bridge reads quiet, or null when it never beat. */
+        public ?\DateTimeImmutable $quietAt = null,
     ) {
     }
 }
