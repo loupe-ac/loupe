@@ -8,6 +8,7 @@ use App\Controller\AppController;
 use App\Module\Artifact\Command\ShowArtifactContentCommand;
 use App\Module\Artifact\Command\ShowArtifactContentHandler;
 use App\Module\Artifact\Install\ArtifactInstallFlags;
+use App\Module\Artifact\Service\ArtifactContentFetchGuard;
 use App\Module\Artifact\Service\ArtifactContentHost;
 use App\Module\Artifact\Service\ArtifactContentPolicy;
 use App\Module\Artifact\Service\ArtifactContentSigner;
@@ -61,6 +62,7 @@ final class ShowArtifactContentController extends AppController
         private readonly ArtifactContentSigner $signer,
         private readonly ArtifactContentHost $contentHost,
         private readonly ArtifactContentPolicy $policy,
+        private readonly ArtifactContentFetchGuard $fetchGuard,
     ) {
     }
 
@@ -70,6 +72,10 @@ final class ShowArtifactContentController extends AppController
         if (self::ROUTE_HOST === $request->attributes->get('_route')) {
             $label = $this->contentHost->labelOfRequestHost($request->getHost())
                 ?? throw $this->createNotFoundException('The address is not a content address.');
+        }
+
+        if (null === $label && $this->fetchGuard->refuses($request)) {
+            throw $this->createNotFoundException('An app page may only frame this file.');
         }
 
         if (!$this->signer->isValid($versionId, (int) $expires, $signature, $label ?? '')) {
@@ -88,6 +94,7 @@ final class ShowArtifactContentController extends AppController
             'Access-Control-Allow-Origin' => '*',
         ]);
         $response->setPrivate();
+        $response->headers->addCacheControlDirective('no-store');
 
         return $response;
     }
