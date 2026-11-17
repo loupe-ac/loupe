@@ -1,5 +1,7 @@
 import { Controller } from '@hotwired/stimulus';
 
+/* stimulusFetch: 'lazy' */
+
 /**
  * Opens and closes the part of the diff bar that a phone folds away behind the
  * one-line summary: the back link, the version pickers and the view menu. Above

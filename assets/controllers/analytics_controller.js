@@ -1,6 +1,8 @@
 import { Controller } from '@hotwired/stimulus';
 import { track } from '../lib/analytics.js';
 
+/* stimulusFetch: 'lazy' */
+
 /**
  * Sends one named analytics event for a click. The button gives the event
  * name and its own label as action params. A feature param joins them when

@@ -1,5 +1,7 @@
 import { Controller } from '@hotwired/stimulus';
 
+/* stimulusFetch: 'lazy' */
+
 /**
  * Sits on the Finish review form. While an agent review of the draft runs or
  * is paused, a submit first opens a second dialog that names the verdict.

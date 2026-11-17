@@ -1,5 +1,7 @@
 import { Controller } from '@hotwired/stimulus';
 
+/* stimulusFetch: 'lazy' */
+
 const STORAGE_KEY = 'loupe.review.newText';
 
 export default class extends Controller {
