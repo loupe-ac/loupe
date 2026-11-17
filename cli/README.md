@@ -909,6 +909,10 @@ defaults:
   permissions: workspace
 ```
 
+A top-level `passEnv` list names the variables that every worker gets besides the
+base list. [Worker environment](../docs/extending/cli-bridge.md#worker-environment)
+lists the base list and its limits.
+
 An account takes `harness`, which is required and is `claude-code` in this
 release. It also takes `configDir`, `model`, `permissionMode` and `envFile`. An
 entry and a variant pick another account with `account`, and a level with
@@ -1938,6 +1942,8 @@ no card, `subject` is the ask id. A worker line for a review verdict also names
 | `event` | Fields |
 |---|---|
 | `bridge_started` | `rules`, `projects`, `work_kinds`, `max_workers`, `worker_pools`, `log_file`, `bridge_id`, `version`. `worker_pools` names each pool with its size, such as `default=3,quick=1` |
+| `worker_env_dropped` | `names`: the variables that the bridge keeps out of the worker environment. It logs at start and at each reload, and never a value |
+| `pass_env_needs_restart` | `name`, `message`: a reload added a `passEnv` name that the running bridge does not hold. Level `WARN` |
 | `max_workers_flag_ignored` | `flag_value`, `max_workers`, `message`: the bridge started with `--max-workers`, which does nothing. Level `WARN` |
 | `connected` | `topic`: your user topic, `projects`: the mapped slugs |
 | `stream_error` | `error` |
