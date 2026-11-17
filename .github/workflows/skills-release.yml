@@ -15,8 +15,7 @@ on:
         type: choice
         options: [loupe, loupe-lifecycle]
 
-permissions:
-  contents: write
+permissions: {}
 
 jobs:
   release:
@@ -27,7 +26,7 @@ jobs:
       attestations: write
       artifact-metadata: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - name: Read the version
@@ -71,7 +70,7 @@ jobs:
           tar -czf "$archive" -C "plugins/$PACKAGE" .
           (cd dist && sha256sum "${PACKAGE}_${VERSION}.tar.gz" > checksums.txt)
       - name: Attest the checksums
-        uses: actions/attest-build-provenance@v4
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: dist/checksums.txt
       - name: Create the draft release

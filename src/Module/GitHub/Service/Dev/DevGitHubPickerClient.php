@@ -14,7 +14,7 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
 use Symfony\Contracts\HttpClient\ResponseStreamInterface;
 
 /**
- * Answers the two picker calls for a preview token, so the picker shows in
+ * Answers the picker calls for a preview token, so the picker shows in
  * a worktree that has no GitHub sign-in. Every other call and every other token
  * goes to GitHub as before.
  */
@@ -31,6 +31,10 @@ final readonly class DevGitHubPickerClient implements HttpClientInterface
     public const int FREE_REPOSITORY = 9101;
     public const int HELD_REPOSITORY = 9102;
     public const int OTHER_PROJECT_REPOSITORY = 9103;
+    public const int READ_ONLY_REPOSITORY = 9104;
+
+    private const array PUSH = ['admin' => false, 'push' => true, 'pull' => true];
+    private const array READ = ['admin' => false, 'push' => false, 'pull' => true];
 
     public function __construct(
         #[AutowireDecorated]
@@ -51,20 +55,25 @@ final readonly class DevGitHubPickerClient implements HttpClientInterface
                 ['id' => 4343, 'account' => ['login' => 'globex', 'id' => 434343], 'repository_selection' => 'selected', 'html_url' => 'https://github.com/organizations/globex/settings/installations/4343'],
             ] : [];
 
+            if ('/user' === $url) {
+                return $this->json($url, ['id' => 424200, 'login' => 'dev-picker']);
+            }
+
             if ('/user/installations' === $url) {
                 return $this->json($url, ['installations' => $installations]);
             }
 
             if ('/user/installations/4242/repositories' === $url) {
                 return $this->json($url, ['repositories' => [
-                    ['id' => self::FREE_REPOSITORY, 'full_name' => 'acme/free-app'],
-                    ['id' => self::HELD_REPOSITORY, 'full_name' => 'acme/held-app'],
-                    ['id' => self::OTHER_PROJECT_REPOSITORY, 'full_name' => 'acme/elsewhere-app'],
+                    ['id' => self::FREE_REPOSITORY, 'full_name' => 'acme/free-app', 'permissions' => self::PUSH],
+                    ['id' => self::HELD_REPOSITORY, 'full_name' => 'acme/held-app', 'permissions' => self::PUSH],
+                    ['id' => self::OTHER_PROJECT_REPOSITORY, 'full_name' => 'acme/elsewhere-app', 'permissions' => self::PUSH],
+                    ['id' => self::READ_ONLY_REPOSITORY, 'full_name' => 'acme/read-only-app', 'permissions' => self::READ],
                 ]]);
             }
 
             if ('/user/installations/4343/repositories' === $url) {
-                return $this->json($url, ['repositories' => [['id' => 9201, 'full_name' => 'globex/web']]]);
+                return $this->json($url, ['repositories' => [['id' => 9201, 'full_name' => 'globex/web', 'permissions' => self::PUSH]]]);
             }
         }
 

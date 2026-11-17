@@ -16,9 +16,7 @@ install -d -o postgres -g postgres -m 0775 "$SOCKET_DIR"
 # over PGDATA arrives root-owned, and initdb refuses to run on that.
 install -d -o postgres -g postgres -m 0700 "$PGDATA"
 
-fresh_database=false
 if [ ! -s "$PGDATA/PG_VERSION" ]; then
-	fresh_database=true
 	echo "Initialising the database…"
 	su-exec postgres initdb --username=loupe --auth=trust --encoding=UTF8 -D "$PGDATA" >/dev/null
 	# Loopback only. Nothing outside the container can reach it, which is why
@@ -33,8 +31,29 @@ su-exec postgres psql -h 127.0.0.1 -U loupe -d postgres -tc \
 	"SELECT 1 FROM pg_database WHERE datname = 'loupe'" | grep -q 1 ||
 	su-exec postgres createdb -h 127.0.0.1 -U loupe loupe
 
-# Before every console call: it snapshots the environment, so a value passed
-# with `docker run -e` has to reach .env.local.php first.
+# APP_SECRET: a value passed with `docker run -e` wins. Otherwise the secret
+# lives beside the database, so it lasts as long as the data it signs. It is
+# written to a temporary file and renamed, so a stopped boot never leaves a
+# partial secret behind.
+secret_file="$PGDATA/loupe-demo-app-secret"
+if [ -z "${APP_SECRET:-}" ]; then
+	if [ -f "$secret_file" ] && [[ "$(cat "$secret_file")" =~ ^[0-9a-f]{32}$ ]]; then
+		APP_SECRET="$(cat "$secret_file")"
+	else
+		[ -e "$secret_file" ] && echo "Stored APP_SECRET is not valid, replacing it."
+		APP_SECRET="$(php -r 'echo bin2hex(random_bytes(16));')"
+		(
+			umask 077
+			printf '%s' "$APP_SECRET" >"$secret_file.tmp"
+		)
+		[[ "$(cat "$secret_file.tmp")" =~ ^[0-9a-f]{32}$ ]]
+		mv "$secret_file.tmp" "$secret_file"
+	fi
+fi
+export APP_SECRET
+
+# Before every console call: .env.local.php holds only the values of the .env
+# files, and the runtime environment (APP_SECRET above) overrides it.
 COMPOSER_ALLOW_SUPERUSER=1 composer dump-env prod >/dev/null
 
 php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration
@@ -42,19 +61,26 @@ php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migratio
 # The sanctioned first account — verified without sending mail, which matters
 # because MAILER_DSN is null here. Creating it also closes the install wizard,
 # so an unattended instance is never left minting admins for whoever finds it.
-# Idempotent, so a restart over a persisted volume changes nothing.
-php bin/console app:admin:create "$DEMO_ADMIN_EMAIL" \
-	--password="$DEMO_ADMIN_PASSWORD" --full-name="Loupe Admin" --no-interaction
+# Idempotent, so a restart over a persisted volume changes nothing. The password
+# is a candidate: an existing account keeps its own.
+admin_password="${DEMO_ADMIN_PASSWORD:-$(php -r 'echo bin2hex(random_bytes(12));')}"
+admin_output="$(php bin/console app:admin:create "$DEMO_ADMIN_EMAIL" \
+	--password="$admin_password" --full-name="Loupe Admin" --no-interaction)"
+echo "$admin_output"
+admin_created=false
+if [[ "$admin_output" == *"Created administrator"* ]]; then
+	admin_created=true
+fi
 
 su-exec postgres pg_ctl -D "$PGDATA" -w -m fast stop >/dev/null
 
-# Only a database this boot created is known to hold the password configured
-# now: app:admin:create leaves an existing account's password alone, so on a
-# persisted volume a changed DEMO_ADMIN_PASSWORD would be advertised and rejected.
-if [ "$fresh_database" = true ]; then
-	credentials="${DEMO_ADMIN_EMAIL} / ${DEMO_ADMIN_PASSWORD}"
+# Only the boot that created the account knows its password. Nothing stores it,
+# so a later boot cannot show it.
+if [ "$admin_created" = true ]; then
+	credentials="${DEMO_ADMIN_EMAIL} / ${admin_password}"
 else
-	credentials="${DEMO_ADMIN_EMAIL} and the password it was created with"
+	credentials="${DEMO_ADMIN_EMAIL}, with the password printed when the account was created.
+  Lost it? Run: docker exec <container> bin/console app:admin:create <another-email>"
 fi
 
 cat <<BANNER

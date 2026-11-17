@@ -428,7 +428,7 @@ func startE2EBridge(t *testing.T, fake *e2eLoupe, old string, env ...string) *e2
 	raw, _ := json.Marshal(cfg)
 	rulesPath := filepath.Join(home, "rules.yaml")
 	// No resume, so a failed run reports at once rather than after the delay.
-	rulesBody := "autoUpdate: " + strconv.FormatBool(!fake.autoUpdateOff) + "\naccounts:\n  claude:\n    harness: claude-code\ndefaults:\n  account: claude\n  isolation: none\nprojects:\n  loupe:\n    dir: " + filepath.Join(home, "work") + "\nwork:\n" +
+	rulesBody := "autoUpdate: " + strconv.FormatBool(!fake.autoUpdateOff) + "\naccounts:\n  claude:\n    harness: claude-code\n    envFile: " + filepath.Join(home, "worker.env") + "\ndefaults:\n  account: claude\n  isolation: none\nprojects:\n  loupe:\n    dir: " + filepath.Join(home, "work") + "\nwork:\n" +
 		"  plan:\n    prompt: \"{cardNumber}\"\n"
 	b.installed = filepath.Join(home, "bin", "loupe")
 	oldBytes, err := os.ReadFile(old)
@@ -438,6 +438,7 @@ func startE2EBridge(t *testing.T, fake *e2eLoupe, old string, env ...string) *e2
 	files := map[string][]byte{
 		filepath.Join(configDir, "config.json"): raw,
 		rulesPath:                               []byte(rulesBody),
+		filepath.Join(home, "worker.env"):       []byte("LOUPE_E2E_DIR=" + b.dir + "\n"),
 		filepath.Join(b.dir, "claude"):          []byte(e2eClaude),
 		b.installed:                             oldBytes,
 	}

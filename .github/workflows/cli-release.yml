@@ -1,16 +1,12 @@
 name: CLI release
 
 # The CLI has its own version track, with tags such as `cli/v1.0.0`. GoReleaser
-# OSS reads no tag prefix, so it only builds, and `gh` creates a draft release.
-# The build attests checksums.txt. `just sign-release` checks that attestation,
-# signs checksums.txt with the release key, and publishes the draft. It then
-# starts cli-homebrew.yml on main.
+# OSS reads no tag prefix, so it only builds, and `gh` publishes the release.
 on:
   push:
     tags: ['cli/v*']
 
-permissions:
-  contents: write
+permissions: {}
 
 jobs:
   version:
@@ -59,7 +55,7 @@ jobs:
           [ "${#missing[@]}" -eq 0 ] || exit 1
           echo "ready=true" >> "$GITHUB_OUTPUT"
 
-  # Builds, signs and notarises the Live review app. The release job puts it in the darwin archives.
+  # Builds, signs and notarises the Live review app. The build job puts it in the darwin archives.
   panel:
     needs: [version, signing]
     if: needs.signing.outputs.ready == 'true'
@@ -71,7 +67,7 @@ jobs:
         run: |
           echo "KEYCHAIN=$RUNNER_TEMP/panel-signing.keychain-db" >> "$GITHUB_ENV"
           echo "NOTARY_KEY_FILE=$RUNNER_TEMP/notary-key.p8" >> "$GITHUB_ENV"
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Show the Xcode version
@@ -139,7 +135,7 @@ jobs:
       - name: Pack the app
         working-directory: ${{ runner.temp }}/panel
         run: COPYFILE_DISABLE=1 tar -cf panel.tar 'Live review.app'
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: panel
           path: ${{ runner.temp }}/panel/panel.tar
@@ -150,28 +146,27 @@ jobs:
           security delete-keychain "$KEYCHAIN" || true
           rm -f "$NOTARY_KEY_FILE" "$RUNNER_TEMP/certificate.p12"
 
-  release:
+  # Runs third-party code with a read token and no stored git credentials. The publish job holds the write token.
+  build:
     needs: [version, signing, panel]
     if: ${{ !cancelled() && needs.signing.result == 'success' && (needs.panel.result == 'success' || needs.panel.result == 'skipped') }}
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      id-token: write
-      attestations: write
-      artifact-metadata: write
+      contents: read
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      # No cache, so a cache that another run wrote cannot change the attested build.
-      - uses: actions/setup-go@v7
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: cli/go.mod
+          # No cache, so a cache that another run wrote cannot change the attested build.
           cache: false
       - name: Verify the Go modules
         working-directory: cli
         run: go mod verify
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         if: needs.panel.result == 'success'
         with:
           name: panel
@@ -197,16 +192,46 @@ jobs:
       - name: Bundle the skills
         run: sh cli/scripts/bundle-skills.sh
       # validate refuses a GORELEASER_CURRENT_TAG that git does not hold.
-      - uses: goreleaser/goreleaser-action@v7
+      - uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
         with:
           distribution: goreleaser
-          version: '~> v2'
+          # An exact version. Dependabot does not read this input, so bump it by hand.
+          version: 'v2.20.2'
           args: release --clean --skip=publish,validate
           workdir: cli
         env:
           GORELEASER_CURRENT_TAG: v${{ needs.version.outputs.version }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist
+          path: |
+            cli/dist/*.tar.gz
+            cli/dist/checksums.txt
+          if-no-files-found: error
+
+  # The only job with a write token. It runs no third-party code apart from `gh` and the attest action.
+  # It attests checksums.txt and creates a draft release. `just sign-release` checks the
+  # attestation, signs checksums.txt, publishes the draft and starts the Homebrew update.
+  publish:
+    needs: [version, build]
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dist
+          path: cli/dist
       - name: Attest the checksums
-        uses: actions/attest-build-provenance@v4
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: cli/dist/checksums.txt
       - name: Create the draft release

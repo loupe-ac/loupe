@@ -2570,3 +2570,22 @@ func TestReportAccountsShortensHomePaths(t *testing.T) {
 		t.Errorf("failing = %v, output keeps the home path:\n%s", failing, out.String())
 	}
 }
+
+func TestInitAllowHTTPSignsInToAPlainHTTPInstanceAndLoadsTheLogin(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	inRepo(t, "")
+	routeLAN(t, w.server)
+	t.Setenv(config.AllowHTTPEnv, "")
+
+	if out, err := runInitCmd(t, "1\nn\n", "--no-mcp", "--url", "http://loupe.lan"); err == nil || !strings.Contains(err.Error(), "unencrypted") {
+		t.Fatalf("init without the opt-in: want a refusal, got %v\n%s", err, out)
+	}
+
+	out, err := runInitCmd(t, "1\nn\n", "--no-mcp", "--url", "http://loupe.lan", "--allow-http")
+	if err != nil {
+		t.Fatalf("init --allow-http: %v\n%s", err, out)
+	}
+	if stored, err := config.Load(); err != nil || !stored.AllowHTTP || stored.BaseURL != "http://loupe.lan" {
+		t.Errorf("stored login = %+v, %v", stored, err)
+	}
+}

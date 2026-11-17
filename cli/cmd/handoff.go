@@ -295,7 +295,7 @@ func (b *bridgeUpdate) execWith(st handoverState, binary string, announce func()
 	if announce != nil {
 		announce()
 	}
-	err := b.exec(binary, argv, os.Environ())
+	err := b.exec(binary, argv, handoverEnviron())
 	closeOnExec(lockFD, ctlFD)
 	if err == nil {
 		err = errors.New("exec returned")

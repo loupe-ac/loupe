@@ -39,6 +39,10 @@ class ForgeRepository
     #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $accessLostAt = null;
 
+    /** The forge's own user id of the person who linked an installation row, opaque to this module. Null on a row linked before the forge recorded it. */
+    #[ORM\Column(length: 255, nullable: true)]
+    public ?string $claimantAccountId = null;
+
     /**
      * What the last read of the workflow file found wrong, worded for the repository check.
      *

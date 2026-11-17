@@ -46,6 +46,8 @@ final class GitHubAppInstallFlowTest extends WebTestCase
 
     private const int INSTALLATION_ID = 424242;
     private const string TOKEN = 'ghu_user_token_never_logged';
+    private const int GITHUB_USER_ID = 777_001;
+    private const array READ_ONLY = ['admin' => false, 'push' => false, 'pull' => true];
 
     private KernelBrowser $client;
 
@@ -102,6 +104,9 @@ final class GitHubAppInstallFlowTest extends WebTestCase
             parse_str((string) parse_url($url, \PHP_URL_QUERY), $query);
             $page = (int) ($query['page'] ?? 1);
             $path = (string) parse_url($url, \PHP_URL_PATH);
+            if ('/user' === $path) {
+                return $this->json(['id' => self::GITHUB_USER_ID, 'login' => 'riley']);
+            }
             if ('/user/installations' === $path) {
                 return $this->json(['total_count' => \count($this->installations), 'installations' => \array_slice($this->installations, ($page - 1) * 100, 100)]);
             }
@@ -115,7 +120,8 @@ final class GitHubAppInstallFlowTest extends WebTestCase
                     $hook();
                 }
 
-                $repositories = $this->repositories[(int) $match[1]] ?? [];
+                // A fixture with no permissions is one the user can push to.
+                $repositories = array_map(static fn (array $repository): array => $repository + ['permissions' => ['admin' => false, 'push' => true, 'pull' => true]], $this->repositories[(int) $match[1]] ?? []);
 
                 return $this->json(['total_count' => \count($repositories), 'repositories' => \array_slice($repositories, ($page - 1) * 100, 100)]);
             }
@@ -424,6 +430,22 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         self::assertStringStartsWith('/projects/'.$project->id.'/', (string) $this->client->getResponse()->headers->get('Location'));
         self::assertSame(['acme/only'], $this->pathsOf($project));
         self::assertNull($this->projectNamedOrNull('ignored'), 'An existing project creates no project.');
+    }
+
+    public function test_the_project_choice_never_adds_a_repository_the_user_can_only_read(): void
+    {
+        $this->repositories[self::INSTALLATION_ID] = [['id' => 101, 'full_name' => 'acme/read', 'permissions' => self::READ_ONLY]];
+        $owner = $this->signedUpUser('choicereadonly');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->githubFirstSignIn('install');
+        $this->client->followRedirect();
+        $this->postChoice((string) $project->id, 'ignored');
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
+        self::assertSame([], $this->pathsOf($project));
     }
 
     public function test_a_cut_list_never_adds_at_once(): void
@@ -1069,6 +1091,113 @@ final class GitHubAppInstallFlowTest extends WebTestCase
         self::assertStringContainsString('Loupe could not add acme/one', $text);
         self::assertStringNotContainsString($rival->name, $text);
         self::assertSame(['acme/one'], $this->pathsOf($rival));
+    }
+
+    public function test_the_picker_shows_a_repository_the_user_can_only_read_with_no_tickbox(): void
+    {
+        $this->repositories[self::INSTALLATION_ID] = [
+            ['id' => 101, 'full_name' => 'acme/free'],
+            ['id' => 202, 'full_name' => 'acme/read', 'permissions' => self::READ_ONLY],
+        ];
+        $owner = $this->signedUpUser('readonlylist');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->signIn($project);
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/settings/repositories');
+
+        $rows = $this->pickerRows($crawler);
+        self::assertSame('free', $rows['acme/free']['state']);
+        self::assertSame('read-only', $rows['acme/read']['state']);
+        self::assertFalse($rows['acme/read']['tickable']);
+        self::assertFalse($rows['acme/read']['checked']);
+        self::assertStringContainsString('You need write access on GitHub to add this repository', $rows['acme/read']['text']);
+    }
+
+    /** The post names the pick, and the live listing decides it, so a forged tick on a read-only repository adds nothing. */
+    public function test_a_pick_the_user_can_only_read_is_refused_with_its_own_message(): void
+    {
+        $this->repositories[self::INSTALLATION_ID] = [
+            ['id' => 101, 'full_name' => 'acme/one'],
+            ['id' => 202, 'full_name' => 'acme/read', 'permissions' => self::READ_ONLY],
+        ];
+        $owner = $this->signedUpUser('readonlypick');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->signIn($project);
+        $this->submitPicks($project, ['101:acme/one', '202:acme/read']);
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
+        self::assertSame(['acme/one'], $this->pathsOf($project));
+        $text = $this->followedText();
+        self::assertStringContainsString('Loupe added 1 repository', $text);
+        self::assertStringContainsString('Loupe did not add acme/read. You need write access on GitHub to add a repository.', $text);
+        self::assertStringNotContainsString('Loupe could not add', $text);
+    }
+
+    public function test_an_added_repository_records_the_github_user_who_added_it(): void
+    {
+        $this->repositories[self::INSTALLATION_ID] = [['id' => 101, 'full_name' => 'acme/one']];
+        $owner = $this->signedUpUser('claimant');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->signIn($project);
+        $this->submitPicks($project, ['101:acme/one']);
+
+        $this->em()->clear();
+        $row = static::getContainer()->get(ForgeRepositoryRepository::class)?->findOneBy(['project' => $project->id]);
+        self::assertNotNull($row);
+        self::assertSame((string) self::GITHUB_USER_ID, $row->claimantAccountId);
+    }
+
+    public function test_the_sign_in_records_the_user_on_each_repository_of_the_project_it_can_push_to(): void
+    {
+        $owner = $this->signedUpUser('signinclaimant');
+        $project = $this->projectOf($owner);
+        $other = $this->projectOf($this->signedUpUser('signinclaimantother'));
+        $this->repositories[self::INSTALLATION_ID] = [
+            ['id' => 101, 'full_name' => 'acme/mine'],
+            ['id' => 202, 'full_name' => 'acme/mine-read', 'permissions' => self::READ_ONLY],
+            ['id' => 303, 'full_name' => 'acme/theirs'],
+        ];
+        $installation = (string) self::INSTALLATION_ID;
+        $this->em()->persist(new ForgeRepository($project, 'github', '101', 'acme/mine', ForgeRepositorySource::Installation, $installation));
+        $this->em()->persist(new ForgeRepository($project, 'github', '202', 'acme/mine-read', ForgeRepositorySource::Installation, $installation));
+        $this->em()->persist(new ForgeRepository($other, 'github', '303', 'acme/theirs', ForgeRepositorySource::Installation, $installation));
+        $this->em()->flush();
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->signIn($project);
+
+        $this->em()->clear();
+        $claimants = [];
+        foreach (static::getContainer()->get(ForgeRepositoryRepository::class)?->findBy(['forge' => 'github', 'externalId' => ['101', '202', '303']]) ?? [] as $row) {
+            $claimants[$row->path] = $row->claimantAccountId;
+        }
+        ksort($claimants);
+        self::assertSame(['acme/mine' => (string) self::GITHUB_USER_ID, 'acme/mine-read' => null, 'acme/theirs' => null], $claimants);
+    }
+
+    public function test_a_fresh_install_whose_only_repository_is_read_only_opens_the_picker(): void
+    {
+        $this->repositories[self::INSTALLATION_ID] = [['id' => 101, 'full_name' => 'acme/read', 'permissions' => self::READ_ONLY]];
+        $owner = $this->signedUpUser('freshreadonly');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $this->client->loginUser($owner);
+        $this->completeInstall($project);
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
+        self::assertSame([], $this->pathsOf($project));
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/settings/repositories');
+        self::assertSame('read-only', $this->pickerRows($crawler)['acme/read']['state']);
     }
 
     public function test_a_forged_pick_that_the_owner_cannot_reach_is_refused(): void
@@ -1838,6 +1967,7 @@ final class GitHubAppInstallFlowTest extends WebTestCase
             self::narrow($get(GitHubPickerListing::class), GitHubPickerListing::class),
             $add,
             self::narrow($get(\App\Module\GitHub\Command\StartGitHubAppInstallHandler::class), \App\Module\GitHub\Command\StartGitHubAppInstallHandler::class),
+            self::narrow($get(\App\Module\Forge\Service\ForgeRepositories::class), \App\Module\Forge\Service\ForgeRepositories::class),
             $logger,
         ));
 
