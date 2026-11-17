@@ -225,10 +225,16 @@ final class CardRepositoryTest extends KernelTestCase
 
         $project = $this->em->find(Project::class, $project->id) ?? throw new \LogicException('The project is gone.');
 
+        $epics = $this->cards->findLaneEpics($project, ['epic']);
         self::assertSame(
             ['Waiting in the Backlog', 'Next first', 'Next second', 'In progress'],
-            array_map(static fn (Card $card): string => $card->title, $this->cards->findLaneEpics($project, ['epic'])),
+            array_map(static fn (Card $card): string => $card->title, $epics),
         );
+        self::assertSame(
+            array_map(static fn (Card $card): string => (string) $card->id, $epics),
+            $this->cards->findLaneEpicIds($project, ['epic']),
+        );
+        self::assertSame([], $this->cards->findLaneEpicIds($project, []));
     }
 
     public function test_child_marks_are_the_earliest_open_child_of_each_state_kind(): void

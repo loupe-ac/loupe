@@ -60,6 +60,37 @@ final class CardOpenInboxItemReaderTest extends KernelTestCase
         self::assertArrayNotHasKey((string) $plain->id, $numbers);
     }
 
+    public function test_it_reads_the_given_cards_only_with_the_rule_of_the_whole_board(): void
+    {
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $this->switchFlag($em, InboxInstallFlags::FLAG_INBOX_ENABLED, true);
+        $project = $this->project($em, $this->owner($em, 'open-items-some'), 'open-items-some');
+        $asked = $this->card($em, $project, 1);
+        $waiting = $this->card($em, $project, 2);
+        $skipped = $this->card($em, $project, 3);
+        $older = $this->item($em, $project, 1, 'Older');
+        $newer = new InboxItem(project: $project, number: 2, kind: InboxItemKind::Question, title: 'Newer', blocking: true, origin: InboxAskOrigin::Agent, createdAt: new \DateTimeImmutable('+1 minute'));
+        $em->persist($newer);
+        $em->persist(new InboxItemCard($newer, $asked));
+        $em->persist(new InboxItemCard($older, $asked));
+        $em->persist(new InboxItemCard($this->item($em, $project, 3, 'Other'), $skipped));
+        $wait = new InboxItem(project: $project, number: 4, kind: InboxItemKind::Wait, title: '#2 Ship it', blocking: true, origin: InboxAskOrigin::Loupe);
+        $em->persist($wait);
+        $em->flush();
+        $em->persist(new InboxCardWatch($wait, $waiting->id ?? throw new \LogicException('Flushed.'), $waiting->number));
+        $em->flush();
+
+        $reader = static::getContainer()->get(CardOpenInboxItems::class);
+        $some = $reader->forCards($project, [$asked->id ?? throw new \LogicException('Flushed.'), $waiting->id]);
+
+        ksort($some);
+        $expected = [(string) $asked->id => 1, (string) $waiting->id => 4];
+        ksort($expected);
+        self::assertSame($expected, $some);
+        self::assertArrayHasKey((string) $skipped->id, $reader->forProject($project));
+        self::assertSame([], $reader->forCards($project, []));
+    }
+
     public function test_it_reads_nothing_while_the_inbox_is_off(): void
     {
         $em = static::getContainer()->get(EntityManagerInterface::class);
