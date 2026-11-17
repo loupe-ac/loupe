@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/envallow"
 	harn "github.com/loupe-ac/loupe/cli/internal/harness"
 	"github.com/loupe-ac/loupe/cli/internal/rules"
 )
@@ -299,5 +300,33 @@ func TestAProjectProblemFailsOnlyThatProject(t *testing.T) {
 	}}
 	if got := mixed.reason(); got != "not logged in" {
 		t.Fatalf("reason = %q, want the account problem alone", got)
+	}
+}
+
+func TestReloadChecksAccountsWithTheNewPassEnv(t *testing.T) {
+	h := newHarness(t)
+	envallow.SetPass([]string{"OLD_PASS"})
+	t.Cleanup(func() { envallow.SetPass(nil) })
+	src := h.source("passEnv: [NEW_PASS]\n" + defaultRules)
+	var seen []string
+	src.checkAccounts = func(context.Context, *rules.Set) []accountResult {
+		seen = envallow.Pass()
+
+		return nil
+	}
+	if res := h.router.reload(context.Background(), src); !res.OK {
+		t.Fatalf("result = %+v", res)
+	}
+	if !slices.Equal(seen, []string{"NEW_PASS"}) {
+		t.Fatalf("the check ran with pass names %v, want [NEW_PASS]", seen)
+	}
+
+	envallow.SetPass([]string{"OLD_PASS"})
+	bad := h.source("passEnv: [BAD_PASS]\nnot a rule file: [")
+	if res := h.router.reload(context.Background(), bad); res.OK {
+		t.Fatalf("a broken rule file reloaded: %+v", res)
+	}
+	if got := envallow.Pass(); !slices.Equal(got, []string{"OLD_PASS"}) {
+		t.Fatalf("a failed reload left pass names %v, want [OLD_PASS]", got)
 	}
 }
