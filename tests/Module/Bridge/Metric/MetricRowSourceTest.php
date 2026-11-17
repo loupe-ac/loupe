@@ -243,6 +243,26 @@ final class MetricRowSourceTest extends KernelTestCase
         self::assertCount(2, $facts->closedRuns ?? []);
     }
 
+    public function test_extending_the_window_keeps_the_run_id_order_of_a_fresh_set(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $project = $this->project($em, $this->user($em, 'row-source-order-'.uniqid().'@example.com'), 'Row source order');
+        $this->seedRun($em, $project, endedAt: new \DateTimeImmutable('2026-10-20 10:00:00'));
+        $this->seedRun($em, $project, endedAt: new \DateTimeImmutable('2026-07-01 10:00:00'));
+        $stamp = new \DateTimeImmutable('2026-11-01 00:00:00');
+        $source = $this->source();
+        $extended = new MetricFacts($project, $stamp);
+        $source->load($extended, true, new \DateTimeImmutable('2026-10-01 00:00:00'), false, null);
+        $source->load($extended, true, new \DateTimeImmutable('2026-06-01 00:00:00'), false, null);
+        $fresh = new MetricFacts($project, $stamp);
+        $source->load($fresh, true, new \DateTimeImmutable('2026-06-01 00:00:00'), false, null);
+
+        $ids = static fn (MetricFacts $facts): array => array_map(static fn ($fact): string => $fact->runId->toRfc4122(), $facts->closedRuns ?? []);
+        self::assertCount(2, $ids($fresh));
+        self::assertSame($ids($fresh), $ids($extended));
+    }
+
     public function test_a_window_that_ends_after_the_stamp_is_refused(): void
     {
         self::bootKernel();
