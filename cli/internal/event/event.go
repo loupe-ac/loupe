@@ -101,6 +101,19 @@ var (
 	reasonPattern         = regexp.MustCompile(`^[a-z][a-z0-9-]{0,63}$`)
 )
 
+// maxEpicBranch and epicBranchPattern copy the epic branch rule of the server,
+// WorkRequestContext::EPIC_BRANCH_PATTERN and MAX_EPIC_BRANCH_LENGTH. Go has
+// no lookahead, so validEpicBranch adds string checks for the rest of the rule.
+const maxEpicBranch = 265
+
+var epicBranchPattern = regexp.MustCompile(`^[A-Za-z0-9_](?:[A-Za-z0-9._-]|/[A-Za-z0-9_])*$`)
+
+func validEpicBranch(s string) bool {
+	return len(s) <= maxEpicBranch && epicBranchPattern.MatchString(s) &&
+		!strings.Contains(s, "..") && !strings.HasSuffix(s, ".") &&
+		!strings.HasSuffix(s, ".lock") && !strings.Contains(s, ".lock/")
+}
+
 // maxPullRequestURL is the longest pull request URL the server sends.
 const maxPullRequestURL = 2000
 
@@ -455,6 +468,9 @@ func checkWorkContext(c api.WorkRequestContext) error {
 		if len(c.PullRequestURL) > maxPullRequestURL || !pullRequestURLPattern.MatchString(c.PullRequestURL) || host == "" {
 			return errors.New("the context has a pullRequestUrl that is not an https URL")
 		}
+	}
+	if c.EpicBranch != "" && !validEpicBranch(c.EpicBranch) {
+		return fmt.Errorf("the context has an invalid epicBranch %q", c.EpicBranch)
 	}
 	if c.HeadSHA != "" && !headSHAPattern.MatchString(c.HeadSHA) {
 		return fmt.Errorf("the context has an invalid headSha %q", c.HeadSHA)
