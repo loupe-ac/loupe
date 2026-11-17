@@ -11,6 +11,7 @@ use App\Module\GitHub\Entity\GitHubRepositorySelection;
 use App\Module\GitHub\Repository\GitHubInstallationRepository;
 use App\Module\GitHub\Service\GitHubAppApi;
 use App\Module\GitHub\Service\GitHubAppConfiguration;
+use App\Module\GitHub\Service\GitHubAppInstallationList;
 use App\Module\GitHub\Service\GitHubGitTokenIssuer;
 use App\Module\GitHub\Service\GitHubGitTokenRefused;
 use App\Module\GitHub\Service\GitHubRepositoryTokenStore;
@@ -20,7 +21,7 @@ use App\Tests\Support\OAuthScenario;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
-use Symfony\Component\Cache\Adapter\AdapterInterface;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
@@ -46,9 +47,6 @@ final class IssueGitTokenApiTest extends WebTestCase
         $this->client = static::createClient();
         $this->client->disableReboot();
         $this->scenario = new OAuthScenario(static::getContainer());
-        $cache = static::getContainer()->get('cache.app');
-        self::assertInstanceOf(AdapterInterface::class, $cache);
-        $cache->clear();
     }
 
     public function test_a_request_with_no_token_is_unauthorized(): void
@@ -455,11 +453,12 @@ final class IssueGitTokenApiTest extends WebTestCase
         $configuration = new GitHubAppConfiguration(null, null, null, null, '123456', $pem);
         static::getContainer()->set(GitHubAppConfiguration::class, $configuration);
         $clock = new MockClock('2026-10-18 13:00:00');
-        static::getContainer()->set(GitHubAppApi::class, new GitHubAppApi($http, $configuration, $clock));
-        $cache = static::getContainer()->get('cache.app');
+        $api = new GitHubAppApi($http, $configuration, $clock);
+        static::getContainer()->set(GitHubAppApi::class, $api);
+        $cache = new ArrayAdapter(clock: $clock);
         $encryptor = static::getContainer()->get(Encryptor::class);
-        self::assertInstanceOf(AdapterInterface::class, $cache);
         self::assertInstanceOf(Encryptor::class, $encryptor);
+        static::getContainer()->set(GitHubAppInstallationList::class, new GitHubAppInstallationList($api, $cache));
         static::getContainer()->set(GitHubRepositoryTokenStore::class, new GitHubRepositoryTokenStore($cache, $encryptor, $clock));
     }
 

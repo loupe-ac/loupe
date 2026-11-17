@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Board\Command;
 
+use App\Module\Board\Entity\Card;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Service\BoardPlacementContextReader;
 use App\Module\Board\Service\CardPlacer;
@@ -28,7 +29,7 @@ final readonly class ShowCardPlacementsHandler
             $found[(string) $card->id] = $card;
         }
 
-        $context = $this->contextReader->read($command->project);
+        $context = $this->contextReader->read($command->project, array_values(array_map(static fn (Card $card): Uuid => $card->id ?? throw new \LogicException('A placed card has an id.'), $found)));
         $placements = [];
         foreach ($command->cardIds as $cardId) {
             // One card that cannot be placed leaves the others their update, and the page retries it.

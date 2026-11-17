@@ -4,21 +4,16 @@ declare(strict_types=1);
 
 namespace App\Module\Workflow\Service;
 
-use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\CardTypeCatalog;
-use App\Module\Workflow\Contract\CardTypeDefinition;
 use App\Module\Workflow\Contract\CardTypes;
+use App\Module\Workflow\Repository\WorkflowBindingRepository;
 use App\Module\Workflow\Template\ShippedTemplates;
-use App\Module\Workflow\Template\Template;
-use App\Module\Workflow\Template\TemplateCardType;
-use App\Module\Workflow\Template\TemplateMissing;
 use App\Module\Workflow\Template\TemplateParser;
-use App\Module\Workflow\Template\TemplateSource;
 use Symfony\Component\DependencyInjection\Attribute\AsAlias;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Contracts\Service\ResetInterface;
 
-/** Reads the card types from the stored template copy. A project bound to no template gets the types of the Simple template. */
+/** Reads the card types from the stored template copy, and nothing else of it. A project bound to no template gets the types of the Simple template. */
 #[AsAlias(CardTypeCatalog::class)]
 final class TemplateCardTypeCatalog implements CardTypeCatalog, ResetInterface
 {
@@ -28,7 +23,7 @@ final class TemplateCardTypeCatalog implements CardTypeCatalog, ResetInterface
     private array $types = [];
 
     public function __construct(
-        private readonly TemplateSource $templates,
+        private readonly WorkflowBindingRepository $workflowBindings,
         private readonly ShippedTemplates $shippedTemplates,
         private readonly TemplateParser $parser,
     ) {
@@ -37,7 +32,7 @@ final class TemplateCardTypeCatalog implements CardTypeCatalog, ResetInterface
     #[\Override]
     public function forProject(Uuid $projectId): CardTypes
     {
-        return $this->types[$projectId->toRfc4122()] ??= self::of($this->template($projectId));
+        return $this->types[$projectId->toRfc4122()] ??= $this->typesOf($projectId);
     }
 
     #[\Override]
@@ -46,23 +41,8 @@ final class TemplateCardTypeCatalog implements CardTypeCatalog, ResetInterface
         $this->types = [];
     }
 
-    private function template(Uuid $projectId): Template
+    private function typesOf(Uuid $projectId): CardTypes
     {
-        try {
-            return $this->templates->forProject($projectId);
-        } catch (TemplateMissing) {
-            return $this->parser->parse($this->shippedTemplates->source(self::UNBOUND_TEMPLATE));
-        }
-    }
-
-    private static function of(Template $template): CardTypes
-    {
-        return new CardTypes(
-            array_map(
-                static fn (TemplateCardType $type): CardTypeDefinition => new CardTypeDefinition($type->key, $type->label, $type->tone, $type->children, $type->lane),
-                $template->types,
-            ),
-            $template->defaultType,
-        );
+        return $this->parser->parseStoredTypes($this->workflowBindings->findTypesSource($projectId) ?? $this->shippedTemplates->source(self::UNBOUND_TEMPLATE));
     }
 }
