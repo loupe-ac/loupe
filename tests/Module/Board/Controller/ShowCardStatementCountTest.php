@@ -11,6 +11,12 @@ use App\Module\Board\Entity\CardValue;
 use App\Module\Board\Entity\Forge;
 use App\Module\Bridge\Entity\CardHold;
 use App\Module\Forge\Entity\ForgePullRequest;
+use App\Module\Inbox\Entity\InboxAskOrigin;
+use App\Module\Inbox\Entity\InboxItem;
+use App\Module\Inbox\Entity\InboxItemCard;
+use App\Module\Inbox\Entity\InboxItemKind;
+use App\Module\Inbox\Entity\InboxReview;
+use App\Module\Review\Entity\Document;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\PauseKind;
 use App\Tests\Module\Workflow\WorkflowProjects;
@@ -44,6 +50,13 @@ final class ShowCardStatementCountTest extends WebTestCase
         $this->em()->persist(new CardValue($card, 'tech-design-interactive', true, Actor::System));
         $this->em()->persist(new CardHold($project, $card->id ?? throw new \LogicException('Stored.'), $owner, new \DateTimeImmutable()));
         $this->em()->persist(new CardPause($card, $project, 'rule', 'test-rule', PauseKind::Rule, new \DateTimeImmutable()));
+        $document = new Document($owner, $project, 'The design');
+        $document->addVersion('# Design', '<h1>Design</h1>');
+        $this->em()->persist($document);
+        $item = new InboxItem(project: $project, number: 1, kind: InboxItemKind::Review, title: 'Review the design', blocking: true, origin: InboxAskOrigin::Agent);
+        $this->em()->persist($item);
+        $this->em()->persist(new InboxReview($item, $document));
+        $this->em()->persist(new InboxItemCard($item, $card));
         $this->em()->flush();
         $url = '/projects/'.$project->id.'/board/cards/'.$card->id;
         $this->em()->clear();
@@ -65,6 +78,7 @@ final class ShowCardStatementCountTest extends WebTestCase
         // Guard: the page ran the workflow facts and the pull request reads, so an empty list proves the memo and not a skipped read.
         self::assertNotEmpty(array_filter($statements, static fn (string $sql): bool => str_contains($sql, 'FROM forge_pull_requests')));
         self::assertNotEmpty(array_filter($statements, static fn (string $sql): bool => str_contains($sql, 'FROM board_card_values')));
+        self::assertNotEmpty(array_filter($statements, static fn (string $sql): bool => str_contains($sql, 'FROM document_versions')));
         self::assertSame([], $this->repeated($statements));
     }
 
