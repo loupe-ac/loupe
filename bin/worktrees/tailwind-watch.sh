@@ -20,10 +20,25 @@ set -uo pipefail
 shopt -s nullglob
 
 main=${WORKTREE_TAILWIND_ROOT:-/var/www/html}
-# Ten seconds, not one. This is the safety net for a stylesheet nobody rebuilt,
-# not the tool for iterating on CSS: `just worktree-tailwind` is a real watcher
-# on one tree. A longer interval is what makes an exhaustive scan affordable.
+# This is the safety net for a stylesheet nobody rebuilt, not the tool for
+# iterating on CSS: `just worktree-tailwind` is a real watcher on one tree, and
+# `just e2e` rebuilds before a run. An epic preview is what a person opens, so
+# it is checked every minute, and so is any tree that holds the marker file
+# var/tailwind/.watch. Every other tree is checked every ten minutes, because
+# forty card trees scanned every few seconds slow every local page.
 interval=${WORKTREE_TAILWIND_INTERVAL:-10}
+epic_period=${WORKTREE_TAILWIND_EPIC_PERIOD:-60}
+other_period=${WORKTREE_TAILWIND_OTHER_PERIOD:-600}
+declare -A last_checked=()
+
+is_due() {
+    local root=$1 now=$2 period=$other_period
+    case "$(basename "$root")" in
+        epic-*) period=$epic_period ;;
+    esac
+    [ -f "$root/var/tailwind/.watch" ] && period=$epic_period
+    [ $((now - ${last_checked[$root]:-0})) -ge "$period" ]
+}
 trees=("$main/.worktrees" "$main/.claude/worktrees")
 
 # Tailwind's automatic detection scans the whole checkout, so the scan does too
@@ -76,14 +91,17 @@ worktree_roots() {
     done
 }
 
-echo "tailwind-watch: polling ${trees[*]} every ${interval}s"
+echo "tailwind-watch: polling ${trees[*]}, epic and marked trees every ${epic_period}s, others every ${other_period}s"
 
 while true; do
     if [ -d "${trees[0]}" ] || [ -d "${trees[1]}" ]; then
+        now=$(date +%s)
         while read -r root; do
             [ -n "$root" ] || continue
             built="$root/var/tailwind/app.built.css"
             [ -f "$built" ] || continue
+            is_due "$root" "$now" || continue
+            last_checked[$root]=$now
             is_stale "$root" "$built" || continue
 
             # Taken before the build, and stamped onto the sheet after it. A
