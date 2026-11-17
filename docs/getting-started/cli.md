@@ -7,7 +7,8 @@ description: "Install the loupe command-line bridge with the install script or H
 The `loupe` CLI runs on macOS and Linux, on amd64 and arm64. There is no Windows
 build. Each release on the
 [Releases page](https://github.com/loupe-ac/loupe/releases) of the Loupe
-repository has an archive for each platform and a `checksums.txt` file. A CLI
+repository has an archive for each platform, a `checksums.txt` file, and a
+signature of that file, `checksums.txt.sig`. A CLI
 release has a tag of the form `cli/vX.Y.Z`, such as `cli/v1.0.0`. The CLI has
 its own version numbers, apart from the server's.
 
@@ -29,9 +30,10 @@ brew install loupe-ac/tap/loupe
 
 The Connect page of a project shows both lines for your instance.
 
-The script downloads the newest release that your instance supports. It checks
-the archive against `checksums.txt`, and installs nothing when the checksum
-does not match. It then puts the binary in a directory on your `PATH`. The
+The script downloads the newest signed release that your instance supports. It
+checks the signature of `checksums.txt` and then the archive against that file.
+It installs nothing when either check fails. The script needs `ssh-keygen`, from
+the OpenSSH client, to check the signature. It then puts the binary in a directory on your `PATH`. The
 script stops and changes nothing when Homebrew already installed `loupe`.
 [Script options](#script-options) gives the directory it picks and the options
 it takes.
@@ -108,7 +110,9 @@ your shell profile.
 
 With no `--version`, the script reads the release list from the GitHub API. It
 takes the highest `cli/vX.Y.Z` release of the major version your instance
-supports. It skips a pre-release tag such as `cli/v1.2.0-rc1`, and any release
+supports whose signature a trusted key made. It skips a release with no
+signature, or with a bad one, and tries the next lower release. With
+`--version`, it checks only that release and stops on a bad signature. It skips a pre-release tag such as `cli/v1.2.0-rc1`, and any release
 that GitHub marks as a draft or a prerelease. The GitHub API rate
 limit can stop this step. Then use `--version`.
 
@@ -127,7 +131,7 @@ that says automatic updates are not on. Then it exits with status 2. Run
 The config directory is `~/Library/Application Support/loupe` on macOS, and
 `$XDG_CONFIG_HOME/loupe` or `~/.config/loupe` on Linux.
 
-The script needs `curl` or `wget`, and `sha256sum` or `shasum`.
+The script needs `curl` or `wget`, `sha256sum` or `shasum`, and `ssh-keygen`.
 
 ## Install by hand
 
@@ -148,6 +152,35 @@ version 1.0.0 on an Apple silicon Mac:
 curl -LO https://github.com/loupe-ac/loupe/releases/download/cli/v1.0.0/loupe_1.0.0_darwin_arm64.tar.gz
 curl -LO https://github.com/loupe-ac/loupe/releases/download/cli/v1.0.0/checksums.txt
 ```
+
+### Check the signature
+
+The release key signs `checksums.txt`. Check the signature before you trust that
+file. Download `checksums.txt.sig` into the same directory:
+
+```bash
+curl -LO https://github.com/loupe-ac/loupe/releases/download/cli/v1.0.0/checksums.txt.sig
+```
+
+Save these lines as `allowed_signers`. The first key is the active key, and the
+second is the backup key:
+
+```text
+loupe-release ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAUeC5MaWHXeMaiqKi9xzbbVIBvclqrpBTYr8OdIQUOs
+loupe-release ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJ45ZR/m+TS0VjF4rHIbtWD5JcIcbqhW4TegaR0CuWZb
+```
+
+Then run:
+
+```bash
+ssh-keygen -Y verify -f allowed_signers -I loupe-release -n loupe-release \
+  -s checksums.txt.sig < checksums.txt
+```
+
+The command prints `Good "loupe-release" signature` when a trusted key signed the
+file. When it prints anything else, delete the files and do not install the
+release. A release with no `checksums.txt.sig` is not signed. The command needs
+OpenSSH 8.2 or later.
 
 ### Check the archive
 

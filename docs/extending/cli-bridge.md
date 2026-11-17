@@ -1854,7 +1854,9 @@ conditions:
   `cli/vX.Y.Z`. The bridge skips every other tag, such as a plain `vX.Y.Z`.
 - The version is inside the range.
 - The version is not on the skip list.
-- The release has the archive for this OS and CPU, and `checksums.txt`.
+- The release has the archive for this OS and CPU, `checksums.txt`, and the
+  signature `checksums.txt.sig`. A release with no signature is no candidate.
+  Releases from before signing began have none.
 
 The bridge installs that release when the running version is lower, or when the
 running version is below the range. A bridge above the range installs nothing,
@@ -1862,7 +1864,10 @@ because a lower version does not fit a newer server. When the running version is
 outside the range and no release fits, the bridge logs `update_unavailable`
 once and [drains](#draining).
 
-The bridge downloads the archive and `checksums.txt`, and compares the SHA-256
+Before it downloads an archive, the bridge reads `checksums.txt` and
+`checksums.txt.sig` of the candidate, and checks the signature against the keys
+built into the CLI. See [Release signatures](#release-signatures). It then
+downloads the archive, and compares the SHA-256
 of the archive with its line in `checksums.txt`. A mismatch logs
 `update_rejected`, and the bridge installs nothing. A match logs
 `update_verified`, and the bridge writes the binary to
@@ -1896,6 +1901,35 @@ file to `defaultOff`. When the file takes no new last line, the bridge logs
 file to `autoUpdatePending` and keeps updates on. Each later start of that rule
 file, a handover or a plain restart, keeps updates on and tries again.
 
+### Release signatures
+
+Each release carries `checksums.txt.sig`, an SSH signature of `checksums.txt`
+made with a release key. The CLI embeds the public keys that it trusts, the
+active key and an offline backup key. The signature namespace is
+`loupe-release`.
+
+The check walks the candidates from the highest version down. For each one it
+reads `checksums.txt` and its signature. When the signature is not valid for a
+trusted key, the bridge logs `update_signature_rejected` with the version and
+the reason, once for each version and process. It then tries the next lower
+candidate. It installs the first release that verifies. So one bad release does
+not block the updates below it. When no candidate verifies, the bridge installs
+nothing and keeps its running version.
+
+The server can also name release keys that the bridge must not trust. It sends
+their fingerprints as `revokedReleaseKeys` beside `cliRange`, in the heartbeat
+answer, in `GET /api/v1/bridge/events` and in `GET /api/versions`. The bridge
+adds each one to `update.json` and never removes one. It refuses a signature
+from a listed key, deletes a staged binary that such a key signed, and skips a
+stored skill version that such a key signed. [Signing releases](../operating/release-signing.md)
+covers the key rotation and the reinstall after a leak.
+
+The skill package refresh makes the same check. A package version with a bad
+signature is held back, and the refresh goes on to the next lower version. The
+store keeps every version it holds, so a worker starts with the last good one.
+The refresh writes the fingerprint of the key that verified a version into a
+`.signer` file in the folder of that version.
+
 ### Skill package updates
 
 The skill packages have their own release tags, `skills/<package>/vX.Y.Z`, and
@@ -1909,11 +1943,13 @@ skill list of a project names. For each package, it picks the highest release
 that meets these conditions:
 
 - The release is not a draft or a prerelease.
-- The release has the archive `<package>_<version>.tar.gz` and `checksums.txt`.
+- The release has the archive `<package>_<version>.tar.gz`, `checksums.txt` and
+  `checksums.txt.sig`.
 - The store does not hold the version, and no higher version.
 
-The bridge downloads the archive and compares its SHA-256 with `checksums.txt`.
-It refuses an archive that holds an absolute path, a `..` path, a link that
+The bridge checks the signature of `checksums.txt`, as
+[Release signatures](#release-signatures) says. It downloads the archive and
+compares its SHA-256 with `checksums.txt`. It refuses an archive that holds an absolute path, a `..` path, a link that
 leaves the package, a hard link, or more than 5000 entries or 50 MB. It
 unpacks the archive in a temporary folder next to its place in the store, and
 then renames the folder. So the store never holds a half-written version.
@@ -2094,6 +2130,7 @@ runs a Homebrew binary also refuses the request of an older CLI. See
 | `update_download` | The bridge downloads a release |
 | `update_verified` | The archive matches `checksums.txt` |
 | `update_rejected` | The archive does not match, or holds no binary |
+| `update_signature_rejected` | The signature of `checksums.txt` is missing or not valid for a trusted key. The event carries the version and the reason |
 | `update_deferred` | The handover waits for the next check |
 | `update_handover` | The bridge runs the new binary |
 | `update_applied` | The new version is healthy |
@@ -2333,6 +2370,10 @@ The bridge reads `git worktree list` just before the `before` command. A folder
 with no claim file passes and gets the claim when the command made it in this
 run. A folder that already existed and has no claim fails, because a person or
 another tool can have made it.
+
+A `before` command that fails still claims the worktree it made for the card,
+so the next run of the card passes in that folder. The bridge claims it only
+when the command made exactly one new worktree.
 
 The `before` commands of one project run one at a time, from that list until
 the check of the printed folder. So a worktree that another card's `before`
@@ -2835,6 +2876,11 @@ saved cursor can start from it, and replay nothing older.
 `cliRange` is the range of CLI versions that the server supports. `loupe update`
 reads it when no bridge runs. A running bridge reads the same range from the
 heartbeat reply.
+
+`revokedReleaseKeys` lists the fingerprints of release keys that the bridge must
+not trust, in the form `ssh-keygen -l` prints, such as `SHA256:...`. The list is
+empty unless the operator revoked a key. See
+[Release signatures](#release-signatures).
 
 `flags` holds the feature flags a bridge reads. The server lists a flag here
 only when its code names the flag, so no other flag reaches a token holder. A

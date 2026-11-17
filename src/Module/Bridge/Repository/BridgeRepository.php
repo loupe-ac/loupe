@@ -105,10 +105,10 @@ class BridgeRepository extends ServiceEntityRepository
     {
         $projectId = ($project->id ?? throw new \LogicException('A persisted project has an id.'))->toRfc4122();
 
-        return array_values(array_filter(
+        return $this->factsPass->remember('bridges-following-project:'.$projectId, fn (): array => array_values(array_filter(
             $this->findBy(['owner' => $project->owner]),
             static fn (Bridge $bridge): bool => \in_array($projectId, $bridge->projects, true),
-        ));
+        )));
     }
 
     /**

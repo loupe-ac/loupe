@@ -2,7 +2,10 @@ name: Skills release
 
 # Each skill package has its own version track, with tags such as
 # `skills/loupe/v1.2.0`. A person runs this workflow after the app is live, so
-# a tool reaches production before the skill that names it.
+# a tool reaches production before the skill that names it. The workflow
+# attests checksums.txt and creates a draft release. `just sign-release` checks
+# that attestation, signs checksums.txt with the release key, and publishes the
+# draft.
 on:
   workflow_dispatch:
     inputs:
@@ -19,6 +22,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -42,6 +48,17 @@ jobs:
           sh cli/scripts/skills-tag-check.sh "$PACKAGE" "$version"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
+      # A draft has no tag, so skills-tag-check.sh cannot see it.
+      - name: Refuse a version that has a draft
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          drafts=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases" --jq '.[] | select(.draft) | .tag_name')
+          if printf '%s\n' "$drafts" | grep -Fxq "$TAG"; then
+            echo "::error::$TAG already has a draft release. Publish or delete the draft first."
+            exit 1
+          fi
       - name: Pack the package
         env:
           PACKAGE: ${{ inputs.package }}
@@ -52,7 +69,11 @@ jobs:
           # The folder is the root of the archive, with loupe-package.json inside it.
           tar -czf "$archive" -C "plugins/$PACKAGE" .
           (cd dist && sha256sum "${PACKAGE}_${VERSION}.tar.gz" > checksums.txt)
-      - name: Publish the release
+      - name: Attest the checksums
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: dist/checksums.txt
+      - name: Create the draft release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PACKAGE: ${{ inputs.package }}
@@ -60,6 +81,6 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           # The server's update check reads /releases/latest, so "Latest" stays a server release.
-          gh release create "$TAG" --target "$GITHUB_SHA" --latest=false \
+          gh release create "$TAG" --draft --target "$GITHUB_SHA" --latest=false \
             --title "$PACKAGE $VERSION" --notes "The $PACKAGE skill package, version $VERSION." \
             dist/*.tar.gz dist/checksums.txt

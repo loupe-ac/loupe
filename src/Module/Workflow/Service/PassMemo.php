@@ -22,6 +22,7 @@ final class PassMemo implements FactsPass, ResetInterface
      *
      * @return T the result of the build, with the pass closed
      */
+    #[\Override]
     public function during(\Closure $build): mixed
     {
         if (null !== $this->results) {

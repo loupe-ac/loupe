@@ -1909,6 +1909,7 @@ components:
       - projects
       - flags
       - cliRange
+      - revokedReleaseKeys
       - head
       properties:
         hubUrl:
@@ -1947,6 +1948,12 @@ components:
         cliRange:
           type: string
           example: ^2.0
+        revokedReleaseKeys:
+          type: array
+          description: Fingerprints of release keys that the bridge must not trust, as `ssh-keygen -l` prints them.
+          items:
+            type: string
+            example: SHA256:mPVVTkHngFt3LMCmwB7Nw6BtoS371HG9RRKbhn6T4jM
         head:
           type: integer
           description: The highest outbox sequence of the owner.
@@ -2526,6 +2533,7 @@ components:
       type: object
       required:
       - cliRange
+      - revokedReleaseKeys
       - paused
       - commands
       - workRequests
@@ -2535,6 +2543,12 @@ components:
         cliRange:
           type: string
           example: ^2.0
+        revokedReleaseKeys:
+          type: array
+          description: Fingerprints of release keys that the bridge must not trust, as `ssh-keygen -l` prints them.
+          items:
+            type: string
+            example: SHA256:mPVVTkHngFt3LMCmwB7Nw6BtoS371HG9RRKbhn6T4jM
         paused:
           type: boolean
           description: True when the server asks the bridge to take no new work.

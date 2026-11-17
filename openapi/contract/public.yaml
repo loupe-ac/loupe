@@ -5258,6 +5258,7 @@ components:
       required:
       - versions
       - cliRange
+      - revokedReleaseKeys
       properties:
         versions:
           type: array
@@ -5282,11 +5283,18 @@ components:
           type: string
           description: The CLI versions this server works with, as a caret range.
           example: ^2.0
+        revokedReleaseKeys:
+          type: array
+          description: Fingerprints of release keys that the bridge must not trust, as `ssh-keygen -l` prints them.
+          items:
+            type: string
+            example: SHA256:mPVVTkHngFt3LMCmwB7Nw6BtoS371HG9RRKbhn6T4jM
       example:
         versions:
         - version: v1
           status: beta
         cliRange: ^2.0
+        revokedReleaseKeys: []
     Project:
       type: object
       required:

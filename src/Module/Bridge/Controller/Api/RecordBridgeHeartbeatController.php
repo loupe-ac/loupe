@@ -10,6 +10,7 @@ use App\Module\Account\Entity\User;
 use App\Module\Bridge\Command\RecordBridgeHeartbeatCommand;
 use App\Module\Bridge\Command\RecordBridgeHeartbeatHandler;
 use App\Module\Bridge\Service\BridgeCommandPayload;
+use App\Module\Bridge\Service\CliCompatibility;
 use App\Module\Bridge\Service\WorkRequestPayload;
 use App\Module\Bridge\ValueObject\AccountLimit;
 use App\Outbox\AgentPush;
@@ -109,6 +110,7 @@ final class RecordBridgeHeartbeatController extends AppController
 
         return new JsonResponse([
             'cliRange' => $result->cliRange,
+            'revokedReleaseKeys' => CliCompatibility::REVOKED_RELEASE_KEYS,
             'paused' => $result->bridge->pauseRequested,
             'commands' => array_map(BridgeCommandPayload::of(...), $result->commands),
             'workRequests' => array_map(WorkRequestPayload::of(...), $result->workRequests),

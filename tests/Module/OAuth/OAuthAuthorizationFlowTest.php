@@ -47,7 +47,7 @@ final class OAuthAuthorizationFlowTest extends WebTestCase
             'consent_form[project]' => (string) $this->project->id,
         ]));
 
-        $location = (string) $this->browser->getResponse()->headers->get('Location');
+        $location = OAuthScenario::clientLocation($this->browser);
         self::assertStringStartsWith(OAuthScenario::REDIRECT_URI.'?', $location);
         $query = OAuthScenario::redirectQuery($location);
         self::assertSame('state-123', $query['state']);
@@ -147,8 +147,8 @@ final class OAuthAuthorizationFlowTest extends WebTestCase
             'consent_form[project]' => (string) $this->project->id,
         ]));
 
-        self::assertResponseRedirects();
-        self::assertNotEmpty(OAuthScenario::redirectQuery((string) $this->browser->getResponse()->headers->get('Location'))['code'] ?? null);
+        self::assertNotSame('', OAuthScenario::clientLocation($this->browser));
+        self::assertNotEmpty(OAuthScenario::redirectQuery(OAuthScenario::clientLocation($this->browser))['code'] ?? null);
     }
 
     /** The device page draws the same row from the same partial, so both pages must keep it. */
@@ -208,7 +208,7 @@ final class OAuthAuthorizationFlowTest extends WebTestCase
         $this->browser->request(Request::METHOD_POST, $form->getUri(), $values);
 
         self::assertResponseStatusCodeSame(422);
-        self::assertFalse($this->browser->getResponse()->headers->has('Location'));
+        self::assertSame('', OAuthScenario::clientLocation($this->browser));
         self::assertSame(0, $this->countRows('oauth2_authorization_code'));
     }
 
@@ -227,7 +227,10 @@ final class OAuthAuthorizationFlowTest extends WebTestCase
         $this->browser->loginUser($this->user);
         $this->browser->request(Request::METHOD_GET, $this->scenario->authorizeUrl('mcp project:'.$this->project->id));
 
-        $query = OAuthScenario::redirectQuery((string) $this->browser->getResponse()->headers->get('Location'));
+        $response = $this->browser->getResponse();
+        self::assertSame(200, $response->getStatusCode());
+        self::assertSame('no-referrer', $response->headers->get('Referrer-Policy'));
+        $query = OAuthScenario::redirectQuery(OAuthScenario::clientLocation($this->browser));
         self::assertSame('invalid_scope', $query['error']);
         self::assertSame($this->issuer(), $query['iss']);
     }
@@ -269,7 +272,7 @@ final class OAuthAuthorizationFlowTest extends WebTestCase
         $this->browser->loginUser($this->user);
         $this->browser->request(Request::METHOD_GET, $this->scenario->authorizeUrl('mcp projects'));
 
-        $query = OAuthScenario::redirectQuery((string) $this->browser->getResponse()->headers->get('Location'));
+        $query = OAuthScenario::redirectQuery(OAuthScenario::clientLocation($this->browser));
         self::assertSame('invalid_scope', $query['error'], 'this client is registered for mcp alone, never projects');
     }
 
@@ -281,7 +284,7 @@ final class OAuthAuthorizationFlowTest extends WebTestCase
             'code_challenge_method' => 'plain',
         ]));
 
-        $query = OAuthScenario::redirectQuery((string) $this->browser->getResponse()->headers->get('Location'));
+        $query = OAuthScenario::redirectQuery(OAuthScenario::clientLocation($this->browser));
         self::assertSame('invalid_request', $query['error']);
         self::assertSame($this->issuer(), $query['iss']);
     }
@@ -295,7 +298,7 @@ final class OAuthAuthorizationFlowTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(400);
         self::assertStringContainsString('invalid_request', (string) $this->browser->getResponse()->getContent());
-        self::assertFalse($this->browser->getResponse()->headers->has('Location'));
+        self::assertSame('', OAuthScenario::clientLocation($this->browser));
     }
 
     public function test_an_unregistered_redirect_uri_gets_no_redirect(): void
@@ -304,7 +307,7 @@ final class OAuthAuthorizationFlowTest extends WebTestCase
         $this->browser->request(Request::METHOD_GET, $this->scenario->authorizeUrl('mcp', ['redirect_uri' => 'https://evil.example/callback']));
 
         self::assertResponseStatusCodeSame(401);
-        self::assertFalse($this->browser->getResponse()->headers->has('Location'));
+        self::assertSame('', OAuthScenario::clientLocation($this->browser));
     }
 
     public function test_a_loopback_redirect_matches_on_any_port_through_the_code_exchange(): void
@@ -323,7 +326,7 @@ final class OAuthAuthorizationFlowTest extends WebTestCase
         $this->browser->request(Request::METHOD_GET, $this->scenario->authorizeUrl('mcp', ['redirect_uri' => 'https://client.example:444/callback']));
 
         self::assertResponseStatusCodeSame(401);
-        self::assertFalse($this->browser->getResponse()->headers->has('Location'));
+        self::assertSame('', OAuthScenario::clientLocation($this->browser));
     }
 
     public function test_deny_redirects_with_access_denied(): void
@@ -332,11 +335,29 @@ final class OAuthAuthorizationFlowTest extends WebTestCase
         $crawler = $this->browser->request(Request::METHOD_GET, $this->scenario->authorizeUrl());
         $this->browser->submit($crawler->selectButton('consent_form_deny')->form());
 
-        $query = OAuthScenario::redirectQuery((string) $this->browser->getResponse()->headers->get('Location'));
+        $query = OAuthScenario::redirectQuery(OAuthScenario::clientLocation($this->browser));
         self::assertSame('access_denied', $query['error']);
         self::assertSame('state-123', $query['state']);
         self::assertSame($this->issuer(), $query['iss']);
         self::assertSame(0, $this->countRows('oauth2_authorization_code'));
+    }
+
+    public function test_the_answer_to_the_client_is_a_forwarding_page(): void
+    {
+        $this->browser->loginUser($this->user);
+        $crawler = $this->browser->request(Request::METHOD_GET, $this->scenario->authorizeUrl());
+        $this->browser->submit($crawler->selectButton('consent_form_approve')->form([
+            'consent_form[project]' => (string) $this->project->id,
+        ]));
+
+        $response = $this->browser->getResponse();
+        self::assertSame(200, $response->getStatusCode());
+        self::assertFalse($response->headers->has('Location'));
+        self::assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
+        self::assertSame('no-referrer', $response->headers->get('Referrer-Policy'));
+        $location = OAuthScenario::clientLocation($this->browser);
+        self::assertStringStartsWith(OAuthScenario::REDIRECT_URI.'?', $location);
+        self::assertStringContainsString('<meta http-equiv="refresh" content="0;url='.htmlspecialchars($location, \ENT_QUOTES), (string) $response->getContent());
     }
 
     public function test_an_anonymous_visitor_is_sent_to_login(): void
@@ -376,7 +397,7 @@ final class OAuthAuthorizationFlowTest extends WebTestCase
         self::assertSelectorNotExists('[name="consent_form[project]"]');
 
         $this->browser->submit($crawler->selectButton('consent_form_approve')->form());
-        $query = OAuthScenario::redirectQuery((string) $this->browser->getResponse()->headers->get('Location'));
+        $query = OAuthScenario::redirectQuery(OAuthScenario::clientLocation($this->browser));
         $this->browser->restart();
         $tokens = OAuthScenario::postToken($this->browser, [
             'grant_type' => 'authorization_code',
@@ -418,7 +439,7 @@ final class OAuthAuthorizationFlowTest extends WebTestCase
         $this->browser->submit($crawler->selectButton('consent_form_approve')->form([
             'consent_form[project]' => (string) $this->project->id,
         ]));
-        $query = OAuthScenario::redirectQuery((string) $this->browser->getResponse()->headers->get('Location'));
+        $query = OAuthScenario::redirectQuery(OAuthScenario::clientLocation($this->browser));
         $this->browser->restart();
         $tokens = OAuthScenario::postToken($this->browser, [
             'grant_type' => 'authorization_code',

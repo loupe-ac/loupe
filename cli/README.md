@@ -2449,7 +2449,7 @@ version and the platform. `loupe --version` prints the same two lines.
 
 ```
 loupe 1.0.0 (0f4a2c9b1d7e3f5a6b8c9d0e1f2a3b4c5d6e7f80)
-go1.26.0 darwin/arm64
+go1.26.11 darwin/arm64
 ```
 
 A development build has no version, so the first line names the commit alone,

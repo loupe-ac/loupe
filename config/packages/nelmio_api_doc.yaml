@@ -176,7 +176,7 @@ when@dev: &generator
                     ApiVersions:
                         type: object
                         description: The API versions of this instance.
-                        required: [versions, cliRange]
+                        required: [versions, cliRange, revokedReleaseKeys]
                         properties:
                             versions:
                                 type: array
@@ -196,6 +196,12 @@ when@dev: &generator
                                 type: string
                                 description: The CLI versions this server works with, as a caret range.
                                 example: ^2.0
+                            revokedReleaseKeys:
+                                type: array
+                                description: Fingerprints of release keys that the bridge must not trust, as `ssh-keygen -l` prints them.
+                                items:
+                                    type: string
+                                    example: SHA256:mPVVTkHngFt3LMCmwB7Nw6BtoS371HG9RRKbhn6T4jM
         # The component name of each response or request class of the public API. Without an entry
         # the name is the class name, and a body shared by two operations may get two names.
         models:
@@ -405,6 +411,7 @@ when@dev: &generator
                                 type: object
                                 required:
                                 - cliRange
+                                - revokedReleaseKeys
                                 - paused
                                 - commands
                                 - workRequests
@@ -415,6 +422,12 @@ when@dev: &generator
                                     cliRange:
                                         type: string
                                         example: ^2.0
+                                    revokedReleaseKeys:
+                                        type: array
+                                        description: Fingerprints of release keys that the bridge must not trust, as `ssh-keygen -l` prints them.
+                                        items:
+                                            type: string
+                                            example: SHA256:mPVVTkHngFt3LMCmwB7Nw6BtoS371HG9RRKbhn6T4jM
                                     paused:
                                         type: boolean
                                         description: True when the server asks the bridge to take no new work.
@@ -825,6 +838,7 @@ when@dev: &generator
                                 - projects
                                 - flags
                                 - cliRange
+                                - revokedReleaseKeys
                                 - head
                                 properties:
                                     hubUrl:
@@ -863,6 +877,12 @@ when@dev: &generator
                                     cliRange:
                                         type: string
                                         example: ^2.0
+                                    revokedReleaseKeys:
+                                        type: array
+                                        description: Fingerprints of release keys that the bridge must not trust, as `ssh-keygen -l` prints them.
+                                        items:
+                                            type: string
+                                            example: SHA256:mPVVTkHngFt3LMCmwB7Nw6BtoS371HG9RRKbhn6T4jM
                                     head:
                                         type: integer
                                         description: The highest outbox sequence of the owner.

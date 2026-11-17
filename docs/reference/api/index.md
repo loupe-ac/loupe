@@ -22,7 +22,9 @@ for at least 6 months after `v2` appears. A response of `v1` then carries the
 carries neither header today, because no `v2` exists.
 
 `GET /api/versions` lists the versions that an instance serves and the range of
-CLI versions that it supports. It needs no sign-in.
+CLI versions that it supports, as `cliRange`. It also lists `revokedReleaseKeys`,
+the fingerprints of CLI release keys that a client must not trust. The list is
+empty unless the operator revoked a key. It needs no sign-in.
 
 ## Sign in
 

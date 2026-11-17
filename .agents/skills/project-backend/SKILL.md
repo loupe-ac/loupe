@@ -290,6 +290,19 @@ Read the file before you work on the topic.
 - `references/env-vars.md` before you add an environment variable. Never put JSON in one. A new key reaches seven places, and `DeploymentConfigParityCheck` reports one that `docs/reference/environment.md` lacks.
 - `references/gamache.md` before you conclude that gamache has no rule for something, or before you change a rule's configuration. `just gamache` runs only one of its five layers.
 
+## Seeding a new feature flag
+
+A new flag needs a per-flag migration, because `/install` seeds flags only once. Seed the flag on in that migration, so an upgraded instance matches a fresh install.
+
+Seed it off only for a rollout risk: old and new builds cannot run side by side with the flag on. An example is a new row claim that an old worker never releases. Name the risk in the pull request. Then turn the flag on with a second migration in a later release:
+
+1. Call `card_create` for the switch-on before you open the pull request. Link it to the card of the flag with the kind `follow-up-of`.
+2. In its body, name the flag, the risk and the pull request that adds the flag.
+3. The follow-up builds only when production runs a release that holds that pull request. Read the live sha with `just healthz`. Check `git merge-base --is-ancestor <merge sha> <live sha>`. When the check fails, stop and say that the card waits for the deploy.
+4. The second migration sets the flag row to `true`. Its `down()` sets it back to `false`.
+
+A switch-on step in the deploy notes is not enough, because nobody reads them after the deploy. `workflow.merge_queued_evaluations` stayed off for 17 days that way.
+
 ## Migration names, bundle pins and entity mapping
 
 Give a Doctrine migration a real current-datetime timestamp in its `VersionYYYYMMDDHHMMSS` class name. Never use a round placeholder such as `…000000`. Two parallel branches that both use a round number collide on the version prefix. The class names still differ, but the collision is confusing and it breaks `migrate-diff` ordering assumptions.

@@ -102,7 +102,7 @@ final class RepositoryChecksTest extends KernelTestCase
         $this->em->persist($check);
         $this->em->flush();
 
-        self::assertFalse($this->checks->requestPageOpenCheck($repository));
+        self::assertFalse($this->checks->requestPageOpenCheck($repository, $check));
         self::assertCount(0, $this->dispatched);
     }
 
@@ -114,7 +114,7 @@ final class RepositoryChecksTest extends KernelTestCase
         $this->em->persist($check);
         $this->em->flush();
 
-        self::assertTrue($this->checks->requestPageOpenCheck($repository));
+        self::assertTrue($this->checks->requestPageOpenCheck($repository, $check));
         self::assertEquals([new CheckForgeRepository((string) $repository->id, CheckTrigger::PageOpen)], $this->dispatched->getArrayCopy());
     }
 
@@ -122,7 +122,7 @@ final class RepositoryChecksTest extends KernelTestCase
     {
         $repository = $this->repository();
 
-        self::assertTrue($this->checks->requestPageOpenCheck($repository));
+        self::assertTrue($this->checks->requestPageOpenCheck($repository, null));
         self::assertEquals([new CheckForgeRepository((string) $repository->id, CheckTrigger::PageOpen)], $this->dispatched->getArrayCopy());
     }
 

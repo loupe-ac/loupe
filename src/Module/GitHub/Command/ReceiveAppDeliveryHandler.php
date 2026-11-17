@@ -13,6 +13,7 @@ use App\Module\GitHub\GitHubRepositoryRef;
 use App\Module\GitHub\InvalidGitHubDelivery;
 use App\Module\GitHub\Repository\GitHubInstallationRepository;
 use App\Module\GitHub\Service\DeliveryAnnouncer;
+use App\Module\GitHub\Service\DeliveryReplayGuard;
 use App\Module\GitHub\Service\GitHubAppInstallationList;
 use App\Module\GitHub\Service\RefusedDeliveries;
 use Doctrine\ORM\EntityManagerInterface;
@@ -28,6 +29,8 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  */
 final readonly class ReceiveAppDeliveryHandler
 {
+    private const string SCOPE = 'app';
+
     public function __construct(
         #[Autowire(env: 'GITHUB_APP_WEBHOOK_SECRET')]
         private string $appSecret,
@@ -36,6 +39,7 @@ final readonly class ReceiveAppDeliveryHandler
         private DeliveryAnnouncer $announcer,
         private GitHubAppInstallationList $installationList,
         private RefusedDeliveries $refusals,
+        private DeliveryReplayGuard $replays,
         private EntityManagerInterface $em,
         private LoggerInterface $logger,
     ) {
@@ -52,6 +56,12 @@ final readonly class ReceiveAppDeliveryHandler
         }
 
         $installationId = $delivery->installationId();
+        if ($this->replays->seen(self::SCOPE, $delivery)) {
+            $this->logger->info('github.delivery_replayed', ['event' => $delivery->event, 'installationId' => $installationId]);
+
+            return GitHubDeliveryOutcome::Received;
+        }
+
         $installation = null === $installationId ? null : $this->gitHubInstallations->findOneByInstallationId($installationId);
         if (null === $installation && null !== $installationId && 'installation' === $delivery->event && 'created' === $delivery->action()) {
             $installation = $this->record($installationId, $delivery);
@@ -59,6 +69,7 @@ final readonly class ReceiveAppDeliveryHandler
 
         if (null === $installation || null !== $installation->removedAt) {
             $this->dropped($delivery, null === $installationId ? 'no_installation' : 'unknown_installation');
+            $this->replays->remember(self::SCOPE, $delivery);
 
             return GitHubDeliveryOutcome::Received;
         }
@@ -68,6 +79,7 @@ final readonly class ReceiveAppDeliveryHandler
             'installation_repositories' => $this->repositoriesChanged($installation, $delivery),
             default => $this->owned($installation, $delivery),
         };
+        $this->replays->remember(self::SCOPE, $delivery);
 
         return GitHubDeliveryOutcome::Received;
     }

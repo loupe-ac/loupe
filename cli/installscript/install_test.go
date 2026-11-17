@@ -105,7 +105,7 @@ func archive(t *testing.T, loupe string, app bool) []byte {
 // decoy server lists wrong sums for names that share a prefix or a suffix.
 // Page N of the list is pages[N-1], or releasesJSON for page 1 when pages is
 // empty. A page past the end is an empty list. requested records each page.
-func release(t *testing.T, s setup, requested *[]string) *httptest.Server {
+func release(t *testing.T, s setup, keys testKeys, requested *[]string) *httptest.Server {
 	t.Helper()
 	loupe := s.loupe
 	if loupe == "" {
@@ -147,14 +147,38 @@ func release(t *testing.T, s setup, requested *[]string) *httptest.Server {
 
 			return
 		}
-		if file == "checksums.txt" {
+		sums := func() string {
+			var b strings.Builder
 			for _, p := range platforms {
 				if decoy {
-					fmt.Fprintf(w, "%s  loupe_%s_%s.tar.gz.sbom\n", strings.Repeat("0", 64), version, p)
-					fmt.Fprintf(w, "%s  old-loupe_%s_%s.tar.gz\n", strings.Repeat("1", 64), version, p)
+					fmt.Fprintf(&b, "%s  loupe_%s_%s.tar.gz.sbom\n", strings.Repeat("0", 64), version, p)
+					fmt.Fprintf(&b, "%s  old-loupe_%s_%s.tar.gz\n", strings.Repeat("1", 64), version, p)
 				}
-				fmt.Fprintf(w, "%s  loupe_%s_%s.tar.gz\n", hexSum, version, p)
+				fmt.Fprintf(&b, "%s  loupe_%s_%s.tar.gz\n", hexSum, version, p)
 			}
+
+			return b.String()
+		}
+		if file == "checksums.txt" {
+			_, _ = w.Write([]byte(sums()))
+
+			return
+		}
+		if file == "checksums.txt.sig" {
+			mode := s.sig[version]
+			if mode == sigNone {
+				http.NotFound(w, r)
+
+				return
+			}
+			key, content := keys.release, sums()
+			if mode == sigUnknownKey {
+				key = keys.other
+			}
+			if mode == sigTampered {
+				content += "\n"
+			}
+			_, _ = w.Write(sign(t, key, content))
 
 			return
 		}
@@ -196,12 +220,126 @@ type setup struct {
 	app bool
 	// darwin shadows uname, so the script sees macOS on arm64.
 	darwin bool
+	// sig sets the signature of a release by version. A release not listed has a good one.
+	sig map[string]string
+	// keepKeys leaves the keys of the script alone, so the test key is not trusted.
+	keepKeys bool
+	// noSSHKeygen hides ssh-keygen from the script.
+	noSSHKeygen bool
 	// tty holds the answers of a terminal session, one per line.
 	tty string
 	// fakes holds extra commands, by name, that shadow the real ones.
 	fakes map[string]string
 	// prepare runs before the script and returns directories to put first on PATH.
 	prepare func(home string) []string
+}
+
+const (
+	sigNone       = "none"
+	sigUnknownKey = "unknown"
+	sigTampered   = "tampered"
+)
+
+// testKeys holds a key that the test script trusts and a key that it does not.
+type testKeys struct {
+	release     string
+	other       string
+	releaseLine string
+}
+
+func genKey(t *testing.T, dir, name string) (string, string) {
+	t.Helper()
+	path := filepath.Join(dir, name)
+	if out, err := exec.Command("ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-C", "test", "-f", path).CombinedOutput(); err != nil {
+		t.Skipf("ssh-keygen is not available: %v\n%s", err, out)
+	}
+	pub, err := os.ReadFile(path + ".pub")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fields := strings.Fields(string(pub))
+
+	return path, "loupe-release " + fields[0] + " " + fields[1]
+}
+
+func newTestKeys(t *testing.T) testKeys {
+	t.Helper()
+	dir := t.TempDir()
+	release, line := genKey(t, dir, "release")
+	other, _ := genKey(t, dir, "other")
+
+	return testKeys{release: release, other: other, releaseLine: line}
+}
+
+// sign returns the SSH signature of content, made with the private key at key.
+func sign(t *testing.T, key, content string) []byte {
+	t.Helper()
+	file := filepath.Join(t.TempDir(), "checksums.txt")
+	if err := os.WriteFile(file, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := exec.Command("ssh-keygen", "-Y", "sign", "-f", key, "-n", "loupe-release", file).CombinedOutput(); err != nil {
+		t.Fatalf("ssh-keygen sign failed: %v\n%s", err, out)
+	}
+	sig, err := os.ReadFile(file + ".sig")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return sig
+}
+
+// trustOnly copies the script with the key lines between its markers replaced by line.
+func trustOnly(t *testing.T, script, line string) string {
+	t.Helper()
+	src, err := os.ReadFile(script)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out []string
+	skipping := false
+	for _, l := range strings.Split(string(src), "\n") {
+		switch {
+		case l == "# BEGIN release_keys":
+			out = append(out, l, line)
+			skipping = true
+		case l == "# END release_keys":
+			skipping = false
+			out = append(out, l)
+		case !skipping:
+			out = append(out, l)
+		}
+	}
+	dst := filepath.Join(t.TempDir(), "install.sh")
+	if err := os.WriteFile(dst, []byte(strings.Join(out, "\n")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	return dst
+}
+
+// pathWithout returns a PATH folder of links to every command on PATH except name.
+func pathWithout(t *testing.T, name string) string {
+	t.Helper()
+	dir := t.TempDir()
+	for _, d := range filepath.SplitList(pathWithoutLoupe()) {
+		entries, err := os.ReadDir(d)
+		if err != nil {
+			continue
+		}
+		for _, e := range entries {
+			if e.Name() == name {
+				continue
+			}
+			link := filepath.Join(dir, e.Name())
+			if _, err := os.Lstat(link); err == nil {
+				continue
+			}
+			_ = os.Symlink(filepath.Join(d, e.Name()), link)
+		}
+	}
+
+	return dir
 }
 
 // pathWithoutLoupe drops each PATH directory that holds a loupe, so a real
@@ -241,7 +379,8 @@ func runIn(t *testing.T, home string, s setup, args ...string) result {
 		t.Skip("sh is not available")
 	}
 	var requested []string
-	srv := release(t, s, &requested)
+	keys := newTestKeys(t)
+	srv := release(t, s, keys, &requested)
 
 	// A fake brew comes first, so a real Homebrew on the machine never answers.
 	fakeBin := filepath.Join(home, "fakebin")
@@ -274,6 +413,9 @@ func runIn(t *testing.T, home string, s setup, args ...string) result {
 	}
 
 	path := fakeBin + string(os.PathListSeparator) + pathWithoutLoupe()
+	if s.noSSHKeygen {
+		path = fakeBin + string(os.PathListSeparator) + pathWithout(t, "ssh-keygen")
+	}
 	if !s.onlyOnPath {
 		path = filepath.Join(home, ".local", "bin") + string(os.PathListSeparator) + path
 	}
@@ -286,6 +428,9 @@ func runIn(t *testing.T, home string, s setup, args ...string) result {
 	script := s.script
 	if script == "" {
 		script = scriptPath(t)
+	}
+	if !s.keepKeys {
+		script = trustOnly(t, script, keys.releaseLine)
 	}
 	cmd := exec.Command("sh", append([]string{script}, args...)...)
 	if s.piped {
@@ -778,4 +923,74 @@ func TestInstallReportsBothFailuresWithStatus4(t *testing.T) {
 		t.Fatalf("want exit status 4, got %v:\n%s", r.err, r.out)
 	}
 	assertContains(t, r.out, "panel is NOT installed", "Automatic updates are NOT on")
+}
+
+func TestInstallWalksDownToTheNewestSignedRelease(t *testing.T) {
+	for name, mode := range map[string]string{"no signature": sigNone, "unknown key": sigUnknownKey, "tampered file": sigTampered} {
+		t.Run(name, func(t *testing.T) {
+			r := run(t, setup{sig: map[string]string{"1.10.0": mode}})
+			if r.err != nil {
+				t.Fatalf("install failed: %v\n%s", r.err, r.out)
+			}
+			assertInstalled(t, filepath.Join(r.home, ".local", "bin", "loupe"))
+			assertContains(t, r.out, "Skipping loupe 1.10.0", "Installed loupe 1.9.2")
+		})
+	}
+}
+
+func TestInstallWalksPastSeveralBadReleases(t *testing.T) {
+	r := run(t, setup{sig: map[string]string{"1.10.0": sigNone, "1.9.2": sigUnknownKey}})
+	if r.err != nil {
+		t.Fatalf("install failed: %v\n%s", r.err, r.out)
+	}
+	assertContains(t, r.out, "Skipping loupe 1.10.0", "Skipping loupe 1.9.2", "Installed loupe 1.3.0")
+}
+
+func TestInstallInstallsNothingWhenNoReleaseVerifies(t *testing.T) {
+	r := run(t, setup{sig: map[string]string{"1.10.0": sigNone, "1.9.2": sigNone, "1.3.0": sigUnknownKey}})
+	if r.err == nil {
+		t.Fatalf("install succeeded with no signed release:\n%s", r.out)
+	}
+	assertContains(t, r.out, "no signed loupe CLI release found")
+	assertNotInstalled(t, r.home)
+}
+
+func TestInstallStopsOnAPinnedReleaseWithABadSignature(t *testing.T) {
+	for name, mode := range map[string]string{"no signature": sigNone, "unknown key": sigUnknownKey, "tampered file": sigTampered} {
+		t.Run(name, func(t *testing.T) {
+			r := run(t, setup{sig: map[string]string{"1.3.0": mode}}, "--version", "1.3.0")
+			if r.err == nil {
+				t.Fatalf("install succeeded with a bad signature:\n%s", r.out)
+			}
+			assertContains(t, r.out, "loupe 1.3.0 is not signed", "Nothing was installed")
+			assertNotInstalled(t, r.home)
+		})
+	}
+}
+
+func TestInstallRefusesABadChecksumOfASignedRelease(t *testing.T) {
+	r := run(t, setup{corrupt: true})
+	if r.err == nil {
+		t.Fatalf("install succeeded with a wrong checksum:\n%s", r.out)
+	}
+	assertContains(t, r.out, "checksum")
+	assertNotInstalled(t, r.home)
+}
+
+func TestInstallNeedsSSHKeygen(t *testing.T) {
+	r := run(t, setup{noSSHKeygen: true})
+	if r.err == nil {
+		t.Fatalf("install succeeded with no ssh-keygen:\n%s", r.out)
+	}
+	assertContains(t, r.out, "ssh-keygen", "OpenSSH", "Nothing was installed")
+	assertNotInstalled(t, r.home)
+}
+
+func TestInstallTrustsOnlyTheKeysOfTheScript(t *testing.T) {
+	r := run(t, setup{keepKeys: true})
+	if r.err == nil {
+		t.Fatalf("install succeeded with a signature from an unlisted key:\n%s", r.out)
+	}
+	assertContains(t, r.out, "no signed loupe CLI release found")
+	assertNotInstalled(t, r.home)
 }

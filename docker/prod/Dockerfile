@@ -2,12 +2,25 @@
 # customer site, so its size is paid by their visitors. The readable source stays
 # in the repo and is what dev serves; only the image carries the compressed file,
 # written to the same URL so embeds already on customer pages keep working.
-FROM node:22-alpine AS widget
+# The node tag floats with each Node patch and each Alpine bump, so the digest
+# keeps the widget file and the docs pages the same for the same commit. Both
+# node stages use one digest. To move it:
+#   docker buildx imagetools inspect node:22-alpine --format '{{.Manifest.Digest}}'
+FROM node:22-alpine@sha256:1314fb30ec37592d5845e5a160d522c0e680972aa534549940b8d73bde88481a AS widget
 WORKDIR /build
 COPY package.json package-lock.json ./
 RUN npm ci --ignore-scripts=false --no-audit --no-fund
 COPY public/live-review/widget.js public/live-review/widget.js
 RUN npm run build:widget
+
+# The Mermaid ES module build for the review page, installed from the npm
+# package that package-lock.json pins and written to the path the app imports.
+FROM node:22-alpine AS mermaid
+RUN apk add --no-cache bash
+WORKDIR /build
+COPY package.json package-lock.json ./
+COPY bin/vendor-mermaid.sh bin/vendor-mermaid.sh
+RUN bin/vendor-mermaid.sh /build/out
 
 # Pinned by digest so the same Dockerfile always produces the same base layer:
 # `php:8.5-fpm-alpine` is a mutable tag that is rebuilt on every patch release
@@ -41,8 +54,9 @@ WORKDIR /var/www/html
 # OPcache is already built into php:8.5-fpm-alpine — it just needs tuning (opcache.ini).
 #
 # su-exec is how a worker container drops to www-data *after* the entrypoint has
-# run as root (it needs to write .env.local.php, which the project directory only
-# lets root create). It matters when web and worker share an export volume: the
+# run as root (it needs to write .env.local.php, which the project directory
+# only lets root create, because the runtime stage closes the folder). It
+# matters when web and worker share an export volume: the
 # local Flysystem adapter writes archives 0600, so an archive written by a root
 # worker is unreadable to the web container's www-data php-fpm workers. su-exec
 # replaces itself with the command rather than forking, so the consumer keeps
@@ -87,7 +101,7 @@ RUN php bin/changelog.php --keep
 # content is ../docs and the fonts are ../assets/fonts, relative to website/.
 # sharp ships prebuilt binaries as optional packages, so its install script is not
 # needed and --ignore-scripts keeps every dependency script out of the build.
-FROM node:22-alpine AS docs
+FROM node:22-alpine@sha256:1314fb30ec37592d5845e5a160d522c0e680972aa534549940b8d73bde88481a AS docs
 WORKDIR /repo/website
 COPY website/package.json website/package-lock.json ./
 RUN npm ci --ignore-scripts --no-audit --no-fund
@@ -129,6 +143,7 @@ COPY . .
 RUN rm -rf website docs
 
 COPY --from=widget /build/var/widget.min.js public/live-review/widget.js
+COPY --from=mermaid /build/out public/vendor/mermaid
 
 RUN set -eux; \
 	mkdir -p var/cache var/log var/share var/tailwind var/exports; \
@@ -215,6 +230,10 @@ RUN fc-cache -f
 # A list is the failure this boundary invites: miss `var/cache` or the compiled
 # assets and the image builds, starts, and fails on its first request.
 COPY --from=build /var/www/html /var/www/html
+# The PHP base creates the folder as www-data with mode 1777. The owner of a
+# folder can rename any entry in it, so a request with code execution could swap
+# vendor/ or src/ for its own copy. Root owns the folder, and var/ stays www-data.
+RUN chown root:root /var/www/html && chmod 755 /var/www/html
 
 # The built docs stay outside the web root. At start the entrypoint copies them
 # to /var/www/docs with the site bar and footer of the running instance, and
@@ -233,7 +252,7 @@ ARG APP_SOURCE_URL=https://github.com/loupe-ac/loupe
 LABEL org.opencontainers.image.source=$APP_SOURCE_URL
 LABEL org.opencontainers.image.licenses=AGPL-3.0-or-later
 
-EXPOSE 80
+EXPOSE 80 8080
 
 ENTRYPOINT ["docker/prod/entrypoint.sh"]
 CMD ["/usr/bin/supervisord","-c","/etc/supervisord.conf"]

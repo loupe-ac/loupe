@@ -61,10 +61,13 @@ func (g *fakeGitHub) publishSkill(pkg, version string, archive, checksumOf []byt
 	name := pkg + "_" + version + ".tar.gz"
 	sum := sha256.Sum256(checksumOf)
 	g.blobs["/skills/"+name] = archive
-	g.blobs["/skills/sums/"+pkg+version] = []byte(hex.EncodeToString(sum[:]) + "  " + name + "\n")
+	sums := []byte(hex.EncodeToString(sum[:]) + "  " + name + "\n")
+	g.blobs["/skills/sums/"+pkg+version] = sums
+	g.blobs["/skills/sigs/"+pkg+version] = g.key.Sign(sums)
 	g.extra = append(g.extra, update.Release{TagName: "skills/" + pkg + "/v" + version, Assets: []update.Asset{
 		{Name: name, URL: g.server.URL + "/skills/" + name},
 		{Name: "checksums.txt", URL: g.server.URL + "/skills/sums/" + pkg + version},
+		{Name: "checksums.txt.sig", URL: g.server.URL + "/skills/sigs/" + pkg + version},
 	}})
 }
 
@@ -235,8 +238,8 @@ func TestASharedSetupUpdatesItsOwnSkillsUnderAutoUpdate(t *testing.T) {
 	if heldVersion(h.u.dir, "loupe") != "1.1.0" {
 		t.Fatalf("the store holds %q", heldVersion(h.u.dir, "loupe"))
 	}
-	if _, downloads := gh.counts(); downloads != 2 {
-		t.Fatalf("downloads = %d: the shared setup must fetch no CLI archive", downloads)
+	if got := gh.archives(); got != 0 {
+		t.Fatalf("archive downloads = %d: the shared setup must fetch no CLI archive", got)
 	}
 }
 
@@ -677,5 +680,27 @@ func TestUpdatePrintsTheSkillLinesOfEachBridge(t *testing.T) {
 		if !strings.Contains(out, want) {
 			t.Fatalf("out lacks %q:\n%s", want, out)
 		}
+	}
+}
+
+func TestUpdateOnHomebrewAppliesTheRevokedKeysOfTheServerToSkills(t *testing.T) {
+	shortConfigHome(t)
+	gh := newFakeGitHub(t, "new binary", "cli/v1.2.0")
+	gh.publishGoodSkill(t, "loupe", "1.1.0", `{}`)
+	self, _ := selfUpdateAgainst(t, gh, "1.0.0")
+	_, link := homebrewBinary(t)
+	self.executable = func() (string, error) { return link, nil }
+	self.serverPolicy = func(context.Context) (serverPolicy, error) {
+		return serverPolicy{cliRange: "^1.0", revoked: []string{gh.key.Fingerprint}}, nil
+	}
+	holdSkill(t, mustConfigDir(t), "loupe", "1.0.0")
+
+	out, _ := updateCmd(t, self)
+
+	if heldVersion(mustConfigDir(t), "loupe") != "1.0.0" {
+		t.Fatalf("a skill signed by a revoked key was installed: %q", out)
+	}
+	if !strings.Contains(out, "loupe") || strings.Contains(out, "1.1.0 installed") {
+		t.Fatalf("out = %q", out)
 	}
 }

@@ -21,6 +21,7 @@ import (
 
 	"github.com/loupe-ac/loupe/cli/internal/api"
 	"github.com/loupe-ac/loupe/cli/internal/update"
+	"github.com/loupe-ac/loupe/cli/internal/update/signtest"
 )
 
 // fakeGitHub serves a releases list and the assets it names, and counts each
@@ -38,11 +39,23 @@ type fakeGitHub struct {
 	blobs     map[string][]byte
 	listed    int
 	downloads int
+	t         *testing.T
+	// archiveHits counts the downloads of the CLI archive.
+	archiveHits int
+	// key signs the checksums of each release and is the only trusted key.
+	// badSig holds the versions whose signature comes from another key, and
+	// unsigned the versions that list no signature asset.
+	key      *signtest.Key
+	badSig   map[string]bool
+	unsigned map[string]bool
+	// onArchive runs when a client downloads the CLI archive.
+	onArchive func()
 }
 
 func newFakeGitHub(t *testing.T, binary string, tags ...string) *fakeGitHub {
 	t.Helper()
-	g := &fakeGitHub{tags: tags, goos: "linux"}
+	g := &fakeGitHub{t: t, tags: tags, goos: "linux", key: signtest.New(t), badSig: map[string]bool{}, unsigned: map[string]bool{}}
+	g.key.Trust(t)
 	g.setArchive(updateArchive(t, binary))
 	g.server = httptest.NewServer(http.HandlerFunc(g.serve))
 	t.Cleanup(g.server.Close)
@@ -77,14 +90,22 @@ func (g *fakeGitHub) serve(w http.ResponseWriter, r *http.Request) {
 		var releases []update.Release
 		for _, tag := range g.tags {
 			v, _ := update.ParseVersion(strings.TrimPrefix(tag, "cli/"))
-			releases = append(releases, update.Release{TagName: tag, Assets: []update.Asset{
+			assets := []update.Asset{
 				{Name: update.AssetName(v, g.goos, "amd64"), URL: g.server.URL + "/dl/archive"},
 				{Name: "checksums.txt", URL: g.server.URL + "/dl/checksums/" + v.String()},
-			}})
+			}
+			if !g.unsigned[v.String()] {
+				assets = append(assets, update.Asset{Name: "checksums.txt.sig", URL: g.server.URL + "/dl/sig/" + v.String()})
+			}
+			releases = append(releases, update.Release{TagName: tag, Assets: assets})
 		}
 		_ = json.NewEncoder(w).Encode(append(releases, g.extra...))
 	case "/dl/archive":
 		g.downloads++
+		g.archiveHits++
+		if g.onArchive != nil {
+			g.onArchive()
+		}
 		_, _ = w.Write(g.archive)
 	default:
 		if blob, ok := g.blobs[r.URL.Path]; ok {
@@ -95,13 +116,37 @@ func (g *fakeGitHub) serve(w http.ResponseWriter, r *http.Request) {
 		}
 		if v, ok := strings.CutPrefix(r.URL.Path, "/dl/checksums/"); ok {
 			g.downloads++
-			parsed, _ := update.ParseVersion(v)
-			_, _ = w.Write(bytes.ReplaceAll(g.checksums, []byte(g.assetName()), []byte(update.AssetName(parsed, g.goos, "amd64"))))
+			_, _ = w.Write(g.checksumsOf(v))
+
+			return
+		}
+		if v, ok := strings.CutPrefix(r.URL.Path, "/dl/sig/"); ok {
+			g.downloads++
+			key := g.key
+			if g.badSig[v] {
+				key = signtest.New(g.t)
+			}
+			_, _ = w.Write(key.Sign(g.checksumsOf(v)))
 
 			return
 		}
 		w.WriteHeader(http.StatusNotFound)
 	}
+}
+
+// checksumsOf is the checksums.txt of version v.
+func (g *fakeGitHub) checksumsOf(v string) []byte {
+	parsed, _ := update.ParseVersion(v)
+
+	return bytes.ReplaceAll(g.checksums, []byte(g.assetName()), []byte(update.AssetName(parsed, g.goos, "amd64")))
+}
+
+// archives counts the downloads of the CLI archive.
+func (g *fakeGitHub) archives() int {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	return g.archiveHits
 }
 
 func (g *fakeGitHub) counts() (listed, downloads int) {
@@ -216,8 +261,8 @@ func TestTheUpdaterDoesNotDownloadAStagedReleaseAgain(t *testing.T) {
 	h.u.check(context.Background())
 	h.u.check(context.Background())
 
-	if _, downloads := gh.counts(); downloads != 2 {
-		t.Fatalf("downloads = %d, want the archive and the checksums once", downloads)
+	if got := gh.archives(); got != 1 {
+		t.Fatalf("archive downloads = %d, want 1", got)
 	}
 	if len(h.staged) != 2 {
 		t.Fatalf("hook calls = %v", h.staged)
@@ -252,8 +297,8 @@ func TestTheUpdaterOnlyAnnouncesWhenAutoUpdateIsOff(t *testing.T) {
 	if h.events("update_available") != 1 {
 		t.Fatalf("update_available logged %d times: %s", h.events("update_available"), h.log.String())
 	}
-	if _, downloads := gh.counts(); downloads != 0 {
-		t.Fatalf("downloads = %d", downloads)
+	if got := gh.archives(); got != 0 {
+		t.Fatalf("archive downloads = %d", got)
 	}
 	if got := h.u.state(); got != (api.HeartbeatUpdate{State: "off", Version: "1.2.0"}) {
 		t.Fatalf("state = %+v", got)
@@ -278,8 +323,8 @@ func TestTheUpdaterIsBlockedByABinaryItCannotReplace(t *testing.T) {
 	if h.events("update_blocked") != 1 {
 		t.Fatalf("update_blocked logged %d times: %s", h.events("update_blocked"), h.log.String())
 	}
-	if _, downloads := gh.counts(); downloads != 0 {
-		t.Fatalf("downloads = %d", downloads)
+	if got := gh.archives(); got != 0 {
+		t.Fatalf("archive downloads = %d", got)
 	}
 	if got := h.u.state(); got != (api.HeartbeatUpdate{State: "blocked", Version: "1.2.0"}) {
 		t.Fatalf("state = %+v", got)
@@ -372,8 +417,8 @@ func TestAScheduledCheckOnlyAnnouncesToAHomebrewInstall(t *testing.T) {
 
 	h.u.check(context.Background())
 
-	if _, downloads := gh.counts(); downloads != 0 || len(h.staged) != 0 {
-		t.Fatalf("downloads = %d, hook calls = %v", downloads, h.staged)
+	if got := gh.archives(); got != 0 || len(h.staged) != 0 {
+		t.Fatalf("archive downloads = %d, hook calls = %v", got, h.staged)
 	}
 	if got := h.u.state(); got != (api.HeartbeatUpdate{State: "off", Version: "1.2.0", Install: "homebrew"}) {
 		t.Fatalf("state = %+v", got)
@@ -407,8 +452,8 @@ func TestTheUpdaterReportsACurrentVersion(t *testing.T) {
 	if got := h.u.state(); got != (api.HeartbeatUpdate{State: "current"}) {
 		t.Fatalf("state = %+v", got)
 	}
-	if _, downloads := gh.counts(); downloads != 0 || len(h.staged) != 0 {
-		t.Fatalf("downloads = %d, hook calls = %v", downloads, h.staged)
+	if got := gh.archives(); got != 0 || len(h.staged) != 0 {
+		t.Fatalf("archive downloads = %d, hook calls = %v", got, h.staged)
 	}
 }
 
@@ -684,8 +729,8 @@ func TestTheUpdaterDrainsWhenAutoUpdateIsOffOrTheBinaryIsBlocked(t *testing.T) {
 	if got := h.u.state(); got.State != "draining" {
 		t.Fatalf("state = %+v", got)
 	}
-	if _, downloads := gh.counts(); downloads != 0 {
-		t.Fatalf("downloads = %d", downloads)
+	if got := gh.archives(); got != 0 {
+		t.Fatalf("archive downloads = %d", got)
 	}
 }
 
