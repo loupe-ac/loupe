@@ -30,10 +30,15 @@ type publicSession struct {
 // With no key, the stored login serves. Only the public commands call this, so
 // the bridge and `loupe init` keep the login.
 func publicClient(_ *cobra.Command) (*publicSession, error) {
-	hc := &http.Client{Timeout: publicWait, Transport: withUserAgent(nil)}
-
 	if key := strings.TrimSpace(os.Getenv(apiKeyEnv)); key != "" {
-		return &publicSession{client: api.New(resolveBaseURL("", os.Getenv("LOUPE_URL")), key, hc), usesKey: true}, nil
+		allowHTTP := config.AllowHTTPFromEnv()
+		baseURL, err := resolveBaseURL("", os.Getenv("LOUPE_URL"), allowHTTP)
+		if err != nil {
+			return nil, err
+		}
+		hc := &http.Client{Timeout: publicWait, Transport: withUserAgent(nil, allowHTTP)}
+
+		return &publicSession{client: api.New(baseURL, key, hc), usesKey: true}, nil
 	}
 
 	cfg, err := config.Load()
@@ -44,7 +49,8 @@ func publicClient(_ *cobra.Command) (*publicSession, error) {
 
 		return nil, err
 	}
-	refresh := &http.Client{Timeout: refreshTimeout, Transport: withUserAgent(nil)}
+	hc := &http.Client{Timeout: publicWait, Transport: withUserAgent(nil, cfg.AllowsHTTP())}
+	refresh := &http.Client{Timeout: refreshTimeout, Transport: withUserAgent(nil, cfg.AllowsHTTP())}
 
 	return &publicSession{client: api.NewWithSource(cfg.BaseURL, tokenSource(cfg, refresh), hc)}, nil
 }

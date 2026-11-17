@@ -232,6 +232,12 @@ The instance comes from `--url`, else `LOUPE_URL`, else `https://app.loupe.ac`. 
 you are working on Loupe itself, set `LOUPE_URL=https://loupe.dev.localhost`
 once rather than passing the flag every time.
 
+The CLI sends tokens to that address, so it refuses `http://` unless the host is
+this machine (`localhost`, `*.localhost` or a loopback IP). For an instance on
+plain HTTP on a trusted network, run `loupe login --url http://<host>
+--allow-http`. The login remembers it. A command with `LOUPE_API_KEY` reads no
+login, so it needs `LOUPE_ALLOW_HTTP=1`. This needs CLI 2.8.0 or later.
+
 `loupe login` prints a link and a code such as `BCDF-GHJK`. Open the link in a
 browser where you are signed in to Loupe. Check that the page shows the same
 code, then choose **Allow**. The CLI does not open the browser for you. It asks

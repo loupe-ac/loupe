@@ -118,9 +118,25 @@ func TestTheBaseUrlPrefersTheFlagThenTheEnvThenTheHostedInstance(t *testing.T) {
 		"a trailing slash goes":      {flag: "https://flag.example/", want: "https://flag.example"},
 	} {
 		t.Run(name, func(t *testing.T) {
-			if got := resolveBaseURL(c.flag, c.env); got != c.want {
-				t.Fatalf("resolveBaseURL(%q, %q): got %q, want %q", c.flag, c.env, got, c.want)
+			got, err := resolveBaseURL(c.flag, c.env, false)
+			if err != nil || got != c.want {
+				t.Fatalf("resolveBaseURL(%q, %q): got %q (%v), want %q", c.flag, c.env, got, err, c.want)
 			}
 		})
+	}
+}
+
+func TestTheBaseUrlRefusesPlainHTTPToAnotherHostUnlessAllowed(t *testing.T) {
+	if _, err := resolveBaseURL("http://loupe.lan", "", false); err == nil {
+		t.Fatal("http to another host must be refused")
+	}
+	if _, err := resolveBaseURL("", "loupe.example.com", false); err == nil {
+		t.Fatal("an address with no scheme must be refused")
+	}
+	if got, err := resolveBaseURL("http://loupe.lan/", "", true); err != nil || got != "http://loupe.lan" {
+		t.Fatalf("opt-in: got %q, %v", got, err)
+	}
+	if got, err := resolveBaseURL("http://localhost:9000", "", false); err != nil || got != "http://localhost:9000" {
+		t.Fatalf("loopback: got %q, %v", got, err)
 	}
 }

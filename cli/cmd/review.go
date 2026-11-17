@@ -172,14 +172,21 @@ func newReviewStatusCmd() *cobra.Command {
 func newReviewSignInCmd() *cobra.Command {
 	cmd := &cobra.Command{Use: "sign-in", Short: "Start a device sign-in that status finishes", Hidden: true}
 	cmd.RunE = reviewRun(func(cmd *cobra.Command) error {
-		baseURL := resolveBaseURL("", os.Getenv("LOUPE_URL"))
+		allowHTTP := config.AllowHTTPFromEnv()
+		baseURL, err := resolveBaseURL("", os.Getenv("LOUPE_URL"), allowHTTP)
+		if err != nil {
+			return err
+		}
 		if os.Getenv("LOUPE_URL") == "" {
 			if cfg, err := config.Load(); err == nil {
-				baseURL = resolveBaseURL(cfg.BaseURL, "")
+				allowHTTP = cfg.AllowsHTTP()
+				if baseURL, err = resolveBaseURL(cfg.BaseURL, "", allowHTTP); err != nil {
+					return err
+				}
 			}
 		}
 
-		device, err := oauth.NewFlow(baseURL, deviceFlowClient()).Start(cmd.Context())
+		device, err := oauth.NewFlow(baseURL, deviceFlowClient(allowHTTP)).Start(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -194,6 +201,7 @@ func newReviewSignInCmd() *cobra.Command {
 			Interval:   interval,
 			ExpiresAt:  now.Add(time.Duration(device.ExpiresIn) * time.Second),
 			NextPollAt: now.Add(time.Duration(interval) * time.Second),
+			AllowHTTP:  allowHTTP,
 		})
 		if err != nil {
 			return err
@@ -230,7 +238,7 @@ func finishSignIn(ctx context.Context) (bool, error) {
 		return true, nil
 	}
 
-	hc := deviceFlowClient()
+	hc := deviceFlowClient(pending.AllowHTTP || config.AllowHTTPFromEnv())
 	tokens, err := oauth.NewFlow(pending.BaseURL, hc).Exchange(ctx, pending.DeviceCode)
 	switch {
 	case errors.Is(err, oauth.ErrPending), errors.Is(err, oauth.ErrSlowDown):
@@ -250,7 +258,7 @@ func finishSignIn(ctx context.Context) (bool, error) {
 		return false, err
 	}
 
-	return false, saveDeviceLogin(ctx, pending.BaseURL, hc, tokens)
+	return false, saveDeviceLogin(ctx, pending.BaseURL, pending.AllowHTTP || config.AllowHTTPFromEnv(), hc, tokens)
 }
 
 func newReviewProjectsCmd() *cobra.Command {

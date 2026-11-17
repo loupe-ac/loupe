@@ -408,7 +408,7 @@ func TestALoginEndsThePendingSignIn(t *testing.T) {
 	}
 
 	tokens := config.OAuthTokens{AccessToken: "access-1", RefreshToken: "refresh-1", ExpiresAt: time.Now().Add(time.Hour)}
-	if err := saveDeviceLogin(context.Background(), ss.URL, deviceFlowClient(), tokens); err != nil {
+	if err := saveDeviceLogin(context.Background(), ss.URL, false, deviceFlowClient(false), tokens); err != nil {
 		t.Fatal(err)
 	}
 	if pending, err := config.LoadPendingSignIn(); err != nil || pending != nil {
