@@ -26,9 +26,9 @@ final readonly class DeleteWorkerRunsOnProjectDeleting
 
     public function __invoke(ProjectDeleting $event): void
     {
-        // The same lock the report handler takes. Without it a report that
-        // commits between this delete and the project row's own delete leaves a
-        // child the foreign key then refuses.
+        // A report holds a key share on the project, and only FOR UPDATE waits for it.
+        // Without the wait, a report that commits between this delete and the project
+        // row's own delete leaves a child the foreign key then refuses.
         $this->em->lock($event->project, LockMode::PESSIMISTIC_WRITE);
 
         $this->em->createQuery(
