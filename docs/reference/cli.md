@@ -285,6 +285,10 @@ A public command reads its credential in this order:
 `loupe bridge`, `loupe mcp` and the other bridge commands ignore
 `LOUPE_API_KEY` and use the login, because a key cannot reach a bridge route.
 
+Inside a bridge worker, `LOUPE_RUN_TOKEN` wins over both. The bridge sets it,
+with `LOUPE_URL` and `LOUPE_PROJECT`, and the CLI then reads no file of the
+login folder. See [Run credential](../extending/cli-bridge.md#run-credential).
+
 ### Project
 
 A command that needs a project finds it in this order:
@@ -479,8 +483,9 @@ at once and names the wait, unless you pass `--retry`.
 | Variable | Purpose |
 |---|---|
 | `LOUPE_API_KEY` | The API key of a public command. The CLI never stores it. |
-| `LOUPE_URL` | The Loupe instance, else `https://app.loupe.ac` |
-| `LOUPE_PROJECT` | The project of a command that has no `--project` |
+| `LOUPE_URL` | The Loupe instance, else `https://app.loupe.ac`. With `LOUPE_RUN_TOKEN`, the only source, and a missing value exits 4 |
+| `LOUPE_PROJECT` | The project of a command that has no `--project`. The bridge sets it in a worker |
+| `LOUPE_RUN_TOKEN` | The run token of a bridge worker. The bridge sets it. Never set it by hand |
 | `LOUPE_IDEMPOTENCY_SEED` | Turns on a derived idempotency key for each create |
 | `LOUPE_CONFIG` | The setup folder, as above |
 
@@ -490,7 +495,10 @@ at once and names the wait, unless you pass `--retry`.
 `loupe artifact version create <artifact> <path>` adds a version. They replace
 `loupe artifact push`, which stays as a hidden command that exits 2 and names
 them. Any credential can store, a worker run included, and the commands send no
-session id. [Storing from the command line](../using/artifacts.md#storing-from-the-command-line)
+session id.
+A worker serves these two commands, and `loupe mcp`, with its run token. Its
+`loupe preview-token` gets HTTP 403, so mint a preview token in a `before`
+command. [Storing from the command line](../using/artifacts.md#storing-from-the-command-line)
 has the flags.
 
 `loupe artifact read <artifact> <path>` gives the exact bytes of one file. Use

@@ -1403,6 +1403,95 @@ mode into `run.json`, so the new image answers for an adopted run. A worker
 must run `loupe credential` each time it needs a token, and must never store
 the token.
 
+## Run credential
+
+Each worker gets its own run credential from Loupe. Loupe reads from the
+credential that a call comes from a worker, and which run makes it. The
+`X-Loupe-Session` header can no longer make a worker pass as the owner or as
+another run.
+
+Before each launch, which means a start, a resume and a wake, the bridge asks
+Loupe for a run token for that run. The bridge signs in with your login to ask.
+The token reaches one project and carries no refresh token. It lives for 24
+hours at the longest. Loupe revokes it when the bridge reports that the run
+closed. The report goes through the bridge's report queue, so the revoke can
+come late. When Loupe is unreachable, the bridge keeps the report and sends it
+at a later connect, for 7 days at most. When the queue loses the report, the
+token stays valid until it expires. In that window, a copy of the token that a
+worker leaked can act as that worker in that one project.
+
+The bridge puts three variables in the environment of the worker, and each
+replaces an inherited value of the same name:
+
+| Variable | Value |
+|---|---|
+| `LOUPE_RUN_TOKEN` | The run token |
+| `LOUPE_URL` | The Loupe address of the bridge's own login |
+| `LOUPE_PROJECT` | The id of the project of the run |
+
+The `before` and `refresh` commands of a work entry never get these variables.
+They run with the environment and the login of the bridge. A bridge that a worker starts never
+inherits `LOUPE_RUN_TOKEN`. The Codex harness gets the three
+variables through the environment of its MCP server, never as an argument, so a
+process list does not show the token.
+
+A failed mint fails the launch, and the run goes through the normal launch
+failure path. A server with no mint route (HTTP 404) lets the launch go on with
+no token. That worker then works as before, with the session header alone.
+
+### What the token reaches
+
+The token reaches the MCP endpoint of one project and three public routes:
+
+1. `loupe artifact create` and `loupe artifact version create`, which post to the
+   artifact routes.
+2. `GET` on one card by number, which `loupe artifact create --card <number>`
+   uses to find the card.
+
+The token has no `public` scope, so the public routes of inbox actions,
+verdicts and decisions refuse it. Loupe refuses a tool that only the owner can
+call, such as an answer to an inbox item, a verdict on a document or an answer
+to a decision, for any call that holds a run credential. The token cannot mint
+another token. `loupe preview-token mint` and `loupe preview-token revoke`
+therefore get HTTP 403 inside a worker. A project that mints a preview token
+must do it in the `before` command of its work entry, which runs with the login
+of the bridge.
+
+A new `loupe` command that a skill adds for workers also gets HTTP 403 until
+its route gets a grant for the run token.
+
+### The CLI inside a worker
+
+With `LOUPE_RUN_TOKEN` set, `loupe mcp`, the public commands and
+`loupe preview-token` use the token and read no file of the login folder. They
+take the address from `LOUPE_URL`. When `LOUPE_URL` is missing, they exit 4 and
+name the variable, and never send the token to `https://app.loupe.ac`.
+`loupe mcp` takes its project from `--project`, then `LOUPE_PROJECT`. The token
+never refreshes, so a command never falls back to your login. A launch that runs
+past 24 hours gets HTTP 401 until its next resume.
+
+The other commands, such as `loupe hooks`, `loupe review` and `loupe status`,
+still read the stored login.
+
+### What it does not protect
+
+A worker runs as your OS user. Your `loupe login` is a file that this user can
+read. A worker that reads the file on purpose, for example when it follows
+injected instructions, can call Loupe as you. It can then record a verdict,
+answer a decision, run an inbox action, or file a review under another run. The
+run credential does not stop this.
+
+When you want a hard boundary, run the workers as a separate OS user that
+cannot read your login folder.
+
+### Bridges that are not updated
+
+A bridge with a CLI from before the run credential never asks for a token. For
+now, Loupe still reads the session header as the run identity of a session that
+never got a credential. A worker of such a bridge can still pass as a run of
+that bridge. A later release removes that fallback, and an older bridge's review
+runs then fail. Update the CLI of each bridge before then.
+
 ## Experiments
 
 An experiment splits the cards of one or more kinds of work between models or

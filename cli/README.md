@@ -511,6 +511,13 @@ from `LOUPE_SESSION_ID`, else from `CLAUDE_CODE_SESSION_ID`, else from
 interactive session it launches, so the card history names the run that moved a
 card.
 
+Inside a bridge worker, the bridge sets `LOUPE_RUN_TOKEN`, `LOUPE_URL` and
+`LOUPE_PROJECT`. `loupe mcp` then sends the run token in place of your login,
+reads no file of the login folder, and takes its project from `--project`, else
+`LOUPE_PROJECT`. Loupe reads the run from that token, so the session header can
+no longer make a worker pass as the owner or as another run. The token needs
+the CLI release that follows the app deploy.
+
 It defines no tools of its own. It copies JSON-RPC messages and reads no method
 name except the two the handshake needs, so a tool Loupe adds reaches your agent
 with no new release of this CLI.
@@ -651,6 +658,10 @@ formula format is `--formula-format`, because `--format` picks the output format
 
 1. **Credential.** `LOUPE_API_KEY` wins over the login, and `LOUPE_URL` names the
    instance. The CLI never stores a key. Bridge commands ignore the key.
+   Inside a bridge worker, `LOUPE_RUN_TOKEN` wins over both. The bridge sets it
+   with `LOUPE_URL` and `LOUPE_PROJECT`, and the CLI reads no stored login. With
+   the token set and `LOUPE_URL` missing, a command exits 4 and never falls back
+   to the hosted instance.
 2. **Project.** `--project`, then `LOUPE_PROJECT`, then the project link of the
    setup or `.loupe.yaml`, then the one project of the credential. Else the
    command exits 2.
@@ -2244,6 +2255,10 @@ loupe preview-token revoke --project <id> --label <worktree> [--instance <url>]
 the server refuses. A second mint with the same label replaces the first token.
 `revoke` exits 0 also when no live token has the label. `--instance` refuses the
 call unless the login is for that instance.
+
+Inside a bridge worker the run token takes the place of the login, and Loupe
+refuses it for this command with HTTP 403. Mint in the `before` command of the
+work entry instead.
 
 ## `loupe usage backfill`
 
