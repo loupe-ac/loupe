@@ -418,6 +418,17 @@ garage-reset:
 vendor-mermaid:
     bin/vendor-mermaid.sh
 
+# Print every place that pins the Mermaid version, for an upgrade to <version>.
+# Edit package.json, run `npm install --package-lock-only`, update the other
+# references, then run `just vendor-mermaid`.
+vendor-mermaid-upgrade version:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    current=$(node -p "require('./package.json').dependencies.mermaid")
+    echo "Upgrade Mermaid {{version}} (now $current). Update each reference:"
+    grep -rnF "$current" package.json config/services.yaml tests/Module/Review/Controller/ShowDocumentMermaidTest.php e2e/tests/review/mermaid-diagrams.spec.ts bin/worktrees/worktree-bootstrap.sh || true
+    echo "Then: npm install --package-lock-only, and just vendor-mermaid."
+
 # Provision the dedicated e2e target: a disposable database plus an nginx sidecar
 # serving THIS checkout. Idempotent. The suite truncates every table, so it must
 # never point at the dev database.

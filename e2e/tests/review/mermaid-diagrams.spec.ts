@@ -115,9 +115,13 @@ test('the vendored build draws a real diagram with no request to another origin'
     const foreign: string[] = [];
     page.on('request', (request) => {
         const url = new URL(request.url());
-        // The worktree's own live-review widget calls another origin, so only
-        // a request for Mermaid or its CDN counts here.
-        if (url.origin !== origin && /mermaid|jsdelivr/.test(request.url())) {
+        // The worktree's live-review widget loads from its own backend origin,
+        // so only its two paths are excused. Any other foreign request counts.
+        const widget =
+            url.pathname.startsWith('/live-review/') ||
+            url.pathname.startsWith('/api/v1/live-review-widget/');
+        const inline = ['data:', 'blob:'].includes(url.protocol);
+        if (url.origin !== origin && !widget && !inline) {
             foreign.push(request.url());
         }
     });
