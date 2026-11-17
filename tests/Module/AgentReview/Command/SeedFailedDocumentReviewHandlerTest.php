@@ -10,6 +10,7 @@ use App\Module\AgentReview\Repository\DocumentAgentReviewRepository;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Event\CardChanged;
 use App\Module\Board\Repository\CardDocumentRepository;
+use App\Module\Workflow\Service\PassMemo;
 use App\Tests\Module\AgentReview\DocumentReviewScenario;
 use App\Tests\Module\Workflow\WorkflowProjects;
 use Doctrine\ORM\EntityManagerInterface;
@@ -45,7 +46,7 @@ final class SeedFailedDocumentReviewHandlerTest extends KernelTestCase
         self::assertInstanceOf(ManagerRegistry::class, $registry);
         $dispatcher = self::getContainer()->get(EventDispatcherInterface::class);
         self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
-        $handler = new SeedFailedDocumentReviewHandler($this->em, new DocumentAgentReviewRepository($registry), new CardDocumentRepository($registry), $dispatcher);
+        $handler = new SeedFailedDocumentReviewHandler($this->em, new DocumentAgentReviewRepository($registry), new CardDocumentRepository($registry, new PassMemo()), $dispatcher);
 
         self::assertNull($handler(new SeedFailedDocumentReviewCommand($unlinked)));
         self::assertNotNull($handler(new SeedFailedDocumentReviewCommand($document)));
@@ -68,7 +69,7 @@ final class SeedFailedDocumentReviewHandlerTest extends KernelTestCase
         $registry = self::getContainer()->get('doctrine');
         self::assertInstanceOf(ManagerRegistry::class, $registry);
         $reviews = new DocumentAgentReviewRepository($registry);
-        $handler = new SeedFailedDocumentReviewHandler($this->em, $reviews, new CardDocumentRepository($registry), $dispatcher);
+        $handler = new SeedFailedDocumentReviewHandler($this->em, $reviews, new CardDocumentRepository($registry, new PassMemo()), $dispatcher);
 
         self::assertNotNull($handler(new SeedFailedDocumentReviewCommand($document)));
         self::assertNotNull($handler(new SeedFailedDocumentReviewCommand($document)));
