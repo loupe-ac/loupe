@@ -177,6 +177,25 @@ final class VerifyEmailControllerTest extends WebTestCase
         self::assertSelectorTextContains('body', 'other@example.com');
     }
 
+    public function test_a_stale_registration_session_does_not_replace_another_signed_in_account(): void
+    {
+        [$user, $token] = $this->createUnverifiedUserWithToken();
+        [$other] = $this->createUnverifiedUserWithToken('other@example.com');
+        $other = $this->fetch($other);
+        $other->emailVerifiedAt = new \DateTimeImmutable();
+        static::getContainer()->get(EntityManagerInterface::class)->flush();
+        $this->startSessionWith('registration_email', 'verify@example.com');
+        $this->client->loginUser($other);
+
+        $this->confirm($token);
+
+        self::assertResponseRedirects('/');
+        self::assertTrue($this->fetch($user)->isVerified());
+        $this->client->request(Request::METHOD_GET, '/account/profile');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('body', 'other@example.com');
+    }
+
     public function test_a_post_without_a_csrf_token_does_not_verify(): void
     {
         [$user, $token] = $this->createUnverifiedUserWithToken();

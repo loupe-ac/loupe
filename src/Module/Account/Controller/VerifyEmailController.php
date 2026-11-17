@@ -45,7 +45,7 @@ class VerifyEmailController extends AppController
         $signedInAsUser = $current instanceof User && (string) $current->id === (string) $user->id;
         $createdHere = $request->getSession()->get('registration_email') === $user->email;
 
-        if ($signedInAsUser || $createdHere) {
+        if ($signedInAsUser || ($createdHere && !$current instanceof User)) {
             return $this->security->login($user, 'form_login', 'main')
                 ?? $this->redirectToRoute('app_home');
         }
