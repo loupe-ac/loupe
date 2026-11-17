@@ -16,6 +16,7 @@ import (
 	"github.com/loupe-ac/loupe/cli/internal/api"
 	"github.com/loupe-ac/loupe/cli/internal/claudecode"
 	"github.com/loupe-ac/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/envallow"
 	"github.com/loupe-ac/loupe/cli/internal/mcpjson"
 	"github.com/loupe-ac/loupe/cli/internal/mcpproxy"
 	"github.com/loupe-ac/loupe/cli/internal/projectfile"
@@ -167,6 +168,7 @@ func checkStatusAccounts(ctx context.Context, out io.Writer, rulesPath string) e
 	if err != nil {
 		return fmt.Errorf("rule file %s: %w", path, err)
 	}
+	envallow.SetPass(set.PassEnv())
 	results := checkAccounts(ctx, set)
 	if !slices.ContainsFunc(results, func(a accountResult) bool { return a.used }) {
 		fmt.Fprintf(out, "Accounts:    %s runs no agent, so no account is in use\n", path)

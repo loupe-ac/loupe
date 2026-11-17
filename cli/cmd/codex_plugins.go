@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/loupe-ac/loupe/cli/internal/api"
 	"github.com/loupe-ac/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/envallow"
 	"github.com/loupe-ac/loupe/cli/internal/envfile"
 	"github.com/loupe-ac/loupe/cli/internal/harness/codex"
 	"github.com/loupe-ac/loupe/cli/internal/rules"
@@ -76,7 +76,7 @@ func pluginHomes(set *rules.Set) []pluginHome {
 			continue
 		}
 		env, err := workerSpec{envFiles: run.EnvFiles, harnessName: run.Harness, configDir: run.ConfigDir}.accountEnv()
-		homes = append(homes, pluginHome{home: home, env: codex.HomeEnv(envfile.Overlay(os.Environ(), env), home), err: err})
+		homes = append(homes, pluginHome{home: home, env: codex.HomeEnv(envfile.Overlay(envallow.Environ(rules.HarnessCodex), env), home), err: err})
 	}
 
 	return homes

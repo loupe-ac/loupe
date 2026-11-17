@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"testing"
+
+	"github.com/loupe-ac/loupe/cli/internal/envallow"
 )
 
 func TestMain(m *testing.M) {
@@ -16,5 +18,6 @@ func TestMain(m *testing.M) {
 		os.Exit(0)
 	}
 	os.Unsetenv("LOUPE_CONFIG")
+	os.Setenv(envallow.FilteredMarker, "")
 	os.Exit(m.Run())
 }

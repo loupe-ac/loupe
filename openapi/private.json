@@ -3751,7 +3751,7 @@
                         }
                     },
                     "409": {
-                        "description": "Refused: `app_not_configured`, `no_installation`, `installation_suspended`, `no_repository`, `missing_grant`.",
+                        "description": "Refused: `app_not_configured`, `no_installation`, `installation_suspended`, `no_repository`, `missing_grant`, `no_push_access`.",
                         "content": {
                             "application/problem+json": {
                                 "schema": {

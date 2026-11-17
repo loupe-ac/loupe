@@ -40,12 +40,14 @@ final readonly class ForgeRepositories
      * who owns the repository. It keeps this project's row alone. An
      * installation claim refuses when another project holds an installation
      * row, and otherwise turns this project's row into an installation row.
+     *
+     * @param ?string $claimantAccountId the forge user who links the repository, or null to keep the recorded one
      */
-    public function claim(Project $project, string $forge, string $externalId, string $path, ForgeRepositorySource $source, ?string $sourceRef = null): ForgeClaim
+    public function claim(Project $project, string $forge, string $externalId, string $path, ForgeRepositorySource $source, ?string $sourceRef = null, ?string $claimantAccountId = null): ForgeClaim
     {
         // Two first claims of one repository would otherwise both miss the read
         // and one would trip the unique key.
-        $claim = $this->em->wrapInTransaction(function () use ($project, $forge, $externalId, $path, $source, $sourceRef): ForgeClaim {
+        $claim = $this->em->wrapInTransaction(function () use ($project, $forge, $externalId, $path, $source, $sourceRef, $claimantAccountId): ForgeClaim {
             $this->forgeRepositories->lockForClaim($forge, $externalId);
 
             if (ForgeRepositorySource::Installation === $source) {
@@ -65,6 +67,9 @@ final readonly class ForgeRepositories
             $existing = $this->forgeRepositories->findOneForProject($project, $forge, $externalId);
             if (null === $existing) {
                 $repository = new ForgeRepository($project, $forge, $externalId, $path, $source, ForgeRepositorySource::Installation === $source ? $sourceRef : null);
+                if (ForgeRepositorySource::Installation === $source) {
+                    $repository->claimantAccountId = $claimantAccountId;
+                }
                 $this->em->persist($repository);
 
                 return ForgeClaim::owned($repository);
@@ -84,6 +89,9 @@ final readonly class ForgeRepositories
                 $existing->source = ForgeRepositorySource::Installation;
                 $existing->sourceRef = $sourceRef;
                 $existing->accessLostAt = null;
+                if (null !== $claimantAccountId) {
+                    $existing->claimantAccountId = $claimantAccountId;
+                }
             }
 
             $movedFrom = null;
@@ -107,6 +115,31 @@ final readonly class ForgeRepositories
         }
 
         return $claim;
+    }
+
+    /**
+     * Records the forge user who can push to the named repositories on this
+     * project's installation rows. Other rows stay as they are.
+     *
+     * @param list<string> $externalIds
+     */
+    public function recordClaimant(Project $project, string $forge, array $externalIds, string $claimantAccountId): void
+    {
+        if ([] === $externalIds) {
+            return;
+        }
+
+        $changed = false;
+        foreach ($this->forgeRepositories->findBy(['project' => $project, 'forge' => $forge, 'externalId' => $externalIds, 'source' => ForgeRepositorySource::Installation]) as $repository) {
+            if ($claimantAccountId !== $repository->claimantAccountId) {
+                $repository->claimantAccountId = $claimantAccountId;
+                $changed = true;
+            }
+        }
+
+        if ($changed) {
+            $this->em->flush();
+        }
     }
 
     /** Removes this project's row, whatever its source. */
