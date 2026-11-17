@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Workflow\Template;
 
 use App\Module\Workflow\Repository\WorkflowBindingRepository;
+use App\Module\Workflow\Service\SweepRowMemo;
 use App\Module\Workflow\Template\AppRules;
 use App\Module\Workflow\Template\ProjectTemplateCopy;
 use App\Module\Workflow\Template\Rule;
@@ -12,8 +13,10 @@ use App\Module\Workflow\Template\RuleOrigin;
 use App\Module\Workflow\Template\ShippedTemplates;
 use App\Module\Workflow\Template\TemplateMissing;
 use App\Module\Workflow\Template\TemplateParser;
+use App\Observability\HandledMessage;
 use App\Tests\Module\Workflow\WorkflowProjects;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Clock\MockClock;
 
 final class ProjectTemplateCopyTest extends KernelTestCase
 {
@@ -48,7 +51,7 @@ final class ProjectTemplateCopyTest extends KernelTestCase
         $bindings = self::getContainer()->get(WorkflowBindingRepository::class);
         self::assertInstanceOf(TemplateParser::class, $parser);
         self::assertInstanceOf(WorkflowBindingRepository::class, $bindings);
-        $copy = new ProjectTemplateCopy($bindings, $parser, new AppRules($parser, AppRulesTest::FIXTURE));
+        $copy = new ProjectTemplateCopy($bindings, $parser, new AppRules($parser, AppRulesTest::FIXTURE), new SweepRowMemo(new HandledMessage(), new MockClock()));
 
         $rules = $copy->forProject($project->id ?? throw new \LogicException())->rules;
 
