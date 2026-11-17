@@ -111,6 +111,7 @@ final class StoreArtifactVersionController extends AppController
                 files: $inputs,
                 card: $payload->card,
                 notes: $payload->notes,
+                refuseRunCredential: true,
             ));
         } catch (DomainErrors $error) {
             if (isset($error->errors['project'])) {

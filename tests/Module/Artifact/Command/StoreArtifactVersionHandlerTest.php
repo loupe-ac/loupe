@@ -157,6 +157,21 @@ final class StoreArtifactVersionHandlerTest extends KernelTestCase
         self::assertSame(1, $this->artifactRepository()->count([]));
     }
 
+    public function test_a_run_credential_is_refused_when_the_caller_is_the_bridge_route(): void
+    {
+        $project = $this->setUpProject('store-credential-bridge@example.com');
+        $this->callAsWorkerRun(Uuid::v4(), Uuid::v4(), Uuid::v4());
+
+        try {
+            $this->store($project, name: 'Widget tokens', refuseRunCredential: true);
+            self::fail('Expected a refusal.');
+        } catch (DomainErrors $error) {
+            self::assertSame(['session' => 'artifact.error.worker_refused'], $error->errors);
+        }
+
+        self::assertSame(0, $this->artifactRepository()->count([]));
+    }
+
     public function test_the_session_label_alone_does_not_refuse_when_the_call_carries_no_header_and_no_credential(): void
     {
         $project = $this->setUpProject('store-label@example.com');
@@ -349,6 +364,7 @@ final class StoreArtifactVersionHandlerTest extends KernelTestCase
         ?array $files = null,
         array $flags = [],
         ?string $notes = null,
+        bool $refuseRunCredential = false,
     ): ArtifactVersion {
         return $this->handler($flags)(new StoreArtifactVersionCommand(
             $project->owner,
@@ -359,6 +375,7 @@ final class StoreArtifactVersionHandlerTest extends KernelTestCase
             $sessionId,
             $files ?? [new ArtifactFileInput('index.html', 'hello', 'text/html')],
             notes: $notes,
+            refuseRunCredential: $refuseRunCredential,
         ));
     }
 

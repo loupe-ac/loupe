@@ -62,7 +62,7 @@ final readonly class StoreArtifactVersionHandler
             throw new DomainErrors(['session' => 'artifact.error.session_too_long']);
         }
 
-        if ($this->callerRun->headerNamesWorker($project)) {
+        if ($command->refuseRunCredential ? $this->callerRun->isWorker($project) : $this->callerRun->headerNamesWorker($project)) {
             throw new DomainErrors(['session' => 'artifact.error.worker_refused']);
         }
 
