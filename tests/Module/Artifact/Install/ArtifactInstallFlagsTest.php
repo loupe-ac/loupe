@@ -25,6 +25,7 @@ final class ArtifactInstallFlagsTest extends TestCase
             'artifacts.max_version_bytes' => [FeatureFlagType::Int, 5242880],
             'artifacts.max_files' => [FeatureFlagType::Int, 50],
             'artifacts.allowed_origins' => [FeatureFlagType::String, ArtifactInstallFlags::DEFAULT_ALLOWED_ORIGINS],
+            'artifacts.guard_script_loads' => [FeatureFlagType::Bool, true],
         ], $defaults);
     }
 
@@ -34,6 +35,18 @@ final class ArtifactInstallFlagsTest extends TestCase
         foreach (glob(__DIR__.'/../../../../migrations/Version*.php') ?: [] as $file) {
             $source = (string) file_get_contents($file);
             if (str_contains($source, "'artifacts.allowed_origins'") && str_contains($source, ArtifactInstallFlags::DEFAULT_ALLOWED_ORIGINS)) {
+                $seeded = true;
+            }
+        }
+
+        self::assertTrue($seeded);
+    }
+
+    public function test_a_migration_seeds_the_guard_flag_for_an_upgraded_instance(): void
+    {
+        $seeded = false;
+        foreach (glob(__DIR__.'/../../../../migrations/Version*.php') ?: [] as $file) {
+            if (str_contains((string) file_get_contents($file), "'artifacts.guard_script_loads', 'bool', 'true'")) {
                 $seeded = true;
             }
         }
