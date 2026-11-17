@@ -1401,7 +1401,7 @@
                         }
                     },
                     "403": {
-                        "description": "Refused: `credential_not_allowed`.",
+                        "description": "Refused: `credential_not_allowed`, `credential_not_owner_wide`.",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -1700,7 +1700,7 @@
                         }
                     },
                     "403": {
-                        "description": "Refused: `credential_not_allowed`.",
+                        "description": "Refused: `credential_not_allowed`, `credential_not_owner_wide`.",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -1848,7 +1848,7 @@
                         }
                     },
                     "403": {
-                        "description": "Refused: `credential_not_allowed`.",
+                        "description": "Refused: `credential_not_allowed`, `credential_not_owner_wide`.",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -2102,7 +2102,7 @@
                         }
                     },
                     "403": {
-                        "description": "Refused: `credential_not_allowed`.",
+                        "description": "Refused: `credential_not_allowed`, `credential_not_owner_wide`.",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -2221,7 +2221,7 @@
                         }
                     },
                     "403": {
-                        "description": "Refused: `credential_not_allowed`.",
+                        "description": "Refused: `credential_not_allowed`, `credential_not_owner_wide`.",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -2353,7 +2353,7 @@
                         }
                     },
                     "403": {
-                        "description": "Refused: `credential_not_allowed`.",
+                        "description": "Refused: `credential_not_allowed`, `credential_not_owner_wide`.",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -3457,7 +3457,7 @@
                         }
                     },
                     "403": {
-                        "description": "Refused: `credential_not_allowed`.",
+                        "description": "Refused: `credential_not_allowed`, `credential_not_owner_wide`.",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -4427,7 +4427,7 @@
                         }
                     },
                     "403": {
-                        "description": "Refused: `credential_not_allowed`.",
+                        "description": "Refused: `credential_not_allowed`, `credential_not_owner_wide`.",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -4533,7 +4533,7 @@
                         }
                     },
                     "403": {
-                        "description": "Refused: `credential_not_allowed`.",
+                        "description": "Refused: `credential_not_allowed`, `credential_not_owner_wide`.",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
