@@ -73,6 +73,15 @@ and the worker container both run the new build. See
 [Post-deploy checks](../operating/post-deploy-checks.md) for how to read the
 worker build. To roll back, switch the flag off first, then deploy the old build.
 
+The **change-driven sweep** flag, `workflow.change_driven_sweep`, seeds on. The
+sweep does not read it yet, so switching it changes nothing today. The
+**full sweep interval** flag, `workflow.full_sweep_interval_hours`, is a number
+of hours and seeds at `24`. Each hour the worker starts a full sweep, which
+checks every open card, when the last full sweep is older than that interval.
+Each change that a full sweep finds in a card with no change mark is a
+`workflow.change_missed` error in Sentry. See
+[Sentry](../operating/sentry.md#workflow-sweep).
+
 ## Public links
 
 **`/admin/public-links`** lists every project that has a public link of Analytics.

@@ -30,9 +30,9 @@ final readonly class EvaluateCardHandler
         // Release before the evaluation, so a trigger that arrives during it queues one more. It runs with the flag off too, to clear a row claimed before a switch-off.
         $this->workflowQueuedEvaluations->release($cardId);
         // Its own statement, before the check. A write that commits after it marks the card again.
-        $this->workflowCardChanges->clear($cardId);
+        $marked = $this->workflowCardChanges->clear($cardId);
 
-        ($this->evaluateWorkflowCard)(new EvaluateWorkflowCardCommand($cardId));
+        ($this->evaluateWorkflowCard)(new EvaluateWorkflowCardCommand($cardId, $message->fullSweep && !$marked));
 
         if ($message->personWaiting) {
             $this->events->dispatch(new PersonWaitingCardEvaluated($message->cardId));

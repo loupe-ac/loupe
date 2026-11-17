@@ -48,11 +48,11 @@ final readonly class BoardCardMarkers implements CardMarkerStore, CardsDueForMar
     }
 
     #[\Override]
-    public function write(Uuid $projectId, Uuid $cardId, array $markers, array $inbox, ?\DateTimeImmutable $dueAt): void
+    public function write(Uuid $projectId, Uuid $cardId, array $markers, array $inbox, ?\DateTimeImmutable $dueAt): bool
     {
         $card = $this->cards->find($cardId);
         if (null === $card) {
-            return;
+            return false;
         }
 
         $entries = array_map(self::entry(...), $markers);
@@ -74,6 +74,8 @@ final readonly class BoardCardMarkers implements CardMarkerStore, CardsDueForMar
         if ($changed || $inboxChanged) {
             $this->events->dispatch(new CardChanged($projectId, $cardId, CardChanged::UPDATED, false, markersOnly: true));
         }
+
+        return $changed || $inboxChanged;
     }
 
     /** @return array{key: string, kind: string, label: string, remedy: ?string, params: array<string, string|int>, since: string, link?: string, subject?: array{type: string, ids: array<string, string>}} */

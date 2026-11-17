@@ -10,6 +10,8 @@ final readonly class EvaluateWorkflowCardCommand
 {
     public function __construct(
         public Uuid $cardId,
+        /** True for a card that a full sweep queued with no mark, so a change that the check finds is a miss of the marks. */
+        public bool $reportMiss = false,
     ) {
     }
 }

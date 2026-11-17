@@ -119,7 +119,7 @@ final readonly class Engine
      * A sync transport runs an evaluation that an action starts inside the pass of the same card, where it reads none
      * of the rows the pass has not flushed. That call only asks for one more pass, which runs after this one commits.
      */
-    public function evaluate(Uuid $cardId, \DateTimeImmutable $now): void
+    public function evaluate(Uuid $cardId, \DateTimeImmutable $now, bool $reportMiss = false): void
     {
         $key = $cardId->toRfc4122();
         if ($this->running->offsetExists($key)) {
@@ -130,7 +130,7 @@ final readonly class Engine
 
         $this->running[$key] = false;
         try {
-            $this->evaluateOnce($cardId, $now);
+            $this->evaluateOnce($cardId, $now, $reportMiss);
             $again = $this->running[$key];
         } finally {
             unset($this->running[$key]);
@@ -140,11 +140,14 @@ final readonly class Engine
         }
     }
 
-    private function evaluateOnce(Uuid $cardId, \DateTimeImmutable $now): void
+    private function evaluateOnce(Uuid $cardId, \DateTimeImmutable $now, bool $reportMiss): void
     {
         $run = $this->em->wrapInTransaction(fn (): ?Evaluation => $this->evaluateLocked($cardId, $now));
         if (null === $run) {
             return;
+        }
+        if ($reportMiss && !$run->baselined) {
+            $this->reportMiss($run);
         }
         if ($run->holdChanged) {
             $this->events->dispatch(new BlockerHoldChanged($run->card->projectId, $cardId));
@@ -167,6 +170,25 @@ final readonly class Engine
         if ([] !== $run->fired) {
             $this->logger->info('workflow.card_evaluated', ['cardId' => $cardId->toRfc4122(), 'fired' => $run->fired]);
         }
+    }
+
+    /**
+     * A check that a full sweep queued for a card with no mark found a change, so the marks missed it.
+     * A time that came before the pass explains a change by the clock alone, so it raises no error.
+     */
+    private function reportMiss(Evaluation $run): void
+    {
+        if ($run->dueBefore || ([] === $run->changedRules && !$run->markersChanged)) {
+            return;
+        }
+
+        $this->logger->error('workflow.change_missed', [
+            'cardId' => $run->card->id->toRfc4122(),
+            'rules' => array_keys($run->changedRules),
+            'fired' => array_map(static fn (array $fired): string => $fired['rule'], $run->fired),
+            'opened' => $run->opened,
+            'markersChanged' => $run->markersChanged,
+        ]);
     }
 
     /** The delay from the card event that queued the check to each work request the pass opened. */
@@ -223,6 +245,7 @@ final readonly class Engine
 
             return $run;
         }
+        $run->dueBefore = self::dueBefore($run);
         $this->logMissingProviders($run);
         $this->logMissingActions($run);
         if ($baseline) {
@@ -1120,10 +1143,20 @@ final readonly class Engine
         if (self::snapshot($state) !== $before) {
             $state->updatedAt = $run->now;
             $run->factsStale = true;
+            $run->changedRules[$state->ruleId] = true;
         }
         if ($heldBefore !== (null !== $state->heldByBlockerSince)) {
             $run->holdChanged = true;
         }
+    }
+
+    private static function dueBefore(Evaluation $run): bool
+    {
+        if (null !== $run->card->markersDueAt && $run->card->markersDueAt <= $run->now) {
+            return true;
+        }
+
+        return array_any($run->states, fn ($state) => null !== $state->dueAt && $state->dueAt <= $run->now);
     }
 
     /** @return list<mixed> */

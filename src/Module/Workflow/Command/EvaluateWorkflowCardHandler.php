@@ -18,6 +18,6 @@ final readonly class EvaluateWorkflowCardHandler
 
     public function __invoke(EvaluateWorkflowCardCommand $command): void
     {
-        $this->engine->evaluate($command->cardId, $this->clock->now());
+        $this->engine->evaluate($command->cardId, $this->clock->now(), $command->reportMiss);
     }
 }

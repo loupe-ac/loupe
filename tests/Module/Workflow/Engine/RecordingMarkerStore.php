@@ -48,10 +48,13 @@ final class RecordingMarkerStore implements CardMarkerStore
     }
 
     #[\Override]
-    public function write(Uuid $projectId, Uuid $cardId, array $markers, array $inbox, ?\DateTimeImmutable $dueAt): void
+    public function write(Uuid $projectId, Uuid $cardId, array $markers, array $inbox, ?\DateTimeImmutable $dueAt): bool
     {
+        $changed = $markers != $this->stored || $inbox != ($this->storedInbox ?? []);
         $this->written = $markers;
         $this->writtenInbox = $inbox;
         $this->dueAt = $dueAt;
+
+        return $changed;
     }
 }

@@ -232,6 +232,40 @@ final class EngineTest extends KernelTestCase
         self::assertSame(1, $state->fires);
     }
 
+    public function test_a_check_that_a_full_sweep_queued_reports_the_change_it_finds_as_a_miss(): void
+    {
+        $card = $this->boundCard([self::requestRule('work', self::ALWAYS)]);
+
+        $this->engine()->evaluate($card->id ?? throw new \LogicException('A flushed card has an id.'), new \DateTimeImmutable(self::NOON), reportMiss: true);
+
+        $misses = $this->missRecords();
+        self::assertCount(1, $misses);
+        self::assertSame('error', $misses[0]['level']);
+        self::assertSame($card->id->toRfc4122(), $misses[0]['context']['cardId']);
+        self::assertContains('work', $misses[0]['context']['rules']);
+        self::assertSame(['work'], $misses[0]['context']['fired']);
+    }
+
+    public function test_a_check_that_a_full_sweep_queued_reports_nothing_when_it_finds_no_change(): void
+    {
+        $card = $this->boundCard([self::requestRule('work', self::ALWAYS)]);
+        $this->evaluate($card);
+        $this->logger->records = [];
+
+        $this->engine()->evaluate($card->id ?? throw new \LogicException('A flushed card has an id.'), new \DateTimeImmutable('2026-10-02 12:05:00'), reportMiss: true);
+
+        self::assertSame([], $this->missRecords());
+    }
+
+    public function test_an_ordinary_check_reports_no_miss_for_the_same_change(): void
+    {
+        $card = $this->boundCard([self::requestRule('work', self::ALWAYS)]);
+
+        $this->evaluate($card);
+
+        self::assertSame([], $this->missRecords());
+    }
+
     public function test_a_request_the_pass_opens_sends_the_delay_from_the_card_event(): void
     {
         $card = $this->boundCard([self::requestRule('work', self::ALWAYS)]);
@@ -5086,6 +5120,12 @@ final class EngineTest extends KernelTestCase
     private static function listed(string $label): array
     {
         return ['listed-test' => ['label' => $label]];
+    }
+
+    /** @return list<array{level: mixed, message: string, context: array<mixed>}> */
+    private function missRecords(): array
+    {
+        return array_values(array_filter($this->logger->records, static fn (array $record): bool => 'workflow.change_missed' === $record['message']));
     }
 
     /** @return list<array<string, mixed>> */
