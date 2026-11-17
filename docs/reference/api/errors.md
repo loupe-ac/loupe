@@ -256,6 +256,10 @@ No bridge serves this project now, or the run names no bridge.
 
 A bridge is online, but none can run discovery.
 
+### no_push_access
+
+GitHub says that the person who added the repository to the project cannot push to it now. Loupe mints no new push token for the repository.
+
 ### no_session
 
 The run holds no session to resume.

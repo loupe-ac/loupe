@@ -171,6 +171,8 @@ final readonly class GitHubUserApi
 
     /**
      * The repositories of the installation that both the user and the App reach.
+     * The list also holds the repositories the user can only read. An entry with
+     * no `permissions` counts as read-only.
      *
      * @throws GitHubUserApiFailed
      */
@@ -182,7 +184,9 @@ final readonly class GitHubUserApi
             $id = $entry['id'] ?? null;
             $fullName = $entry['full_name'] ?? null;
             if (\is_int($id) && \is_string($fullName) && '' !== $fullName) {
-                $repositories[] = new GitHubRepositoryRef($id, $fullName);
+                $permissions = \is_array($entry['permissions'] ?? null) ? $entry['permissions'] : [];
+                $canPush = true === ($permissions['push'] ?? null) || true === ($permissions['admin'] ?? null);
+                $repositories[] = new GitHubListedRepository(new GitHubRepositoryRef($id, $fullName), $canPush);
             }
         }
 

@@ -380,6 +380,163 @@ final class IssueGitTokenApiTest extends WebTestCase
         self::assertCount(2, $this->requests);
     }
 
+    /** @return iterable<string, array{string}> */
+    public static function permissionsThatPush(): iterable
+    {
+        yield 'admin' => ['admin'];
+        yield 'write' => ['write'];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('permissionsThatPush')]
+    public function test_a_new_mint_asks_github_whether_the_claimant_can_still_push(string $permission): void
+    {
+        [$owner, $project] = $this->managedProject('claimant-'.$permission, ['contents' => 'write', 'pull_requests' => 'write']);
+        $this->claimedBy($project, '583231');
+        $this->responses[] = $this->answer(['token' => 'ghs_installation', 'expires_at' => '2026-10-18T14:00:00Z'], 201);
+        $this->responses[] = $this->answer(['id' => 583231, 'login' => 'ana']);
+        $this->responses[] = $this->answer(['permission' => $permission, 'role_name' => $permission]);
+        $this->responses[] = $this->answer(['token' => 'ghs_scoped', 'expires_at' => '2026-10-18T14:00:00Z'], 201);
+
+        $this->call(AgentCredential::agentToken(static::getContainer(), $owner), (string) $project->id);
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame('ghs_scoped', $this->json()['token']);
+        self::assertSame([
+            'https://api.github.com/app/installations',
+            'https://api.github.com/app/installations/'.self::INSTALLATION.'/access_tokens',
+            'https://api.github.com/user/583231',
+            'https://api.github.com/repos/acme/site-'.self::REPOSITORY.'/collaborators/ana/permission',
+            'https://api.github.com/app/installations/'.self::INSTALLATION.'/access_tokens',
+        ], array_map(static fn (array $request): string => preg_replace('/\?.*$/', '', $request['url']) ?? '', $this->requests));
+        self::assertStringContainsString('"repository_ids":['.self::REPOSITORY.']', $this->requests[4]['body']);
+    }
+
+    /** @return iterable<string, array{list<MockResponse>}> */
+    public static function answersThatRefuse(): iterable
+    {
+        $json = static fn (array $body, int $status = 200): MockResponse => new MockResponse(json_encode($body, \JSON_THROW_ON_ERROR), ['http_code' => $status]);
+
+        yield 'read' => [[$json(['id' => 583231, 'login' => 'ana']), $json(['permission' => 'read'])]];
+        yield 'none' => [[$json(['id' => 583231, 'login' => 'ana']), $json(['permission' => 'none'])]];
+        yield 'an unknown permission' => [[$json(['id' => 583231, 'login' => 'ana']), $json(['permission' => 'triage'])]];
+        yield 'a 404 on the permission' => [[$json(['id' => 583231, 'login' => 'ana']), $json(['message' => 'Not Found'], 404)]];
+        yield 'a 404 on the user' => [[$json(['message' => 'Not Found'], 404)]];
+    }
+
+    /** @param list<MockResponse> $answers */
+    #[\PHPUnit\Framework\Attributes\DataProvider('answersThatRefuse')]
+    public function test_a_claimant_who_cannot_push_gets_no_new_token(array $answers): void
+    {
+        [$owner, $project] = $this->managedProject('no-push', ['contents' => 'write', 'pull_requests' => 'write']);
+        $this->claimedBy($project, '583231');
+        $this->responses[] = $this->answer(['token' => 'ghs_installation', 'expires_at' => '2026-10-18T14:00:00Z'], 201);
+        array_push($this->responses, ...$answers);
+
+        $this->call(AgentCredential::agentToken(static::getContainer(), $owner), (string) $project->id);
+
+        self::assertResponseStatusCodeSame(409);
+        self::assertSame('no_push_access', $this->json()['code']);
+        self::assertSame([], $this->json()['missing']);
+        self::assertCount(2 + \count($answers), $this->requests, 'Loupe mints no repository token.');
+    }
+
+    /** @return iterable<string, array{list<MockResponse>}> */
+    public static function answersThatFail(): iterable
+    {
+        $json = static fn (array $body, int $status = 200): MockResponse => new MockResponse(json_encode($body, \JSON_THROW_ON_ERROR), ['http_code' => $status]);
+
+        yield 'a 500 on the permission' => [[$json(['id' => 583231, 'login' => 'ana']), $json([], 500)]];
+        yield 'a 500 on the user' => [[$json([], 500)]];
+        yield 'a rate-limited 403' => [[new MockResponse('{}', ['http_code' => 403, 'response_headers' => ['x-ratelimit-remaining' => '0']])]];
+        yield 'a timeout' => [[new MockResponse('', ['error' => 'Idle timeout reached'])]];
+        yield 'a user with no login' => [[$json(['id' => 583231])]];
+        yield 'a 404 on the installation token' => [[]];
+    }
+
+    /** @param list<MockResponse> $answers */
+    #[\PHPUnit\Framework\Attributes\DataProvider('answersThatFail')]
+    public function test_a_check_that_github_does_not_answer_is_unavailable(array $answers): void
+    {
+        [$owner, $project] = $this->managedProject('check-down', ['contents' => 'write', 'pull_requests' => 'write']);
+        $this->claimedBy($project, '583231');
+        $this->responses[] = [] === $answers ? $this->answer(['message' => 'Not Found'], 404) : $this->answer(['token' => 'ghs_installation', 'expires_at' => '2026-10-18T14:00:00Z'], 201);
+        array_push($this->responses, ...$answers);
+
+        $this->call(AgentCredential::agentToken(static::getContainer(), $owner), (string) $project->id);
+
+        self::assertResponseStatusCodeSame(502);
+        self::assertSame('github_unavailable', $this->json()['code']);
+        self::assertCount(2 + \count($answers), $this->requests, 'Loupe neither mints nor retries.');
+    }
+
+    public function test_a_check_on_a_cached_list_whose_installation_is_gone_is_decided_on_the_live_list(): void
+    {
+        [$owner, $project] = $this->managedProject('check-stale', ['contents' => 'write', 'pull_requests' => 'write']);
+        $this->claimedBy($project, '583231');
+        self::assertNull($this->issuer()->refusal($project));
+        $this->responses[] = $this->answer(['message' => 'Not Found'], 404);
+        $this->responses[] = $this->answer([]);
+
+        $this->call(AgentCredential::agentToken(static::getContainer(), $owner), (string) $project->id);
+
+        self::assertResponseStatusCodeSame(409);
+        self::assertSame('no_installation', $this->json()['code']);
+        self::assertCount(3, $this->requests);
+    }
+
+    public function test_a_claimant_that_is_no_github_user_id_gets_no_token_and_asks_github_nothing(): void
+    {
+        [$owner, $project] = $this->managedProject('odd-claimant', ['contents' => 'write', 'pull_requests' => 'write']);
+        $this->claimedBy($project, 'ana');
+
+        $this->call(AgentCredential::agentToken(static::getContainer(), $owner), (string) $project->id);
+
+        self::assertResponseStatusCodeSame(409);
+        self::assertSame('no_push_access', $this->json()['code']);
+        self::assertCount(1, $this->requests);
+    }
+
+    public function test_a_repository_with_no_recorded_claimant_gets_its_token_with_no_check(): void
+    {
+        [$owner, $project] = $this->managedProject('no-claimant', ['contents' => 'write', 'pull_requests' => 'write']);
+        $this->responses[] = $this->answer(['token' => 'ghs_scoped', 'expires_at' => '2026-10-18T14:00:00Z'], 201);
+
+        $this->call(AgentCredential::agentToken(static::getContainer(), $owner), (string) $project->id);
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertCount(2, $this->requests);
+        self::assertStringContainsString('"repository_ids":['.self::REPOSITORY.']', $this->requests[1]['body']);
+    }
+
+    public function test_a_kept_token_is_served_with_no_check(): void
+    {
+        [$owner, $project] = $this->managedProject('kept-claimant', ['contents' => 'write', 'pull_requests' => 'write']);
+        $this->claimedBy($project, '583231');
+        $this->responses[] = $this->answer(['token' => 'ghs_installation', 'expires_at' => '2026-10-18T14:00:00Z'], 201);
+        $this->responses[] = $this->answer(['id' => 583231, 'login' => 'ana']);
+        $this->responses[] = $this->answer(['permission' => 'write']);
+        $this->responses[] = $this->answer(['token' => 'ghs_scoped', 'expires_at' => '2026-10-18T14:00:00Z'], 201);
+        $credential = AgentCredential::agentToken(static::getContainer(), $owner);
+        $this->call($credential, (string) $project->id);
+        self::assertResponseStatusCodeSame(201);
+
+        $this->call($credential, (string) $project->id);
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame('ghs_scoped', $this->json()['token']);
+        self::assertCount(5, $this->requests);
+    }
+
+    public function test_the_refusal_of_the_git_identity_panel_asks_github_nothing_about_the_claimant(): void
+    {
+        [, $project] = $this->managedProject('panel-claimant', ['contents' => 'write', 'pull_requests' => 'write']);
+        $this->claimedBy($project, '583231');
+
+        self::assertNull($this->issuer()->refusal($project));
+        self::assertCount(1, $this->requests);
+        self::assertSame('https://api.github.com/app/installations?per_page=100&page=1', $this->requests[0]['url']);
+    }
+
     public function test_it_names_a_missing_app_signing_key_as_a_setup_problem(): void
     {
         $owner = $this->scenario->createUser('git-token-no-key@example.com');
@@ -438,6 +595,12 @@ final class IssueGitTokenApiTest extends WebTestCase
         }
         $this->em()->persist(new ForgeRepository($project, 'github', (string) $repositoryId, 'acme/site-'.$repositoryId, ForgeRepositorySource::Installation, (string) $installationId));
         $this->em()->flush();
+    }
+
+    private function claimedBy(Project $project, string $accountId): void
+    {
+        $this->em()->getConnection()->executeStatement('UPDATE forge_repositories SET claimant_account_id = ? WHERE project_id = ?', [$accountId, (string) $project->id]);
+        $this->em()->clear();
     }
 
     private function useApi(): void

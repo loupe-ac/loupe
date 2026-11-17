@@ -1371,7 +1371,8 @@ bridge drops the token at once.
 Nothing falls back to the machine. When the helper, the `gh` wrapper or
 `loupe credential` gets no token, it prints one line to stderr and exits with
 status 1. The cause is the code the endpoint gave, such as `missing_grant` or
-`no_installation`. The Connect page of the project shows the same cause.
+`no_installation`. The Connect page of the project shows the same cause, except
+for `no_push_access`.
 
 ### The credential command
 
@@ -3154,9 +3155,14 @@ for every project. With the setting off, the endpoint hands out no token.
 | 422 | `validation_failed` | the body names no repository, or a value that is not `owner/name` |
 | 409 | `app_not_configured`, with `missing` empty | the instance has no `GITHUB_APP_ID` or `GITHUB_APP_PRIVATE_KEY`, so Loupe cannot sign as the App |
 | 409 | `missing_grant`, with `missing` such as `["contents"]` | the installation lacks write access to the permissions that `missing` names |
+| 409 | `no_push_access`, with `missing` empty | GitHub says that the person who added the repository to the project has no write access to it now. Loupe asks before it mints a new token, and not while it serves a kept token |
 | 429 | `rate_limited` | more than 60 requests in one minute from one token |
 | 502 | `github_unavailable`, with `missing` empty | GitHub did not answer |
 
 The Connect page of the project shows the same cause under "Agents of this
 project cannot push", so the owner can install the App, grant the permission, or
 turn the setting off.
+
+The Connect page does not show `no_push_access`, because the page does not ask
+GitHub about that person. To fix it, get write access on GitHub, or add the
+repository again in the picker as a GitHub user who has write access.

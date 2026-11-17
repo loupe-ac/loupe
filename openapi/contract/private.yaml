@@ -577,7 +577,7 @@ paths:
         '405':
           $ref: '#/components/responses/E405MethodNotAllowed'
         '409':
-          $ref: '#/components/responses/E409AppNotConfiguredNoInstallationInstallationSuspendedAnd2More'
+          $ref: '#/components/responses/E409AppNotConfiguredNoInstallationInstallationSuspendedAnd3More'
         '415':
           $ref: '#/components/responses/E415UnsupportedMediaType'
         '422':
@@ -4541,6 +4541,14 @@ components:
         code: missing_grant
         missing:
         - contents
+    NoPushAccess:
+      summary: no_push_access
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#no_push_access
+        title: No push access
+        status: 409
+        code: no_push_access
+        missing: []
     GithubUnavailable:
       summary: github_unavailable
       value:
@@ -5086,8 +5094,8 @@ components:
               $ref: '#/components/examples/GitIdentityNotManaged'
             credential_not_allowed:
               $ref: '#/components/examples/InsufficientScope'
-    E409AppNotConfiguredNoInstallationInstallationSuspendedAnd2More:
-      description: 'Refused: `app_not_configured`, `no_installation`, `installation_suspended`, `no_repository`, `missing_grant`.'
+    E409AppNotConfiguredNoInstallationInstallationSuspendedAnd3More:
+      description: 'Refused: `app_not_configured`, `no_installation`, `installation_suspended`, `no_repository`, `missing_grant`, `no_push_access`.'
       content:
         application/problem+json:
           schema:
@@ -5103,6 +5111,8 @@ components:
               $ref: '#/components/examples/NoRepository'
             missing_grant:
               $ref: '#/components/examples/MissingGrant'
+            no_push_access:
+              $ref: '#/components/examples/NoPushAccess'
     E502GithubUnavailable:
       description: 'Refused: `github_unavailable`.'
       content:
