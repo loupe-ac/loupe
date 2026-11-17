@@ -541,6 +541,9 @@ func (s selfUpdate) run(ctx context.Context, out io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("stage %s: %w", to, err)
 	}
+	if update.StagedRevoked(dir, to) {
+		return fmt.Errorf("release %s: %w", to, update.ErrKeyRevoked)
+	}
 	exe, err := s.executable()
 	if err != nil {
 		return err

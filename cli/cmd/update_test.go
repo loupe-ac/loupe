@@ -702,6 +702,36 @@ func TestUpdateWithNoBridgeFailsOnABadChecksum(t *testing.T) {
 	}
 }
 
+type revokeOnDownload struct {
+	base http.RoundTripper
+	dir  string
+	key  string
+}
+
+func (r revokeOnDownload) RoundTrip(req *http.Request) (*http.Response, error) {
+	if strings.HasSuffix(req.URL.Path, "/dl/archive") {
+		if _, err := update.AddRevoked(r.dir, []string{r.key}); err != nil {
+			return nil, err
+		}
+	}
+
+	return r.base.RoundTrip(req)
+}
+
+func TestUpdateWithNoBridgeRefusesASwapWhenTheSignerIsRevokedDuringTheDownload(t *testing.T) {
+	shortConfigHome(t)
+	gh := newFakeGitHub(t, "new binary", "cli/v1.2.0")
+	self, exe := selfUpdateAgainst(t, gh, "1.0.0")
+	hc := *gh.server.Client()
+	hc.Transport = revokeOnDownload{base: hc.Transport, dir: mustConfigDir(t), key: gh.key.Fingerprint}
+	self.hc = &hc
+
+	_, err := updateCmd(t, self)
+	if data, _ := os.ReadFile(exe); !errors.Is(err, update.ErrKeyRevoked) || string(data) != "old" {
+		t.Fatalf("err = %v, binary = %q", err, data)
+	}
+}
+
 func mustConfigDir(t *testing.T) string {
 	t.Helper()
 	dir, err := config.Dir()
