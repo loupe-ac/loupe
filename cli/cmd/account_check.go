@@ -129,7 +129,7 @@ func checkAccount(ctx context.Context, set *rules.Set, name string, projects map
 
 		return res
 	}
-	res.problems = h.Check(ctx, harn.CheckSpec{Account: name, ConfigDir: run.ConfigDir, Env: env, Projects: projects, Packages: plugins.packages, MissingPackages: plugins.missing, LegacySkills: plugins.legacy})
+	res.problems = h.Check(ctx, harn.CheckSpec{Account: name, ConfigDir: run.ConfigDir, Env: env, Pass: set.PassEnv(), Projects: projects, Packages: plugins.packages, MissingPackages: plugins.missing, LegacySkills: plugins.legacy})
 
 	return res
 }

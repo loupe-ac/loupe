@@ -899,7 +899,7 @@ build-demo platform=host_platform:
 push-demo:
     DEMO_IMAGE={{demo_image}} APP_VERSION="$(just _app-version)" docker buildx bake -f docker/bake.hcl demo --push
 
-# Loopback-bound: the demo's admin password is published, so a demo on a laptop
+# Loopback-bound: the demo has no TLS and discards mail, so a demo on a laptop
 # must not be reachable from the rest of the network.
 demo port="8080": build-demo
     docker run --rm -it -p 127.0.0.1:{{port}}:80 -e DEFAULT_URI=http://localhost:{{port}} {{demo_image}}

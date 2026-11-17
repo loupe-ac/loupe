@@ -402,15 +402,25 @@ func (p *pending) apply(m rules.Match) {
 		p.spec.refresh, p.spec.reset = m.Refresh, m.Reset
 		run, _ := p.startedOn.settings(p.set, m.Run())
 		p.spec.useSettings(run)
+		p.takePass()
 
 		return
 	}
 	p.spec = workerSpec{dir: m.Dir, effort: m.Effort, schema: m.Schema, prompt: m.Prompt, before: m.Before, command: m.Command, refresh: m.Refresh, reset: m.Reset}
 	p.spec.useRun(m)
+	p.takePass()
 	// The server asks the work to resume the session of an unfinished run,
 	// which the offer found on this machine.
 	if p.isWork() && p.event.SessionID != "" && m.Action == "" && !p.fresh {
 		p.spec.resume, p.spec.prompt, p.spec.cause = true, directive.RenderResumeUnfinished("status unfinished"), api.CauseWorkRequest
+	}
+}
+
+// takePass fixes the passEnv list of the rule set that selected the event, so
+// a reload that lands before the worker starts cannot change it.
+func (p *pending) takePass() {
+	if p.set != nil {
+		p.spec.pass, p.spec.passFixed = p.set.PassEnv(), true
 	}
 }
 

@@ -115,3 +115,47 @@ func TestRunsDirSitsInTheConfigDir(t *testing.T) {
 		t.Fatalf("RunsDir = %q, %v; want runs in %q", runs, err, d)
 	}
 }
+
+func TestLoadRefusesAStoredPlainHTTPLoginToAnotherHost(t *testing.T) {
+	keyring.MockInit()
+	useTempConfigHome(t)
+	t.Setenv(AllowHTTPEnv, "")
+
+	login := oauthLogin("a", "r", time.Now().Add(time.Hour))
+	login.BaseURL = "http://192.168.1.10"
+	if err := Save(login); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Load(); err == nil || errors.Is(err, ErrNotLoggedIn) {
+		t.Fatalf("want a refusal that is not ErrNotLoggedIn, got %v", err)
+	}
+
+	login.AllowHTTP = true
+	if err := Save(login); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := Load(); err != nil || !got.AllowHTTP {
+		t.Fatalf("an opted-in login must load: %+v, %v", got, err)
+	}
+}
+
+func TestRotateOAuthKeepsTheAllowHTTPChoice(t *testing.T) {
+	keyring.MockInit()
+	useTempConfigHome(t)
+
+	login := oauthLogin("a", "r", time.Now().Add(-time.Hour))
+	login.BaseURL = "http://192.168.1.10"
+	login.AllowHTTP = true
+	if err := Save(login); err != nil {
+		t.Fatal(err)
+	}
+	_, err := RotateOAuth(login.BaseURL, "a", time.Now(), func(string) (OAuthTokens, error) {
+		return OAuthTokens{AccessToken: "b", RefreshToken: "r2", ExpiresAt: time.Now().Add(time.Hour)}, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := Load(); err != nil || !got.AllowHTTP || got.OAuth.AccessToken != "b" {
+		t.Fatalf("got %+v, %v", got, err)
+	}
+}

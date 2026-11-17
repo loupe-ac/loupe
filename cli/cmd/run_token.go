@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/config"
 )
 
 // runCredential is the run token of a bridge worker and the address of the
@@ -28,6 +29,10 @@ func runCredentialFromEnv() (*runCredential, error) {
 	base := strings.TrimRight(strings.TrimSpace(os.Getenv(runURLEnv)), "/")
 	if base == "" {
 		return nil, &exitError{exitAuth, errors.New(runTokenEnv + " is set but " + runURLEnv + " is not, so the token has no server to go to")}
+	}
+
+	if err := config.CheckServerURL(base, config.AllowHTTPFromEnv()); err != nil {
+		return nil, &exitError{exitAuth, err}
 	}
 
 	return &runCredential{baseURL: base, token: api.StaticToken(token)}, nil

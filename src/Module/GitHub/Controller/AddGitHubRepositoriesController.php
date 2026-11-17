@@ -82,6 +82,13 @@ class AddGitHubRepositoriesController extends AppController
             ]));
         }
 
+        if ([] !== $added->readOnly) {
+            $this->addFlash('warning', $this->translator->trans('github.picker.flash.read_only', [
+                '%count%' => \count($added->readOnly),
+                '%repositories%' => implode(', ', $added->readOnly),
+            ]));
+        }
+
         return $this->redirectToRoute($target->route, $target->parameters);
     }
 }

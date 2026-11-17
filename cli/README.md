@@ -232,6 +232,12 @@ The instance comes from `--url`, else `LOUPE_URL`, else `https://app.loupe.ac`. 
 you are working on Loupe itself, set `LOUPE_URL=https://loupe.dev.localhost`
 once rather than passing the flag every time.
 
+The CLI sends tokens to that address, so it refuses `http://` unless the host is
+this machine (`localhost`, `*.localhost` or a loopback IP). For an instance on
+plain HTTP on a trusted network, run `loupe login --url http://<host>
+--allow-http`. The login remembers it. A command with `LOUPE_API_KEY` reads no
+login, so it needs `LOUPE_ALLOW_HTTP=1`. This needs CLI 2.8.0 or later.
+
 `loupe login` prints a link and a code such as `BCDF-GHJK`. Open the link in a
 browser where you are signed in to Loupe. Check that the page shows the same
 code, then choose **Allow**. The CLI does not open the browser for you. It asks
@@ -919,6 +925,10 @@ defaults:
   account: claude
   permissions: workspace
 ```
+
+A top-level `passEnv` list names the variables that every worker gets besides the
+base list. [Worker environment](../docs/extending/cli-bridge.md#worker-environment)
+lists the base list and its limits.
 
 An account takes `harness`, which is required and is `claude-code` in this
 release. It also takes `configDir`, `model`, `permissionMode` and `envFile`. An
@@ -1949,6 +1959,8 @@ no card, `subject` is the ask id. A worker line for a review verdict also names
 | `event` | Fields |
 |---|---|
 | `bridge_started` | `rules`, `projects`, `work_kinds`, `max_workers`, `worker_pools`, `log_file`, `bridge_id`, `version`. `worker_pools` names each pool with its size, such as `default=3,quick=1` |
+| `worker_env_dropped` | `claude_code` and `codex`: the variables that a worker of that harness does not get. It logs at start and at each reload, and never a value |
+| `pass_env_needs_restart` | `name`, `message`: a reload added a `passEnv` name that the running bridge does not hold. Level `WARN` |
 | `max_workers_flag_ignored` | `flag_value`, `max_workers`, `message`: the bridge started with `--max-workers`, which does nothing. Level `WARN` |
 | `connected` | `topic`: your user topic, `projects`: the mapped slugs |
 | `stream_error` | `error` |

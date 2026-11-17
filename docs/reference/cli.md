@@ -177,6 +177,7 @@ This ending needs the next release of the CLI after v2.1.0, and a Loupe instance
 | `--folder` | `root` or `current`. The folder to set up when you run `loupe init` below the root of the git repository. It skips the question |
 | `--repoint` | Point the `projects` entry of the rule file at this folder, when it maps another directory. It skips the question |
 | `--url` | The Loupe instance to sign in to. Else `LOUPE_URL`, else `https://app.loupe.ac` |
+| `--allow-http` | Allow a plain `http://` address to a host that is not this machine, as [Plain HTTP](#plain-http) says |
 | `--rules` | Read and write this rule file instead of the one in your config directory |
 | `--reset` | Write the first-run rules again, and keep the `projects` map |
 | `--agent` | The agent that writes the profile: `claude` or `codex`. With both installed and a terminal, `loupe init` asks once |
@@ -412,6 +413,12 @@ The verbs are the words of the MCP tools, so `document_revise` is
 lists them. The OpenAPI file and the list of API versions have no command,
 because they need no sign-in. Use curl for them.
 
+### Plain HTTP
+
+The CLI sends tokens to the instance, so it refuses an `http://` address unless the host is this machine: `localhost`, a name that ends in `.localhost`, or a loopback IP such as `127.0.0.1` or `::1`. An address with no scheme is refused too. The check runs on `--url` and `LOUPE_URL`, on the stored login each time a command reads it, and on the event stream address that the server sends the bridge. A request that a server redirects from `https://` to plain HTTP on another host is refused as well.
+
+To use an instance on plain HTTP on a trusted network, sign in with `loupe login --url http://192.168.1.10 --allow-http`. The login remembers the choice. A command that uses `LOUPE_API_KEY` reads no login, so set `LOUPE_ALLOW_HTTP=1` for it. A login that an older CLI stored for plain HTTP to another machine stops with a message until you sign in again with `--allow-http`. The flag and the variable need CLI 2.8.0 or later.
+
 ### Output
 
 | Flag | Purpose |
@@ -484,6 +491,7 @@ at once and names the wait, unless you pass `--retry`.
 |---|---|
 | `LOUPE_API_KEY` | The API key of a public command. The CLI never stores it. |
 | `LOUPE_URL` | The Loupe instance, else `https://app.loupe.ac`. With `LOUPE_RUN_TOKEN`, the only source, and a missing value exits 4 |
+| `LOUPE_ALLOW_HTTP` | Set to `1` to allow a plain `http://` address to another machine, as [Plain HTTP](#plain-http) says |
 | `LOUPE_PROJECT` | The project of a command that has no `--project`. The bridge sets it in a worker |
 | `LOUPE_RUN_TOKEN` | The run token of a bridge worker. The bridge sets it. Never set it by hand |
 | `LOUPE_IDEMPOTENCY_SEED` | Turns on a derived idempotency key for each create |

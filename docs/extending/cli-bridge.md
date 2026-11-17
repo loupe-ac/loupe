@@ -567,6 +567,74 @@ variables into its launch script, because the terminal does not take the
 bridge's environment. The script is readable by its owner only, and it deletes
 itself when it runs.
 
+### Worker environment
+
+A worker does not get the whole environment of the bridge. The bridge builds the
+environment of each worker from three sources: a base list of names, the
+`passEnv` names of the rule file, and the [environment files](#environment-files)
+of the run. Every other inherited variable stays out. The bridge adds its own
+run variables, such as the session id, after the filter.
+
+The base list holds these names:
+
+- Process basics: `PATH`, `HOME`, `USER`, `LOGNAME`, `SHELL`, `TMPDIR`, `TERM`,
+  `COLORTERM`, `NO_COLOR`, `LANG`, `LC_*`, `TZ`, `XDG_*` and
+  `__CF_USER_TEXT_ENCODING`.
+- Network: `HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`, `ALL_PROXY` with their
+  lowercase forms, `SSL_CERT_FILE`, `SSL_CERT_DIR` and `NODE_EXTRA_CA_CERTS`.
+- Tools: `DOCKER_HOST`, `DOCKER_CONTEXT`, `DOCKER_CONFIG`, `HOMEBREW_PREFIX`,
+  `HOMEBREW_CELLAR` and `HOMEBREW_REPOSITORY`.
+- Git: `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME` and
+  `GIT_COMMITTER_EMAIL`. `SSH_AUTH_SOCK` passes only to a worker that has no
+  [bridge credentials](#credentials-for-workers).
+- Loupe: `LOUPE_CONFIG` and `LOUPE_URL`.
+- The harness. A Claude Code worker gets `ANTHROPIC_*`, `CLAUDE_*` and
+  `MCP_TIMEOUT`. A Codex worker gets `OPENAI_*` and `CODEX_*`.
+
+`GIT_CONFIG_COUNT` and its `GIT_CONFIG_KEY_n` and `GIT_CONFIG_VALUE_n` entries
+are not in the list, because a value can hold a token.
+
+A tool that needs another variable fails until you add it. Add it in one of two
+ways. A top-level `passEnv` list names variables that every worker gets. A name
+that ends in `*` is a prefix. An account cannot set `passEnv`.
+
+```yaml
+passEnv: [JAVA_HOME, GIT_CONFIG_*]
+```
+
+A secret that only one account needs belongs in the env file of that account.
+Env file values always reach the worker.
+
+The whole bridge also restarts once on the filtered environment: when it
+starts, it runs itself again in place, with the base lists of both harnesses, the
+`passEnv` names and the variables that only the bridge reads. The process id and
+the lock stay the same. `before` commands, command actions and hooks therefore
+see the filtered environment as well. A process of the same user can read the
+start environment of another process with `ps -E`, so a worker cannot read a
+secret from the bridge, unless the name is in the base list or in `passEnv`.
+
+The bridge logs `worker_env_dropped` at start and at each reload. It lists the
+variables that a worker loses for each harness, in `claude_code` and `codex`, and
+never a value. A name such as `OPENAI_API_KEY` can show under `claude_code` only,
+because a Codex worker still gets it. A bridge that is already running
+cannot get a dropped variable back. A reload that adds a `passEnv` name logs
+`pass_env_needs_restart`, and changes nothing for that name. A reload that
+removes a `passEnv` name the bridge holds fails at the `passEnv` stage and
+changes nothing, because the process image keeps the value and `ps -E` shows it.
+Restart the bridge to remove the name. Put the value in an
+env file and run `loupe bridge reload`, or restart the bridge from a shell that
+holds the variable while no worker runs. A name that you write before
+`loupe update` reaches the new bridge, because the handover passes the old
+environment on.
+
+This list limits the environment of a worker and nothing else. The worker still
+runs as your OS user. It can read every file that you can read, such as env files,
+the CLI token store and Terraform state. It can also read the environment of a
+running worker of another account. Keep production state and secrets off a host
+that runs a bridge. To keep accounts apart, use a separate OS user for each.
+The `env` block of the Claude settings file reaches the worker through Claude
+Code itself, so the bridge cannot filter it.
+
 ### A second Claude Code account
 
 Claude Code keeps a separate Keychain login for each config folder. So each
@@ -1371,7 +1439,8 @@ bridge drops the token at once.
 Nothing falls back to the machine. When the helper, the `gh` wrapper or
 `loupe credential` gets no token, it prints one line to stderr and exits with
 status 1. The cause is the code the endpoint gave, such as `missing_grant` or
-`no_installation`. The Connect page of the project shows the same cause.
+`no_installation`. The Connect page of the project shows the same cause, except
+for `no_push_access`.
 
 ### The credential command
 
@@ -3245,9 +3314,14 @@ for every project. With the setting off, the endpoint hands out no token.
 | 422 | `validation_failed` | the body names no repository, or a value that is not `owner/name` |
 | 409 | `app_not_configured`, with `missing` empty | the instance has no `GITHUB_APP_ID` or `GITHUB_APP_PRIVATE_KEY`, so Loupe cannot sign as the App |
 | 409 | `missing_grant`, with `missing` such as `["contents"]` | the installation lacks write access to the permissions that `missing` names |
+| 409 | `no_push_access`, with `missing` empty | GitHub says that the person who added the repository to the project has no write access to it now. Loupe asks before it mints a new token, and not while it serves a kept token |
 | 429 | `rate_limited` | more than 60 requests in one minute from one token |
 | 502 | `github_unavailable`, with `missing` empty | GitHub did not answer |
 
 The Connect page of the project shows the same cause under "Agents of this
 project cannot push", so the owner can install the App, grant the permission, or
 turn the setting off.
+
+The Connect page does not show `no_push_access`, because the page does not ask
+GitHub about that person. To fix it, get write access on GitHub, or add the
+repository again in the picker as a GitHub user who has write access.
