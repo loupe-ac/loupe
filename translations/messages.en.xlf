@@ -446,6 +446,26 @@
                 <source>account.registration.flash.verification_invalid</source>
                 <target>This verification link is invalid or has expired. Please request a new one.</target>
             </trans-unit>
+            <trans-unit id="account.registration.flash.verified_sign_in">
+                <source>account.registration.flash.verified_sign_in</source>
+                <target>Address confirmed. Please sign in.</target>
+            </trans-unit>
+            <trans-unit id="account.registration.verify.page.title">
+                <source>account.registration.verify.page.title</source>
+                <target>Confirm your email address</target>
+            </trans-unit>
+            <trans-unit id="account.registration.verify.heading">
+                <source>account.registration.verify.heading</source>
+                <target>Confirm your email address</target>
+            </trans-unit>
+            <trans-unit id="account.registration.verify.body">
+                <source>account.registration.verify.body</source>
+                <target>Press the button to confirm that %email% is your address.</target>
+            </trans-unit>
+            <trans-unit id="account.registration.verify.cta">
+                <source>account.registration.verify.cta</source>
+                <target>Confirm email address</target>
+            </trans-unit>
 
             <!-- Registration form errors (translated in controller) -->
             <trans-unit id="account.registration.error.email_duplicate">
