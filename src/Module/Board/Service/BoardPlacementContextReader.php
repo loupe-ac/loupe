@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Module\Board\Service;
 
 use App\Module\Board\Command\BoardPlacementContext;
-use App\Module\Board\Entity\Card;
 use App\Module\Board\Repository\BoardColumnRepository;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\CardTypeCatalog;
+use Symfony\Component\Uid\Uuid;
 
 /** Reads the board-wide values once, so one request can place many cards. */
 final readonly class BoardPlacementContextReader
@@ -24,7 +24,8 @@ final readonly class BoardPlacementContextReader
     ) {
     }
 
-    public function read(Project $project): BoardPlacementContext
+    /** @param list<Uuid>|null $cardIds the cards to place, so only their inbox items are read; null reads the project's */
+    public function read(Project $project, ?array $cardIds = null): BoardPlacementContext
     {
         $windowStart = BoardColumnCards::windowStart($this->automation->settingsOf($project)->terminalWindowDays);
         $columns = [];
@@ -59,11 +60,8 @@ final readonly class BoardPlacementContextReader
             $counts,
             $terminalTotals,
             $types,
-            array_map(
-                static fn (Card $epic): string => (string) $epic->id,
-                $this->cards->findLaneEpics($project, $types->withLane()),
-            ),
-            $this->openInboxItems->forProject($project),
+            $this->cards->findLaneEpicIds($project, $types->withLane()),
+            null === $cardIds ? $this->openInboxItems->forProject($project) : $this->openInboxItems->forCards($project, $cardIds),
         );
     }
 }
