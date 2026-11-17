@@ -10,6 +10,8 @@ use App\Module\Workflow\Action\MissingAction;
 use App\Module\Workflow\Condition\Conditions;
 use App\Module\Workflow\Contract\ActionOutcome;
 use App\Module\Workflow\Contract\ActionTraits;
+use App\Module\Workflow\Contract\CardTypeDefinition;
+use App\Module\Workflow\Contract\CardTypes;
 use App\Module\Workflow\Contract\CardValueType;
 use App\Module\Workflow\Contract\CardValueVisibility;
 use App\Module\Workflow\Contract\ChecksParameters;
@@ -204,6 +206,55 @@ final readonly class TemplateParser
         return $requests;
     }
 
+    /**
+     * Parses only the card types of a stored copy, with the same checks that parseStored() runs on them.
+     *
+     * @param array<mixed> $source
+     *
+     * @throws InvalidTemplate when the types or the default type hold an error
+     */
+    public function parseStoredTypes(array $source): CardTypes
+    {
+        $errors = [];
+        $types = self::types($source, $errors);
+        $defaultType = self::defaultType($source, $types, $errors);
+        if ([] !== $errors) {
+            throw new InvalidTemplate($errors);
+        }
+        $types ?? throw new \LogicException('A types block with no error has types.');
+
+        return new CardTypes(
+            array_values(array_map(
+                static fn (TemplateCardType $type): CardTypeDefinition => new CardTypeDefinition($type->key, $type->label, $type->tone, $type->children, $type->lane),
+                $types,
+            )),
+            $defaultType,
+        );
+    }
+
+    /**
+     * @param array<mixed>                     $source
+     * @param ?array<string, TemplateCardType> $types
+     * @param list<string>                     $errors
+     */
+    private static function defaultType(array $source, ?array $types, array &$errors): string
+    {
+        $defaultType = $source['defaultType'] ?? null;
+        if (!\is_string($defaultType) || '' === $defaultType) {
+            $errors[] = self::topLevelError($source, 'defaultType', 'must be a non-empty string');
+
+            return '';
+        }
+        if (null !== $types && !isset($types[$defaultType])) {
+            $errors[] = \sprintf('defaultType: unknown type "%s"', $defaultType);
+        } elseif (null !== $types && $types[$defaultType]->children) {
+            // A widget note under a parent creates a card of the default type, and a parent-capable card cannot have a parent.
+            $errors[] = \sprintf('defaultType: type "%s" may have children', $defaultType);
+        }
+
+        return $defaultType;
+    }
+
     /** @param array<mixed> $source */
     private function parseWith(array $source, bool $lenient): Template
     {
@@ -216,16 +267,7 @@ final readonly class TemplateParser
         }
 
         $types = self::types($source, $errors);
-        $defaultType = $source['defaultType'] ?? null;
-        if (!\is_string($defaultType) || '' === $defaultType) {
-            $errors[] = self::topLevelError($source, 'defaultType', 'must be a non-empty string');
-            $defaultType = '';
-        } elseif (null !== $types && !isset($types[$defaultType])) {
-            $errors[] = \sprintf('defaultType: unknown type "%s"', $defaultType);
-        } elseif (null !== $types && $types[$defaultType]->children) {
-            // A widget note under a parent creates a card of the default type, and a parent-capable card cannot have a parent.
-            $errors[] = \sprintf('defaultType: type "%s" may have children', $defaultType);
-        }
+        $defaultType = self::defaultType($source, $types, $errors);
 
         $backoffMinutes = self::backoffMinutes($source['backoffMinutes'] ?? null);
         if (null === $backoffMinutes) {
