@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"io"
+	"log/slog"
 	"os"
 	"slices"
 	"strings"
@@ -140,5 +142,23 @@ func TestHandoverEnvironRefiltersAfterAPassListChange(t *testing.T) {
 	}
 	if !strings.Contains(joined, envallow.FilteredMarker+"=EARLIER,") || !strings.Contains(joined, "REMOVED_LATER") {
 		t.Fatalf("the marker must keep and extend the dropped names: %v", env)
+	}
+}
+
+func TestUnsetRemovedClearsOnlyARemovedPassName(t *testing.T) {
+	t.Setenv("REMOVED_LATER", "secret")
+	t.Setenv("STILL_PASSED", "ok")
+	t.Setenv("BRIDGE_ONLY", "keep")
+	t.Cleanup(func() { envallow.SetPass(nil) })
+
+	previous := []string{"REMOVED_LATER", "STILL_PASSED"}
+	envallow.SetPass([]string{"STILL_PASSED"})
+	unsetRemoved(slog.New(slog.NewTextHandler(io.Discard, nil)), previous)
+
+	if _, ok := os.LookupEnv("REMOVED_LATER"); ok {
+		t.Fatal("a removed passEnv name stayed in the bridge environment")
+	}
+	if os.Getenv("STILL_PASSED") != "ok" || os.Getenv("BRIDGE_ONLY") != "keep" {
+		t.Fatal("a kept name was unset")
 	}
 }

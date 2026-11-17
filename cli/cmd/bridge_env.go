@@ -101,6 +101,30 @@ func applyPassEnv(log *slog.Logger, set *rules.Set) {
 				"message", "The bridge started without this name. Put the value in an env file and run loupe bridge reload, or restart the bridge.")
 		}
 	}
+	previous := envallow.Pass()
 	envallow.SetPass(next)
+	unsetRemoved(log, previous)
 	logDroppedEnv(log)
+}
+
+// unsetRemoved clears from the bridge process each variable that a passEnv
+// pattern of the old list matched and no list allows now. A bridge-only name
+// stays, because the bridge needs it. The process image keeps the old value
+// until an update or a restart, so the log says that.
+func unsetRemoved(log *slog.Logger, previous []string) {
+	keep := append(envallow.Union(), envallow.Pass()...)
+	var gone []string
+	for _, entry := range os.Environ() {
+		name, _, _ := strings.Cut(entry, "=")
+		if envallow.Match(name, previous) && !envallow.Match(name, keep) {
+			gone = append(gone, name)
+		}
+	}
+	for _, name := range gone {
+		os.Unsetenv(name)
+	}
+	if len(gone) > 0 {
+		log.Warn("pass_env_removed_needs_restart", "names", gone,
+			"message", "The bridge dropped these variables from its environment. The process image keeps them until loupe bridge update or a restart.")
+	}
 }
