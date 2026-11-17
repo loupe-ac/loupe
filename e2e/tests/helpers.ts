@@ -365,6 +365,9 @@ export async function confirmEmailLink(
 ): Promise<void> {
     await page.goto(link);
     await page.getByRole('button', { name: 'Confirm email address' }).click();
+    // Turbo submits the form as XHR, so the click resolves before the POST
+    // finishes. Wait for the redirect, or a following goto can abort it.
+    await page.waitForURL((url) => url.pathname !== '/register/verify');
 }
 
 /**
