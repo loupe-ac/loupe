@@ -8,6 +8,7 @@ use App\Module\Account\Entity\User;
 use App\Module\Forge\Entity\ForgeRepository;
 use App\Module\Forge\Entity\ForgeRepositorySource;
 use App\Module\Project\Entity\Project;
+use App\Module\Workflow\Contract\FactsPass;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\LockMode;
 use Doctrine\Persistence\ManagerRegistry;
@@ -17,8 +18,10 @@ use Symfony\Component\Uid\Uuid;
 /** @extends ServiceEntityRepository<ForgeRepository> */
 final class ForgeRepositoryRepository extends ServiceEntityRepository
 {
-    public function __construct(ManagerRegistry $registry)
-    {
+    public function __construct(
+        ManagerRegistry $registry,
+        private readonly FactsPass $factsPass,
+    ) {
         parent::__construct($registry, ForgeRepository::class);
     }
 
@@ -125,19 +128,19 @@ final class ForgeRepositoryRepository extends ServiceEntityRepository
     /** @return list<ForgeRepository> */
     public function findByProject(Project $project): array
     {
-        return array_values($this->findBy(['project' => $project], ['createdAt' => 'ASC', 'id' => 'ASC']));
+        return $this->findByProjectId($project->id ?? throw new \LogicException('A stored project has an id.'));
     }
 
     /** @return list<ForgeRepository> */
     public function findByProjectId(Uuid $projectId): array
     {
-        return array_values($this->createQueryBuilder('r')
+        return $this->factsPass->remember('forge-repositories-of-project:'.$projectId->toRfc4122(), fn (): array => array_values($this->createQueryBuilder('r')
             ->andWhere('IDENTITY(r.project) = :project')
             ->setParameter('project', $projectId, UuidType::NAME)
             ->orderBy('r.createdAt', 'ASC')
             ->addOrderBy('r.id', 'ASC')
             ->getQuery()
-            ->getResult());
+            ->getResult()));
     }
 
     /** @return list<ForgeRepository> */
