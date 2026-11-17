@@ -29,16 +29,17 @@ final readonly class GitHubGitTokenIssuer
         private GitHubAppInstallationList $installationList,
         private GitHubRepositoryTokenStore $tokenStore,
         private GitHubAppConfiguration $configuration,
+        private GitHubRepositoryPushAccess $pushAccess,
     ) {
     }
 
     /** @throws GitHubGitTokenRefused */
     public function issue(Project $project, string $repositoryPath): GitHubScopedToken
     {
-        [$installationId, $repositoryId, $permissions, $fromCache] = $this->resolve($project, $repositoryPath, false);
+        [$installationId, $repositoryId, $permissions, $path, $claimant, $fromCache] = $this->resolve($project, $repositoryPath, false);
 
         try {
-            return $this->mint($installationId, $repositoryId, $permissions);
+            return $this->mint($installationId, $repositoryId, $permissions, $path, $claimant);
         } catch (GitHubAppApiFailed $failed) {
             // A 404 or 422 can mean that a stale list picked a grant that is gone, so only the live list can say.
             if (!$fromCache || $failed->rateLimited || !\in_array($failed->status, [404, 422], true)) {
@@ -46,28 +47,38 @@ final readonly class GitHubGitTokenIssuer
             }
         }
 
-        [$liveInstallationId, $liveRepositoryId, $livePermissions] = $this->resolve($project, $repositoryPath, true);
+        [$liveInstallationId, $liveRepositoryId, $livePermissions, $livePath, $liveClaimant] = $this->resolve($project, $repositoryPath, true);
         if ($liveInstallationId === $installationId && $liveRepositoryId === $repositoryId && $livePermissions === $permissions) {
             throw new GitHubGitTokenRefused(GitHubGitTokenRefused::GITHUB_UNAVAILABLE);
         }
 
         try {
-            return $this->mint($liveInstallationId, $liveRepositoryId, $livePermissions);
+            return $this->mint($liveInstallationId, $liveRepositoryId, $livePermissions, $livePath, $liveClaimant);
         } catch (GitHubAppApiFailed) {
             throw new GitHubGitTokenRefused(GitHubGitTokenRefused::GITHUB_UNAVAILABLE);
         }
     }
 
     /**
+     * A kept token skips the push check, so a lost push access stops the
+     * bridge when the kept token runs out. A row linked before Loupe recorded
+     * the claimant skips it too.
+     *
      * @param array<string, string> $permissions
+     * @param ?string               $claimant    the GitHub user id who linked the repository
      *
      * @throws GitHubAppApiFailed
+     * @throws GitHubGitTokenRefused
      */
-    private function mint(int $installationId, int $repositoryId, array $permissions): GitHubScopedToken
+    private function mint(int $installationId, int $repositoryId, array $permissions, string $path, ?string $claimant): GitHubScopedToken
     {
         $kept = $this->tokenStore->find($installationId, $repositoryId, $permissions);
         if (null !== $kept) {
             return $kept;
+        }
+
+        if (null !== $claimant) {
+            $this->pushAccess->check($installationId, $path, $claimant);
         }
 
         $token = $this->api->repositoryToken($installationId, $repositoryId, $permissions);
@@ -96,7 +107,7 @@ final readonly class GitHubGitTokenIssuer
      * @param ?string $repositoryPath the `owner/name` to serve, or null for any repository of the project
      * @param bool    $live           read the list from GitHub, and not from the cache
      *
-     * @return array{int, int, array<string, string>, bool} the installation id, the repository id, the permissions to ask for, and whether the list came from the cache
+     * @return array{int, int, array<string, string>, string, ?string, bool} the installation id, the repository id, the permissions to ask for, the repository path, the claimant, and whether the list came from the cache
      *
      * @throws GitHubGitTokenRefused
      */
@@ -127,17 +138,17 @@ final readonly class GitHubGitTokenIssuer
     }
 
     /**
-     * @param non-empty-list<array{int, int}>   $candidates
-     * @param list<GitHubAppInstallationAccess> $installations
+     * @param non-empty-list<array{int, int, string, ?string}> $candidates
+     * @param list<GitHubAppInstallationAccess>                $installations
      *
-     * @return array{int, int, array<string, string>}
+     * @return array{int, int, array<string, string>, string, ?string}
      *
      * @throws GitHubGitTokenRefused
      */
     private function pick(array $candidates, array $installations): array
     {
         $first = null;
-        foreach ($candidates as [$installationId, $repositoryId]) {
+        foreach ($candidates as [$installationId, $repositoryId, $path, $claimant]) {
             $access = array_find($installations, fn ($candidate) => $candidate->id === $installationId);
             $missing = null !== $access ? $access->missingWriteAccess(self::REQUIRED_GRANTS) : [];
             if (null !== $access && [] === $missing) {
@@ -146,7 +157,7 @@ final readonly class GitHubGitTokenIssuer
                     $permissions[self::OPTIONAL_GRANT] = 'write';
                 }
 
-                return [$installationId, $repositoryId, $permissions];
+                return [$installationId, $repositoryId, $permissions, $path, $claimant];
             }
 
             $first ??= null === $access
@@ -158,9 +169,9 @@ final readonly class GitHubGitTokenIssuer
     }
 
     /**
-     * The repositories of the project that live installations serve, as installation id and repository id pairs.
+     * The repositories of the project that live installations serve, as the installation id, the repository id, the path and the claimant.
      *
-     * @return non-empty-list<array{int, int}>
+     * @return non-empty-list<array{int, int, string, ?string}>
      *
      * @throws GitHubGitTokenRefused when the project has none
      */
@@ -194,7 +205,7 @@ final readonly class GitHubGitTokenIssuer
                 continue;
             }
 
-            $candidates[] = [$installation->installationId, (int) $row->externalId];
+            $candidates[] = [$installation->installationId, (int) $row->externalId, $row->path, $row->claimantAccountId];
         }
 
         if ([] === $candidates) {

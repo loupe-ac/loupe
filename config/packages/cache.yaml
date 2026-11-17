@@ -4,6 +4,10 @@ framework:
         # cache.app — so per-IP limits are per-replica unless it is shared.
         app: cache.adapter.doctrine_dbal
         default_doctrine_dbal_provider: 'doctrine.dbal.default_connection'
+        pools:
+            # Shared across replicas through its parent, and pruned with it.
+            cache.github_delivery:
+                adapter: cache.app
 
 when@test:
     framework:

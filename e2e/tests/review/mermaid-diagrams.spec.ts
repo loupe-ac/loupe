@@ -6,7 +6,7 @@ const test = createTest({
     password: 'e2e_password_123',
 });
 
-// The stub stands in for the CDN build, so no run depends on jsDelivr.
+// The stub stands in for the vendored build, so most tests need no real Mermaid.
 const stubModule = `export default {
     initialize() {},
     async render(id, text) {
@@ -42,14 +42,18 @@ async function setMermaidFlag(
     expect(response.ok()).toBeTruthy();
 }
 
-async function openDocument(page: Page): Promise<void> {
-    await page.route('**/mermaid@12.0.0/**', (route) =>
-        route.fulfill({
-            contentType: 'application/javascript',
-            headers: { 'Access-Control-Allow-Origin': '*' },
-            body: stubModule,
-        }),
-    );
+async function openDocument(
+    page: Page,
+    { stub = true }: { stub?: boolean } = {},
+): Promise<void> {
+    if (stub) {
+        await page.route('**/vendor/mermaid/12.0.0/**', (route) =>
+            route.fulfill({
+                contentType: 'application/javascript',
+                body: stubModule,
+            }),
+        );
+    }
     const response = await page.request.post('/dev/seed/document', {
         form: { title: `Diagrams ${Date.now()}`, markdown },
     });
@@ -100,6 +104,32 @@ test('with the flag on, a valid block renders and an invalid one keeps its sourc
     ).toBeVisible();
     await expect(hosts.nth(1).getByTestId('stub-diagram')).toHaveCount(0);
     await expect(source(page, 'INVALID')).toBeVisible();
+});
+
+test('the vendored build draws a real diagram with no request to another origin', async ({
+    page,
+    baseURL,
+}) => {
+    await setMermaidFlag(page.request, true);
+    const origin = new URL(baseURL!).origin;
+    const foreign: string[] = [];
+    page.on('request', (request) => {
+        const url = new URL(request.url());
+        // The worktree's live-review widget loads from its own backend origin,
+        // so only its two paths are excused. Any other foreign request counts.
+        const widget =
+            url.pathname.startsWith('/live-review/') ||
+            url.pathname.startsWith('/api/v1/live-review-widget/');
+        const inline = ['data:', 'blob:'].includes(url.protocol);
+        if (url.origin !== origin && !widget && !inline) {
+            foreign.push(request.url());
+        }
+    });
+    await openDocument(page, { stub: false });
+
+    const host = page.locator('.lp-mermaid').nth(0);
+    await expect(host.locator('svg').first()).toBeVisible();
+    expect(foreign).toEqual([]);
 });
 
 test('the toggle shows and hides the source of a rendered diagram', async ({

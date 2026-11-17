@@ -45,6 +45,9 @@ type Config struct {
 	OAuth        *OAuthTokens  `json:"oauth,omitempty"`
 	BridgeID     string        `json:"bridgeId,omitempty"`
 	AgentAccount *AgentAccount `json:"agentAccount,omitempty"`
+	// AllowHTTP records that the person chose plain HTTP to a host that is
+	// not the same machine, when they signed in.
+	AllowHTTP bool `json:"allowHttp,omitempty"`
 }
 
 // OAuthTokens is what the device flow and each refresh give.
@@ -145,6 +148,9 @@ func Load() (Config, error) {
 	}
 	if c.OAuth == nil || c.OAuth.RefreshToken == "" {
 		return c, notLoggedIn()
+	}
+	if err := CheckServerURL(c.BaseURL, c.AllowsHTTP()); err != nil {
+		return c, fmt.Errorf("stored login: %w. Sign in again with `loupe login --url <https address>`", err)
 	}
 
 	return c, nil

@@ -9744,6 +9744,9 @@ workflow:
             <trans-unit id="account.settings.nav.connected_apps"><source>account.settings.nav.connected_apps</source><target>Connected apps</target></trans-unit>
             <trans-unit id="account.settings.nav.api_keys"><source>account.settings.nav.api_keys</source><target>API keys</target></trans-unit>
             <trans-unit id="account.settings.nav.billing"><source>account.settings.nav.billing</source><target>Billing</target></trans-unit>
+            <trans-unit id="oauth.forward.page.title"><source>oauth.forward.page.title</source><target>Returning to the app</target></trans-unit>
+            <trans-unit id="oauth.forward.title"><source>oauth.forward.title</source><target>Returning to the app</target></trans-unit>
+            <trans-unit id="oauth.forward.continue"><source>oauth.forward.continue</source><target>Continue</target></trans-unit>
             <trans-unit id="oauth.consent.page.title"><source>oauth.consent.page.title</source><target>Connect an app</target></trans-unit>
             <trans-unit id="oauth.consent.scope.mcp"><source>oauth.consent.scope.mcp</source><target>Read and change the documents and live reviews of one project, through MCP.</target></trans-unit>
             <trans-unit id="oauth.consent.scope.site_review"><source>oauth.consent.scope.site_review</source><target>Read and post live-review comments on a project you own.</target></trans-unit>
@@ -10177,6 +10180,7 @@ workflow:
             <trans-unit id="github.picker.state.in_project"><source>github.picker.state.in_project</source><target>In this project</target></trans-unit>
             <trans-unit id="github.picker.state.other"><source>github.picker.state.other</source><target>Used by another project</target></trans-unit>
             <trans-unit id="github.picker.state.other_named"><source>github.picker.state.other_named</source><target>Used by %project%</target></trans-unit>
+            <trans-unit id="github.picker.state.read_only"><source>github.picker.state.read_only</source><target>You need write access on GitHub to add this repository</target></trans-unit>
             <trans-unit id="github.picker.refresh"><source>github.picker.refresh</source><target>Refresh list</target></trans-unit>
             <trans-unit id="github.picker.install"><source>github.picker.install</source><target>Install on another account</target></trans-unit>
             <trans-unit id="github.picker.cancel"><source>github.picker.cancel</source><target>Cancel</target></trans-unit>
@@ -10187,6 +10191,7 @@ workflow:
             <trans-unit id="github.picker.flash.nothing_ticked"><source>github.picker.flash.nothing_ticked</source><target>Tick at least one repository.</target></trans-unit>
             <trans-unit id="github.picker.flash.added"><source>github.picker.flash.added</source><target>{0}Loupe added no repository.|{1}Loupe added 1 repository.|]1,Inf[Loupe added %count% repositories.</target></trans-unit>
             <trans-unit id="github.picker.flash.refused"><source>github.picker.flash.refused</source><target>{0}Loupe could not add any repository.|{1}Loupe could not add %repositories%. Another project holds it, or you can no longer reach it on GitHub.|]1,Inf[Loupe could not add these repositories: %repositories%. Another project holds them, or you can no longer reach them on GitHub.</target></trans-unit>
+            <trans-unit id="github.picker.flash.read_only"><source>github.picker.flash.read_only</source><target>{0}You need write access on GitHub to add a repository.|{1}Loupe did not add %repositories%. You need write access on GitHub to add a repository.|]1,Inf[Loupe did not add these repositories: %repositories%. You need write access on GitHub to add a repository.</target></trans-unit>
             <trans-unit id="github.picker.flash.connected"><source>github.picker.flash.connected</source><target>Connected %repository%. Add more from Repositories.</target></trans-unit>
             <trans-unit id="github.install_request.page.title"><source>github.install_request.page.title</source><target>Install request sent</target></trans-unit>
             <trans-unit id="github.install_request.heading"><source>github.install_request.heading</source><target>Your install request waits for an organization owner</target></trans-unit>

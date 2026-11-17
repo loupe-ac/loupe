@@ -30,10 +30,11 @@ parameters:
     # value that matches no real request, so the placeholder is a reserved TLD.
     app.artifact_content_placeholder_host: 'artifact-content.invalid'
 
-    # Diagrams load from here once review.mermaid.enabled is on, and script-src
-    # lists it. A path prefix, not the host, so an injection cannot load any
-    # other npm package from the CDN. The module loads its chunks relative to it.
-    app.mermaid_cdn_base: 'https://cdn.jsdelivr.net/npm/mermaid@12.0.0/dist/'
+    # Diagrams load this module once review.mermaid.enabled is on. It sits under
+    # public/ because AssetMapper hashes each file name and does not rewrite the
+    # relative imports between .mjs chunks. bin/vendor-mermaid.sh writes it, from
+    # the version that package.json pins, so change both together.
+    app.mermaid_module_path: 'vendor/mermaid/12.0.0/mermaid.esm.min.mjs'
 
     # Sender of every transactional email. Environment-driven because a
     # self-hosted instance can only pass SPF/DKIM/DMARC with a domain its
@@ -192,6 +193,11 @@ services:
 # (e.g. an MCP tool) keeping them reachable.
 when@test:
     services:
+        # A plain array pool, which the kernel resets between requests only when
+        # tagged. The shared pool would keep a fixed payload from one run to the next.
+        cache.github_delivery:
+            class: Symfony\Component\Cache\Adapter\ArrayAdapter
+
         App\Tests\Support\HideDebugErrorPage:
             autoconfigure: true
 

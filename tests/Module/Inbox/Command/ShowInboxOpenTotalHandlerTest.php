@@ -8,6 +8,7 @@ use App\Module\Inbox\Command\ShowInboxOpenTotalCommand;
 use App\Module\Inbox\Command\ShowInboxOpenTotalHandler;
 use App\Tests\Module\Inbox\InboxScenario;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bridge\Doctrine\Middleware\Debug\DebugDataHolder;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 final class ShowInboxOpenTotalHandlerTest extends KernelTestCase
@@ -67,5 +68,33 @@ final class ShowInboxOpenTotalHandlerTest extends KernelTestCase
         $owner = $this->signedUpUser($this->em, 'total-none');
 
         self::assertSame(0, ($this->handler)(new ShowInboxOpenTotalCommand($owner)));
+    }
+
+    public function test_it_reads_the_total_in_one_statement_over_the_projects_of_the_owner_alone(): void
+    {
+        $owner = $this->signedUpUser($this->em, 'total-one');
+        $first = $this->inboxProject($this->em, $owner);
+        $second = $this->inboxProject($this->em, $owner);
+        $this->question($this->em, $first, 1);
+        $this->question($this->em, $second, 1);
+        $stranger = $this->inboxProject($this->em, $this->signedUpUser($this->em, 'total-one-other'));
+        $this->question($this->em, $stranger, 1);
+        $this->em->clear();
+        $queries = self::getContainer()->get('doctrine.debug_data_holder');
+        self::assertInstanceOf(DebugDataHolder::class, $queries);
+        $owner = $this->em->find($owner::class, $owner->id) ?? throw new \LogicException('The owner is stored.');
+
+        $queries->reset();
+        $total = ($this->handler)(new ShowInboxOpenTotalCommand($owner));
+
+        $statements = [];
+        foreach ($queries->getData() as $connectionQueries) {
+            foreach ($connectionQueries as $query) {
+                $statements[] = (string) $query['sql'];
+            }
+        }
+        // Guard: the total counts the two projects of the owner, so a handler that read nothing cannot pass.
+        self::assertSame(2, $total);
+        self::assertCount(1, $statements, implode("\n", $statements));
     }
 }

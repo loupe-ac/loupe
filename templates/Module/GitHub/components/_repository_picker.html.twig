@@ -37,6 +37,10 @@
                     <span class="lp-picker-repo__gap" aria-hidden="true"></span>
                     <span class="lp-picker-repo__name">{{ item.repository.fullName }}</span>
                     <span class="lp-picker-repo__state">{{ (item.holderName is null ? 'github.picker.state.other' : 'github.picker.state.other_named')|trans({'%project%': item.holderName}) }}</span>
+                    {% elseif item.state.value == 'read-only' %}
+                    <span class="lp-picker-repo__gap" aria-hidden="true"></span>
+                    <span class="lp-picker-repo__name">{{ item.repository.fullName }}</span>
+                    <span class="lp-picker-repo__state">{{ 'github.picker.state.read_only'|trans }}</span>
                     {% else %}
                     <label class="lp-picker-repo__name">
                         <input type="checkbox" class="lp-picker-repo__check"

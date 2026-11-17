@@ -104,12 +104,11 @@ One container holds the app, its worker and Postgres:
 docker run --rm -p 127.0.0.1:8080:80 ghcr.io/loupe-ac/loupe:demo
 ```
 
-Open <http://localhost:8080> and log in with `admin@example.com` and
-`loupe-admin`. Bind to `127.0.0.1` as above, because this page publishes the
-password.
+Open <http://localhost:8080> and log in with `admin@example.com` and the
+password that the container prints in its start message. Bind to `127.0.0.1` as
+above.
 
-This image is for evaluation only. Its `APP_SECRET` is a committed constant,
-nothing terminates TLS, and it discards mail. [Demo](docs/operating/install/demo.md)
+This image is for evaluation only. Nothing terminates TLS, and it discards mail. [Demo](docs/operating/install/demo.md)
 gives the volume and port options.
 
 ## Develop on it

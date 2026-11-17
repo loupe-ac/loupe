@@ -1,0 +1,13 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directories:
+      - /
+      - /.github/actions/setup
+      - /.github/actions/setup-just
+      - /.github/actions/e2e-stack
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ['*']
