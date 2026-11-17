@@ -356,18 +356,20 @@ export async function submitRedirectingForm(
 }
 
 /**
- * Opens the emailed verification link and presses Confirm. The link itself
- * only shows a page, so a caller asserts where the browser lands afterwards.
+ * Opens the emailed verification link, presses Confirm, and waits until the
+ * POST and its redirect target have loaded. Turbo submits the form as XHR, so
+ * a bare click returns early and a following goto would abort the POST.
  */
 export async function confirmEmailLink(
     page: Page,
     link: string,
 ): Promise<void> {
     await page.goto(link);
-    await page.getByRole('button', { name: 'Confirm email address' }).click();
-    // Turbo submits the form as XHR, so the click resolves before the POST
-    // finishes. Wait for the redirect, or a following goto can abort it.
-    await page.waitForURL((url) => url.pathname !== '/register/verify');
+    await submitRedirectingForm(
+        page,
+        page.getByRole('button', { name: 'Confirm email address' }),
+        '/register/verify',
+    );
 }
 
 /**
