@@ -7,6 +7,7 @@ namespace App\Module\Bridge\Command;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunBilledCost;
 use App\Module\Bridge\Entity\WorkerRunStateChange;
+use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Event\BilledCostAwaited;
 use App\Module\Bridge\Event\ResumableWorkerRunEnded;
 use App\Module\Bridge\Event\WorkerRunChanged;
@@ -74,11 +75,12 @@ final readonly class ReportWorkerRunStateHandler
             $role = null;
             if (null === $run) {
                 // A run takes its subject and request once, so only a new run needs the check.
-                $error = $this->refusal($project, $command);
+                $request = null === $command->workRequestId ? null : $this->workRequests->findOneOfSubject($command->workRequestId, $project, $command->subject);
+                $error = $this->refusal($project, $command, $request);
                 if (null !== $error) {
                     return [new ReportWorkerRunStateResult(null, newState: false, error: $error), false, false, false];
                 }
-                $role = null === $command->workRequestId ? null : $this->workRequests->findOneOfSubject($command->workRequestId, $project, $command->subject)?->role;
+                $role = $request?->role;
                 $run = new WorkerRun(
                     project: $project,
                     bridgeId: $command->bridgeId,
@@ -164,7 +166,7 @@ final readonly class ReportWorkerRunStateHandler
     }
 
     /** The error code of a subject or a work request that the project does not hold, else null. */
-    private function refusal(Project $project, ReportWorkerRunStateCommand $command): ?string
+    private function refusal(Project $project, ReportWorkerRunStateCommand $command, ?WorkRequest $request): ?string
     {
         if (!$this->subjects->has($command->subject->type)) {
             return ReportWorkerRunStateResult::UNKNOWN_SUBJECT_TYPE;
@@ -172,7 +174,7 @@ final readonly class ReportWorkerRunStateHandler
         if (!$this->subjects->belongsTo($project, $command->subject)) {
             return ReportWorkerRunStateResult::SUBJECT_NOT_FOUND;
         }
-        if (null !== $command->workRequestId && null === $this->workRequests->findOneOfSubject($command->workRequestId, $project, $command->subject)) {
+        if (null !== $command->workRequestId && null === $request) {
             return ReportWorkerRunStateResult::WORK_REQUEST_NOT_FOUND;
         }
 
