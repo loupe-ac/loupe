@@ -163,8 +163,9 @@ final class MoveCardControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         $body = (string) $client->getResponse()->getContent();
-        self::assertSame(1, substr_count($body, '<turbo-stream'));
+        self::assertSame(2, substr_count($body, '<turbo-stream'));
         self::assertStringContainsString('action="replace" target="card-move-'.$cardId.'"', $body);
+        self::assertStringContainsString('action="update" target="card-column-'.$cardId.'"', $body);
         self::assertStringNotContainsString('board-place', $body);
         self::assertMatchesRegularExpression('/<option value="'.$nextId.'"[^>]*selected/', $body);
         $em->clear();

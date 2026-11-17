@@ -2,3 +2,6 @@
 <turbo-stream action="replace" target="card-move-{{ card.id }}">
     <template>{% include '@Board/_card_move_field.html.twig' with {card: card, error: error} only %}</template>
 </turbo-stream>
+<turbo-stream action="update" target="card-column-{{ card.id }}">
+    <template>{% include '@Board/_column_tag.html.twig' with {column: card.column} only %}</template>
+</turbo-stream>

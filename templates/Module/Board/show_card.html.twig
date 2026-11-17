@@ -42,7 +42,7 @@
             <span class="lp-card-number">#{{ card.number }}</span>
             {% include '@Board/_card_type_tag.html.twig' with {card: card} only %}
             {% include '@Board/_card_source_tag.html.twig' with {card: card, class: 'lp-card-drawer__source'} only %}
-            {% include '@Board/_column_tag.html.twig' with {column: card.column} only %}
+            <span id="card-column-{{ card.id }}">{% include '@Board/_column_tag.html.twig' with {column: card.column} only %}</span>
         </div>
         <div class="lp-card-drawer__header-actions">
             <twig:Ds:Button variant="ghost" href="{{ path('app_board_card_edit', {projectId: card.project.id, cardId: card.id}) }}"><twig:ux:icon name="lucide:pencil" class="lp-icon lp-icon--md" />{{ 'board.card.edit.action'|trans }}</twig:Ds:Button>
