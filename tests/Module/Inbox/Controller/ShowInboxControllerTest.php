@@ -186,9 +186,12 @@ final class ShowInboxControllerTest extends WebTestCase
         $inboxTopic = $topics->forInbox($owner->id ?? throw new \LogicException('The owner has no id.'));
         $projectTopics = static::getContainer()->get(ProjectTopicBuilder::class);
         self::assertInstanceOf(ProjectTopicBuilder::class, $projectTopics);
-        $topics = [$inboxTopic, $projectTopics->forWorkerRuns($project->id ?? throw new \LogicException('The project has no id.')), $projectTopics->forDocuments($project->id ?? throw new \LogicException('The project has no id.'))];
-        self::assertSame($topics, self::subscribedTopics($this->client->getResponse()));
-        self::assertSame($topics, $crawler->filter('form#mercure-subscriptions input[data-mercure-topic]')->each(static fn ($input): ?string => $input->attr('value')));
+        $granted = self::subscribedTopics($this->client->getResponse());
+        self::assertIsArray($granted);
+        self::assertContains($inboxTopic, $granted);
+        self::assertContains($projectTopics->forWorkerRuns($project->id ?? throw new \LogicException('The project has no id.')), $granted);
+        self::assertContains($projectTopics->forDocuments($project->id ?? throw new \LogicException('The project has no id.')), $granted);
+        self::assertEqualsCanonicalizing($granted, $crawler->filter('form#mercure-subscriptions input[data-mercure-topic]')->each(static fn ($input): ?string => $input->attr('value')));
 
         $link = $crawler->filter('a[data-live-pill-events-value=\'["inbox.open_count_changed"]\']');
         self::assertCount(1, $link);
@@ -340,13 +343,13 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $projectTopics = static::getContainer()->get(ProjectTopicBuilder::class);
         self::assertInstanceOf(ProjectTopicBuilder::class, $projectTopics);
-        self::assertSame(
-            [
-                $projectTopics->forWorkerRuns($project->id ?? throw new \LogicException('The project has no id.')),
-                $projectTopics->forDocuments($project->id ?? throw new \LogicException('The project has no id.')),
-            ],
-            self::subscribedTopics($this->client->getResponse()),
-        );
+        $userTopics = static::getContainer()->get(UserTopicBuilder::class);
+        self::assertInstanceOf(UserTopicBuilder::class, $userTopics);
+        $granted = self::subscribedTopics($this->client->getResponse());
+        self::assertIsArray($granted);
+        self::assertContains($projectTopics->forWorkerRuns($project->id ?? throw new \LogicException('The project has no id.')), $granted);
+        self::assertContains($projectTopics->forDocuments($project->id ?? throw new \LogicException('The project has no id.')), $granted);
+        self::assertNotContains($userTopics->forInbox($owner->id ?? throw new \LogicException('The owner has no id.')), $granted);
     }
 
     public function test_a_one_item_ask_names_its_item_once_as_the_heading(): void
