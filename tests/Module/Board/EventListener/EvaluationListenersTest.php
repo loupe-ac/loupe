@@ -78,6 +78,7 @@ use App\Module\Review\Event\ReviewSubmitted;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\CardEvaluations;
 use App\Module\Workflow\Contract\EpicBranches;
+use App\Module\Workflow\Contract\ProjectsReadingFacts;
 use App\Module\Workflow\Contract\RepositoryWorkflowSettingsApplied;
 use App\Module\Workflow\Contract\WorkflowRuleStates;
 use App\Module\Workflow\Entity\WorkflowRuleState;
@@ -504,20 +505,33 @@ final class EvaluationListenersTest extends KernelTestCase
         self::assertSame([], $this->sent());
     }
 
-    public function test_a_stored_account_reading_asks_for_the_cards_in_open_columns_of_the_projects(): void
+    public function test_a_stored_account_reading_asks_for_the_cards_with_an_open_request_in_the_projects(): void
+    {
+        [$waiting, $claimed] = [$this->card($this->project, 'next'), $this->card($this->project, 'next')];
+        $this->card($this->project, 'in-progress');
+        $this->workRequest($waiting, 'implement');
+        $this->workRequest($claimed, 'implement')->state = WorkRequestState::Claimed;
+        $this->em()->flush();
+        $listener = new EvaluateCardsOnBridgeAccountReadingsStored($this->service(WorkRequestRepository::class), $this->service(CardRepository::class), $this->readers([]), $this->trigger());
+
+        $listener(new BridgeAccountReadingsStored([$this->projectId()->toRfc4122()]));
+        self::assertSame($this->ids($waiting), $this->sent());
+
+        $this->transport()->reset();
+        $listener(new BridgeAccountReadingsStored([]));
+        self::assertSame([], $this->sent());
+    }
+
+    public function test_a_stored_account_reading_also_asks_for_every_open_card_of_a_project_whose_workflow_reads_usage(): void
     {
         [$backlog, $running] = [$this->card($this->project, 'backlog'), $this->card($this->project, 'in-progress')];
         $this->card($this->project, 'done');
         $other = $this->workflowProject('listeners-readings-other');
         $this->card($other, 'next');
-        $listener = new EvaluateCardsOnBridgeAccountReadingsStored($this->service(CardRepository::class), $this->trigger());
+        $listener = new EvaluateCardsOnBridgeAccountReadingsStored($this->service(WorkRequestRepository::class), $this->service(CardRepository::class), $this->readers([$this->projectId()->toRfc4122()]), $this->trigger());
 
-        $listener(new BridgeAccountReadingsStored([$this->projectId()->toRfc4122()]));
+        $listener(new BridgeAccountReadingsStored([$this->projectId()->toRfc4122(), $other->id?->toRfc4122() ?? '']));
         self::assertSame($this->ids($backlog, $running), $this->sent());
-
-        $this->transport()->reset();
-        $listener(new BridgeAccountReadingsStored([]));
-        self::assertSame([], $this->sent());
     }
 
     public function test_a_bridge_rename_with_no_new_reading_asks_for_the_cards_in_open_columns_of_the_projects(): void
@@ -654,6 +668,24 @@ final class EvaluationListenersTest extends KernelTestCase
     private function deleteListener(): EvaluateCardsOnBoardColumnDeleted
     {
         return new EvaluateCardsOnBoardColumnDeleted($this->service(CardRepository::class), $this->trigger());
+    }
+
+    /** @param list<string> $readingProjects */
+    private function readers(array $readingProjects): ProjectsReadingFacts
+    {
+        return new readonly class($readingProjects) implements ProjectsReadingFacts {
+            /** @param list<string> $readingProjects */
+            public function __construct(
+                private array $readingProjects,
+            ) {
+            }
+
+            #[\Override]
+            public function among(array $projectIds, string $factsClass): array
+            {
+                return array_values(array_intersect($projectIds, $this->readingProjects));
+            }
+        };
     }
 
     private function workRequest(Card $card, string $kind): WorkRequest
