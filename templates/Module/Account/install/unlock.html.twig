@@ -1,0 +1,20 @@
+{% extends '@Account/auth_base.html.twig' %}
+
+{% block title %}{{ 'account.install.unlock.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% block auth_body %}
+<div class="flex flex-col gap-1.5">
+    <h1 class="auth-heading">{{ 'account.install.unlock.heading'|trans }}</h1>
+    <p class="auth-subheading">{{ 'account.install.unlock.intro'|trans }}</p>
+</div>
+
+{{ form_start(form, {'attr': {'class': 'lp-form', 'novalidate': 'novalidate'}}) }}
+
+    {{ form_errors(form) }}
+
+    <twig:Ds:FormField :fieldView="form.token" />
+
+    <twig:Ds:Button variant="primary" size="lg" type="submit" class="lp-auth__action">{{ 'account.install.unlock.submit'|trans }}</twig:Ds:Button>
+
+{{ form_end(form) }}
+{% endblock %}
