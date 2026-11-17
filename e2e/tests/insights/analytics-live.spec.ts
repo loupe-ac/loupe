@@ -23,10 +23,11 @@ const PASSWORD = 'E2eAnalyticsLive1!';
 // default budget on a loaded runner.
 test.slow();
 
-/** Opens a page and waits until the browser asked the hub to follow its topics. */
+/** Opens a page and waits until the hub accepted the subscription of its topics. */
 async function openLive(page: Page, url: string): Promise<void> {
-    const subscribed = page.waitForRequest(
-        (request) => new URL(request.url()).pathname === '/.well-known/mercure',
+    const subscribed = page.waitForResponse(
+        (response) =>
+            new URL(response.url()).pathname === '/.well-known/mercure',
         { timeout: 15000 },
     );
     await page.goto(url);
