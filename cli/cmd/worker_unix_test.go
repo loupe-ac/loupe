@@ -180,11 +180,10 @@ func TestProcessInfoTellsAZombieApart(t *testing.T) {
 // The prompt reaches claude as one argv element, so no shell reads it.
 func TestRunWorkerPassesThePromptUnchanged(t *testing.T) {
 	out := filepath.Join(t.TempDir(), "args")
-	t.Setenv("ARGS_FILE", out)
 	workerClaude(t, "for a in \"$@\"; do printf '%s\\n' \"$a\"; done > \"$ARGS_FILE\"\n")
 
 	prompt := "-x \"double\" 'single' $HOME `id` $(id) ; exit 9"
-	spec := workerSpec{dir: t.TempDir(), sessionID: testSession, prompt: prompt}
+	spec := workerSpec{dir: t.TempDir(), sessionID: testSession, prompt: prompt, env: []string{"ARGS_FILE=" + out}}
 	if res := runWorker(context.Background(), spec, nil); res.err != nil || res.exitCode != 0 {
 		t.Fatalf("runWorker = %+v", res)
 	}

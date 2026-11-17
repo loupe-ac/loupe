@@ -168,7 +168,10 @@ const agentsOffNoAccounts = "rules.yaml has no accounts block"
 // File is the rule file as written.
 type File struct {
 	// EnvFile is read at the start of each agent run, before the account's.
-	EnvFile  string             `yaml:"envFile"`
+	EnvFile string `yaml:"envFile"`
+	// PassEnv names the variables of the bridge environment that every worker
+	// gets besides the base list. A name that ends in "*" is a prefix.
+	PassEnv  []string           `yaml:"passEnv"`
 	Accounts map[string]Account `yaml:"accounts"`
 	Defaults FileDefaults       `yaml:"defaults"`
 	Projects map[string]Project `yaml:"projects"`
@@ -395,6 +398,7 @@ type Set struct {
 	// accounts have their paths expanded.
 	accounts map[string]Account
 	envFile  string
+	passEnv  []string
 	// agentsOff is why no worker, interactive entry or app prompt runs, and
 	// "" while they run.
 	agentsOff string
@@ -462,6 +466,8 @@ func Parse(data []byte, defaults Defaults) (*Set, error) {
 		}
 		s.envFile = path
 	}
+	errs = append(errs, checkPassEnv(root, f.PassEnv)...)
+	s.passEnv = slices.Clone(f.PassEnv)
 	switch {
 	case f.Defaults.Account != "":
 		errs = append(errs, checkAccountName(lineOf(root, "defaults", "account"), "defaults.account", f.Defaults.Account, declared)...)
@@ -1296,6 +1302,43 @@ func braces(names []string) string {
 	}
 
 	return strings.Join(out, " ")
+}
+
+var passEnvPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*\*?$`)
+
+// checkPassEnv refuses a passEnv entry that is not a variable name or a prefix.
+func checkPassEnv(root *yaml.Node, names []string) []error {
+	var errs []error
+	for _, n := range names {
+		if !passEnvPattern.MatchString(n) {
+			errs = append(errs, fmt.Errorf("%spassEnv: %q is not a variable name; use letters, digits and underscores, with an optional * at the end", lineOf(root, "passEnv"), n))
+		}
+	}
+
+	return errs
+}
+
+// PassEnvOf reads the passEnv names of the rule file at path. It ignores every
+// other key and every error, so a fault elsewhere in the file never drops a
+// name. A name that is not a variable name or a prefix is left out.
+func PassEnvOf(path string) []string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	var f struct {
+		PassEnv []string `yaml:"passEnv"`
+	}
+	if yaml.Unmarshal(data, &f) != nil {
+		return nil
+	}
+
+	return slices.DeleteFunc(f.PassEnv, func(n string) bool { return !passEnvPattern.MatchString(n) })
+}
+
+// PassEnv gives the passEnv names of the file.
+func (s *Set) PassEnv() []string {
+	return slices.Clone(s.passEnv)
 }
 
 // AutoUpdate reports whether the bridge may update the CLI on its own.
