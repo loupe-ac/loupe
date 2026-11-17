@@ -29,16 +29,18 @@ permissions:
 # require the legs individually. Each job runs the same recipe a workstation
 # runs, so the two gates cannot drift.
 jobs:
-  # Pushes the php-fpm image that the setup action pulls. A same-repository
-  # branch publishes too, so a branch that changes the Dockerfile fills the
-  # registry for its own re-runs. No job waits for it.
+  # Builds the php-fpm image on main, pushes it and signs it. A leg that pulls
+  # the image verifies that signature first, so a tag that a branch overwrote
+  # is never trusted. A branch run builds from the layer cache instead.
   php-fpm-image:
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: read
       packages: write
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@v7
       - name: Name the image
@@ -52,10 +54,12 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ github.token }}
-      - name: Look for the image
+      - name: Look for a signed image
         id: exists
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          if docker manifest inspect "${{ steps.image.outputs.image }}" >/dev/null 2>&1; then echo "found=true" >> "$GITHUB_OUTPUT"; fi
+          if .github/scripts/verify-php-fpm-image.sh "${{ steps.image.outputs.image }}" >/dev/null; then echo "found=true" >> "$GITHUB_OUTPUT"; fi
       - if: steps.exists.outputs.found != 'true'
         id: buildx-mirror
         continue-on-error: true
@@ -72,6 +76,7 @@ jobs:
             [registry."docker.io"]
               mirrors = ["mirror.gcr.io"]
       - if: steps.exists.outputs.found != 'true'
+        id: build
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -80,6 +85,12 @@ jobs:
           push: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - if: steps.exists.outputs.found != 'true'
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-name: ghcr.io/${{ github.repository }}/php-fpm
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
 
   lint:
     runs-on: ubuntu-latest
