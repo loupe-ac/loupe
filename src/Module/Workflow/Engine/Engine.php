@@ -174,20 +174,23 @@ final readonly class Engine
 
     /**
      * A check that a full sweep queued for a card with no mark found a change, so the marks missed it.
-     * A time that came before the pass explains a change by the clock alone, so it raises no error.
+     * A time that came before the pass explains the change of its own rule, or of the markers, so only that change is
+     * left out. Every other change still raises the error.
      */
     private function reportMiss(Evaluation $run): void
     {
-        if ($run->dueBefore || ([] === $run->changedRules && !$run->markersChanged)) {
+        $rules = array_diff_key($run->changedRules, $run->dueRules);
+        $markers = $run->markersChanged && !$run->markersDue && [] === $run->dueRules;
+        if ([] === $rules && !$markers) {
             return;
         }
 
         $this->logger->error('workflow.change_missed', [
             'cardId' => $run->card->id->toRfc4122(),
-            'rules' => array_keys($run->changedRules),
+            'rules' => array_keys($rules),
             'fired' => array_map(static fn (array $fired): string => $fired['rule'], $run->fired),
             'opened' => $run->opened,
-            'markersChanged' => $run->markersChanged,
+            'markersChanged' => $markers,
         ]);
     }
 
@@ -245,7 +248,12 @@ final readonly class Engine
 
             return $run;
         }
-        $run->dueBefore = self::dueBefore($run);
+        $run->markersDue = null !== $run->card->markersDueAt && $run->card->markersDueAt <= $run->now;
+        foreach ($run->states as $state) {
+            if (null !== $state->dueAt && $state->dueAt <= $run->now) {
+                $run->dueRules[$state->ruleId] = true;
+            }
+        }
         $this->logMissingProviders($run);
         $this->logMissingActions($run);
         if ($baseline) {
@@ -1148,15 +1156,6 @@ final readonly class Engine
         if ($heldBefore !== (null !== $state->heldByBlockerSince)) {
             $run->holdChanged = true;
         }
-    }
-
-    private static function dueBefore(Evaluation $run): bool
-    {
-        if (null !== $run->card->markersDueAt && $run->card->markersDueAt <= $run->now) {
-            return true;
-        }
-
-        return array_any($run->states, fn ($state) => null !== $state->dueAt && $state->dueAt <= $run->now);
     }
 
     /** @return list<mixed> */

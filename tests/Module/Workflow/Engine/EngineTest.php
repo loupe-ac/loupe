@@ -258,6 +258,25 @@ final class EngineTest extends KernelTestCase
         self::assertSame([], $this->missRecords());
     }
 
+    public function test_a_passed_due_time_hides_only_the_change_of_its_own_rule_from_the_miss_report(): void
+    {
+        $card = $this->boundCard([self::requestRule('timed', self::ALWAYS), self::requestRule('other', self::ALWAYS)]);
+        $this->evaluate($card);
+        $timed = $this->ruleState($card, 'timed');
+        $timed->truth = false;
+        $timed->dueAt = new \DateTimeImmutable('2026-10-02 12:01:00');
+        $this->ruleState($card, 'other')->truth = false;
+        $this->em()->flush();
+        $this->logger->records = [];
+
+        $this->engine()->evaluate($card->id ?? throw new \LogicException('A flushed card has an id.'), new \DateTimeImmutable('2026-10-02 12:05:00'), reportMiss: true);
+
+        $misses = $this->missRecords();
+        self::assertCount(1, $misses);
+        self::assertContains('other', $misses[0]['context']['rules']);
+        self::assertNotContains('timed', $misses[0]['context']['rules']);
+    }
+
     public function test_an_ordinary_check_reports_no_miss_for_the_same_change(): void
     {
         $card = $this->boundCard([self::requestRule('work', self::ALWAYS)]);
