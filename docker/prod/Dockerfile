@@ -12,6 +12,7 @@ RUN npm run build:widget
 # The Mermaid ES module build for the review page, installed from the npm
 # package that package-lock.json pins and written to the path the app imports.
 FROM node:22-alpine AS mermaid
+RUN apk add --no-cache bash
 WORKDIR /build
 COPY package.json package-lock.json ./
 COPY bin/vendor-mermaid.sh bin/vendor-mermaid.sh
