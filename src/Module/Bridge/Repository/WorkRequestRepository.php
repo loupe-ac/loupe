@@ -13,6 +13,7 @@ use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Project\Entity\Project;
+use App\Module\Workflow\Contract\FactsPass;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\LockMode;
@@ -39,8 +40,10 @@ class WorkRequestRepository extends ServiceEntityRepository
             WHERE h.project_id = work_requests.project_id AND h.card_id = work_requests.subject_id))
         SQL;
 
-    public function __construct(ManagerRegistry $registry)
-    {
+    public function __construct(
+        ManagerRegistry $registry,
+        private readonly FactsPass $factsPass,
+    ) {
         parent::__construct($registry, WorkRequest::class);
     }
 
@@ -538,6 +541,12 @@ class WorkRequestRepository extends ServiceEntityRepository
      * @return list<WorkRequest>
      */
     public function findLiveForCard(Uuid $cardId): array
+    {
+        return $this->factsPass->remember('live-work-requests:'.$cardId->toRfc4122(), fn (): array => $this->readLiveForCard($cardId));
+    }
+
+    /** @return list<WorkRequest> */
+    private function readLiveForCard(Uuid $cardId): array
     {
         return array_values($this->ofSubject(WorkSubject::card($cardId))
             ->andWhere('w.state IN (:live)')
