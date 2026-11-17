@@ -102,3 +102,10 @@ description: "What to verify after a deploy, and what each check can and cannot 
    ZIP**: completion only proves the worker ran, while the download is what
    proves the web container can reach the archive the worker wrote.
 
+7. If a bridge runs against this instance, update its CLI. A bridge on a CLI
+   from before the run credential has no run identity, so its review runs fail
+   until it updates. Then check which OS user runs the workers. A worker runs as
+   the user of the bridge and can read that user's `loupe login` file. The run
+   credential does not stop a worker that reads the file on purpose. For a hard
+   boundary, run the workers as a separate OS user that cannot read the login
+   folder. [The bridge page](/extending/cli-bridge/) has the details.

@@ -1436,9 +1436,10 @@ variables through the environment of its MCP server, never as an argument, so a
 process list does not show the token.
 
 A failed mint fails the launch, and the run goes through the normal launch
-failure path. A server with no mint route (HTTP 404) lets the launch go on with
-no token. That worker then has no run credential. Loupe no longer reads the
-session header as a run identity, so a review run of that worker fails.
+failure path. A server with no mint route (HTTP 404) is an older server. The
+launch goes on with no token, and that server still reads the session header
+as a run identity, so a review run of that worker can succeed. A server with
+the mint route no longer reads the session header, so it needs the token.
 
 ### What the token reaches
 
