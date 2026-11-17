@@ -229,6 +229,21 @@ describe('prepush-check.sh', () => {
         expect(r.out).not.toContain('gap:');
     });
 
+    it('exits 0 when the only Not proven lines are accepted by the owner', () => {
+        const r = run(
+            `## Preview\n\n${dataLine}\n- Run list: Not proven: accepted by the owner: reached only by a POST\n`,
+        );
+        expect(r.status).toBe(0);
+        expect(r.out).toBe('clean\n');
+    });
+
+    it('exits 0 for an accepted empty list of required states', () => {
+        const r = run(
+            '## Preview\n\n- Not proven: accepted by the owner: no required states\n',
+        );
+        expect(r.status).toBe(0);
+    });
+
     it('exits 1 when a gap sits next to a Not proven line', () => {
         const r = run('## Summary\n\n- Run list: Not proven: cannot seed\n');
         expect(r.status).toBe(1);
