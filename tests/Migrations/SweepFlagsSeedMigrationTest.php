@@ -9,10 +9,12 @@ use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Schema\Schema;
 use Doctrine\ORM\EntityManagerInterface;
 use DoctrineMigrations\Version20261117040000;
+use DoctrineMigrations\Version20261117040100;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 require_once __DIR__.'/../../migrations/Version20261117040000.php';
+require_once __DIR__.'/../../migrations/Version20261117040100.php';
 
 final class SweepFlagsSeedMigrationTest extends KernelTestCase
 {
@@ -52,10 +54,11 @@ final class SweepFlagsSeedMigrationTest extends KernelTestCase
 
     private function migrate(): void
     {
-        $migration = new Version20261117040000($this->connection, new NullLogger());
-        $migration->up(new Schema());
-        foreach ($migration->getSql() as $query) {
-            $this->connection->executeStatement($query->getStatement(), $query->getParameters(), $query->getTypes());
+        foreach ([new Version20261117040000($this->connection, new NullLogger()), new Version20261117040100($this->connection, new NullLogger())] as $migration) {
+            $migration->up(new Schema());
+            foreach ($migration->getSql() as $query) {
+                $this->connection->executeStatement($query->getStatement(), $query->getParameters(), $query->getTypes());
+            }
         }
     }
 
