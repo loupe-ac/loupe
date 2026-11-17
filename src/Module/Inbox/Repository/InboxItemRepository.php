@@ -69,20 +69,36 @@ class InboxItemRepository extends ServiceEntityRepository
     }
 
     /**
-     * The oldest open item of each card of the project, linked by an ask or by a card wait, in one query.
+     * The oldest open item of each card of the project, linked by an ask or by a card wait, in one query. A list of card ids limits the read to those cards.
+     *
+     * @param list<Uuid>|null $cardIds
      *
      * @return array<string, int> card id => item number
      */
-    public function findOldestOpenNumberPerCard(Project $project): array
+    public function findOldestOpenNumberPerCard(Project $project, ?array $cardIds = null): array
     {
+        if ([] === $cardIds) {
+            return [];
+        }
+
+        $params = ['project' => (string) ($project->id ?? throw new \LogicException('Project has no id.'))];
+        $types = [];
+        $cardFilter = '';
+        if (null !== $cardIds) {
+            $cardFilter = 'AND links.card_id IN (:cards)';
+            $params['cards'] = array_map(static fn (Uuid $id): string => (string) $id, $cardIds);
+            $types['cards'] = ArrayParameterType::STRING;
+        }
+
         /** @var array<string, int> $numbers */
         $numbers = $this->getEntityManager()->getConnection()->executeQuery(
             "SELECT DISTINCT ON (links.card_id) links.card_id, i.number
              FROM inbox_items i
              JOIN (SELECT item_id, card_id FROM inbox_item_cards UNION ALL SELECT item_id, card_id FROM inbox_card_watches) links ON links.item_id = i.id
-             WHERE i.project_id = :project AND i.state = 'open'
+             WHERE i.project_id = :project AND i.state = 'open' {$cardFilter}
              ORDER BY links.card_id, i.created_at, i.id",
-            ['project' => (string) ($project->id ?? throw new \LogicException('Project has no id.'))],
+            $params,
+            $types,
         )->fetchAllKeyValue();
 
         return $numbers;
