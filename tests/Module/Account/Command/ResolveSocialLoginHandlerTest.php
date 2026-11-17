@@ -327,9 +327,8 @@ final class ResolveSocialLoginHandlerTest extends KernelTestCase
         $reloaded = $this->users->find($existing->id);
         self::assertNotNull($reloaded);
         self::assertNotNull($reloaded->emailVerifiedAt);
-        // VerifyEmailController logs in whoever presents a valid token and never
-        // asks whether the account is already verified, so an outstanding link
-        // here is a live credential rather than a stale no-op.
+        // VerifyEmailHandler never asks whether the account is already verified,
+        // so an outstanding link here is still usable rather than a stale no-op.
         self::assertFalse($reloaded->hasEmailVerificationToken());
     }
 

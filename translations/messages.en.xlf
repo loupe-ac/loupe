@@ -446,6 +446,26 @@
                 <source>account.registration.flash.verification_invalid</source>
                 <target>This verification link is invalid or has expired. Please request a new one.</target>
             </trans-unit>
+            <trans-unit id="account.registration.flash.verified_sign_in">
+                <source>account.registration.flash.verified_sign_in</source>
+                <target>Address confirmed. Please sign in.</target>
+            </trans-unit>
+            <trans-unit id="account.registration.verify.page.title">
+                <source>account.registration.verify.page.title</source>
+                <target>Confirm your email address</target>
+            </trans-unit>
+            <trans-unit id="account.registration.verify.heading">
+                <source>account.registration.verify.heading</source>
+                <target>Confirm your email address</target>
+            </trans-unit>
+            <trans-unit id="account.registration.verify.body">
+                <source>account.registration.verify.body</source>
+                <target>Press the button to confirm that %email% is your address.</target>
+            </trans-unit>
+            <trans-unit id="account.registration.verify.cta">
+                <source>account.registration.verify.cta</source>
+                <target>Confirm email address</target>
+            </trans-unit>
 
             <!-- Registration form errors (translated in controller) -->
             <trans-unit id="account.registration.error.email_duplicate">
@@ -3719,6 +3739,10 @@
             <trans-unit id="account.system_status.sentry.no_excimer">
                 <source>account.system_status.sentry.no_excimer</source>
                 <target>SENTRY_DSN is set and profiles are sampled, but the Excimer PHP extension is not loaded, so Sentry receives traces and no profiles. Install Excimer, or set SENTRY_PROFILES_SAMPLE_RATE to 0.</target>
+            </trans-unit>
+            <trans-unit id="account.system_status.sentry.no_samples">
+                <source>account.system_status.sentry.no_samples</source>
+                <target>SENTRY_DSN is set and Excimer is loaded, but a 50 ms test collected fewer than 2 profiler samples, so Sentry drops every profile. A sandboxed kernel can stop the profiler timer.</target>
             </trans-unit>
             <trans-unit id="check.sentry_browser.label">
                 <source>check.sentry_browser.label</source>

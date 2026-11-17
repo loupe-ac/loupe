@@ -11,8 +11,10 @@ vi.mock('../../assets/lib/live.js', () => ({
     status: vi.fn(() => () => {}),
 }));
 
-const PLACEHOLDER = '00000000-0000-7000-8000-000000000000';
 const STREAM = 'text/vnd.turbo-stream.html; charset=UTF-8';
+// The 150 ms settle wait, then the task in which the due cards gather.
+const SETTLED = 151;
+const PLACEMENTS = '/projects/p/board/placements';
 const MANIFEST = '/projects/p/board/manifest';
 const STRUCTURE = '/projects/p/board/structure';
 
@@ -44,11 +46,15 @@ const json = (body) => ({
     json: () => Promise.resolve(body),
 });
 
-const placements = () =>
+/** The requests for placements, each as the list of card ids it asks for. */
+const placementRequests = () =>
     fetch.mock.calls
         .map(([url]) => url)
-        .filter((url) => url !== MANIFEST && url !== STRUCTURE)
-        .map((url) => url.split('/')[5]);
+        .filter((url) => url.startsWith(`${PLACEMENTS}?cards=`))
+        .map((url) => url.split('?cards=')[1].split(','));
+
+/** Every card id asked for, in request order. */
+const placements = () => placementRequests().flat();
 
 const manifestReads = () =>
     fetch.mock.calls.filter(([url]) => url === MANIFEST);
@@ -84,6 +90,32 @@ function missed(cardId) {
 const card = () => document.getElementById('board-card-a');
 const sign = () => document.querySelector('[data-board-live-target="paused"]');
 const row = () => document.getElementById('board-row-a');
+const BLANK_STREAM = '<turbo-stream></turbo-stream>';
+
+/** A blank answer to a placements request becomes one stream for each card asked for, as the server sends. */
+function withTargets(response, url) {
+    if (typeof response?.text !== 'function' || !url.startsWith(PLACEMENTS)) {
+        return response;
+    }
+    const cards = url.split('?cards=')[1].split(',');
+
+    return {
+        ...response,
+        text: () =>
+            response
+                .text()
+                .then((body) =>
+                    body === BLANK_STREAM
+                        ? cards
+                              .map(
+                                  (id) =>
+                                      `<turbo-stream action="board-place" target="board-card-${id}"></turbo-stream>`,
+                              )
+                              .join('')
+                        : body,
+                ),
+    };
+}
 const stream = (body = '<turbo-stream></turbo-stream>') => ({
     ok: true,
     status: 200,
@@ -103,8 +135,7 @@ const isStale = () =>
 
 beforeEach(async () => {
     document.body.innerHTML = `<div id="wrapper" data-controller="board-live"
-            data-board-live-placement-value="/projects/p/board/cards/${PLACEHOLDER}/placement"
-            data-board-live-placeholder-value="${PLACEHOLDER}"
+            data-board-live-placements-value="${PLACEMENTS}"
             data-board-live-manifest-value="${MANIFEST}"
             data-board-live-structure-value="${STRUCTURE}"
             data-board-live-stale-value="${STALE_TEXT}">
@@ -124,7 +155,9 @@ beforeEach(async () => {
     answer = () => Promise.resolve(stream());
     vi.stubGlobal(
         'fetch',
-        vi.fn((url, options) => answer(url, options)),
+        vi.fn((url, options) =>
+            answer(url, options).then((response) => withTargets(response, url)),
+        ),
     );
     on.mockImplementation((types, handler, options = {}) => {
         if ([types].flat().includes('board.columns_changed')) {
@@ -184,7 +217,7 @@ it('reads the manifest after a reconnect and fetches a card whose digest changed
         }),
     );
     reconnect();
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
 
     const [url, options] = manifestReads()[0];
     expect(url).toBe(MANIFEST);
@@ -207,7 +240,7 @@ it('fetches a card the manifest has and the page does not', async () => {
         }),
     );
     reconnect();
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
 
     expect(placements()).toEqual(['c']);
 });
@@ -223,7 +256,7 @@ it('fetches a removed card first, then the rest in manifest order', async () => 
         }),
     );
     reconnect();
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
 
     expect(placements()).toEqual(['b', 'c', 'a']);
     expect(dispatch).not.toHaveBeenCalled();
@@ -646,7 +679,7 @@ it('fetches the epic of a deck card whose card the board does not show', async (
             detail: { cardId: 'x', removed: true },
         }),
     );
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
 
     expect(placements()).toEqual(['epic']);
 });
@@ -657,7 +690,7 @@ it('fetches the epic whose deck a new Backlog card joins', async () => {
             detail: { cardId: 'new', removed: true, deckEpic: 'epic' },
         }),
     );
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
 
     expect(placements()).toEqual(['epic']);
 });
@@ -674,7 +707,7 @@ it('fetches both epics when a Backlog card changes its epic', async () => {
             detail: { cardId: 'x', removed: true, deckEpic: 'new' },
         }),
     );
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
 
     expect(placements().sort()).toEqual(['new', 'old']);
 });
@@ -685,7 +718,7 @@ it('fetches the epic of the deck a placed card left', async () => {
             detail: { cardId: 'x', leftDeck: 'epic' },
         }),
     );
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
 
     expect(placements()).toEqual(['epic']);
 });
@@ -747,7 +780,7 @@ describe('a lane head that holds a deck card in a drag', () => {
                 reply = resolve;
             });
         receive('epic');
-        await vi.advanceTimersByTimeAsync(150);
+        await vi.advanceTimersByTimeAsync(SETTLED);
         expect(placements()).toEqual(['epic']);
 
         document
@@ -769,7 +802,7 @@ it('makes no reload on a reconnect after a live lane head placement', async () =
                 '<a id="board-row-epic" class="lp-board-list__row" data-card-id="epic" data-card-digest="old"></a>',
         );
     receive('epic');
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
     expect(placements()).toEqual(['epic']);
     // The lane head stream re-places the list row with its new digest.
     const lane = document.getElementById('board-lane-epic');
@@ -1112,7 +1145,7 @@ it('clears the message on the next successful catch-up', async () => {
         }),
     );
     reconnect();
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
     expect(sign().textContent).toBe('');
     expect(placements()).toEqual(['a']);
 });
@@ -1202,7 +1235,7 @@ it('aborts an older manifest read on a second reconnect and uses the newer one',
             structure: 'frame',
         }),
     );
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
     expect(placements()).toEqual(['a']);
     expect(dispatch).not.toHaveBeenCalled();
 });
@@ -1245,9 +1278,9 @@ it('fetches the placement of the card a run warning names, and marks it when its
         local: false,
         own: false,
     });
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
     expect(fetch.mock.calls.map(([url]) => url)).toEqual([
-        '/projects/p/board/cards/a/placement',
+        `${PLACEMENTS}?cards=a`,
     ]);
     placed('a', 'new');
     expect(card().classList.contains('lp-board-card--flash')).toBe(true);
@@ -1262,63 +1295,199 @@ it('fetches a card once for a burst of messages, 150 ms after the last one', asy
     await vi.advanceTimersByTimeAsync(149);
     expect(fetch).not.toHaveBeenCalled();
 
-    await vi.advanceTimersByTimeAsync(1);
+    await vi.advanceTimersByTimeAsync(2);
     expect(fetch).toHaveBeenCalledOnce();
     const [url, options] = fetch.mock.calls[0];
-    expect(url).toBe('/projects/p/board/cards/a/placement');
+    expect(url).toBe(`${PLACEMENTS}?cards=a`);
     expect(options.headers.Accept).toBe('text/vnd.turbo-stream.html');
     expect(options.credentials).toBe('same-origin');
     expect(renderStreamMessage).toHaveBeenCalledWith(
-        '<turbo-stream></turbo-stream>',
+        '<turbo-stream action="board-place" target="board-card-a"></turbo-stream>',
     );
 });
 
-it('fetches each card that changed', async () => {
-    receive('a');
+it('fetches the cards that changed together in one request, in the order they changed', async () => {
     receive('b');
-    await vi.advanceTimersByTimeAsync(150);
-    expect(fetch.mock.calls.map(([url]) => url)).toEqual([
-        '/projects/p/board/cards/a/placement',
-        '/projects/p/board/cards/b/placement',
-    ]);
+    receive('a');
+    await vi.advanceTimersByTimeAsync(SETTLED);
+    expect(placementRequests()).toEqual([['b', 'a']]);
 });
 
-it('runs one placement at a time, so an older answer never renders after a newer one', async () => {
+it('gathers the cards whose settle waits end a few milliseconds apart into one request', async () => {
+    receive('a');
+    await vi.advanceTimersByTimeAsync(5);
+    receive('b');
+    await vi.advanceTimersByTimeAsync(SETTLED - 5);
+    expect(placementRequests()).toEqual([['a', 'b']]);
+});
+
+it('leaves a card whose settle wait ends later than the gather window for a later request', async () => {
+    receive('a');
+    await vi.advanceTimersByTimeAsync(60);
+    receive('b');
+    await vi.advanceTimersByTimeAsync(SETTLED - 60);
+    expect(placementRequests()).toEqual([['a']]);
+
+    await vi.advanceTimersByTimeAsync(100);
+    expect(placementRequests()).toEqual([['a'], ['b']]);
+});
+
+it('runs one request at a time, so an older answer never renders after a newer one', async () => {
     const finishes = [];
     answer = () =>
         new Promise((resolve) => {
             finishes.push(resolve);
         });
-    const stream = (body) => ({
-        ok: true,
-        headers: new Headers({ 'Content-Type': STREAM }),
-        text: () => Promise.resolve(body),
-    });
+    receive('a');
+    await vi.advanceTimersByTimeAsync(SETTLED);
+    expect(fetch).toHaveBeenCalledOnce();
+    receive('b');
+    await vi.advanceTimersByTimeAsync(SETTLED);
+    expect(fetch).toHaveBeenCalledOnce();
+
+    finishes[0](stream());
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    finishes[1](stream());
+    await vi.advanceTimersByTimeAsync(0);
+    expect(
+        renderStreamMessage.mock.calls.map(
+            ([html]) => html.match(/board-card-(\w)/)[1],
+        ),
+    ).toEqual(['a', 'b']);
+});
+
+it('takes a card that becomes due while a request runs into the next request', async () => {
+    const finishes = [];
+    answer = () =>
+        new Promise((resolve) => {
+            finishes.push(resolve);
+        });
+    receive('a');
+    await vi.advanceTimersByTimeAsync(SETTLED);
+    receive('b');
+    await vi.advanceTimersByTimeAsync(SETTLED);
+    finishes[0](stream());
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(placementRequests()).toEqual([['a'], ['b']]);
+});
+
+it('renews the settle wait of a card that waits for its request, and sends it later', async () => {
     receive('a');
     receive('b');
     await vi.advanceTimersByTimeAsync(150);
-    expect(fetch).toHaveBeenCalledOnce();
+    // The timers of both cards ran, and the gather task has not run yet.
+    receive('a');
+    await vi.advanceTimersByTimeAsync(1);
+    expect(placementRequests()).toEqual([['b']]);
 
-    finishes[0](stream('a'));
-    await vi.advanceTimersByTimeAsync(0);
-    expect(fetch).toHaveBeenCalledTimes(2);
-    finishes[1](stream('b'));
-    await vi.advanceTimersByTimeAsync(0);
-    expect(renderStreamMessage.mock.calls.map(([html]) => html)).toEqual([
-        'a',
-        'b',
-    ]);
+    await vi.advanceTimersByTimeAsync(150);
+    expect(placementRequests()).toEqual([['b'], ['a']]);
+});
+
+it('sends no request when every due card had a new change', async () => {
+    receive('a');
+    await vi.advanceTimersByTimeAsync(150);
+    receive('a');
+    await vi.advanceTimersByTimeAsync(100);
+    expect(fetch).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(60);
+    expect(placementRequests()).toEqual([['a']]);
+});
+
+it('retries a card that the answer leaves out alone, and renders the others', async () => {
+    let requests = 0;
+    answer = () => {
+        requests += 1;
+        const targets = requests === 1 ? ['b'] : ['a'];
+
+        return Promise.resolve(
+            stream(
+                targets
+                    .map(
+                        (id) =>
+                            `<turbo-stream action="board-place" target="board-card-${id}"></turbo-stream>`,
+                    )
+                    .join(''),
+            ),
+        );
+    };
+    receive('a');
+    receive('b');
+    await vi.advanceTimersByTimeAsync(SETTLED);
+    expect(placementRequests()).toEqual([['a', 'b']]);
+    expect(renderStreamMessage).toHaveBeenCalledOnce();
+
+    await vi.advanceTimersByTimeAsync(1002);
+    expect(placementRequests()).toEqual([['a', 'b'], ['a']]);
+});
+
+it('leaves a card in a drag out of the request, and sends it after the drag', async () => {
+    card().classList.add('lp-board-card--dragging');
+    receive('a');
+    receive('b');
+    await vi.advanceTimersByTimeAsync(SETTLED);
+    expect(placementRequests()).toEqual([['b']]);
+
+    card().classList.remove('lp-board-card--dragging');
+    await vi.advanceTimersByTimeAsync(250);
+    expect(placementRequests()).toEqual([['b'], ['a']]);
+});
+
+it('marks every card of a request stale when the answer is a 404', async () => {
+    answer = () => Promise.resolve(failure(404));
+    receive('a');
+    receive('b');
+    await vi.advanceTimersByTimeAsync(SETTLED);
+    await vi.advanceTimersByTimeAsync(60000);
+
+    expect(placementRequests()).toEqual([['a', 'b']]);
+    expect(
+        document
+            .getElementById('board-card-b')
+            .hasAttribute('data-board-stale'),
+    ).toBe(true);
+    expect(isStale()).toBe(true);
+});
+
+describe('more changed cards than one request holds', () => {
+    const cardIds = Array.from({ length: 51 }, (_, index) => `c${index}`);
+
+    beforeEach(() => {
+        cardIds.forEach((cardId) => receive(cardId));
+    });
+
+    it('puts the first 50 in one request and the 51st in the next, with no later event', async () => {
+        await vi.advanceTimersByTimeAsync(SETTLED);
+        await vi.advanceTimersByTimeAsync(1000);
+
+        expect(placementRequests()).toEqual([
+            cardIds.slice(0, 50),
+            cardIds.slice(50),
+        ]);
+    });
+
+    it('sends the 51st when the first request fails', async () => {
+        answer = () => Promise.reject(new TypeError('offline'));
+        await vi.advanceTimersByTimeAsync(SETTLED);
+        answer = () => Promise.resolve(stream());
+        await vi.advanceTimersByTimeAsync(1);
+
+        expect(placementRequests().map((ids) => ids.length)).toEqual([50, 1]);
+    });
 });
 
 it('still fetches a change that names this page as its origin', async () => {
     receive('a', { own: true });
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
     expect(fetch).toHaveBeenCalledOnce();
 });
 
 it('fetches a change this page emits', async () => {
     receive('a', { local: true, own: true });
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
     expect(fetch).toHaveBeenCalledOnce();
 });
 
@@ -1329,7 +1498,7 @@ it('fetches again after the answer when a message arrives while a fetch runs', a
             finish = resolve;
         });
     receive('a');
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
     receive('a');
     await vi.advanceTimersByTimeAsync(500);
     expect(fetch).toHaveBeenCalledOnce();
@@ -1339,13 +1508,13 @@ it('fetches again after the answer when a message arrives while a fetch runs', a
         headers: new Headers({ 'Content-Type': STREAM }),
         text: () => Promise.resolve(''),
     });
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
     expect(fetch).toHaveBeenCalledTimes(2);
 });
 
 it('marks a card another person changed, for a moment', async () => {
     receive('a');
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
     placed('a', 'new');
 
     expect(card().classList.contains('lp-board-card--flash')).toBe(true);
@@ -1355,7 +1524,7 @@ it('marks a card another person changed, for a moment', async () => {
 
 it('does not mark a card whose face did not change', async () => {
     receive('a');
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
     placed('a', 'old');
 
     expect(card().classList.contains('lp-board-card--flash')).toBe(false);
@@ -1363,7 +1532,7 @@ it('does not mark a card whose face did not change', async () => {
 
 it('marks a card another person moved in its column', async () => {
     receive('b');
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
     card().before(document.getElementById('board-card-b'));
     placed('b', 'old');
 
@@ -1377,7 +1546,7 @@ it('marks a card another person moved in its column', async () => {
 it('does not mark a change this page made', async () => {
     receive('a', { own: true });
     receive('b', { local: true, own: true });
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
     placed('a', 'new');
     placed('b', 'new');
 
@@ -1387,7 +1556,7 @@ it('does not mark a change this page made', async () => {
 it('marks a card when one message of a burst came from another person', async () => {
     receive('a', { own: true });
     receive('a');
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
     placed('a', 'new');
 
     expect(card().classList.contains('lp-board-card--flash')).toBe(true);
@@ -1422,7 +1591,7 @@ it('drops a placement that returns while the card is dragged, and fetches it aga
             finish = resolve;
         });
     receive('a');
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
     expect(fetch).toHaveBeenCalledOnce();
 
     card().classList.add('lp-board-card--dragging');
@@ -1450,12 +1619,12 @@ it('drops a placement that returns while the card is dragged, and fetches it aga
 
 it('keeps the mark for the full time after a second change', async () => {
     receive('a');
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
     placed('a', 'new');
     await vi.advanceTimersByTimeAsync(1000);
 
     receive('a');
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
     placed('a', 'newer');
     await vi.advanceTimersByTimeAsync(1000);
     expect(card().classList.contains('lp-board-card--flash')).toBe(true);
@@ -1466,7 +1635,7 @@ it('keeps the mark for the full time after a second change', async () => {
 
 it('clears the mark timers when it disconnects', async () => {
     receive('a');
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
     placed('a', 'new');
     expect(vi.getTimerCount()).toBe(1);
 
@@ -1475,50 +1644,38 @@ it('clears the mark timers when it disconnects', async () => {
     expect(vi.getTimerCount()).toBe(0);
 });
 
-it('still fetches the next card after a placement request fails', async () => {
-    answer = (url) =>
-        url.includes('/a/')
-            ? Promise.reject(new TypeError('offline'))
-            : Promise.resolve({
-                  ok: true,
-                  headers: new Headers({ 'Content-Type': STREAM }),
-                  text: () => Promise.resolve('b'),
-              });
+it('places every card of a request that failed in one later request', async () => {
+    answer = () => Promise.reject(new TypeError('offline'));
     receive('a');
     receive('b');
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
+    expect(placementRequests()).toEqual([['a', 'b']]);
 
-    expect(fetch).toHaveBeenCalledTimes(2);
-    expect(renderStreamMessage).toHaveBeenCalledWith('b');
+    answer = () => Promise.resolve(stream());
+    await vi.advanceTimersByTimeAsync(1002);
+
+    expect(placementRequests()).toEqual([
+        ['a', 'b'],
+        ['a', 'b'],
+    ]);
+    expect(renderStreamMessage).toHaveBeenCalledOnce();
 });
 
 it('fetches a card once when a message arrives while it waits in the queue', async () => {
     let finish;
-    answer = (url) =>
-        url.includes('/a/')
-            ? new Promise((resolve) => {
-                  finish = resolve;
-              })
-            : Promise.resolve({
-                  ok: true,
-                  headers: new Headers({ 'Content-Type': STREAM }),
-                  text: () => Promise.resolve('b'),
-              });
+    answer = () =>
+        new Promise((resolve) => {
+            finish = resolve;
+        });
     receive('a');
     receive('b');
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
     receive('b');
-    finish({
-        ok: true,
-        headers: new Headers({ 'Content-Type': STREAM }),
-        text: () => Promise.resolve('a'),
-    });
+    answer = () => Promise.resolve(stream());
+    finish(stream());
     await vi.advanceTimersByTimeAsync(1000);
 
-    expect(fetch.mock.calls.map(([url]) => url)).toEqual([
-        '/projects/p/board/cards/a/placement',
-        '/projects/p/board/cards/b/placement',
-    ]);
+    expect(placementRequests()).toEqual([['a', 'b'], ['b']]);
 });
 
 it('writes the paused sign into its live region only while live updates are paused', () => {
@@ -1553,43 +1710,42 @@ it.each([
     async (name, fail) => {
         answer = fail;
         receive('a');
-        await vi.advanceTimersByTimeAsync(150);
+        await vi.advanceTimersByTimeAsync(SETTLED);
         expect(fetch).toHaveBeenCalledOnce();
         expect(renderStreamMessage).not.toHaveBeenCalled();
 
         await vi.advanceTimersByTimeAsync(999);
         expect(fetch).toHaveBeenCalledOnce();
-        await vi.advanceTimersByTimeAsync(1);
+        await vi.advanceTimersByTimeAsync(2);
         expect(fetch).toHaveBeenCalledTimes(2);
         expect(isStale()).toBe(false);
     },
 );
 
-it('gives up on a stalled placement, retries it, and still fetches the next card', async () => {
+it('gives up on a stalled placements request, and retries its cards together', async () => {
     answer = (url, options) =>
-        url.includes('/a/')
-            ? new Promise((resolve, reject) => {
-                  options.signal.addEventListener('abort', () =>
-                      reject(new DOMException('Aborted', 'AbortError')),
-                  );
-              })
-            : Promise.resolve(stream('b'));
+        new Promise((resolve, reject) => {
+            options.signal.addEventListener('abort', () =>
+                reject(new DOMException('Aborted', 'AbortError')),
+            );
+        });
     receive('a');
     receive('b');
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
     expect(fetch).toHaveBeenCalledOnce();
 
     await vi.advanceTimersByTimeAsync(9999);
     expect(fetch).toHaveBeenCalledOnce();
 
+    answer = () => Promise.resolve(stream());
     await vi.advanceTimersByTimeAsync(1);
-    expect(fetch).toHaveBeenCalledTimes(2);
-    expect(fetch.mock.calls[1][0]).toBe('/projects/p/board/cards/b/placement');
-    expect(renderStreamMessage).toHaveBeenCalledWith('b');
+    expect(fetch).toHaveBeenCalledOnce();
 
-    await vi.advanceTimersByTimeAsync(1000);
-    expect(fetch).toHaveBeenCalledTimes(3);
-    expect(fetch.mock.calls[2][0]).toBe('/projects/p/board/cards/a/placement');
+    await vi.advanceTimersByTimeAsync(1002);
+    expect(placementRequests()).toEqual([
+        ['a', 'b'],
+        ['a', 'b'],
+    ]);
 });
 
 it.each([403, 404, 400, 401, 410])(
@@ -1597,7 +1753,7 @@ it.each([403, 404, 400, 401, 410])(
     async (status) => {
         answer = () => Promise.resolve(failure(status));
         receive('a');
-        await vi.advanceTimersByTimeAsync(150);
+        await vi.advanceTimersByTimeAsync(SETTLED);
         expect(isStale()).toBe(true);
 
         await vi.advanceTimersByTimeAsync(60000);
@@ -1618,7 +1774,7 @@ it('waits 1, 3 and 9 seconds between retries, then marks the card stale', async 
     answer = (url) =>
         Promise.resolve(url === MANIFEST ? settledManifest() : failure(503));
     receive('a');
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
     for (const [wait, calls] of [
         [1000, 2],
         [3000, 3],
@@ -1627,7 +1783,7 @@ it('waits 1, 3 and 9 seconds between retries, then marks the card stale', async 
         await vi.advanceTimersByTimeAsync(wait - 1);
         expect(placements()).toHaveLength(calls - 1);
         expect(isStale()).toBe(false);
-        await vi.advanceTimersByTimeAsync(1);
+        await vi.advanceTimersByTimeAsync(2);
         expect(placements()).toHaveLength(calls);
     }
 
@@ -1642,7 +1798,7 @@ it('adds up to 20 percent random time to each retry wait', async () => {
     answer = (url) =>
         Promise.resolve(url === MANIFEST ? settledManifest() : failure(503));
     receive('a');
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
     for (const [wait, calls] of [
         [1200, 2],
         [3600, 3],
@@ -1650,7 +1806,7 @@ it('adds up to 20 percent random time to each retry wait', async () => {
     ]) {
         await vi.advanceTimersByTimeAsync(wait - 1);
         expect(placements()).toHaveLength(calls - 1);
-        await vi.advanceTimersByTimeAsync(1);
+        await vi.advanceTimersByTimeAsync(2);
         expect(placements()).toHaveLength(calls);
     }
     expect(Math.random).toHaveBeenCalledTimes(3);
@@ -1659,7 +1815,7 @@ it('adds up to 20 percent random time to each retry wait', async () => {
 it('marks the stale card and its list row for the eye and for a screen reader', async () => {
     answer = () => Promise.resolve(failure(404));
     receive('a');
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
 
     for (const [element, className] of [
         [card(), 'lp-board-card--stale'],
@@ -1677,9 +1833,9 @@ it('marks the stale card and its list row for the eye and for a screen reader', 
 it('keeps one hidden text when a stale card is marked again', async () => {
     answer = () => Promise.resolve(failure(404));
     receive('a');
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
     receive('a');
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
 
     expect(fetch).toHaveBeenCalledTimes(2);
     expect(card().querySelectorAll('.sr-only')).toHaveLength(1);
@@ -1689,12 +1845,12 @@ it('keeps one hidden text when a stale card is marked again', async () => {
 it('clears the stale mark when the card is placed again', async () => {
     answer = () => Promise.resolve(failure(404));
     receive('a');
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
     expect(isStale()).toBe(true);
 
     answer = () => Promise.resolve(stream());
     receive('a');
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
     placed('a', 'old');
 
     for (const [element, className] of [
@@ -1724,7 +1880,7 @@ describe('a lane epic', () => {
     it('marks the head of its lane stale for the eye and for a screen reader', async () => {
         answer = () => Promise.resolve(failure(404));
         receive('e');
-        await vi.advanceTimersByTimeAsync(150);
+        await vi.advanceTimersByTimeAsync(SETTLED);
 
         expect(head().classList.contains('lp-board-lane__head--stale')).toBe(
             true,
@@ -1744,7 +1900,7 @@ describe('a lane epic', () => {
     it('clears the stale mark of the head when the lane is placed again', async () => {
         answer = () => Promise.resolve(failure(404));
         receive('e');
-        await vi.advanceTimersByTimeAsync(150);
+        await vi.advanceTimersByTimeAsync(SETTLED);
 
         document.getElementById('board-lane-e').dispatchEvent(
             new CustomEvent('board:placed', {
@@ -1763,17 +1919,17 @@ describe('a lane epic', () => {
 it('counts a new change as a fresh start, and cancels the waiting retry', async () => {
     answer = () => Promise.resolve(failure(503));
     receive('a');
-    await vi.advanceTimersByTimeAsync(150);
-    await vi.advanceTimersByTimeAsync(1000);
+    await vi.advanceTimersByTimeAsync(SETTLED);
+    await vi.advanceTimersByTimeAsync(1001);
     expect(fetch).toHaveBeenCalledTimes(2);
 
     receive('a');
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
     expect(fetch).toHaveBeenCalledTimes(3);
 
     await vi.advanceTimersByTimeAsync(999);
     expect(fetch).toHaveBeenCalledTimes(3);
-    await vi.advanceTimersByTimeAsync(1);
+    await vi.advanceTimersByTimeAsync(2);
     expect(fetch).toHaveBeenCalledTimes(4);
     expect(isStale()).toBe(false);
 });
@@ -1785,50 +1941,50 @@ it('counts a change that arrives during a failed fetch as a fresh start', async 
             finish = resolve;
         });
     receive('a');
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
     receive('a');
     finish(failure(503));
     await vi.advanceTimersByTimeAsync(149);
     expect(fetch).toHaveBeenCalledOnce();
-    await vi.advanceTimersByTimeAsync(1);
+    await vi.advanceTimersByTimeAsync(2);
     expect(fetch).toHaveBeenCalledTimes(2);
 
     answer = () => Promise.resolve(failure(503));
     finish(failure(503));
     await vi.advanceTimersByTimeAsync(999);
     expect(fetch).toHaveBeenCalledTimes(2);
-    await vi.advanceTimersByTimeAsync(1);
+    await vi.advanceTimersByTimeAsync(2);
     expect(fetch).toHaveBeenCalledTimes(3);
 });
 
 it('counts no attempt while the card waits for a drag to settle', async () => {
     answer = () => Promise.resolve(failure(503));
     receive('a');
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
     card().setAttribute('aria-busy', 'true');
     await vi.advanceTimersByTimeAsync(30000);
     expect(fetch).toHaveBeenCalledOnce();
 
     card().removeAttribute('aria-busy');
-    await vi.advanceTimersByTimeAsync(200);
+    await vi.advanceTimersByTimeAsync(201);
     expect(fetch).toHaveBeenCalledTimes(2);
-    await vi.advanceTimersByTimeAsync(2999);
+    await vi.advanceTimersByTimeAsync(2000);
     expect(fetch).toHaveBeenCalledTimes(2);
-    await vi.advanceTimersByTimeAsync(1);
+    await vi.advanceTimersByTimeAsync(1100);
     expect(fetch).toHaveBeenCalledTimes(3);
     expect(isStale()).toBe(false);
 });
 
 it('lets another card through while one card waits to retry', async () => {
     answer = (url) =>
-        Promise.resolve(url.includes('/a/') ? failure(503) : stream('b'));
+        Promise.resolve(url.endsWith('cards=a') ? failure(503) : stream());
     receive('a');
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
     receive('b');
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
 
-    expect(fetch).toHaveBeenCalledTimes(2);
-    expect(renderStreamMessage).toHaveBeenCalledWith('b');
+    expect(placementRequests()).toEqual([['a'], ['b']]);
+    expect(renderStreamMessage).toHaveBeenCalledOnce();
 });
 
 it.each([
@@ -1841,7 +1997,7 @@ it.each([
             delay === 0 ? missed('a') : setTimeout(() => missed('a'), delay),
         );
         receive('a');
-        await vi.advanceTimersByTimeAsync(150);
+        await vi.advanceTimersByTimeAsync(SETTLED);
         for (const [wait, calls] of [
             [1000 + delay, 2],
             [3000 + delay, 3],
@@ -1849,7 +2005,7 @@ it.each([
         ]) {
             await vi.advanceTimersByTimeAsync(wait - 1);
             expect(placements()).toHaveLength(calls - 1);
-            await vi.advanceTimersByTimeAsync(1);
+            await vi.advanceTimersByTimeAsync(2);
             expect(placements()).toHaveLength(calls);
         }
 
@@ -1865,9 +2021,9 @@ it('fetches a card whose placement the page could not apply, with no change mess
     await vi.advanceTimersByTimeAsync(999);
     expect(fetch).not.toHaveBeenCalled();
 
-    await vi.advanceTimersByTimeAsync(1);
+    await vi.advanceTimersByTimeAsync(2);
     expect(fetch).toHaveBeenCalledOnce();
-    expect(fetch.mock.calls[0][0]).toBe('/projects/p/board/cards/b/placement');
+    expect(fetch.mock.calls[0][0]).toBe(`${PLACEMENTS}?cards=b`);
 });
 
 it('counts no miss for an older placement while a newer fetch of the card runs', async () => {
@@ -1877,7 +2033,7 @@ it('counts no miss for an older placement while a newer fetch of the card runs',
             finish = resolve;
         });
     receive('a');
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
     missed('a');
     finish(stream());
     await vi.advanceTimersByTimeAsync(0);
@@ -1890,7 +2046,7 @@ it('counts no miss for an older placement while a newer fetch of the card runs',
 it('clears a waiting retry when it disconnects', async () => {
     answer = () => Promise.resolve(failure(503));
     receive('a');
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
     expect(vi.getTimerCount()).toBe(1);
 
     document.getElementById('wrapper').removeAttribute('data-controller');
@@ -1901,9 +2057,9 @@ it('clears a waiting retry when it disconnects', async () => {
 it('still marks a card another person changed when its placement failed once', async () => {
     answer = () => Promise.resolve(failure(500));
     receive('a');
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
     answer = () => Promise.resolve(stream());
-    await vi.advanceTimersByTimeAsync(1000);
+    await vi.advanceTimersByTimeAsync(1002);
     expect(fetch).toHaveBeenCalledTimes(2);
     placed('a', 'new');
 
@@ -1912,9 +2068,9 @@ it('still marks a card another person changed when its placement failed once', a
 
 it('still marks a card another person changed when its placement missed once', async () => {
     receive('a');
-    await vi.advanceTimersByTimeAsync(150);
+    await vi.advanceTimersByTimeAsync(SETTLED);
     missed('a');
-    await vi.advanceTimersByTimeAsync(1000);
+    await vi.advanceTimersByTimeAsync(1002);
     expect(fetch).toHaveBeenCalledTimes(2);
     placed('a', 'new');
 
@@ -2019,7 +2175,7 @@ describe('a structure resync', () => {
         expect(placements()).toEqual([]);
 
         structureChanged();
-        await vi.advanceTimersByTimeAsync(150);
+        await vi.advanceTimersByTimeAsync(SETTLED);
         expect(placements()).toEqual(['a']);
         expect(dispatch).not.toHaveBeenCalled();
     });
@@ -2087,7 +2243,7 @@ describe('a structure resync', () => {
         answerRoutes();
         signal();
         await vi.advanceTimersByTimeAsync(300);
-        await vi.advanceTimersByTimeAsync(16 + 150);
+        await vi.advanceTimersByTimeAsync(16 + SETTLED);
 
         expect(renderStreamMessage).toHaveBeenCalledWith('<s></s>');
         expect(manifestReads()).toHaveLength(1);
@@ -2248,7 +2404,7 @@ describe('a structure resync', () => {
 
         answerRoutes();
         signal();
-        await vi.advanceTimersByTimeAsync(300 + 16 + 150);
+        await vi.advanceTimersByTimeAsync(300 + 16 + SETTLED);
         expect(sign().textContent).toBe('');
         expect(placements()).toEqual(['a']);
     });
@@ -2411,7 +2567,7 @@ describe('the promise of a change', () => {
 
     it('settles when its card is placed, and not before', async () => {
         const result = tracked(change(cardChange('a')));
-        await vi.advanceTimersByTimeAsync(150);
+        await vi.advanceTimersByTimeAsync(SETTLED);
         expect(fetch).toHaveBeenCalledOnce();
         expect(result.settled).toBe(false);
 
@@ -2431,7 +2587,7 @@ describe('the promise of a change', () => {
                 finish = resolve;
             });
         const first = tracked(change(cardChange('a')));
-        await vi.advanceTimersByTimeAsync(150);
+        await vi.advanceTimersByTimeAsync(SETTLED);
         const second = tracked(change(cardChange('a')));
         finish(stream());
         await vi.advanceTimersByTimeAsync(0);
@@ -2440,7 +2596,7 @@ describe('the promise of a change', () => {
         expect(first.settled).toBe(false);
         expect(second.settled).toBe(false);
 
-        await vi.advanceTimersByTimeAsync(150);
+        await vi.advanceTimersByTimeAsync(SETTLED);
         expect(fetch).toHaveBeenCalledTimes(2);
         finish(stream());
         await vi.advanceTimersByTimeAsync(0);
@@ -2452,9 +2608,9 @@ describe('the promise of a change', () => {
 
     it('waits through a missed placement, and settles on the retry that places the card', async () => {
         const result = tracked(change(cardChange('a')));
-        await vi.advanceTimersByTimeAsync(150);
+        await vi.advanceTimersByTimeAsync(SETTLED);
         missed('a');
-        await vi.advanceTimersByTimeAsync(1000);
+        await vi.advanceTimersByTimeAsync(1002);
         expect(fetch).toHaveBeenCalledTimes(2);
         expect(result.settled).toBe(false);
 
@@ -2469,7 +2625,7 @@ describe('the promise of a change', () => {
         await vi.advanceTimersByTimeAsync(150 + 1000 + 3000);
         expect(result.settled).toBe(false);
 
-        await vi.advanceTimersByTimeAsync(9000);
+        await vi.advanceTimersByTimeAsync(9010);
         expect(isStale()).toBe(true);
         expect(result.settled).toBe(true);
     });
@@ -2477,7 +2633,7 @@ describe('the promise of a change', () => {
     it('settles when it disconnects', async () => {
         answer = () => new Promise(() => {});
         const result = tracked(change(cardChange('a')));
-        await vi.advanceTimersByTimeAsync(150);
+        await vi.advanceTimersByTimeAsync(SETTLED);
         expect(result.settled).toBe(false);
 
         document.getElementById('wrapper').remove();
@@ -2487,7 +2643,7 @@ describe('the promise of a change', () => {
 });
 
 describe('an order check', () => {
-    const cardOf = (url) => url.split('/')[5];
+    const cardOf = (url) => url.split('?cards=')[1];
     const entry = (cardId, extra = []) => [cardId, 'old', 'k', null, ...extra];
     const manifestOf = (ids, tail = [], totals = {}) =>
         json({
@@ -2578,7 +2734,7 @@ describe('an order check', () => {
             placementAnswer = (cardId) =>
                 cardId === 'e' ? failure(404) : stream();
             receive('e');
-            await vi.advanceTimersByTimeAsync(150);
+            await vi.advanceTimersByTimeAsync(SETTLED);
             expect(headOf().hasAttribute('data-board-stale')).toBe(true);
             expect(manifestReads()).toHaveLength(0);
 
@@ -2594,7 +2750,7 @@ describe('an order check', () => {
 
     it('reads the manifest and re-places a card out of order after a card held in a drag', async () => {
         await holdAndPlace();
-        await vi.advanceTimersByTimeAsync(150);
+        await vi.advanceTimersByTimeAsync(SETTLED);
 
         expect(manifestReads()).toHaveLength(1);
         expect(placements()).toEqual(['c', 'a']);
@@ -2605,11 +2761,11 @@ describe('an order check', () => {
         placementAnswer = (cardId) =>
             cardId === 'c' && ++attempts === 1 ? failure(503) : stream();
         receive('c');
-        await vi.advanceTimersByTimeAsync(150);
+        await vi.advanceTimersByTimeAsync(SETTLED);
         expect(manifestReads()).toHaveLength(0);
-        await vi.advanceTimersByTimeAsync(1000);
+        await vi.advanceTimersByTimeAsync(1002);
         placed('c', 'old');
-        await vi.advanceTimersByTimeAsync(150);
+        await vi.advanceTimersByTimeAsync(SETTLED);
 
         expect(manifestReads()).toHaveLength(1);
         expect(placements()).toEqual(['c', 'c', 'a']);
@@ -2619,7 +2775,7 @@ describe('an order check', () => {
         for (const cardId of ['a', 'b', 'c']) {
             receive(cardId);
         }
-        await vi.advanceTimersByTimeAsync(150);
+        await vi.advanceTimersByTimeAsync(SETTLED);
         for (const cardId of ['a', 'b', 'c']) {
             placed(cardId, 'old');
         }
@@ -2656,13 +2812,13 @@ describe('an order check', () => {
         placementAnswer = (cardId) =>
             cardId === 'a' ? failure(404) : stream();
         receive('a');
-        await vi.advanceTimersByTimeAsync(150);
+        await vi.advanceTimersByTimeAsync(SETTLED);
         expect(card().hasAttribute('data-board-stale')).toBe(true);
         expect(row().hasAttribute('data-board-stale')).toBe(true);
 
         placementAnswer = () => stream();
         receive('a');
-        await vi.advanceTimersByTimeAsync(150);
+        await vi.advanceTimersByTimeAsync(SETTLED);
         placed('a', 'old');
 
         expect(placements()).toEqual(['a', 'a']);
@@ -2676,7 +2832,7 @@ describe('an order check', () => {
         placementAnswer = (cardId) =>
             cardId === 'a' && gone ? failure(404) : stream();
         receive('a');
-        await vi.advanceTimersByTimeAsync(150);
+        await vi.advanceTimersByTimeAsync(SETTLED);
         expect(isStale()).toBe(true);
 
         manifestAnswer = () => failure(503);
@@ -2687,7 +2843,7 @@ describe('an order check', () => {
         gone = false;
         manifestAnswer = outOfOrderManifest;
         await holdAndPlace();
-        await vi.advanceTimersByTimeAsync(150);
+        await vi.advanceTimersByTimeAsync(SETTLED);
 
         expect(manifestReads()).toHaveLength(2);
         expect(placements()).toEqual(['a', 'c', 'a']);
@@ -2739,40 +2895,39 @@ describe('an order check', () => {
             placementAnswer = (cardId) =>
                 cardId === 'a' ? failure(404) : stream();
             receive('a');
-            await vi.advanceTimersByTimeAsync(150);
+            await vi.advanceTimersByTimeAsync(SETTLED);
             expect(isStale()).toBe(true);
 
             await holdAndPlace();
-            await vi.advanceTimersByTimeAsync(150);
+            await vi.advanceTimersByTimeAsync(SETTLED);
 
             expect(manifestReads()).toHaveLength(1);
             expect(placements()).toEqual(['a', 'c', 'b']);
         });
 
         it('fetches nothing and starts no resync when every face is stale', async () => {
-            placementAnswer = (cardId) =>
-                cardId === 'c' ? failure(503) : failure(404);
+            placementAnswer = () => failure(503);
             for (const cardId of ['a', 'b', 'c']) {
                 receive(cardId);
             }
             await vi.advanceTimersByTimeAsync(20000);
 
             expect(manifestReads()).toHaveLength(1);
-            expect(placements()).toHaveLength(6);
+            expect(placements()).toHaveLength(12);
             expect(structureReads()).toHaveLength(0);
             await vi.advanceTimersByTimeAsync(60000);
             expect(manifestReads()).toHaveLength(1);
-            expect(placements()).toHaveLength(6);
+            expect(placements()).toHaveLength(12);
         });
 
         it('lets a normal catch-up with the same manifest fetch the first face', async () => {
             placementAnswer = (cardId) =>
                 cardId === 'a' ? failure(404) : stream();
             receive('a');
-            await vi.advanceTimersByTimeAsync(150);
+            await vi.advanceTimersByTimeAsync(SETTLED);
 
             reconnect();
-            await vi.advanceTimersByTimeAsync(150);
+            await vi.advanceTimersByTimeAsync(SETTLED);
 
             expect(placements()).toEqual(['a', 'a']);
         });

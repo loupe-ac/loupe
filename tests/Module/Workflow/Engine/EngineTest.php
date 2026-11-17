@@ -121,6 +121,7 @@ use App\Module\Workflow\Service\FactFingerprint;
 use App\Module\Workflow\Service\FactProviders;
 use App\Module\Workflow\Service\FactsBuilder;
 use App\Module\Workflow\Service\PassMemo;
+use App\Module\Workflow\Service\SweepRowMemo;
 use App\Module\Workflow\Service\WorkflowAutomation;
 use App\Module\Workflow\Template\AppRules;
 use App\Module\Workflow\Template\ProjectTemplateCopy;
@@ -5193,7 +5194,7 @@ final class EngineTest extends KernelTestCase
         );
         $doctrine = self::getContainer()->get('doctrine');
         self::assertInstanceOf(ManagerRegistry::class, $doctrine);
-        $settling = new SettlingWorkRequestRepository($doctrine);
+        $settling = new SettlingWorkRequestRepository($doctrine, new PassMemo());
         $settling->settle = $this->settleJoinedWork;
         $opener = new WorkRequestOpener(
             new OpenWorkRequestHandler($settling, $this->service(OutboxWriter::class), $this->em(), new MockClock('2026-10-02 12:00:00'), $this->service(Auditor::class), $this->service(WorkRequestAnnouncer::class), $this->service(WorkerRunRepository::class), new WorkSubjectHandlers([]), $this->service(WorkHolds::class)),
@@ -5228,7 +5229,7 @@ final class EngineTest extends KernelTestCase
             $this->em(),
             $this->service(CardDirectory::class),
             $this->service(ProjectRepository::class),
-            new ProjectTemplateCopy($this->service(WorkflowBindingRepository::class), new TemplateParser($this->service(Conditions::class), $this->parsingActions(), $this->service(TemplatePrompts::class), $this->service(TemplateMetricParser::class)), $this->appRules ?? $this->service(AppRules::class)),
+            new ProjectTemplateCopy($this->service(WorkflowBindingRepository::class), new TemplateParser($this->service(Conditions::class), $this->parsingActions(), $this->service(TemplatePrompts::class), $this->service(TemplateMetricParser::class)), $this->appRules ?? $this->service(AppRules::class), $this->service(SweepRowMemo::class)),
             new FactsBuilder(
                 $this->service(WorkflowSlotLinkRepository::class),
                 $this->service(CardDirectory::class),

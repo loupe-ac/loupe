@@ -6,6 +6,7 @@ namespace App\Module\Board\Workflow;
 
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Forge\Service\BranchReaders;
+use App\Module\Forge\Service\ForgeBranchPresence;
 use App\Module\Project\Workshop\WorkshopConnectionsProviderInterface;
 use App\Module\Workflow\Contract\CardSnapshot;
 use App\Module\Workflow\Contract\EpicBranches;
@@ -17,6 +18,7 @@ final readonly class EpicBranchExistsFactProvider extends BoardFactProvider
         private EpicBranches $epicBranches,
         private WorkshopConnectionsProviderInterface $workshop,
         private BranchReaders $branchReaders,
+        private ForgeBranchPresence $presence,
     ) {
     }
 
@@ -54,7 +56,8 @@ final readonly class EpicBranchExistsFactProvider extends BoardFactProvider
 
     /**
      * The epic branch exists when each live bridge reports a repository that holds it. Anything the app cannot
-     * prove reads false: no live bridge, a remote of no connected repository, or a forge that does not answer.
+     * prove reads false: no live bridge, a remote of no connected repository, a repository the project cannot
+     * read now, or a branch with no stored answer yet. The answer comes from the store and never from the forge.
      * A card in the Backlog or a terminal column reads true without a read, because the engine builds every provider.
      */
     #[\Override]
@@ -79,13 +82,16 @@ final readonly class EpicBranchExistsFactProvider extends BoardFactProvider
             return new EpicBranchExistsFacts(false);
         }
 
+        // Every remote is read, so each missing answer reserves its check in this evaluation.
+        $exists = true;
         foreach (array_unique($remotes) as $remote) {
-            if ('' === $remote || !$this->branchReaders->exists($stored->project, $remote, $branch)) {
-                return new EpicBranchExistsFacts(false);
+            $row = '' === $remote ? null : $this->branchReaders->readableRepository($stored->project, $remote);
+            if (null === $row || true !== $this->presence->read($row, $branch)) {
+                $exists = false;
             }
         }
 
-        return new EpicBranchExistsFacts(true);
+        return new EpicBranchExistsFacts($exists);
     }
 
     #[\Override]

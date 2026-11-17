@@ -39,9 +39,7 @@ final readonly class WorkerRunFactProvider extends BridgeFactProvider
     #[\Override]
     public function build(CardSnapshot $card): object
     {
-        $since = $this->workerRuns->findOpenWorkSinceOfCard($card->id);
-
-        $ruleSince = $this->workerRuns->findOpenWorkSinceOfCard($card->id, ruleOwnedOnly: true);
+        ['all' => $since, 'ruleOwned' => $ruleSince] = $this->workerRuns->findOpenWorkSinceOfCard($card->id);
 
         return new WorkerRunFacts(array_map(strval(...), array_keys($since)), $since, array_map(strval(...), array_keys($ruleSince)), $ruleSince);
     }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Workflow\Template;
 
+use App\Module\Workflow\Contract\SweepProjectRows;
 use App\Module\Workflow\Repository\WorkflowBindingRepository;
 use Symfony\Component\DependencyInjection\Attribute\AsAlias;
 use Symfony\Component\Uid\Uuid;
@@ -20,6 +21,7 @@ final class ProjectTemplateCopy implements TemplateSource, ResetInterface
         private readonly WorkflowBindingRepository $workflowBindings,
         private readonly TemplateParser $parser,
         private readonly AppRules $appRules,
+        private readonly SweepProjectRows $sweepRows,
     ) {
     }
 
@@ -30,9 +32,12 @@ final class ProjectTemplateCopy implements TemplateSource, ResetInterface
         if (isset($this->templates[$key])) {
             return $this->templates[$key];
         }
-        $binding = $this->workflowBindings->findOneByProjectId($projectId) ?? throw new TemplateMissing($projectId);
 
-        return $this->templates[$key] = $this->appRules->appendTo($this->parser->parseStored($binding->definition));
+        return $this->templates[$key] = $this->sweepRows->remember('template-copy:'.$key, function () use ($projectId): Template {
+            $binding = $this->workflowBindings->findOneByProjectId($projectId) ?? throw new TemplateMissing($projectId);
+
+            return $this->appRules->appendTo($this->parser->parseStored($binding->definition));
+        });
     }
 
     /**

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Observability;
 
+use App\Observability\ProfilerSelfTest;
 use App\Observability\SentryCheck;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -56,6 +57,21 @@ final class SentryCheckTest extends TestCase
         self::assertSame('account.system_status.sentry.configured', $diagnostic->detail);
     }
 
+    public function test_a_profiler_that_collects_under_two_samples_is_a_warning(): void
+    {
+        $diagnostic = $this->check(self::DSN, 1.0, 1.0, true, 1);
+
+        self::assertSame(DiagnosticState::Warning, $diagnostic->state);
+        self::assertSame('account.system_status.sentry.no_samples', $diagnostic->detail);
+    }
+
+    public function test_a_zero_rate_runs_no_self_test(): void
+    {
+        $diagnostic = $this->check(self::DSN, 1.0, 0.0, true, 0);
+
+        self::assertSame('account.system_status.sentry.configured', $diagnostic->detail);
+    }
+
     /** @return iterable<string, array{float, float}> */
     public static function noProfiling(): iterable
     {
@@ -81,8 +97,24 @@ final class SentryCheckTest extends TestCase
         self::assertSame([], $diagnostic->detailParameters);
     }
 
-    private function check(?string $dsn, float $tracesRate, float $profilesRate, bool $excimerLoaded): Diagnostic
+    private function selfTest(int $samples): ProfilerSelfTest
     {
-        return new SentryCheck($dsn, $tracesRate, $profilesRate, $excimerLoaded ? 'Core' : 'no_such_extension')();
+        return new readonly class($samples) implements ProfilerSelfTest {
+            public function __construct(
+                private int $samples,
+            ) {
+            }
+
+            #[\Override]
+            public function sampleCount(): int
+            {
+                return $this->samples;
+            }
+        };
+    }
+
+    private function check(?string $dsn, float $tracesRate, float $profilesRate, bool $excimerLoaded, int $samples = 5): Diagnostic
+    {
+        return new SentryCheck($dsn, $tracesRate, $profilesRate, $this->selfTest($samples), $excimerLoaded ? 'Core' : 'no_such_extension')();
     }
 }

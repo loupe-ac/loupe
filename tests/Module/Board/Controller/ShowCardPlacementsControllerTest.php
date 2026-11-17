@@ -4,20 +4,32 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Board\Controller;
 
+use App\Module\Account\Entity\User;
 use App\Module\Board\Entity\Card;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunStateChange;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkSubject;
+use App\Module\Inbox\Entity\InboxAskOrigin;
+use App\Module\Inbox\Entity\InboxItem;
+use App\Module\Inbox\Entity\InboxItemCard;
+use App\Module\Inbox\Entity\InboxItemKind;
+use App\Module\Inbox\Install\InboxInstallFlags;
 use App\Tests\Support\RefusedPage;
+use Doctrine\Bundle\DoctrineBundle\DataCollector\DoctrineDataCollector;
 use Doctrine\ORM\EntityManagerInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Profiler\Profile;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Contracts\Service\ResetInterface;
 use Symfony\UX\Turbo\TurboBundle;
+use Ubermuda\FeatureFlagsBundle\Reader\FeatureFlagReaderInterface;
+use Ubermuda\FeatureFlagsBundle\Repository\FeatureFlagRepository;
 
-final class ShowCardPlacementControllerTest extends WebTestCase
+final class ShowCardPlacementsControllerTest extends WebTestCase
 {
     use BoardScenario;
 
@@ -187,6 +199,32 @@ final class ShowCardPlacementControllerTest extends WebTestCase
         self::assertStringNotContainsString('data-card-parent-tag', $content);
     }
 
+    public function test_the_whole_request_reads_the_same_statements_on_a_board_with_one_lane_epic_and_with_five(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $owner = $this->user($em, 'placement-request-count@example.com');
+        $client->loginUser($owner);
+
+        $small = $this->laneBoard($em, $owner, 'small-board', 1);
+        $big = $this->laneBoard($em, $owner, 'big-board', 5);
+        $em->clear();
+
+        // The first request of the kernel loads the flags once, so it stays out of the counts.
+        $client->request(Request::METHOD_GET, $this->placementUrl($small[0], $small[1]));
+        self::assertResponseIsSuccessful();
+
+        $forSmall = $this->requestStatements($client, $em, $this->placementUrl($small[0], $small[1]));
+        $forBig = $this->requestStatements($client, $em, $this->placementUrl($big[0], $big[1]));
+
+        // Both boards place a child with a parent, so a missing parent join adds the same lazy load to each count.
+        foreach ([$forSmall, $forBig] as $statements) {
+            $lazyLoads = array_filter($statements, static fn (string $sql): bool => str_contains($sql, 'FROM board_cards t0 WHERE t0.id = ?'));
+            self::assertSame([], array_values($lazyLoads), 'The request loaded a card by id on its own.');
+        }
+        self::assertSame(\count($forSmall), \count($forBig), "The request read more on the bigger board:\n".implode("\n", $forBig));
+    }
+
     public function test_a_card_on_a_board_with_no_lane_names_no_lane(): void
     {
         $client = static::createClient();
@@ -258,6 +296,85 @@ final class ShowCardPlacementControllerTest extends WebTestCase
         $content = (string) $client->getResponse()->getContent();
         self::assertStringContainsString('lp-state-mark--stuck', $content);
         self::assertStringNotContainsString('data-card-run-warning', $content);
+    }
+
+    public function test_several_cards_come_back_in_the_order_asked_with_a_repeat_dropped(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+
+        $owner = $this->user($em, 'placements-order@example.com');
+        $project = $this->project($em, $owner);
+        $this->addTriageColumn($project);
+        $em->flush();
+        $first = $this->card($em, $project, 'First', 'next', 0);
+        $second = $this->card($em, $project, 'Second', 'next', 1);
+        $gone = '01920000-0000-7000-8000-000000000000';
+        $url = '/projects/'.$project->id.'/board/placements?cards='.$second->id.','.$gone.','.$first->id.','.$second->id;
+        $em->clear();
+
+        $client->loginUser($owner);
+        $client->request(Request::METHOD_GET, $url);
+
+        self::assertResponseIsSuccessful();
+        $content = (string) $client->getResponse()->getContent();
+        self::assertSame(3, substr_count($content, '<turbo-stream'));
+        $secondAt = strpos($content, 'target="board-card-'.$second->id.'"');
+        $goneAt = strpos($content, 'target="board-card-'.$gone.'"');
+        $firstAt = strpos($content, 'target="board-card-'.$first->id.'"');
+        self::assertIsInt($secondAt);
+        self::assertIsInt($goneAt);
+        self::assertIsInt($firstAt);
+        self::assertLessThan($goneAt, $secondAt);
+        self::assertLessThan($firstAt, $goneAt);
+        self::assertStringContainsString('data-removed="1"', substr($content, $goneAt, 800));
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function badCardLists(): iterable
+    {
+        yield 'no card' => [''];
+        yield 'not a uuid' => ['nope'];
+        yield 'one bad id among good ones' => ['01920000-0000-7000-8000-000000000000,nope'];
+        yield 'a trailing comma' => ['01920000-0000-7000-8000-000000000000,'];
+    }
+
+    #[DataProvider('badCardLists')]
+    public function test_a_bad_card_list_is_refused(string $cards): void
+    {
+        $client = static::createClient(['debug' => false]);
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+
+        $owner = $this->user($em, 'placements-bad@example.com');
+        $project = $this->project($em, $owner);
+        $em->flush();
+        $url = '/projects/'.$project->id.'/board/placements?cards='.$cards;
+        $em->clear();
+
+        $client->loginUser($owner);
+        $client->request(Request::METHOD_GET, $url);
+
+        self::assertResponseStatusCodeSame(400);
+    }
+
+    public function test_more_than_fifty_cards_are_refused_and_fifty_are_placed(): void
+    {
+        $client = static::createClient(['debug' => false]);
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+
+        $owner = $this->user($em, 'placements-cap@example.com');
+        $project = $this->project($em, $owner);
+        $em->flush();
+        $ids = array_map(static fn (): string => (string) Uuid::v7(), range(1, 51));
+        $em->clear();
+
+        $client->loginUser($owner);
+        $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board/placements?cards='.implode(',', $ids));
+        self::assertResponseStatusCodeSame(400);
+
+        $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board/placements?cards='.implode(',', \array_slice($ids, 0, 50)));
+        self::assertResponseIsSuccessful();
+        self::assertSame(50, substr_count((string) $client->getResponse()->getContent(), '<turbo-stream'));
     }
 
     public function test_an_outsider_is_refused(): void
@@ -468,6 +585,39 @@ final class ShowCardPlacementControllerTest extends WebTestCase
         self::assertSame($this->pageDigest($client, $child), $this->streamDigest($client, $child));
     }
 
+    public function test_the_stream_digest_of_a_card_with_an_open_inbox_item_is_the_page_and_manifest_digest(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $flags = static::getContainer()->get(FeatureFlagRepository::class);
+        self::assertInstanceOf(FeatureFlagRepository::class, $flags);
+        $flags->findAllIndexed()[InboxInstallFlags::FLAG_INBOX_ENABLED]->value = true;
+        $em->flush();
+        $reader = static::getContainer()->get(FeatureFlagReaderInterface::class);
+        self::assertInstanceOf(ResetInterface::class, $reader);
+        $reader->reset();
+
+        $owner = $this->user($em, 'placement-digest-inbox@example.com');
+        $project = $this->project($em, $owner);
+        $card = $this->card($em, $project, 'Asked', 'next');
+        $item = new InboxItem(project: $project, number: 1, kind: InboxItemKind::Question, title: 'Which way?', blocking: true, origin: InboxAskOrigin::Agent);
+        $em->persist($item);
+        $em->persist(new InboxItemCard($item, $card));
+        $em->flush();
+        $em->clear();
+
+        $client->loginUser($owner);
+
+        $streamed = $this->streamDigest($client, $card);
+        self::assertSame($this->pageDigest($client, $card), $streamed);
+        $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board/manifest');
+        self::assertResponseIsSuccessful();
+        $manifest = json_decode((string) $client->getResponse()->getContent(), true, 512, \JSON_THROW_ON_ERROR);
+        self::assertIsArray($manifest);
+        self::assertSame($streamed, array_column($manifest['cards'], 1, 0)[(string) $card->id] ?? null);
+    }
+
     public function test_the_stream_digest_of_an_epic_with_progress_and_a_warning_is_the_page_digest(): void
     {
         $client = static::createClient();
@@ -668,9 +818,59 @@ final class ShowCardPlacementControllerTest extends WebTestCase
         return $match[1] ?? '';
     }
 
+    /**
+     * A board of $epics lane epics with two children each.
+     *
+     * @return array{string, string} the project id and the id of the last child
+     */
+    private function laneBoard(EntityManagerInterface $em, User $owner, string $name, int $epics): array
+    {
+        $project = $this->project($em, $owner, $name);
+        $this->addTriageColumn($project);
+        $em->flush();
+        $child = null;
+        for ($i = 0; $i < $epics; ++$i) {
+            $epic = $this->typed($em, $this->card($em, $project, 'Epic '.$i, 'next', $i * 3, 'Epic body '.$i), 'epic');
+            $this->childOf($em, $epic, $this->card($em, $project, 'First '.$i, 'next', $i * 3 + 1, 'Child body'));
+            $child = $this->childOf($em, $epic, $this->card($em, $project, 'Second '.$i, 'next', $i * 3 + 2, 'Child body'));
+        }
+        self::assertNotNull($child);
+
+        return [(string) $project->id, (string) $child->id];
+    }
+
+    /** @return list<string> */
+    private function requestStatements(KernelBrowser $client, EntityManagerInterface $em, string $url): array
+    {
+        $em->clear();
+        $client->enableProfiler();
+        $client->request(Request::METHOD_GET, $url);
+
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('board-place', (string) $client->getResponse()->getContent());
+        $profile = $client->getProfile();
+        self::assertInstanceOf(Profile::class, $profile);
+        $collector = $profile->getCollector('db');
+        self::assertInstanceOf(DoctrineDataCollector::class, $collector);
+
+        $statements = [];
+        foreach ($collector->getQueries() as $queries) {
+            foreach ($queries as $query) {
+                $sql = (string) $query['sql'];
+                if (str_starts_with($sql, 'SELECT') && !str_contains($sql, 'CURRENT_DATABASE')) {
+                    $statements[] = $sql;
+                }
+            }
+        }
+        // Guard: a request that ran no statement would pass the comparison with nothing read.
+        self::assertNotEmpty($statements);
+
+        return $statements;
+    }
+
     private function placementUrl(string $projectId, string $cardId): string
     {
-        return '/projects/'.$projectId.'/board/cards/'.$cardId.'/placement';
+        return '/projects/'.$projectId.'/board/placements?cards='.$cardId;
     }
 
     /** @return array<string, int> */
