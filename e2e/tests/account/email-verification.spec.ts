@@ -1,6 +1,7 @@
 import { expect, type Page } from '@playwright/test';
 import { hubStubbedTest as test } from '../fixtures';
 import {
+    confirmEmailLink,
     countEmailsTo,
     getLatestEmailTo,
     extractLink,
@@ -39,8 +40,8 @@ test('clicking verification link auto-logs in and redirects to home', async ({
         /https?:\/\/[^\s"<]+\/register\/verify[^\s"<]*/,
     );
 
-    await page.goto(verifyLink);
-    // Verification auto-logs in and redirects to home; a brand-new account
+    await confirmEmailLink(page, verifyLink);
+    // Confirming in the browser that signed up signs it in and redirects to home; a brand-new account
     // owns no project and hasn't completed the first-run wizard yet, so
     // LandingController lands it there rather than on /login.
     await expect(page).toHaveURL('/welcome');
