@@ -17,7 +17,7 @@ Two of its prunes are load-bearing, and not an optimisation:
 - `var` holds the log and the cache, which change on every request. Without the prune, the watcher rebuilds for ever.
 - `.claude` is where worktrees live. Without the prune, a worktree scans its siblings.
 
-A whole pass costs 0.42 seconds against a ten-second interval. The interval is ten seconds because the service is the safety net for a sheet nobody rebuilt. `just worktree-tailwind` is the real watcher when you iterate on CSS.
+The loop wakes every ten seconds, and checks only the trees that are due. An `epic-*` tree, or a tree that holds `var/tailwind/.watch`, is due every 60 seconds. Every other tree is due every 600 seconds. The service is the safety net for a sheet nobody rebuilt. `just worktree-tailwind` is the real watcher when you iterate on CSS, and `just e2e` rebuilds before a run. With 42 card trees on a ten-second pass, the scans made every local page about twice as slow.
 
 `git worktree list` is the authoritative source, and the watcher cannot use it. It reports the host paths that created each worktree, and the watcher runs in a container. It fails by returning an empty list, not an error.
 
