@@ -217,7 +217,7 @@ that call the public API use an [API key](api-keys.md).
 
 A connection carries one scope. The `mcp` scope binds to the one project you
 pick on the consent page, so every tool call knows which project it acts on.
-The `agent` scope reaches the CLI endpoints. A connection bound to one project stays in that project on those endpoints too, and a request for another project of yours gets `404 project_not_found`. A sign-in that covers every project, such as `loupe login`, keeps them all. The
+The `agent` scope reaches the CLI endpoints. A connection bound to one project stays in that project on those endpoints too. A request for another project of yours gets `404 project_not_found`. The project list shows that one project only. The bridge routes, which name no project, answer `403 credential_not_owner_wide`, so a bound connection cannot run as a bridge. A sign-in that covers every project, such as `loupe login`, keeps them all. The
 `site-review` scope reaches the comments of one project, which is what the
 live-review widget uses. See [Connected apps](connected-apps.md) for the whole
 table and for how to revoke a connection.
