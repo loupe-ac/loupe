@@ -10,6 +10,7 @@ use App\Module\Board\Command\ShowCardPlacementHandler;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardDocument;
 use App\Module\Board\Entity\CardPullRequest;
+use App\Module\Board\Repository\CardRepository;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
 use App\Tests\Module\Board\BoardColumnFixtures;
@@ -58,6 +59,29 @@ final class ShowCardPlacementQueryCountTest extends KernelTestCase
         // The markers are stored on the card, so the placement reads no pull request, pause or hold for them.
         $stateReads = array_values(array_filter($forBig, static fn (string $sql): bool => 1 === preg_match('/board_card_pull_requests|forge_pull_requests|card_pauses|bridge_card_holds/', $sql)));
         self::assertSame([], $stateReads, 'The placement read what the stored markers replace.');
+    }
+
+    public function test_the_placement_of_an_ordinary_card_reads_no_other_card_body_and_no_whole_template(): void
+    {
+        [$project, $epic] = $this->board('placement-q-narrow', 2);
+        $epic->laneEnabled = true;
+        $this->em->flush();
+        $cards = self::getContainer()->get(CardRepository::class);
+        self::assertInstanceOf(CardRepository::class, $cards);
+        $child = $cards->findOneBy(['parent' => $epic, 'type' => 'feature']);
+        self::assertInstanceOf(Card::class, $child);
+        $this->em->clear();
+
+        $statements = $this->placementStatements($project, $child);
+
+        // Guards: the placement ran, read the lane epics and the card types.
+        self::assertNotEmpty($statements);
+        self::assertNotEmpty(array_filter($statements, static fn (string $sql): bool => str_contains($sql, 'board_cards') && str_contains($sql, 'laneEnabled') || str_contains($sql, 'lane_enabled')));
+        self::assertNotEmpty(array_filter($statements, static fn (string $sql): bool => str_contains($sql, 'workflow_bindings')));
+        $bodyReads = array_values(array_filter($statements, static fn (string $sql): bool => 1 === preg_match('/FROM board_cards/', $sql) && 1 === preg_match('/\bbody\b/', explode(' FROM ', $sql)[0])));
+        self::assertSame([], $bodyReads, 'The placement read the body of another card.');
+        $wholeTemplate = array_values(array_filter($statements, static fn (string $sql): bool => str_contains($sql, 'workflow_bindings') && !str_contains($sql, 'definition->')));
+        self::assertSame([], $wholeTemplate, 'The placement read the whole stored template.');
     }
 
     /**
@@ -129,6 +153,29 @@ final class ShowCardPlacementQueryCountTest extends KernelTestCase
         self::assertNotNull($view->rowAfter);
         self::assertGreaterThan(0, $view->progress?->total);
 
+        return $this->collected();
+    }
+
+    /** @return list<string> */
+    private function placementStatements(Project $project, Card $card): array
+    {
+        $project = $this->em->find(Project::class, $project->id);
+        $card = $this->em->find(Card::class, $card->id);
+        self::assertInstanceOf(Project::class, $project);
+        self::assertInstanceOf(Card::class, $card);
+        $handler = self::getContainer()->get(ShowCardPlacementHandler::class);
+        self::assertInstanceOf(ShowCardPlacementHandler::class, $handler);
+
+        $this->queries->reset();
+        $view = $handler(new ShowCardPlacementCommand($project, $card));
+        self::assertSame($card, $view->card);
+
+        return $this->collected();
+    }
+
+    /** @return list<string> */
+    private function collected(): array
+    {
         $statements = [];
         foreach ($this->queries->getData() as $connectionQueries) {
             foreach ($connectionQueries as $query) {
