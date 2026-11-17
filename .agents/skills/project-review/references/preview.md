@@ -60,8 +60,12 @@ A required state that you cannot seed, mint or prove, and an empty list of requi
 1. Write the proven lines for the states that passed. For each other state, write one line that names the state and says `Not proven: <reason>`.
 2. Push the branch, and open the draft pull request when none exists, as `commands.md` says, so the owner can read the code. Write a note in the body, under the Preview section, that the preview is not proven and why.
 3. Link the pull request to the card with `card_update` when the card does not link it yet, as implementation contract rule 5 says. An unlinked pull request gets no agent review of the card, so no review catches the missing preview.
-4. Record the block on the card, as "Record a block" of `commands.md` says. Its paragraph names the pull request URL.
-5. Stop with `STAGE RESULT: blocked: preview not seeded`. The stage posts no refusal comment for this form.
+4. Decide whether the gap is a fault or a choice. A fault is a seed, a mint or a server that fails, and a person fixes the environment. A choice is a state that no link can reach by design, such as a page that only a POST shows, or an empty list of required states. The owner then picks the outcome.
+5. For a fault, record the block on the card, as "Record a block" of `commands.md` says. Its paragraph names the pull request URL.
+6. For a choice, ask the owner as `owner-question.md` of the implementation stage says, and record no block. Give one item for each state. Give it the option `Accept as Not proven`, and `freeText` true for a way to reach the state.
+7. Stop with `STAGE RESULT: blocked: preview not seeded`. The stage posts no refusal comment for this form.
+
+An answer that accepts the state keeps its `Not proven:` line, and the run goes on. An answer that names a way proves the state that way.
 
 A resumed run seeds and proves again, replaces the Preview section of the body, and then goes on.
 
