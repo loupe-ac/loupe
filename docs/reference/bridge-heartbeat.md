@@ -352,7 +352,7 @@ pause then reach the server up to one interval late.
 
 | Status | Body | When |
 |---|---|---|
-| 200 | `{"cliRange":"^2.0","paused":false,"commands":[],"workRequests":[],"lostClaims":[]}` | the heartbeat is accepted |
+| 200 | `{"cliRange":"^2.0","revokedReleaseKeys":[],"paused":false,"commands":[],"workRequests":[],"lostClaims":[]}` | the heartbeat is accepted |
 | 401 | `invalid_credentials` | the request carries no token |
 | 403 | `credential_not_allowed` | the token carries another scope, such as `site-review` |
 | 404 | `route_not_found` or `http_404` | `bridgeId` is not a uuid the server accepts, or agent push is switched off on the instance |
@@ -379,6 +379,7 @@ The reply carries these fields:
 | Field | Meaning |
 |---|---|
 | `cliRange` | the range of CLI versions the server supports |
+| `revokedReleaseKeys` | the fingerprints of release keys that the bridge must not trust. It is empty unless the operator revoked a key. See [Release signatures](../extending/cli-bridge.md#release-signatures) |
 | `paused` | `true` when the server asks the bridge to take no new work. See [Pause and commands](#pause-and-commands) |
 | `commands` | the pending commands of the bridge, oldest first |
 | `workRequests` | the open work requests the bridge can claim, oldest first. It is empty for a bridge that does not report `work-requests`. See [Work requests](#work-requests) |

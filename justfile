@@ -663,10 +663,11 @@ tunnel:
 
 # Vet + test the Go CLI (cli/) in a throwaway Go container — no host Go needed.
 # The Amphetamine hook test fakes osascript, so it runs on Linux too.
-# The container installs git, because the worktree tests run it.
+# The container installs git, because the worktree tests run it, and jq and
+# ssh-keygen, because the signing tests run them.
 # Two named volumes keep the Go module and build caches between runs.
 cli-test:
-    docker run --rm -v loupe-go-mod:/go/pkg/mod -v loupe-go-build:/root/.cache/go-build -v "{{justfile_directory()}}/cli":/cli -v "{{justfile_directory()}}/openapi":/openapi:ro -w /cli -e GOTOOLCHAIN=local -e LOUPE_PUBLIC_SPEC=/openapi/public.json golang:1.26-alpine sh -c 'apk add --no-cache git >/dev/null && go vet ./... && GOOS=darwin go vet ./... && go test ./...'
+    docker run --rm -v loupe-go-mod:/go/pkg/mod -v loupe-go-build:/root/.cache/go-build -v "{{justfile_directory()}}/cli":/cli -v "{{justfile_directory()}}/openapi":/openapi:ro -w /cli -e GOTOOLCHAIN=local -v "{{justfile_directory()}}/justfile":/justfile:ro -e LOUPE_PUBLIC_SPEC=/openapi/public.json -e LOUPE_JUSTFILE=/justfile golang:1.26-alpine sh -c 'apk add --no-cache git jq openssh-keygen >/dev/null && go vet ./... && GOOS=darwin go vet ./... && go test ./...'
     docker run --rm -v "{{justfile_directory()}}/hooks/amphetamine":/pkg:ro -w /pkg golang:1.26-alpine sh ./test.sh
     docker run --rm -v "{{justfile_directory()}}/plugins/loupe/hooks":/pkg:ro -w /pkg golang:1.26-alpine sh ./test.sh
     docker run --rm -v "{{justfile_directory()}}":/repo:ro -w /repo golang:1.26-alpine sh -c 'apk add --no-cache bash git jq >/dev/null && bash tests/plugins/github-approval-covers.sh && bash tests/plugins/github-required-checks.sh && bash tests/plugins/routing-check.sh'
@@ -755,8 +756,10 @@ cli-setup dir:
     echo "built $x/bin/loupe from $root at $commit"
     echo "a running bridge keeps the old build: run loupe -c $x bridge stop, then loupe -c $x bridge run -d"
 
-# `just cli-install-release 1.0.0` pins a version; the default is the newest.
-# Download a published CLI release and install it onto your PATH (default ~/bin).
+# `just cli-install-release 1.0.0` pins a version; the default is the newest
+# release that a trusted key signed. A pinned release with a bad signature stops
+# the recipe. The key lines below must match cli/internal/update/release_keys.
+# Download a signed CLI release and install it onto your PATH (default ~/bin).
 cli-install-release version="latest" dir="":
     #!/usr/bin/env bash
     set -euo pipefail
@@ -765,9 +768,22 @@ cli-install-release version="latest" dir="":
     target="${target/#\~/$HOME}"
     repo="loupe-ac/loupe"
 
+    command -v ssh-keygen >/dev/null \
+        || { echo "this recipe needs ssh-keygen from the OpenSSH client, version 8.2 or later, to check the release signature" >&2; exit 1; }
+    work="$(mktemp -d)"
+    trap 'rm -rf "$work"' EXIT
+    cat > "$work/allowed_signers" <<'EOF'
+    # BEGIN release_keys
+    loupe-release ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAUeC5MaWHXeMaiqKi9xzbbVIBvclqrpBTYr8OdIQUOs
+    loupe-release ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJ45ZR/m+TS0VjF4rHIbtWD5JcIcbqhW4TegaR0CuWZb
+    # END release_keys
+    EOF
+
     # CLI releases are tagged cli/vX.Y.Z and share the list with app releases.
-    # Like the self-updater, read up to 10 pages and take the highest stable one.
+    # Like the self-updater, read up to 10 pages. Try the stable ones from the
+    # highest down, and take the first that a trusted key signed.
     version="{{version}}"
+    version="${version#v}"
     if [ "$version" = latest ]; then
         tags=""
         for page in 1 2 3 4 5 6 7 8 9 10; do
@@ -776,24 +792,47 @@ cli-install-release version="latest" dir="":
             tags+="$batch"$'\n'
             [ "$(printf '%s' "$batch" | grep -c . || true)" -eq 100 ] || break
         done
-        version="$(printf '%s' "$tags" | grep -oE '"cli/v[0-9]+\.[0-9]+\.[0-9]+"' | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | sort -t. -k1,1n -k2,2n -k3,3n | tail -n 1 || true)"
-        [ -n "$version" ] || { echo "no stable cli/v* release found on $repo" >&2; exit 1; }
+        versions="$(printf '%s' "$tags" | grep -oE '"cli/v[0-9]+\.[0-9]+\.[0-9]+"' | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | sort -t. -k1,1nr -k2,2nr -k3,3nr || true)"
+        [ -n "$versions" ] || { echo "no stable cli/v* release found on $repo" >&2; exit 1; }
+    else
+        versions="$version"
     fi
-    version="${version#v}"
+
+    chosen=""
+    for candidate in $versions; do
+        dir="$work/$candidate"
+        mkdir -p "$dir"
+        base="https://github.com/$repo/releases/download/cli/v$candidate"
+        if ! curl -fsSL -o "$dir/checksums.txt" "$base/checksums.txt"; then
+            reason="cannot download checksums.txt"
+        elif ! curl -fsSL -o "$dir/checksums.txt.sig" "$base/checksums.txt.sig"; then
+            reason="cannot download checksums.txt.sig"
+        elif ! ssh-keygen -Y verify -f "$work/allowed_signers" -I loupe-release -n loupe-release \
+                -s "$dir/checksums.txt.sig" < "$dir/checksums.txt" >/dev/null 2>&1; then
+            reason="the signature of checksums.txt is not valid for a trusted key"
+        else
+            chosen="$candidate"
+            break
+        fi
+        if [ "$version" != latest ]; then
+            echo "loupe $candidate is not signed: $reason. Nothing was installed." >&2
+            exit 1
+        fi
+        echo "skipping loupe $candidate: $reason" >&2
+    done
+    [ -n "$chosen" ] || { echo "no signed loupe CLI release found. Nothing was installed." >&2; exit 1; }
+    version="$chosen"
 
     read -r goos goarch < <(just _cli-platform)
     archive="loupe_${version}_${goos}_${goarch}.tar.gz"
     base="https://github.com/$repo/releases/download/cli/v$version"
 
-    work="$(mktemp -d)"
-    trap 'rm -rf "$work"' EXIT
     (
         cd "$work"
         curl -fsSLO "$base/$archive"
-        curl -fsSLO "$base/checksums.txt"
-        # Check against the archive's own line: --ignore-missing passes when
-        # checksums.txt has no entry for it at all.
-        grep -E "^[0-9a-f]{64}  $archive\$" checksums.txt > archive.sha256 \
+        # Check against the archive's own line of the signed checksums.txt:
+        # --ignore-missing passes when checksums.txt has no entry for it at all.
+        grep -E "^[0-9a-f]{64}  $archive\$" "$version/checksums.txt" > archive.sha256 \
             || { echo "checksums.txt has no entry for $archive" >&2; exit 1; }
         if command -v sha256sum >/dev/null; then
             sha256sum -c archive.sha256
@@ -806,6 +845,99 @@ cli-install-release version="latest" dir="":
     mkdir -p "$target"
     install -m 0755 "$work/loupe" "$target/loupe"
     just _cli-verify "$target"
+
+# Sign a draft release, publish it, and start the Homebrew update for a CLI tag.
+# `just sign-release cli/v1.2.3` or `just sign-release skills/loupe/v1.2.3`.
+# It signs only a file that `gh attestation verify` ties to the release
+# workflow and a commit of main. The first key line below is the active key.
+sign-release tag:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd "{{justfile_directory()}}"
+    tag="{{tag}}"
+    repo="loupe-ac/loupe"
+    keyfile="$HOME/.config/loupe/release-signing.enc.yaml"
+
+    if [[ "$tag" =~ ^cli/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        workflow="cli-release.yml"
+        ref="refs/tags/$tag"
+        track="cli/v*"
+    elif [[ "$tag" =~ ^skills/(loupe|loupe-lifecycle)/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        workflow="skills-release.yml"
+        ref="refs/heads/main"
+        track="skills/${BASH_REMATCH[1]}/v*"
+    else
+        echo "the tag must look like cli/v1.2.3 or skills/loupe/v1.2.3" >&2
+        exit 1
+    fi
+    for tool in gh git jq sops ssh-add ssh-keygen; do
+        command -v "$tool" >/dev/null || { echo "this recipe needs $tool" >&2; exit 1; }
+    done
+    [ -f "$keyfile" ] || { echo "the signing key file $keyfile does not exist" >&2; exit 1; }
+    [ -n "${SSH_AUTH_SOCK:-}" ] || { echo "SSH_AUTH_SOCK is not set, so there is no SSH agent" >&2; exit 1; }
+
+    work="$(mktemp -d)"
+    cleanup() {
+        if [ -f "$work/active.pub" ]; then ssh-add -d "$work/active.pub" >/dev/null 2>&1 || true; fi
+        rm -rf "$work"
+    }
+    trap cleanup EXIT
+
+    cat > "$work/allowed_signers" <<'EOF'
+    # BEGIN release_keys
+    loupe-release ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAUeC5MaWHXeMaiqKi9xzbbVIBvclqrpBTYr8OdIQUOs
+    loupe-release ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJ45ZR/m+TS0VjF4rHIbtWD5JcIcbqhW4TegaR0CuWZb
+    # END release_keys
+    EOF
+    # The first key line is the active key. ssh-keygen -Y sign wants it without the principal.
+    grep -v '^#' "$work/allowed_signers" | head -n 1 | cut -d ' ' -f 2- > "$work/active.pub"
+
+    draft="$(gh release view "$tag" --repo "$repo" --json isDraft,assets --jq '[.isDraft, ([.assets[].name] | index("checksums.txt.sig") != null)] | @tsv')"
+    [ "${draft%$'\t'*}" = true ] || { echo "$tag is not a draft release" >&2; exit 1; }
+    [ "${draft##*$'\t'}" = false ] || { echo "$tag already has a checksums.txt.sig" >&2; exit 1; }
+
+    # One local copy: it is checked, shown and signed. Nothing downloads it again.
+    gh release download "$tag" --repo "$repo" --pattern checksums.txt --dir "$work"
+    gh attestation verify "$work/checksums.txt" --repo "$repo" \
+        --signer-workflow "$repo/.github/workflows/$workflow" --source-ref "$ref" \
+        --deny-self-hosted-runners --format json > "$work/attestation.json"
+    git fetch --quiet origin main
+    commit="$(sh cli/scripts/sign-release-check.sh "$work/attestation.json" "$workflow" "$ref" origin/main)"
+
+    echo
+    echo "Release $tag, built by $workflow from commit $commit on main."
+    echo
+    cat "$work/checksums.txt"
+    echo
+    git fetch --quiet --tags origin
+    previous=""
+    for candidate in $(git tag --list "$track" --sort=-v:refname); do
+        [ "$candidate" != "$tag" ] || continue
+        if gh release view "$candidate" --repo "$repo" --json assets --jq '.assets[].name' 2>/dev/null | grep -qx checksums.txt.sig; then
+            previous="$candidate"
+            break
+        fi
+    done
+    if [ -n "$previous" ]; then
+        echo "Commits since $previous:"
+        git log --oneline "$(git rev-list -n 1 "$previous")..$commit"
+    else
+        echo "No earlier signed release of this track. The last 20 commits:"
+        git log --oneline -n 20 "$commit"
+    fi
+    echo
+    read -r -p "Sign and publish $tag? [y/N] " answer < /dev/tty
+    [ "$answer" = y ] || { echo "nothing was signed" >&2; exit 1; }
+
+    sops decrypt --extract '["release_signing_key"]' "$keyfile" | ssh-add -t 60 -
+    ssh-keygen -Y sign -f "$work/active.pub" -n loupe-release "$work/checksums.txt"
+    ssh-keygen -Y verify -f "$work/allowed_signers" -I loupe-release -n loupe-release \
+        -s "$work/checksums.txt.sig" < "$work/checksums.txt"
+    gh release upload "$tag" "$work/checksums.txt.sig" --repo "$repo"
+    gh release edit "$tag" --repo "$repo" --draft=false
+    if [ "$workflow" = cli-release.yml ]; then
+        gh workflow run cli-homebrew.yml --repo "$repo" --ref main -f tag="$tag"
+    fi
 
 # Print the host's Go platform as "<goos> <goarch>".
 [private]

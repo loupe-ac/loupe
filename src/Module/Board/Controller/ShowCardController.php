@@ -9,6 +9,7 @@ use App\Module\Board\Command\ShowCardCommand;
 use App\Module\Board\Command\ShowCardHandler;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Security\CardVoter;
+use App\Module\Workflow\Contract\FactsPass;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -26,28 +27,31 @@ final class ShowCardController extends AppController
 {
     public function __construct(
         private readonly ShowCardHandler $handler,
+        private readonly FactsPass $pass,
     ) {
     }
 
     public function __invoke(
         #[MapEntity(expr: 'repository.findOneByIdAndProjectId(cardId, projectId)')] Card $card,
     ): Response {
-        $view = ($this->handler)(new ShowCardCommand($card));
+        $response = $this->pass->during(function () use ($card): Response {
+            $view = ($this->handler)(new ShowCardCommand($card));
 
-        $response = $this->render('@Board/show_card.html.twig', [
-            'card' => $view->card,
-            'siteReviewLinks' => $view->siteReviewLinks,
-            'relatedCards' => $view->relatedCards,
-            'children' => $view->children,
-            'progress' => $view->progress,
-            'pullRequestStates' => $view->pullRequestStates,
-            'history' => $view->history,
-            'markers' => $view->markers,
-            'agentReviews' => $view->agentReviews,
-            'artifacts' => $view->artifacts,
-            'screenshotSizes' => $view->screenshotSizes,
-            'values' => $view->values,
-        ]);
+            return $this->render('@Board/show_card.html.twig', [
+                'card' => $view->card,
+                'siteReviewLinks' => $view->siteReviewLinks,
+                'relatedCards' => $view->relatedCards,
+                'children' => $view->children,
+                'progress' => $view->progress,
+                'pullRequestStates' => $view->pullRequestStates,
+                'history' => $view->history,
+                'markers' => $view->markers,
+                'agentReviews' => $view->agentReviews,
+                'artifacts' => $view->artifacts,
+                'screenshotSizes' => $view->screenshotSizes,
+                'values' => $view->values,
+            ]);
+        });
         $response->setVary('Turbo-Frame', false);
 
         return $response;

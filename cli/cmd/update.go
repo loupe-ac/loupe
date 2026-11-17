@@ -36,7 +36,7 @@ type selfUpdate struct {
 	version, goos, goarch, apiBase string
 	hc                             *http.Client
 	executable                     func() (string, error)
-	serverRange                    func(ctx context.Context) (string, error)
+	serverPolicy                   func(ctx context.Context) (serverPolicy, error)
 	// sites reads the projects of the server, for the skill packages they
 	// name. nil reads none, and only the packages in the store update.
 	sites func(ctx context.Context) ([]api.Site, error)
@@ -54,22 +54,31 @@ func readSites(ctx context.Context) ([]api.Site, error) {
 	return apiClient(cfg).Sites(ctx)
 }
 
-// readServerRange reads the CLI range the server supports from GET
-// /api/v1/bridge/events, with the stored login, as a bridge does at start.
-func readServerRange(ctx context.Context) (string, error) {
+// serverPolicy is what a server says about releases: the CLI range it supports
+// and the fingerprints of the release keys it revoked.
+type serverPolicy struct {
+	cliRange string
+	revoked  []string
+}
+
+// readServerPolicy reads the policy from GET /api/v1/bridge/events, with the
+// stored login, as a bridge does at start. The revoked keys come back also when
+// the server sends no CLI range.
+func readServerPolicy(ctx context.Context) (serverPolicy, error) {
 	cfg, err := config.Load()
 	if err != nil {
-		return "", err
+		return serverPolicy{}, err
 	}
 	events, err := apiClient(cfg).Events(ctx, cfg.BridgeID)
 	if err != nil {
-		return "", err
+		return serverPolicy{}, err
 	}
+	policy := serverPolicy{cliRange: events.CliRange, revoked: events.RevokedReleaseKeys}
 	if events.CliRange == "" {
-		return "", errors.New("the server sends no CLI range")
+		return policy, errors.New("the server sends no CLI range")
 	}
 
-	return events.CliRange, nil
+	return policy, nil
 }
 
 // builtSetupRefusal says that a built setup updates by its recipe.
@@ -89,14 +98,14 @@ type runningBridge struct {
 
 func newUpdateCmd() *cobra.Command {
 	return newUpdateCmdWith(selfUpdate{
-		version:     version,
-		goos:        runtime.GOOS,
-		goarch:      runtime.GOARCH,
-		apiBase:     updateAPI(),
-		hc:          &http.Client{Timeout: updateTimeout},
-		executable:  os.Executable,
-		serverRange: readServerRange,
-		sites:       readSites,
+		version:      version,
+		goos:         runtime.GOOS,
+		goarch:       runtime.GOARCH,
+		apiBase:      updateAPI(),
+		hc:           &http.Client{Timeout: updateTimeout},
+		executable:   os.Executable,
+		serverPolicy: readServerPolicy,
+		sites:        readSites,
 	})
 }
 
@@ -455,7 +464,11 @@ func (s selfUpdate) run(ctx context.Context, out io.Writer) error {
 	}
 
 	running, semver := update.ParseVersion(s.version)
-	cliRange, rangeErr := s.serverRange(ctx)
+	policy, rangeErr := s.serverPolicy(ctx)
+	cliRange := policy.cliRange
+	if _, err := update.AddRevoked(dir, policy.revoked); err != nil {
+		return fmt.Errorf("store the revoked release keys: %w", err)
+	}
 	var rule string
 	var keep func(update.Version) bool
 	switch {
@@ -479,10 +492,26 @@ func (s selfUpdate) run(ctx context.Context, out io.Writer) error {
 		return err
 	}
 	s.updateSkills(ctx, out, u, releases)
-	c, found := update.PickWhere(releases, u.goos, u.goarch, keep)
+	st, err := update.LoadState(dir)
+	if err != nil {
+		st = &update.State{Staged: map[string]string{}, Signers: map[string]string{}}
+	}
+	st.Revoke(policy.revoked)
+	u.dropRevokedStaged(st)
+	installable := keep
+	if rangeErr == nil && semver {
+		installable = func(v update.Version) bool { return keep(v) && update.ShouldInstall(s.version, v, cliRange) }
+	}
+	signed, found, err := update.PickSigned(ctx, u.hc, releases, u.goos, u.goarch, installable, st.Revoked, func(c update.Candidate, err error) {
+		fmt.Fprintf(out, "warning: release %s has no valid signature: %v\n", c.Version, err)
+	})
+	if err != nil {
+		return fmt.Errorf("read the release signatures: %w", err)
+	}
+	c := signed.Candidate
 	inRange := rangeErr == nil && update.Satisfies(s.version, cliRange)
 	if !found && !inRange {
-		return fmt.Errorf("no release is %s", rule)
+		return fmt.Errorf("no signed release is %s", rule)
 	}
 	current := false
 	switch {
@@ -490,7 +519,7 @@ func (s selfUpdate) run(ctx context.Context, out io.Writer) error {
 	case rangeErr == nil:
 		current = !found || !update.ShouldInstall(s.version, c.Version, cliRange)
 	default:
-		current = update.Compare(c.Version, running) <= 0
+		current = !found || update.Compare(c.Version, running) <= 0
 	}
 	if current {
 		fmt.Fprintln(out, "current at "+s.version)
@@ -508,13 +537,12 @@ func (s selfUpdate) run(ctx context.Context, out io.Writer) error {
 	if err := u.writable(); err != nil {
 		return fmt.Errorf("blocked: the directory of the binary takes no new file: %w", err)
 	}
-	st, err := update.LoadState(dir)
-	if err != nil {
-		st = &update.State{Staged: map[string]string{}}
-	}
-	staged, err := u.stage(ctx, st, c)
+	staged, err := u.stage(ctx, st, signed)
 	if err != nil {
 		return fmt.Errorf("stage %s: %w", to, err)
+	}
+	if update.StagedRevoked(dir, to) {
+		return fmt.Errorf("release %s: %w", to, update.ErrKeyRevoked)
 	}
 	exe, err := s.executable()
 	if err != nil {
@@ -583,6 +611,11 @@ func (s selfUpdate) runSkillsOnly(ctx context.Context, out io.Writer) {
 	if len(names) == 0 {
 		return
 	}
+	if err := s.applyRevocations(ctx, dir); err != nil {
+		fmt.Fprintf(out, "skills: not updated (%v)\n", err)
+
+		return
+	}
 	releases, err := update.FetchReleases(ctx, u.hc, s.apiBase)
 	if err != nil {
 		fmt.Fprintf(out, "skills: not updated (%v)\n", err)
@@ -590,6 +623,17 @@ func (s selfUpdate) runSkillsOnly(ctx context.Context, out io.Writer) {
 		return
 	}
 	s.refreshSkills(ctx, out, u, releases, names)
+}
+
+// applyRevocations stores the revoked release keys of the server before a skill
+// check. A server that cannot be read leaves the stored keys in force.
+func (s selfUpdate) applyRevocations(ctx context.Context, dir string) error {
+	policy, _ := s.serverPolicy(ctx)
+	if _, err := update.AddRevoked(dir, policy.revoked); err != nil {
+		return fmt.Errorf("store the revoked release keys: %w", err)
+	}
+
+	return nil
 }
 
 // printSkillResults prints one line for each skill package.
@@ -622,6 +666,9 @@ func skillLine(r skills.Result) string {
 // binary to the default setup.
 func (s selfUpdate) runPanelOnly(ctx context.Context, out io.Writer, u *updater, setup config.Setup) error {
 	fmt.Fprintf(out, "the setup %s runs the shared binary, which updates from the default setup\n", setup.Dir)
+	if err := s.applyRevocations(ctx, u.dir); err != nil {
+		return err
+	}
 	releases, err := update.FetchReleases(ctx, u.hc, u.apiBase)
 	if err != nil {
 		return err

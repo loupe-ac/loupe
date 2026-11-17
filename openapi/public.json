@@ -31220,7 +31220,8 @@
                 "description": "The API versions of this instance.",
                 "required": [
                     "versions",
-                    "cliRange"
+                    "cliRange",
+                    "revokedReleaseKeys"
                 ],
                 "properties": {
                     "versions": {
@@ -31253,6 +31254,14 @@
                         "description": "The CLI versions this server works with, as a caret range.",
                         "type": "string",
                         "example": "^2.0"
+                    },
+                    "revokedReleaseKeys": {
+                        "description": "Fingerprints of release keys that the bridge must not trust, as `ssh-keygen -l` prints them.",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "example": "SHA256:mPVVTkHngFt3LMCmwB7Nw6BtoS371HG9RRKbhn6T4jM"
+                        }
                     }
                 },
                 "type": "object"

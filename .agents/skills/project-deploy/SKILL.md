@@ -26,7 +26,7 @@ Record each item of the change that the deploy must handle:
 
 - An environment variable, with its value or its source. `DeploymentConfigParityCheck` cross-checks `.env`, Terraform, the prod compose files and `docs/reference/environment.md`. Set a `terraform.tfvars` value before the deploy.
 - A migration and its risk. The pre-deploy job runs it. Name long locks, backfills and irreversible steps.
-- A new feature flag. `/install` seeds flags once, so ship a per-flag migration, as `migrations/Version20260906142530.php` does. Otherwise, name the manual switch-on.
+- A new feature flag. `/install` seeds flags once, so ship a per-flag migration that seeds the flag on. A flag that a rollout risk keeps off gets a follow-up card, which turns it on with a migration in a later release.
 - A new messenger transport or schedule. It must reach `worker_command` in `terraform/main.tf` and the `worker` service in `docker/compose/prod.yaml`.
 - A new CSP origin in `config/packages/nelmio_security.yaml`.
 - A new external service and its `DiagnosticInterface` check.
@@ -99,8 +99,11 @@ Production runs `<live sha>`. This release adds <M> pull requests.
 1. Switch the checkout to `main` at `<origin/main sha>`.
 2. <each deploy note step that comes before the code, such as a `terraform apply`>
 3. Run `just deploy`.
-4. Run the checks of "After a deploy", and <each check the deploy notes ask for>.
+4. <each deploy note step that comes after the code>
+5. Run the checks of "After a deploy", and <each check the deploy notes ask for>.
 ```
+
+A step after the code is part of the deploy. Do it after the owner says go, and report it with the checks. The deploy is not done while such a step waits.
 
 Give each change a plain name that a person understands without the diff. Group the pull requests by theme when there are many. Name an epic once, with the count of its parts. Write each empty item as a sentence, such as "No migration", and never as "none". Choose the risk level yourself, and let the bullets under it show the reasons. Leave out a step that does not apply.
 
@@ -256,7 +259,7 @@ Read `lastDeploy` of the release with `find_releases` through the Sentry MCP to 
 
 Do each step of the deploy notes that an agent can do, and do not ask the owner again. The go of the owner on the summary covers them. Hand a step to the owner only when it needs a browser, a session, or a secret that a hook refuses to you.
 
-- For a CLI change, run `git fetch -q --tags origin` first, because a stale local tag hides a release. Then run `git diff --name-only "$(git describe --tags --match 'cli/v*' --abbrev=0)"..HEAD -- cli/ plugins/`. The CLI release builds `plugins/` into the binary, and `loupe init` runs its skills from that copy. A change to `plugins/` alone therefore needs a CLI release too. When the diff prints a file, push the next `cli/v*` tag at the deployed sha. Then wait for the `CLI release` workflow. Never move a tag, so a failed release gets the next patch tag.
+- For a CLI change, run `git fetch -q --tags origin` first, because a stale local tag hides a release. Then run `git diff --name-only "$(git describe --tags --match 'cli/v*' --abbrev=0)"..HEAD -- cli/ plugins/`. The CLI release builds `plugins/` into the binary, and `loupe init` runs its skills from that copy. A change to `plugins/` alone therefore needs a CLI release too. When the diff prints a file, push the next `cli/v*` tag at the deployed sha. Then wait for the `CLI release` workflow, which publishes a draft release. Run `just sign-release <tag>` to sign and publish it. The owner approves the signature, and the recipe then starts the Homebrew update. A release stays a draft, and no bridge sees it, until it is signed. `docs/operating/release-signing.md` has the steps. Never move a tag, so a failed release gets the next patch tag.
 - For a bridge update, read `~/Library/Application Support/loupe/rules.yaml`, and copy it to a backup file next to it. Edit it when the release changes its format. Then run `loupe update`, and read `loupe --version` and the end of `bridge.log`.
 - A running bridge reads the file only at start and on `loupe bridge reload`. The update preflight reads the file on disk, so edit the file first and update after. Never run `loupe bridge stop` for an update, because it ends every running worker.
 - Run a backfill or a console command in the `web` console, as above.

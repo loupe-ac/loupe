@@ -210,7 +210,7 @@ var Operations = []Operation{
 		Idempotent: false, TakesFields: false, Multipart: false, AnswerFields: []string{"id", "topic", "scope", "question", "model", "effort", "state", "reason", "createdAt", "finishedAt", "documentId", "costUsd", "proposals"}, TimeFields: []string{"createdAt", "finishedAt"}},
 	{ID: "listApiVersions", Method: "GET", Path: "/api/versions", Summary: "List the API versions of this instance", Description: "No sign-in is needed.",
 		PathArgs: nil, HasProject: false, Query: nil, Body: nil,
-		Idempotent: false, TakesFields: false, Multipart: false, AnswerFields: []string{"versions", "cliRange"}, TimeFields: nil},
+		Idempotent: false, TakesFields: false, Multipart: false, AnswerFields: []string{"versions", "cliRange", "revokedReleaseKeys"}, TimeFields: nil},
 	{ID: "listArtifacts", Method: "GET", Path: "/api/v1/projects/{project}/artifacts", Summary: "List the stored artifacts", Description: "",
 		PathArgs: nil, HasProject: true, Query: []Param{
 			{Name: "limit", Type: "integer", Format: "", Items: "", Required: false, Nullable: false, Description: "The most rows to return.", Enum: nil},

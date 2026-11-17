@@ -6,6 +6,7 @@ namespace App\Module\Board\Repository;
 
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardPause;
+use App\Module\Workflow\Contract\FactsPass;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\ORM\Query;
 use Doctrine\Persistence\ManagerRegistry;
@@ -14,21 +15,23 @@ use Symfony\Component\Uid\Uuid;
 /** @extends ServiceEntityRepository<CardPause> */
 class CardPauseRepository extends ServiceEntityRepository
 {
-    public function __construct(ManagerRegistry $registry)
-    {
+    public function __construct(
+        ManagerRegistry $registry,
+        private readonly FactsPass $factsPass,
+    ) {
         parent::__construct($registry, CardPause::class);
     }
 
     /** Read fresh, so a caller that holds the card lock sees a release another transaction committed. */
     public function findActiveForCard(Card $card): ?CardPause
     {
-        return $this->createQueryBuilder('pause')
+        return $this->factsPass->remember('card-active-pause:'.$card->id, fn (): ?CardPause => $this->createQueryBuilder('pause')
             ->andWhere('pause.card = :card')
             ->andWhere('pause.releasedAt IS NULL')
             ->setParameter('card', $card)
             ->getQuery()
             ->setHint(Query::HINT_REFRESH, true)
-            ->getOneOrNullResult();
+            ->getOneOrNullResult());
     }
 
     /** The newest pause of the card, released or not. */

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"path"
+	"slices"
 	"strings"
 )
 
@@ -33,6 +34,7 @@ type Candidate struct {
 	Tag       string
 	Archive   Asset
 	Checksums Asset
+	Signature Asset
 }
 
 const checksumsName = "checksums.txt"
@@ -61,10 +63,21 @@ func Pick(releases []Release, rangeStr, goos, goarch string, skip map[string]boo
 }
 
 // PickWhere returns the highest published CLI release that keep accepts and
-// that ships an archive for this platform and a checksums file.
+// that ships an archive for this platform, a checksums file and its signature.
 func PickWhere(releases []Release, goos, goarch string, keep func(Version) bool) (Candidate, bool) {
-	var best Candidate
-	found := false
+	list := CandidatesWhere(releases, goos, goarch, keep)
+	if len(list) == 0 {
+		return Candidate{}, false
+	}
+
+	return list[0], true
+}
+
+// CandidatesWhere lists the published CLI releases that keep accepts and that
+// ship an archive for this platform, a checksums file and its signature, the
+// highest first. A release with no signature is never a candidate.
+func CandidatesWhere(releases []Release, goos, goarch string, keep func(Version) bool) []Candidate {
+	var out []Candidate
 	for _, r := range releases {
 		if r.Draft || r.Prerelease {
 			continue
@@ -82,16 +95,15 @@ func PickWhere(releases []Release, goos, goarch string, keep func(Version) bool)
 		}
 		archive, okArchive := findAsset(r.Assets, AssetName(v, goos, goarch))
 		checksums, okChecksums := findAsset(r.Assets, checksumsName)
-		if !okArchive || !okChecksums {
+		signature, okSignature := findAsset(r.Assets, SignatureName)
+		if !okArchive || !okChecksums || !okSignature {
 			continue
 		}
-		if !found || Compare(v, best.Version) > 0 {
-			best = Candidate{Version: v, Tag: r.TagName, Archive: archive, Checksums: checksums}
-			found = true
-		}
+		out = append(out, Candidate{Version: v, Tag: r.TagName, Archive: archive, Checksums: checksums, Signature: signature})
 	}
+	slices.SortStableFunc(out, func(a, b Candidate) int { return -Compare(a.Version, b.Version) })
 
-	return best, found
+	return out
 }
 
 func findAsset(assets []Asset, name string) (Asset, bool) {
