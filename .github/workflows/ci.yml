@@ -168,8 +168,7 @@ jobs:
       # workstation run still writes nothing. ParaTest creates the directory.
       # The dev seed restore tests run in dev-seed.yml. Before the move, the
       # slowest of 26 hosted runs took 603s, and identical runs differ by 1.8x.
-      # This step now runs less than that, so the job limit stays above it and
-      # the upload still runs.
+      # The job limit must stay above this step, so the upload still runs.
       - run: just phpunit --exclude-group dev-seed-restore --log-junit var/phpunit-timing/junit.xml
         timeout-minutes: 20
 
