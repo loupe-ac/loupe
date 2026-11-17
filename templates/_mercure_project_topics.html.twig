@@ -1,0 +1,17 @@
+{# Every project page asks for this one set, so a Turbo visit keeps the open hub connection. Takes: project. #}
+{% if project and not app.request.headers.has('Turbo-Frame') %}
+{% do mercure_subscribe(board_topic(project)) %}
+{% do mercure_subscribe(worker_runs_topic(project)) %}
+{% do mercure_subscribe(activity_topic(project)) %}
+{% do mercure_subscribe(documents_topic(project)) %}
+{% do mercure_subscribe(analytics_topic(project)) %}
+{% do mercure_subscribe(dashboard_topic(project)) %}
+{% if is_feature_enabled('artifacts.enabled') %}
+{% do mercure_subscribe(artifacts_topic(project)) %}
+{% endif %}
+{% if is_feature_enabled('inbox.enabled') %}
+{% do mercure_subscribe(inbox_page_topic(project)) %}
+{% do mercure_subscribe(inbox_topic(app.user)) %}
+{% endif %}
+{% do mercure_subscribe(notifications_topic(app.user)) %}
+{% endif %}
