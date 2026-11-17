@@ -163,12 +163,15 @@ test('the open drawer shows a move made elsewhere, on the tab the reader had ope
     const other = await signedInPage(browser, email, PASSWORD);
     await other.goto(cardUrl);
     await other.getByRole('tab', { name: 'Details', exact: true }).click();
+    // The card page stays in place after the move.
+    const moved = other.waitForResponse(
+        (r) => r.url().includes('/move') && r.request().method() === 'POST',
+        { timeout: 15_000 },
+    );
     await other
         .locator('.lp-card-move__form select[name$="[column]"]')
         .selectOption({ label: 'In progress' });
-    await expect(other).toHaveURL(new RegExp(`${boardUrl}$`), {
-        timeout: 15_000,
-    });
+    expect((await moved).status()).toBe(200);
 
     // The update waits for the hub, a debounce and a fetch of the card.
     await expect(identity).toContainText('In progress', { timeout: 15000 });
