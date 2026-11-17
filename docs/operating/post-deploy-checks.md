@@ -108,4 +108,4 @@ description: "What to verify after a deploy, and what each check can and cannot 
    the user of the bridge and can read that user's `loupe login` file. The run
    credential does not stop a worker that reads the file on purpose. For a hard
    boundary, run the workers as a separate OS user that cannot read the login
-   folder. [The bridge page](/extending/cli-bridge/) has the details.
+   folder. [The bridge page](../extending/cli-bridge.md) has the details.
