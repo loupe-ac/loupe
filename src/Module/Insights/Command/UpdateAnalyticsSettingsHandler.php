@@ -58,6 +58,7 @@ final readonly class UpdateAnalyticsSettingsHandler
 
         $settings = $this->em->wrapInTransaction(function () use ($command, $project, $programs): InsightsProjectSettings {
             // The lock keeps two first saves from both inserting a row.
+            // Keep FOR UPDATE: a bridge report waits for no weaker lock.
             $this->em->lock($project, LockMode::PESSIMISTIC_WRITE);
 
             $settings = $this->insightsProjectSettings->findForProject($project);

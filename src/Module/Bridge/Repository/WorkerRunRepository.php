@@ -40,6 +40,15 @@ class WorkerRunRepository extends ServiceEntityRepository
     /** An init run is a run of work kind init on the project itself. */
     private const string INIT_RUN_CONDITION = 'r.workKind = :initKind AND r.subjectType = :initSubject';
 
+    /** Serialises the first reports of one run until the transaction ends, so two of them never both create it. */
+    public function lockRunKey(Project $project, Uuid $bridgeId, Uuid $runKey): void
+    {
+        $this->getEntityManager()->getConnection()->executeStatement(
+            'SELECT pg_advisory_xact_lock(hashtext(?))',
+            ['worker_run:'.$project->requireId()->toRfc4122().':'.$bridgeId->toRfc4122().':'.$runKey->toRfc4122()],
+        );
+    }
+
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, WorkerRun::class);

@@ -25,7 +25,7 @@ use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInt
  */
 final readonly class CurrentProjectProvider
 {
-    private const string LAST_VISITED_SESSION_KEY = 'project.last_visited_id';
+    public const string LAST_VISITED_SESSION_KEY = 'project.last_visited_id';
     /** Set by remember_project_controller.js when a project page renders. */
     public const string LAST_VISITED_COOKIE = 'loupe_project';
 
