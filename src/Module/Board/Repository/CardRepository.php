@@ -16,6 +16,7 @@ use App\Module\Board\View\BacklogSort;
 use App\Module\Board\Workflow\ChildMark;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\Actor;
+use App\Module\Workflow\Contract\FactsPass;
 use App\Module\Workflow\Contract\MarkerKind;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Common\Collections\AbstractLazyCollection;
@@ -46,8 +47,10 @@ class CardRepository extends ServiceEntityRepository
     /** Whether the board shows card c. A terminal column reads as findCompletedSince() does. */
     private const string SHOWN = '(NOT k.terminal OR (c.completed_at >= :since AND (p.id IS NULL OR NOT pk.terminal)))';
 
-    public function __construct(ManagerRegistry $registry)
-    {
+    public function __construct(
+        ManagerRegistry $registry,
+        private readonly FactsPass $factsPass,
+    ) {
         parent::__construct($registry, Card::class);
     }
 
@@ -1288,6 +1291,12 @@ class CardRepository extends ServiceEntityRepository
      * @return array{done: int, total: int}
      */
     public function childProgressOf(Card $epic): array
+    {
+        return $this->factsPass->remember('child-progress:'.$epic->id, fn (): array => $this->readChildProgressOf($epic));
+    }
+
+    /** @return array{done: int, total: int} */
+    private function readChildProgressOf(Card $epic): array
     {
         /** @var array{done: int|string|null, total: int|string} $row */
         $row = $this->getEntityManager()->getConnection()->fetchAssociative(
