@@ -1,0 +1,6 @@
+{#- The Completed field of the card page, an empty hidden marker while the card is open. Props: card (Card). -#}
+{% if card.completedAt %}
+    <div class="lp-card-field" id="card-completed-{{ card.id }}"><dt>{{ 'board.card.overview.completed'|trans }}</dt><dd><twig:Ds:RelativeTime :datetime="card.completedAt" mode="date" /></dd></div>
+{% else %}
+    <div id="card-completed-{{ card.id }}" hidden></div>
+{% endif %}

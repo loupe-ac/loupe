@@ -97,15 +97,17 @@ test('a card moved in one browser moves in another, marked, with the scroll kept
     const flashed = expect(moved).toHaveClass(/lp-board-card--flash/, {
         timeout: 15000,
     });
+    // The card page stays in place after the move.
+    const response = mover.waitForResponse(
+        (r) => r.url().includes('/move') && r.request().method() === 'POST',
+        { timeout: 15000 },
+    );
     await mover
         .locator('.lp-card-move__select')
         .selectOption({ label: 'Done' });
     await Promise.all([
         flashed,
-        // A loaded runner takes over 5 s for the move and the board load.
-        expect(mover).toHaveURL(new RegExp(`${boardUrl}$`), {
-            timeout: 15000,
-        }),
+        response.then((r) => expect(r.status()).toBe(200)),
     ]);
     await expect(group(watcher, 'in-progress').locator(CARD)).toHaveCount(0);
     await expect(
