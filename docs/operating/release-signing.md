@@ -32,7 +32,7 @@ Rotate the key when you retire it, or on a schedule. Take these steps in order:
 1. Make a new key pair. Add the public line to `release_keys`, `cli/install.sh` and the `cli-install-release` recipe.
 2. Ship a CLI release that you sign with the old key. It teaches each bridge the new key.
 3. Open the bridges page. Wait until the bridges you care about run that release or a later one.
-4. Sign the next releases with the new key. Put the new private key in the sops file.
+4. Move the new public line to the first line of `release_keys` in every copy, and keep the old line below it. `just sign-release` signs with the first line, so the order must match the private key. Put the new private key in the sops file. Then sign the next releases.
 5. Ship a later release that removes the old key from `release_keys`.
 
 A bridge that missed the middle release in step 2 finds the newest release that a key it trusts signed. It installs that release, and then trusts the new key. This walk works only while the middle release stays inside the CLI range of the server. A bridge that was offline for the whole rotation needs a reinstall.
@@ -55,7 +55,7 @@ An attacker with the key can sign a release that every bridge accepts. Act in th
    ```
 
 3. Deploy the app. The heartbeat answer, `GET /api/v1/bridge/events` and `GET /api/versions` then carry the list as `revokedReleaseKeys`. The instance also serves `install.sh` without the lines of those keys.
-4. Sign a CLI release with the backup key. That release removes the stolen key from `release_keys`.
+4. Move the backup public line to the first line of `release_keys` in every copy. `just sign-release` signs with the first line. Put the backup private key in the sops file, and sign a CLI release with it. That release removes the stolen key from `release_keys`.
 
 At its next check, each bridge of the instance stores the list. The list only grows, because an instance can only take trust away. A bridge refuses a release that a listed key signed. It deletes a staged binary from that key. It skips a stored skill version from that key, also for a session that resumes, and deletes it. Workers then start with the highest skill version left.
 
