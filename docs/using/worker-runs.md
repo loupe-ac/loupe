@@ -47,6 +47,7 @@ model and the duration. A run with no price shows the cost as **unknown**. A
 Codex run on OpenRouter shows its [billed cost](#the-billed-cost-of-an-openrouter-run)
 instead. A token count or a model that the run did not report has no line. A command run
 shows no **Metrics** block, and a run with no metrics row shows none either.
+The block can show the new values of a run a few seconds after its state changes, because a background job writes the metrics row.
 
 A bridge runs its workers in named worker pools, and each report of a run names
 its pool. The row and the drawer show the pool that the last report named. A
