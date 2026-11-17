@@ -44,7 +44,7 @@ This credential cannot do this on this project.
 
 ### credential_not_owner_wide
 
-Only a credential that covers every project of the owner can create a project.
+Only a credential that covers every project of the owner can create a project or call an agent route that names no project. A credential bound to one project gets this refusal there.
 
 ## 404 Not found
 
