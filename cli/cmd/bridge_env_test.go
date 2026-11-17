@@ -73,3 +73,24 @@ func TestRestartFilteredExecsOnceWithFilteredEnv(t *testing.T) {
 	}
 	t.Cleanup(func() { envallow.SetPass(nil); startupPass = nil })
 }
+
+func TestDroppedEnvNamesWorkerLossesAfterAReload(t *testing.T) {
+	t.Setenv(envallow.FilteredMarker, "GONE_AT_RESTART")
+	t.Setenv("LOUPE_ROTATE_TOKEN", "x")
+	t.Setenv("RELOAD_PASS_VAR", "y")
+	t.Cleanup(func() { envallow.SetPass(nil) })
+
+	envallow.SetPass([]string{"RELOAD_PASS_VAR"})
+	got := droppedEnv()
+	if !slices.Contains(got, "GONE_AT_RESTART") || !slices.Contains(got, "LOUPE_ROTATE_TOKEN") || slices.Contains(got, "RELOAD_PASS_VAR") {
+		t.Fatalf("dropped before the reload = %v", got)
+	}
+	if slices.Contains(got, envallow.FilteredMarker) {
+		t.Fatalf("the marker is not a dropped variable: %v", got)
+	}
+
+	envallow.SetPass(nil)
+	if got = droppedEnv(); !slices.Contains(got, "RELOAD_PASS_VAR") {
+		t.Fatalf("a passEnv name removed by a reload must be named: %v", got)
+	}
+}

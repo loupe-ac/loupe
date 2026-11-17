@@ -41,13 +41,35 @@ func restartFiltered(path string) error {
 	return nil
 }
 
-// logDroppedEnv names the variables the restart left out of the bridge.
-func logDroppedEnv(log *slog.Logger) {
-	var names []string
+// droppedEnv gives the sorted names that a worker of some harness loses: the
+// names the restart removed from the bridge, and the names of the bridge
+// environment that a worker filter drops now, such as a bridge-only name or a
+// passEnv name that a reload removed.
+func droppedEnv() []string {
+	seen := map[string]bool{}
 	if v := os.Getenv(envallow.FilteredMarker); v != "" {
-		names = strings.Split(v, ",")
+		for _, name := range strings.Split(v, ",") {
+			seen[name] = true
+		}
 	}
-	log.Info("worker_env_dropped", "names", names)
+	for _, harness := range []string{envallow.HarnessClaude, envallow.HarnessCodex} {
+		for _, name := range envallow.DroppedFor(harness) {
+			seen[name] = true
+		}
+	}
+	delete(seen, envallow.FilteredMarker)
+	names := make([]string, 0, len(seen))
+	for name := range seen {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+
+	return names
+}
+
+// logDroppedEnv names the variables that workers do not get.
+func logDroppedEnv(log *slog.Logger) {
+	log.Info("worker_env_dropped", "names", droppedEnv())
 }
 
 // applyPassEnv takes the passEnv list of a reloaded rule file. A name that the
@@ -61,6 +83,6 @@ func applyPassEnv(log *slog.Logger, set *rules.Set) {
 				"message", "The bridge started without this name. Put the value in an env file and run loupe bridge reload, or restart the bridge.")
 		}
 	}
-	logDroppedEnv(log)
 	envallow.SetPass(next)
+	logDroppedEnv(log)
 }
