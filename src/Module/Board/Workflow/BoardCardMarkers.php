@@ -9,6 +9,7 @@ use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Service\StoredCardMarkers;
 use App\Module\Workflow\Contract\CardMarkerStore;
 use App\Module\Workflow\Contract\CardsDueForMarkers;
+use App\Module\Workflow\Contract\MarkerWrite;
 use App\Module\Workflow\Contract\StoredMarker;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\DependencyInjection\Attribute\AsAlias;
@@ -48,16 +49,17 @@ final readonly class BoardCardMarkers implements CardMarkerStore, CardsDueForMar
     }
 
     #[\Override]
-    public function write(Uuid $projectId, Uuid $cardId, array $markers, array $inbox, ?\DateTimeImmutable $dueAt): bool
+    public function write(Uuid $projectId, Uuid $cardId, array $markers, array $inbox, ?\DateTimeImmutable $dueAt): MarkerWrite
     {
         $card = $this->cards->find($cardId);
         if (null === $card) {
-            return false;
+            return new MarkerWrite(false);
         }
 
         $entries = array_map(self::entry(...), $markers);
         $inboxEntries = array_map(self::entry(...), $inbox);
 
+        $keys = [...self::changedKeys($card->markers ?? [], $entries), ...self::changedKeys($card->inboxMarkers ?? [], $inboxEntries)];
         $changed = $entries !== ($card->markers ?? []);
         if ($changed || null === $card->markers) {
             $card->markers = $entries;
@@ -75,7 +77,32 @@ final readonly class BoardCardMarkers implements CardMarkerStore, CardsDueForMar
             $this->events->dispatch(new CardChanged($projectId, $cardId, CardChanged::UPDATED, false, markersOnly: true));
         }
 
-        return $changed || $inboxChanged;
+        return new MarkerWrite($changed || $inboxChanged, array_values(array_unique($keys)));
+    }
+
+    /**
+     * @param list<array<string, mixed>> $old
+     * @param list<array<string, mixed>> $new
+     *
+     * @return list<string> the keys whose entries differ
+     */
+    private static function changedKeys(array $old, array $new): array
+    {
+        $group = static function (array $entries): array {
+            $byKey = [];
+            foreach ($entries as $entry) {
+                $byKey[$entry['key']][] = $entry;
+            }
+
+            return $byKey;
+        };
+        $before = $group($old);
+        $after = $group($new);
+
+        return array_values(array_filter(
+            array_keys($before + $after),
+            static fn (string|int $key): bool => ($before[$key] ?? []) !== ($after[$key] ?? []),
+        ));
     }
 
     /** @return array{key: string, kind: string, label: string, remedy: ?string, params: array<string, string|int>, since: string, link?: string, subject?: array{type: string, ids: array<string, string>}} */

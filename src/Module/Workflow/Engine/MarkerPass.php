@@ -44,7 +44,9 @@ final readonly class MarkerPass
             [$markers, $inbox, $dueAt] = $this->find($run, $stored, $this->store->readInbox($run->card->id));
         }
 
-        $run->markersChanged = $this->store->write($run->card->projectId, $run->card->id, $markers, $inbox, $dueAt);
+        $write = $this->store->write($run->card->projectId, $run->card->id, $markers, $inbox, $dueAt);
+        $run->markersChanged = $write->changed;
+        $run->markerKeys = $write->keys;
     }
 
     /** Stores an empty set for a card that has no template to read markers from. */

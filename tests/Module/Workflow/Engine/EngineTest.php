@@ -295,6 +295,7 @@ final class EngineTest extends KernelTestCase
         $context = $this->missRecords()[0]['context'] ?? null;
         self::assertNotNull($context);
         self::assertTrue($context['markersChanged']);
+        self::assertIsList($context['markerKeys']);
         self::assertFalse($context['markersDue']);
     }
 

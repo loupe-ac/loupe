@@ -222,12 +222,12 @@ A full sweep runs in three cases:
 
 A check of a full sweep that finds a change in a card with no mark logs the error
 `workflow.change_missed`. The error carries the card id, the changed rules, the
-rules that fired, the rules that opened a work request, and whether the markers
-changed. It also names the changed rules and the markers whose stored time came
-before the check, because a clock can explain such a change. A time alone does not
+rules that fired, the rules that opened a work request, whether the markers
+changed, and the keys of the board and inbox markers that changed. It also names
+the changed rules and the markers whose stored time came before the check, because a clock can explain such a change. A time alone does not
 hide the change. When a writer marked the card after the check cleared its mark, that write can
-explain the change, because the check reads the mark after the card facts and the two
-reads share no snapshot. The check then logs the info event
+explain the change, because the check reads the mark after the card facts and the rule states,
+and the reads share no snapshot. The check then logs the info event
 `workflow.change_after_late_mark` with the same fields, and sends no error, so no
 alert fires. With a usable `SENTRY_DSN`, the error reaches Sentry.
 

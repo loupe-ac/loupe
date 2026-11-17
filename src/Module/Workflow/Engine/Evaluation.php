@@ -45,6 +45,9 @@ final class Evaluation
     /** True when the pass stored a different board or inbox marker set. */
     public bool $markersChanged = false;
 
+    /** @var list<string> the keys of the board and inbox markers that this pass changed */
+    public array $markerKeys = [];
+
     /** @var array<string, true> the ids of the rules whose stored time had come before the pass, so the clock can explain their change */
     public array $dueRules = [];
 

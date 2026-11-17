@@ -193,6 +193,7 @@ final readonly class Engine
             'fired' => array_map(static fn (array $fired): string => $fired['rule'], $run->fired),
             'opened' => $run->opened,
             'markersChanged' => $run->markersChanged,
+            'markerKeys' => $run->markerKeys,
             'markersDue' => $run->markersDue,
         ];
         if ($run->markedAfterClear) {
@@ -253,10 +254,11 @@ final readonly class Engine
         }
 
         $facts = $this->facts($card, $now);
-        // After the facts, so a writer that commits its fact and mark during the fact read explains the change.
-        // The reads share no snapshot, so a mark that lands just after the facts also raises no error.
+        $states = $automated ? $this->workflowRuleStates->findForCard($cardId) : [];
+        // After the facts and the rule states, so a writer whose commit either read saw has its mark in view,
+        // because a writer commits its facts, states and mark together. A mark that lands after the read only hides an error.
         $markedAfterClear = $reportMiss && $this->workflowCardChanges->isMarked($cardId);
-        $run = new Evaluation($card, $project, $template, $facts, $automated ? $this->workflowRuleStates->findForCard($cardId) : [], $now);
+        $run = new Evaluation($card, $project, $template, $facts, $states, $now);
         $run->markedAfterClear = $markedAfterClear;
         $run->markersDue = null !== $run->card->markersDueAt && $run->card->markersDueAt <= $run->now;
         if (!$automated) {

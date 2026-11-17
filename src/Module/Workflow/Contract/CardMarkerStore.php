@@ -24,10 +24,10 @@ interface CardMarkerStore
 
     /**
      * Stores both sets and the time the next timed marker may change. A change of either set tells the open boards.
-     * Answers whether either set differed from the stored one.
+     * Answers whether either set differed from the stored one, and the keys of the markers that differ.
      *
      * @param list<StoredMarker> $markers the board set
      * @param list<StoredMarker> $inbox   the inbox set
      */
-    public function write(Uuid $projectId, Uuid $cardId, array $markers, array $inbox, ?\DateTimeImmutable $dueAt): bool;
+    public function write(Uuid $projectId, Uuid $cardId, array $markers, array $inbox, ?\DateTimeImmutable $dueAt): MarkerWrite;
 }

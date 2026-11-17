@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Workflow\Engine;
 
 use App\Module\Workflow\Contract\CardMarkerStore;
+use App\Module\Workflow\Contract\MarkerWrite;
 use App\Module\Workflow\Contract\StoredMarker;
 use Symfony\Component\Uid\Uuid;
 
@@ -48,13 +49,13 @@ final class RecordingMarkerStore implements CardMarkerStore
     }
 
     #[\Override]
-    public function write(Uuid $projectId, Uuid $cardId, array $markers, array $inbox, ?\DateTimeImmutable $dueAt): bool
+    public function write(Uuid $projectId, Uuid $cardId, array $markers, array $inbox, ?\DateTimeImmutable $dueAt): MarkerWrite
     {
         $changed = $markers != $this->stored || $inbox != ($this->storedInbox ?? []);
         $this->written = $markers;
         $this->writtenInbox = $inbox;
         $this->dueAt = $dueAt;
 
-        return $changed;
+        return new MarkerWrite($changed);
     }
 }
