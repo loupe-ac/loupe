@@ -20,6 +20,7 @@ use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Project\Entity\Project;
+use App\Module\Workflow\Contract\FactsPass;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Support\McpTokenScenario;
 use Doctrine\Persistence\ManagerRegistry;
@@ -107,12 +108,13 @@ final class WorkerRunWriteToolsTest extends KernelTestCase
         self::ensureKernelShutdown();
         self::bootKernel();
         $failingCard = Uuid::v7();
-        self::getContainer()->set(CardHoldRepository::class, new class(self::getContainer()->get('doctrine'), $failingCard) extends CardHoldRepository {
+        self::getContainer()->set(CardHoldRepository::class, new class(self::getContainer()->get('doctrine'), self::getContainer()->get(FactsPass::class), $failingCard) extends CardHoldRepository {
             public function __construct(
                 ManagerRegistry $registry,
+                FactsPass $factsPass,
                 private readonly Uuid $failingCard,
             ) {
-                parent::__construct($registry);
+                parent::__construct($registry, $factsPass);
             }
 
             #[\Override]

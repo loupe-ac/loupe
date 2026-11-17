@@ -6,6 +6,7 @@ namespace App\Module\Review\Repository;
 
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\DocumentVersion;
+use App\Module\Workflow\Contract\FactsPass;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
@@ -13,8 +14,10 @@ use Symfony\Component\Uid\Uuid;
 /** @extends ServiceEntityRepository<DocumentVersion> */
 class DocumentVersionRepository extends ServiceEntityRepository
 {
-    public function __construct(ManagerRegistry $registry)
-    {
+    public function __construct(
+        ManagerRegistry $registry,
+        private readonly FactsPass $factsPass,
+    ) {
         parent::__construct($registry, DocumentVersion::class);
     }
 
@@ -27,13 +30,13 @@ class DocumentVersionRepository extends ServiceEntityRepository
      */
     public function findLatest(Document $document): DocumentVersion
     {
-        return $this->createQueryBuilder('v')
+        return $this->factsPass->remember('document-latest-version:'.$document->id, fn (): DocumentVersion => $this->createQueryBuilder('v')
             ->andWhere('v.document = :document')
             ->setParameter('document', $document)
             ->orderBy('v.versionNumber', 'DESC')
             ->setMaxResults(1)
             ->getQuery()
-            ->getOneOrNullResult() ?? throw new \LogicException('Document has no versions.');
+            ->getOneOrNullResult() ?? throw new \LogicException('Document has no versions.'));
     }
 
     /**

@@ -6,6 +6,7 @@ namespace App\Module\Forge\Repository;
 
 use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Forge\Entity\PullRequestState;
+use App\Module\Workflow\Contract\FactsPass;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\LockMode;
 use Doctrine\DBAL\Types\Types;
@@ -17,8 +18,10 @@ use Symfony\Component\Uid\Uuid;
 /** @extends ServiceEntityRepository<ForgePullRequest> */
 final class ForgePullRequestRepository extends ServiceEntityRepository
 {
-    public function __construct(ManagerRegistry $registry)
-    {
+    public function __construct(
+        ManagerRegistry $registry,
+        private readonly FactsPass $factsPass,
+    ) {
         parent::__construct($registry, ForgePullRequest::class);
     }
 
@@ -83,6 +86,19 @@ final class ForgePullRequestRepository extends ServiceEntityRepository
             return [];
         }
 
+        $names = array_map(static fn (array $key): string => $key['forge'].'/'.mb_strtolower($key['repository']).'#'.$key['number'], $keys);
+        sort($names);
+
+        return $this->factsPass->remember('pull-requests-by-keys:'.$projectId->toRfc4122().':'.implode(',', $names), fn (): array => $this->readByKeys($projectId, $keys));
+    }
+
+    /**
+     * @param list<array{forge: string, repository: string, number: int}> $keys
+     *
+     * @return list<ForgePullRequest>
+     */
+    private function readByKeys(Uuid $projectId, array $keys): array
+    {
         $wanted = [];
         foreach ($keys as $key) {
             $wanted[self::key($key['forge'], mb_strtolower($key['repository']), $key['number'])] = true;
