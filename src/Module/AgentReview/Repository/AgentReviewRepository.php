@@ -9,6 +9,7 @@ use App\Module\AgentReview\Entity\AgentReviewConclusion;
 use App\Module\Board\Entity\Card;
 use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Project\Entity\Project;
+use App\Module\Workflow\Contract\FactsPass;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
@@ -16,8 +17,10 @@ use Symfony\Component\Uid\Uuid;
 /** @extends ServiceEntityRepository<AgentReview> */
 class AgentReviewRepository extends ServiceEntityRepository
 {
-    public function __construct(ManagerRegistry $registry)
-    {
+    public function __construct(
+        ManagerRegistry $registry,
+        private readonly FactsPass $factsPass,
+    ) {
         parent::__construct($registry, AgentReview::class);
     }
 
@@ -87,6 +90,19 @@ class AgentReviewRepository extends ServiceEntityRepository
      * @return array<string, AgentReview> keyed by pull request id; a pull request with no head or no review of its head is absent
      */
     public function findLatestOfHeads(array $pullRequests): array
+    {
+        $key = array_map(static fn (ForgePullRequest $pullRequest): string => $pullRequest->id.'@'.$pullRequest->headSha.'@'.$pullRequest->changeFingerprint.'@'.$pullRequest->changeFingerprintSha, $pullRequests);
+        sort($key);
+
+        return $this->factsPass->remember('latest-agent-reviews:'.implode(',', $key), fn (): array => $this->readLatestOfHeads($pullRequests));
+    }
+
+    /**
+     * @param list<ForgePullRequest> $pullRequests
+     *
+     * @return array<string, AgentReview>
+     */
+    private function readLatestOfHeads(array $pullRequests): array
     {
         $heads = [];
         $fingerprints = [];

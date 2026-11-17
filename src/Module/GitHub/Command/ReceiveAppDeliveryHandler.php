@@ -92,10 +92,11 @@ final readonly class ReceiveAppDeliveryHandler
 
         switch ($delivery->action()) {
             case 'suspend':
-                $installation->suspendedAt = new \DateTimeImmutable();
-                break;
             case 'unsuspend':
-                $installation->suspendedAt = null;
+                $this->em->wrapInTransaction(function () use ($installation, $delivery): void {
+                    $installation->suspendedAt = 'suspend' === $delivery->action() ? new \DateTimeImmutable() : null;
+                    $this->forgeRepositories->markInstallationAccessChanged(GitHubDelivery::FORGE, (string) $installation->installationId);
+                });
                 break;
             case 'deleted':
                 $installation->removedAt = new \DateTimeImmutable();
