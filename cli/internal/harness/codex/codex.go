@@ -195,7 +195,8 @@ func sandboxArgs(spec harness.Spec, resume bool) []string {
 
 // sessionArgs hands the run id to `loupe mcp`, which Codex starts with a fixed
 // environment. It also hands over the setup folder when the setup is not the
-// default. A dotted key keeps the env and env_vars the config sets.
+// default. A dotted key keeps the env and env_vars the config sets. A worker
+// with a run token also gets the three variables of the run credential by name.
 func sessionArgs(spec harness.Spec) []string {
 	var args []string
 	if spec.SessionID != "" {
@@ -203,6 +204,10 @@ func sessionArgs(spec harness.Spec) []string {
 	}
 	if setup := config.Current(); setup.Source != config.SourceDefault {
 		args = append(args, "-c", "mcp_servers.loupe.env."+config.EnvVar+"="+tomlString(setup.Dir))
+	}
+	// The run token goes by name, so it never shows in a process list.
+	if slices.ContainsFunc(spec.Env, func(e string) bool { return strings.HasPrefix(e, "LOUPE_RUN_TOKEN=") }) {
+		args = append(args, "-c", `mcp_servers.loupe.env_vars=["LOUPE_RUN_TOKEN","LOUPE_URL","LOUPE_PROJECT"]`)
 	}
 
 	return args

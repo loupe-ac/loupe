@@ -42,3 +42,22 @@ func TestSessionArgsCarryTheSetupOnlyOutsideTheDefault(t *testing.T) {
 		t.Fatalf("worker args lack the setup: %q", cmd.Args)
 	}
 }
+
+func TestSessionArgsForwardTheRunCredentialByName(t *testing.T) {
+	t.Cleanup(func() { _, _ = config.Resolve("") })
+	_, _ = config.Resolve("")
+
+	got := sessionArgs(harness.Spec{Env: []string{"LOUPE_RUN_TOKEN=secret", "LOUPE_URL=https://x", "LOUPE_PROJECT=p"}})
+	want := []string{"-c", `mcp_servers.loupe.env_vars=["LOUPE_RUN_TOKEN","LOUPE_URL","LOUPE_PROJECT"]`}
+	if !slices.Equal(got, want) {
+		t.Fatalf("args = %q, want %q", got, want)
+	}
+	for _, a := range got {
+		if strings.Contains(a, "secret") {
+			t.Fatalf("the token is on the command line: %q", got)
+		}
+	}
+	if got := sessionArgs(harness.Spec{Env: []string{"A=1"}}); got != nil {
+		t.Fatalf("no token: %q", got)
+	}
+}

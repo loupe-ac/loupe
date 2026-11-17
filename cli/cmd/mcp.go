@@ -2,10 +2,12 @@ package cmd
 
 import (
 	"cmp"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 
 	"github.com/loupe-ac/loupe/cli/internal/api"
 	"github.com/loupe-ac/loupe/cli/internal/config"
@@ -40,12 +42,25 @@ func newMcpCmd() *cobra.Command {
 			"Every message goes to stdout and every diagnostic to stderr, because stdout is the " +
 			"protocol. Run `loupe login` first.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			cfg, err := config.Load()
+			run, err := runCredentialFromEnv()
 			if err != nil {
 				return err
 			}
 
-			project, source, err := mcpProjectSource(projectID, cmd.ErrOrStderr())
+			var cfg config.Config
+			var tokens api.TokenSource
+			var project, source func() string
+			if run != nil {
+				cfg, tokens = config.Config{BaseURL: run.baseURL}, run.token
+				project, source, err = runProjectSource(projectID)
+			} else {
+				cfg, err = config.Load()
+				if err != nil {
+					return err
+				}
+				tokens = tokenSource(cfg, &http.Client{Timeout: refreshTimeout, Transport: withUserAgent(nil)})
+				project, source, err = mcpProjectSource(projectID, cmd.ErrOrStderr())
+			}
 			if err != nil {
 				return err
 			}
@@ -53,7 +68,7 @@ func newMcpCmd() *cobra.Command {
 			// No timeout: an MCP session stays open for as long as the agent
 			// runs, and a client timeout would end it mid-conversation.
 			hc := &http.Client{Transport: withUserAgent(&mcpproxy.Credentials{
-				Tokens:        tokenSource(cfg, &http.Client{Timeout: refreshTimeout, Transport: withUserAgent(nil)}),
+				Tokens:        tokens,
 				Project:       project,
 				Setup:         setupFolder(),
 				ProjectSource: source,
@@ -72,6 +87,24 @@ func newMcpCmd() *cobra.Command {
 	cmd.Flags().StringVar(&projectID, "project", "", "project id to act on (else "+projectfile.Name+" in this directory)")
 
 	return cmd
+}
+
+// runProjectSource is the project of `loupe mcp` on the run path: --project,
+// else LOUPE_PROJECT. It reads no project link and no project file.
+func runProjectSource(flag string) (project, source func() string, err error) {
+	words, id := "the --project flag", flag
+	if id == "" {
+		words, id = runProjectEnv, strings.TrimSpace(os.Getenv(runProjectEnv))
+	}
+	if id == "" {
+		return nil, nil, &exitError{exitUsage, errors.New("pass --project or set " + runProjectEnv)}
+	}
+	if err := projectfile.Valid(id); err != nil {
+		return nil, nil, err
+	}
+	id = strings.ToLower(id)
+
+	return func() string { return id }, func() string { return words }, nil
 }
 
 // mcpStartLine names the binary, so a stale `loupe mcp` shows in the stderr an
