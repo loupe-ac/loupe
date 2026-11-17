@@ -1,0 +1,41 @@
+name: Dev seed restore
+
+# Not a pull request check. The restore tests seed a database again after
+# someone deleted records. They matter to a developer, not to a user, and they
+# cost most of the phpunit job. The daily run finds a break, and the failure
+# signal puts one to-do in the Loupe inbox. A pull request that edits this file
+# runs it once, so a broken file shows before the merge.
+on:
+  schedule:
+    - cron: '41 4 * * *'
+  pull_request:
+    paths: ['.github/workflows/dev-seed.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dev-seed-restore:
+    # Runs the code of the branch, so it gets no secret.
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+        with:
+          docker: 'true'
+      - run: just phpunit --group dev-seed-restore
+        timeout-minutes: 40
+
+  failure-signal:
+    needs: [dev-seed-restore]
+    # Skipped on a pull request, so a branch run never sends the token.
+    if: failure() && github.event_name != 'pull_request'
+    uses: ./.github/workflows/weekly-failure-signal.yml
+    with:
+      workflow: dev-seed
+      project: ${{ vars.LOUPE_PROJECT }}
+      title: Dev seed restore tests failed
+    secrets:
+      LOUPE_API_TOKEN: ${{ secrets.LOUPE_API_TOKEN }}
