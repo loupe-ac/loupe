@@ -4,21 +4,17 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Board\Controller;
 
-use App\Module\Project\Security\ProjectVoter;
+use App\Tests\Module\Project\Security\DeniesProjectManage;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
-use Symfony\Component\Security\Core\Authorization\AccessDecision;
-use Symfony\Component\Security\Core\Authorization\AccessDecisionManagerInterface;
-use Symfony\Component\Security\Core\Authorization\AuthorizationChecker;
-use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
 
 /** The Try now control of a Limited card, under the status box of the card page. */
 final class ShowCardTryNowTest extends WebTestCase
 {
     use BoardScenario;
+    use DeniesProjectManage;
 
     private const string BRIDGE = '0197a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b';
 
@@ -103,29 +99,5 @@ final class ShowCardTryNowTest extends WebTestCase
         self::assertResponseIsSuccessful();
 
         return [$crawler, $project];
-    }
-
-    /** Project management is the owner's today, so a checker stands in for a member who cannot manage. */
-    private function denyManage(): void
-    {
-        $container = static::getContainer();
-        $tokens = $container->get('security.token_storage');
-        self::assertInstanceOf(TokenStorageInterface::class, $tokens);
-        $decisions = $container->get('security.access.decision_manager');
-        self::assertInstanceOf(AccessDecisionManagerInterface::class, $decisions);
-        $real = new AuthorizationChecker($tokens, $decisions);
-
-        $container->set('security.authorization_checker', new readonly class($real) implements AuthorizationCheckerInterface {
-            public function __construct(
-                private AuthorizationCheckerInterface $real,
-            ) {
-            }
-
-            #[\Override]
-            public function isGranted(mixed $attribute, mixed $subject = null, ?AccessDecision $accessDecision = null): bool
-            {
-                return ProjectVoter::MANAGE !== $attribute && $this->real->isGranted($attribute, $subject, $accessDecision);
-            }
-        });
     }
 }
