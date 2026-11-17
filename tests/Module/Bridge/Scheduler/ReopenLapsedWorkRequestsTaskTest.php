@@ -12,6 +12,7 @@ use App\Module\Bridge\Service\BridgeLiveness;
 use App\Module\Bridge\Service\HeldProjects;
 use App\Module\Bridge\Service\WorkRequestAnnouncer;
 use App\Module\Bridge\ValueObject\WorkRequestState;
+use App\Module\Workflow\Service\PassMemo;
 use App\Outbox\OutboxWriter;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Support\RecordingLogger;
@@ -86,7 +87,7 @@ final class ReopenLapsedWorkRequestsTaskTest extends KernelTestCase
         self::assertInstanceOf(WorkRequestAnnouncer::class, $announcer);
 
         return new ReopenLapsedWorkRequestsTask(
-            new ReopenLapsedWorkRequestsHandler(new WorkRequestRepository($registry), $outbox, $this->em(), new MockClock('2026-10-01 12:30:00'), $announcer, self::getContainer()->get(HeldProjects::class), self::getContainer()->get(BridgeLiveness::class)),
+            new ReopenLapsedWorkRequestsHandler(new WorkRequestRepository($registry, new PassMemo()), $outbox, $this->em(), new MockClock('2026-10-01 12:30:00'), $announcer, self::getContainer()->get(HeldProjects::class), self::getContainer()->get(BridgeLiveness::class)),
             $logger,
         );
     }
