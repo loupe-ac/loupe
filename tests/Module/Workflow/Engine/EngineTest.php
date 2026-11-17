@@ -285,6 +285,7 @@ final class EngineTest extends KernelTestCase
         $card = $this->boundCard([self::requestRule('timed', self::ALWAYS)]);
         $this->evaluate($card);
         $this->ruleState($card, 'timed')->dueAt = new \DateTimeImmutable('2026-10-02 12:01:00');
+        $card->inboxMarkers = null;
         $this->em()->flush();
         $this->logger->records = [];
         $this->clearMark($card);
@@ -316,14 +317,16 @@ final class EngineTest extends KernelTestCase
         self::assertTrue($context['markersDue']);
     }
 
-    public function test_a_writer_that_marked_the_card_after_the_clear_is_not_a_miss(): void
+    public function test_a_writer_that_marked_the_card_after_the_clear_does_not_hide_an_earlier_miss(): void
     {
         $card = $this->boundCard([self::requestRule('work', self::ALWAYS)]);
         self::assertTrue($this->service(WorkflowCardChangeRepository::class)->isMarked($card->id ?? throw new \LogicException('A flushed card has an id.')), 'Creating the card marked it.');
 
         $this->engine()->evaluate($card->id, new \DateTimeImmutable(self::NOON), reportMiss: true);
 
-        self::assertSame([], $this->missRecords());
+        $misses = $this->missRecords();
+        self::assertCount(1, $misses);
+        self::assertTrue($misses[0]['context']['markedAfterClear']);
     }
 
     public function test_an_ordinary_check_reports_no_miss_for_the_same_change(): void

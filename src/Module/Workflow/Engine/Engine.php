@@ -177,11 +177,12 @@ final readonly class Engine
     /**
      * A check that a full sweep queued for a card with no mark found a change, so the marks missed it.
      * A time that came before the pass can explain a change, but it does not prove it, so the log carries those times
-     * beside the change. A writer that marked the card after the check cleared it explains the change fully.
+     * beside the change. A writer that marked the card after the check cleared it explains only its own write, so the
+     * log carries that fact as context and still reports the change.
      */
     private function reportMiss(Evaluation $run): void
     {
-        if ($run->markedAfterClear || ([] === $run->changedRules && !$run->markersChanged)) {
+        if ([] === $run->changedRules && !$run->markersChanged) {
             return;
         }
 
@@ -193,6 +194,7 @@ final readonly class Engine
             'opened' => $run->opened,
             'markersChanged' => $run->markersChanged,
             'markersDue' => $run->markersDue,
+            'markedAfterClear' => $run->markedAfterClear,
         ]);
     }
 
