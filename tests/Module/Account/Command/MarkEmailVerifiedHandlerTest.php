@@ -88,8 +88,8 @@ final class MarkEmailVerifiedHandlerTest extends KernelTestCase
         $this->em->clear();
         $reloaded = $this->em->find(User::class, $user->id);
         self::assertNotNull($reloaded);
-        // /register/verify logs in whoever presents a valid token, so leaving
-        // this one alive is leaving a working login link outstanding.
+        // /register/verify accepts any valid token, so leaving this one alive
+        // is leaving a working link outstanding.
         self::assertFalse($reloaded->hasEmailVerificationToken());
         self::assertFalse($reloaded->isEmailVerificationTokenValid($token));
     }
