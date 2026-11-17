@@ -91,6 +91,7 @@ use App\Module\Workflow\Contract\CardSnapshot;
 use App\Module\Workflow\Contract\ColumnRef;
 use App\Module\Workflow\Contract\KindPrompts;
 use App\Module\Workflow\Contract\PauseKind;
+use App\Module\Workflow\Service\PassMemo;
 use App\Module\Workflow\Service\TemplateStageWorks;
 use App\Security\ApiKeyActor;
 use App\Security\CurrentApiKeyActor;
@@ -732,7 +733,7 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         self::assertInstanceOf(ManagerRegistry::class, $doctrine);
 
         try {
-            ($this->runHandler(new BlindWorkRequestRepository($doctrine)))(new RunInboxActionCommand($item, InboxActionKind::SendAgent, '', $this->project->owner));
+            ($this->runHandler(new BlindWorkRequestRepository($doctrine, new PassMemo())))(new RunInboxActionCommand($item, InboxActionKind::SendAgent, '', $this->project->owner));
             self::fail('Expected a refusal.');
         } catch (DomainErrors $e) {
             self::assertSame(['action' => RunInboxActionHandler::NOT_AVAILABLE], $e->errors);
