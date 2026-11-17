@@ -13,8 +13,14 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Contracts\Translation\TranslatorInterface;
+use Ubermuda\SymfonyExtra\Csrf\Attribute\CsrfToken;
 
-#[Route('/register/verify', name: 'app_verify_email')]
+#[CsrfToken('verify-email')]
+#[Route(
+    '/register/verify',
+    name: 'app_verify_email_submit',
+    methods: ['POST'],
+)]
 class VerifyEmailController extends AppController
 {
     public function __construct(
@@ -26,7 +32,7 @@ class VerifyEmailController extends AppController
 
     public function __invoke(Request $request): Response
     {
-        $token = $request->query->get('token');
+        $token = $request->request->get('token');
         $user = ($this->verifyEmail)(new VerifyEmailCommand(is_string($token) ? $token : null));
 
         if (!$user instanceof User) {
@@ -35,7 +41,17 @@ class VerifyEmailController extends AppController
             return $this->redirectToRoute('app_register_check_email');
         }
 
-        return $this->security->login($user, 'form_login', 'main')
-            ?? $this->redirectToRoute('app_home');
+        $current = $this->getUser();
+        $signedInAsUser = $current instanceof User && (string) $current->id === (string) $user->id;
+        $createdHere = $request->getSession()->get('registration_email') === $user->email;
+
+        if ($signedInAsUser || ($createdHere && !$current instanceof User)) {
+            return $this->security->login($user, 'form_login', 'main')
+                ?? $this->redirectToRoute('app_home');
+        }
+
+        $this->addFlash('success', $this->translator->trans('account.registration.flash.verified_sign_in'));
+
+        return $this->redirectToRoute($current instanceof User ? 'app_home' : 'app_login');
     }
 }
