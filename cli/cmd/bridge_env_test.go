@@ -162,3 +162,26 @@ func TestUnsetRemovedClearsOnlyARemovedPassName(t *testing.T) {
 		t.Fatal("a kept name was unset")
 	}
 }
+
+func TestApplyPassEnvClearsANameThatTheReloadRemoved(t *testing.T) {
+	t.Setenv("REMOVED_BY_RELOAD", "secret")
+	t.Setenv("STILL_PASSED", "ok")
+	t.Cleanup(func() { envallow.SetPass(nil); startupPass = nil })
+	startupPass = []string{"REMOVED_BY_RELOAD", "STILL_PASSED"}
+	envallow.SetPass(startupPass)
+
+	next, err := rules.Parse([]byte("passEnv: [STILL_PASSED]\nprojects:\n  loupe:\n    dir: "+t.TempDir()+"\n    work:\n      review:\n        prompt: x\n"), rules.Defaults{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	previous := envallow.Pass()
+	envallow.SetPass(next.PassEnv())
+	applyPassEnv(slog.New(slog.NewTextHandler(io.Discard, nil)), next, previous)
+
+	if _, ok := os.LookupEnv("REMOVED_BY_RELOAD"); ok {
+		t.Fatal("a passEnv name removed by a reload stayed in the bridge environment")
+	}
+	if os.Getenv("STILL_PASSED") != "ok" {
+		t.Fatal("a kept name was unset")
+	}
+}

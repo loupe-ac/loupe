@@ -146,10 +146,11 @@ func (r *router) reloadLocked(ctx context.Context, src reloadSource) reloadResul
 
 		return r.lockFailed(err)
 	}
+	previousPass := envallow.Pass()
 	res := r.swap(b, seq)
 	done(res.OK)
 	if res.OK {
-		applyPassEnv(r.log, b.set)
+		applyPassEnv(r.log, b.set, previousPass)
 		go r.syncCodexPlugins(r.workerContext())
 	}
 

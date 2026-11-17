@@ -90,10 +90,11 @@ func logDroppedEnv(log *slog.Logger) {
 		"codex", droppedEnv(envallow.HarnessCodex))
 }
 
-// applyPassEnv takes the passEnv list of a reloaded rule file. A name that the
+// applyPassEnv takes the passEnv list of a reloaded rule file. The previous
+// list is the one that held before the swap. A name that the
 // bridge did not start with logs pass_env_needs_restart, because the variable
 // is gone from the bridge process. An env file holds the value instead.
-func applyPassEnv(log *slog.Logger, set *rules.Set) {
+func applyPassEnv(log *slog.Logger, set *rules.Set, previous []string) {
 	next := set.PassEnv()
 	for _, name := range next {
 		if !slices.Contains(startupPass, name) {
@@ -101,7 +102,6 @@ func applyPassEnv(log *slog.Logger, set *rules.Set) {
 				"message", "The bridge started without this name. Put the value in an env file and run loupe bridge reload, or restart the bridge.")
 		}
 	}
-	previous := envallow.Pass()
 	envallow.SetPass(next)
 	unsetRemoved(log, previous)
 	logDroppedEnv(log)
