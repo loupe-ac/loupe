@@ -43,6 +43,13 @@ const maxStdout = 1 << 20
 // the run that moves a card.
 const sessionEnv = "LOUPE_SESSION_ID"
 
+// The run credential reaches a worker in these three variables.
+const (
+	runTokenEnv   = "LOUPE_RUN_TOKEN"
+	runURLEnv     = "LOUPE_URL"
+	runProjectEnv = "LOUPE_PROJECT"
+)
+
 // socketEnv gives `loupe env` the control socket of the bridge that runs the
 // worker.
 const socketEnv = "LOUPE_BRIDGE_SOCKET"
@@ -155,6 +162,10 @@ type workerSpec struct {
 	env         []string
 	// runDir is the run directory, which startWorker sets.
 	runDir string
+	// runToken is the run credential of this launch, and "" when the server
+	// issues none. runURL and runProject are the address and the project id
+	// that go with it.
+	runToken, runURL, runProject string
 	// agent is the GitHub user that the worker pushes as, or nil.
 	agent *config.AgentAccount
 	// credentials answers the worker's requests for GitHub credentials, and
@@ -285,6 +296,23 @@ func workerEnv(environ []string, sessionID, socket string, agent *config.AgentAc
 		"GIT_CONFIG_KEY_"+n(gitConfigs+3)+"="+githubInsteadOfKey, "GIT_CONFIG_VALUE_"+n(gitConfigs+3)+"="+githubSSHPrefixes[1],
 		"GIT_CONFIG_COUNT="+n(gitConfigs+4),
 	)
+}
+
+// withRunCredential gives the worker its run token, the address of the server
+// that issued it and its project. Each replaces an inherited value of the same
+// name. A launch with no token leaves the environment as it is.
+func withRunCredential(env []string, spec workerSpec) []string {
+	if spec.runToken == "" {
+		return env
+	}
+	out := make([]string, 0, len(env)+3)
+	for _, e := range env {
+		if !hasEnvName(e, []string{runTokenEnv, runURLEnv, runProjectEnv}) {
+			out = append(out, e)
+		}
+	}
+
+	return append(out, runTokenEnv+"="+spec.runToken, runURLEnv+"="+spec.runURL, runProjectEnv+"="+spec.runProject)
 }
 
 // hasEnvName says whether the entry e sets one of names.
@@ -470,7 +498,7 @@ func startWorker(ctx context.Context, spec workerSpec) (*exec.Cmd, string, *atom
 	}
 
 	status := filepath.Join(dir, "status")
-	command := spec.harnessCommand(workerEnv(envfile.Overlay(os.Environ(), spec.env), spec.sessionID, spec.socket, spec.agent, creds))
+	command := spec.harnessCommand(withRunCredential(workerEnv(envfile.Overlay(os.Environ(), spec.env), spec.sessionID, spec.socket, spec.agent, creds), spec))
 	for path, content := range command.Files {
 		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 			return nil, dir, nil, fmt.Errorf("write worker file: %w", err)

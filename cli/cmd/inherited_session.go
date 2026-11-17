@@ -20,6 +20,7 @@ var inheritedSessionEnv = []string{
 	"CLAUDE_CODE_ENTRYPOINT",
 	"CLAUDE_CODE_EXECPATH",
 	sessionEnv,
+	runTokenEnv,
 	socketEnv,
 	runIDEnv,
 	controlSocketEnv,

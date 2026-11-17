@@ -43,6 +43,15 @@ func (f *previewTokenFlags) bind(cmd *cobra.Command) {
 
 // previewTokenClient signs in from the stored login. A test replaces it.
 var previewTokenClient = func(f previewTokenFlags) (*api.Client, error) {
+	run, err := runCredentialFromEnv()
+	if err != nil {
+		return nil, err
+	}
+	if run != nil {
+		hc := &http.Client{Timeout: previewTokenTimeout, Transport: withUserAgent(nil)}
+
+		return api.NewWithSource(run.baseURL, run.token, hc), nil
+	}
 	cfg, err := config.Load()
 	if err != nil {
 		if errors.Is(err, config.ErrNotLoggedIn) {
