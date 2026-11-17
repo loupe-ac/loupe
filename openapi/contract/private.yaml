@@ -63,7 +63,7 @@ paths:
         '402':
           $ref: '#/components/responses/E402SubscriptionRequired'
         '403':
-          $ref: '#/components/responses/E403InsufficientScope'
+          $ref: '#/components/responses/E403InsufficientScopeNotOwnerWide'
         '404':
           $ref: '#/components/responses/E404CommandNotFoundRouteNotFound'
         '405':
@@ -102,7 +102,7 @@ paths:
         '402':
           $ref: '#/components/responses/E402SubscriptionRequired'
         '403':
-          $ref: '#/components/responses/E403InsufficientScope'
+          $ref: '#/components/responses/E403InsufficientScopeNotOwnerWide'
         '404':
           $ref: '#/components/responses/E404RouteNotFound'
         '405':
@@ -137,7 +137,7 @@ paths:
         '402':
           $ref: '#/components/responses/E402SubscriptionRequired'
         '403':
-          $ref: '#/components/responses/E403InsufficientScope'
+          $ref: '#/components/responses/E403InsufficientScopeNotOwnerWide'
         '404':
           $ref: '#/components/responses/E404RouteNotFound'
         '405':
@@ -169,7 +169,7 @@ paths:
         '402':
           $ref: '#/components/responses/E402SubscriptionRequired'
         '403':
-          $ref: '#/components/responses/E403InsufficientScope'
+          $ref: '#/components/responses/E403InsufficientScopeNotOwnerWide'
         '404':
           $ref: '#/components/responses/E404WorkRequestNotFoundRouteNotFound'
         '405':
@@ -209,7 +209,7 @@ paths:
         '402':
           $ref: '#/components/responses/E402SubscriptionRequired'
         '403':
-          $ref: '#/components/responses/E403InsufficientScope'
+          $ref: '#/components/responses/E403InsufficientScopeNotOwnerWide'
         '404':
           $ref: '#/components/responses/E404WorkRequestNotFoundRouteNotFound'
         '405':
@@ -240,7 +240,7 @@ paths:
         '402':
           $ref: '#/components/responses/E402SubscriptionRequired'
         '403':
-          $ref: '#/components/responses/E403InsufficientScope'
+          $ref: '#/components/responses/E403InsufficientScopeNotOwnerWide'
         '404':
           $ref: '#/components/responses/E404RouteNotFound'
         '405':
@@ -267,7 +267,7 @@ paths:
         '402':
           $ref: '#/components/responses/E402SubscriptionRequired'
         '403':
-          $ref: '#/components/responses/E403InsufficientScope'
+          $ref: '#/components/responses/E403InsufficientScopeNotOwnerWide'
         '404':
           $ref: '#/components/responses/E404RouteNotFound'
         '405':
@@ -299,7 +299,7 @@ paths:
         '402':
           $ref: '#/components/responses/E402SubscriptionRequired'
         '403':
-          $ref: '#/components/responses/E403InsufficientScope'
+          $ref: '#/components/responses/E403InsufficientScopeNotOwnerWide'
         '404':
           $ref: '#/components/responses/E404RouteNotFound'
         '405':
@@ -337,7 +337,7 @@ paths:
         '402':
           $ref: '#/components/responses/E402SubscriptionRequired'
         '403':
-          $ref: '#/components/responses/E403InsufficientScope'
+          $ref: '#/components/responses/E403InsufficientScopeNotOwnerWide'
         '404':
           $ref: '#/components/responses/E404RouteNotFound'
         '405':
@@ -4169,6 +4169,14 @@ components:
         status: 403
         code: credential_not_allowed
         detail: The token carries another scope.
+    CredentialNotOwnerWide:
+      summary: credential_not_owner_wide
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#credential_not_owner_wide
+        title: Credential not owner-wide
+        status: 403
+        code: credential_not_owner_wide
+        detail: This route needs a credential that covers every project of the owner. Connect again with every project.
     RouteNotFound:
       summary: route_not_found
       value:
@@ -4697,6 +4705,17 @@ components:
           examples:
             credential_not_allowed:
               $ref: '#/components/examples/InsufficientScope'
+    E403InsufficientScopeNotOwnerWide:
+      description: 'Refused: `credential_not_allowed`, `credential_not_owner_wide`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            credential_not_allowed:
+              $ref: '#/components/examples/InsufficientScope'
+            credential_not_owner_wide:
+              $ref: '#/components/examples/CredentialNotOwnerWide'
     E404RouteNotFound:
       description: 'Refused: `route_not_found`.'
       content:

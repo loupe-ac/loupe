@@ -44,7 +44,7 @@ An app asks for exactly one kind of access:
 |---|---|---|
 | `mcp` | The documents and live reviews of one project, through MCP. | The user picks one project that they own. |
 | `site-review` | The live-review comments of one project. | The user picks one project that they own. |
-| `agent` | The agent surface that the bridge uses. | None. |
+| `agent` | The agent surface that the bridge uses. An app bound to one project lists that project only, and cannot use the bridge routes. | None. |
 | `public` | The public API, with all the rights of the user. | None. |
 
 The user can pick only a project that they own. An app cannot choose the
