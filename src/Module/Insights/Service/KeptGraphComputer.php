@@ -33,7 +33,7 @@ final readonly class KeptGraphComputer
     public function fetch(ShowMetricsCommand $command): MetricQueryView
     {
         $query = $command->query;
-        $metricCommand = $query->command($command->project, $command->now);
+        $metricCommand = $query->command($command->project, $command->now, $command->facts);
 
         // A formula with a problem draws nothing, and the page shows the problem. The handler would refuse it.
         if (null !== $query->formula?->problem) {
