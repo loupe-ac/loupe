@@ -75,7 +75,7 @@ The review stage changes nothing and reads the body only.
 
 1. Build the list of required states yourself, with the three rules of "Required states". Read the card body, the linked designs, the prototype artifacts and the changed pages of the diff. Never take the list from the build notes alone.
 2. Read the body with "Read the pull request body" of the forge adapter, and find the section that the `Section` item names.
-3. A state whose line reads `Not proven: accepted by the owner: <reason>`, with the answer in the build notes, is an accepted exception. Write no finding for it under cases 1, 3, 4 and 5. Write one when the build notes hold no such answer.
+3. A state whose line reads `Not proven: accepted by the owner: <reason>`, with the answer in the build notes, is an accepted exception. Write no finding for it under cases 1 to 6. It needs no link and no marker, and no evidence of a proven link. Write one when the build notes hold no such answer.
 4. Write one finding for each of these cases. Its title starts `Preview:`, its severity is `important`, its category is `spec`, and it has no path.
    1. The section is missing, or it holds no proven line.
    2. A line has no link of the form that the `Line` item names, or no marker in backticks.
