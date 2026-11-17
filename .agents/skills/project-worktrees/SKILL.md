@@ -47,7 +47,7 @@ Run `just up` first. Bootstrap fails fast, so that no worktree keeps an `.env.lo
 
 ## The compiled stylesheet keeps itself current
 
-`worktree-bootstrap.sh` builds `var/tailwind/app.built.css` as it provisions, and the `tailwind-worktrees` service keeps it current afterwards. That service polls every worktree every few seconds. It rebuilds each worktree whose `assets/` or `templates/` are newer than its built sheet. One container covers them all, and a worktree created later needs no wiring.
+`worktree-bootstrap.sh` builds `var/tailwind/app.built.css` as it provisions, and the `tailwind-worktrees` service keeps it current afterwards. That service checks an `epic-*` worktree every minute, and every other worktree every ten minutes. A worktree that holds the marker file `var/tailwind/.watch` is checked every minute too, so run `touch var/tailwind/.watch` in a card tree you preview. It rebuilds each worktree whose `assets/` or `templates/` are newer than its built sheet. One container covers them all, and a worktree created later needs no wiring.
 
 The service does not conflict with the `tailwind` service or with `just tailwind`, which watch the main checkout. Each worktree has its own `var/tailwind`, so the two never write the same file. Two watchers on one tree still race.
 
