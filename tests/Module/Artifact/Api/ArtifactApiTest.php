@@ -14,6 +14,7 @@ use App\Tests\Support\AgentCredential;
 use App\Tests\Support\ApiKeyCredential;
 use App\Tests\Support\OAuthScenario;
 use App\Tests\Support\PageLink;
+use App\Tests\Support\WorkerRunToken;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -424,6 +425,16 @@ final class ArtifactApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(422);
         self::assertSame('sourceLink', $this->json()['errors'][0]['field']);
         self::assertSame(0, $this->artifacts()->count([]));
+    }
+
+    public function test_a_run_credential_with_no_header_stores_the_artifact(): void
+    {
+        $runToken = WorkerRunToken::issue(static::getContainer(), $this->owner, $this->project)->token;
+
+        $this->upload($this->base(), ['name' => 'From a worker'], ['index.html' => 'a'], server: ['HTTP_AUTHORIZATION' => 'Bearer '.$runToken]);
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame(1, $this->artifacts()->count([]));
     }
 
     public function test_a_json_body_on_an_upload_route_is_415_and_names_multipart(): void

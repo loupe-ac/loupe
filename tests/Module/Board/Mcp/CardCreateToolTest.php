@@ -7,13 +7,15 @@ namespace App\Tests\Module\Board\Mcp;
 use App\Module\Board\Entity\CardLinkKind;
 use App\Module\Board\Entity\CardSourceKind;
 use App\Module\Board\Entity\Forge;
-use App\Module\Board\Mcp\AgentRunCause;
 use App\Module\Board\Mcp\CardCreateTool;
 use App\Module\Board\Repository\CardLinkRepository;
 use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\Service\CallerRun;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkSubject;
+use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\Actor;
+use App\Tests\Module\Bridge\Support\CallsAsWorkerRun;
 use App\Tests\Support\McpRefusalMessages;
 use App\Tests\Support\McpTokenScenario;
 use Doctrine\ORM\EntityManagerInterface;
@@ -26,6 +28,7 @@ use Symfony\Component\Uid\Uuid;
 final class CardCreateToolTest extends KernelTestCase
 {
     use BoardToolScenario;
+    use CallsAsWorkerRun;
     use McpTokenScenario;
 
     private EntityManagerInterface $em;
@@ -70,25 +73,34 @@ final class CardCreateToolTest extends KernelTestCase
         self::assertSame('agent', $this->storedSource($card['cardId']));
     }
 
-    public function test_a_call_from_a_worker_run_session_has_the_run_source(): void
+    public function test_a_call_with_a_worker_run_credential_has_the_run_source(): void
     {
         $project = $this->makeProject('card-create-run-source');
-        $this->actAsMcpTokenBoundTo($project);
-        $sessionId = Uuid::v4();
         $runCardId = Uuid::v4();
-        $run = new WorkerRun($project, Uuid::v4(), WorkSubject::CARD, $runCardId, 7, 'implement', WorkerRunState::Running, sessionId: $sessionId);
-        $this->em->persist($run);
-        $this->em->flush();
-        $request = Request::create('/mcp', Request::METHOD_POST);
-        $request->headers->set(AgentRunCause::SESSION_HEADER, (string) $sessionId);
-        $requests = self::getContainer()->get(RequestStack::class);
-        self::assertInstanceOf(RequestStack::class, $requests);
-        $requests->push($request);
+        $run = $this->workerRun($project, $runCardId, $bridgeId = Uuid::v4(), $runKey = Uuid::v4(), $sessionId = Uuid::v4());
+        $this->callAsWorkerRun($bridgeId, $runKey, $sessionId, $project->id);
 
         $card = ($this->tool)('From a run', 'Body', 'idea');
 
         $row = $this->em->getConnection()->fetchAssociative('SELECT source, source_run_id, source_run_card_id FROM board_cards WHERE id = :id', ['id' => $card['cardId']]);
         self::assertSame(['source' => CardSourceKind::Run->value, 'source_run_id' => (string) $run->id, 'source_run_card_id' => (string) $runCardId], $row);
+    }
+
+    public function test_a_session_header_alone_names_no_run_and_the_card_has_the_agent_source(): void
+    {
+        $project = $this->makeProject('card-create-header-only');
+        $this->actAsMcpTokenBoundTo($project);
+        $sessionId = Uuid::v4();
+        $this->workerRun($project, Uuid::v4(), Uuid::v4(), Uuid::v4(), $sessionId);
+        $request = Request::create('/mcp', Request::METHOD_POST);
+        $request->headers->set(CallerRun::SESSION_HEADER, (string) $sessionId);
+        $requests = self::getContainer()->get(RequestStack::class);
+        self::assertInstanceOf(RequestStack::class, $requests);
+        $requests->push($request);
+
+        $card = ($this->tool)('Forged', 'Body', 'idea');
+
+        self::assertSame('agent', $this->storedSource($card['cardId']));
     }
 
     public function test_a_new_card_has_the_switch_off_unless_the_caller_turns_it_on(): void
@@ -104,14 +116,8 @@ final class CardCreateToolTest extends KernelTestCase
     {
         $project = $this->makeProject('card-create-switch-worker');
         $this->actAsMcpTokenBoundTo($project);
-        $sessionId = Uuid::v4();
-        $this->em->persist(new WorkerRun($project, Uuid::v4(), WorkSubject::CARD, Uuid::v4(), 7, 'implement', WorkerRunState::Running, sessionId: $sessionId));
-        $this->em->flush();
-        $request = Request::create('/mcp', Request::METHOD_POST);
-        $request->headers->set(AgentRunCause::SESSION_HEADER, (string) $sessionId);
-        $requests = self::getContainer()->get(RequestStack::class);
-        self::assertInstanceOf(RequestStack::class, $requests);
-        $requests->push($request);
+        $this->workerRun($project, Uuid::v4(), $bridgeId = Uuid::v4(), $runKey = Uuid::v4(), $sessionId = Uuid::v4());
+        $this->callAsWorkerRun($bridgeId, $runKey, $sessionId, $project->id);
 
         self::assertTrue(($this->tool)('On', 'Body', 'idea', requiresHumanReview: true)['requiresHumanReview']);
         self::assertFalse(($this->tool)('Off', 'Body', 'idea', requiresHumanReview: false)['requiresHumanReview']);
@@ -279,5 +285,14 @@ final class CardCreateToolTest extends KernelTestCase
     private function storedSource(string $cardId): mixed
     {
         return $this->em->getConnection()->fetchOne('SELECT source FROM board_cards WHERE id = :id', ['id' => $cardId]);
+    }
+
+    private function workerRun(Project $project, Uuid $cardId, Uuid $bridgeId, Uuid $runKey, Uuid $sessionId): WorkerRun
+    {
+        $run = new WorkerRun($project, $bridgeId, WorkSubject::CARD, $cardId, 7, 'implement', WorkerRunState::Running, runKey: $runKey, sessionId: $sessionId);
+        $this->em->persist($run);
+        $this->em->flush();
+
+        return $run;
     }
 }

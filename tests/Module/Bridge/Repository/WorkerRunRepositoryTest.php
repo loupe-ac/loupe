@@ -275,37 +275,66 @@ final class WorkerRunRepositoryTest extends KernelTestCase
     }
 
     /** A warning run received at 10:00, which the server closed at 10:05. */
-    public function test_find_open_of_session_for_card_answers_only_an_open_worker_run_of_that_kind_on_that_card(): void
+    public function test_find_open_by_run_key_answers_only_the_open_worker_run_of_that_launch_on_that_card_in_that_role(): void
     {
         self::bootKernel();
         $em = $this->em();
-        $project = $this->project($em, $this->user($em, 'open-of-session-'.uniqid().'@example.com'), 'Open of session');
-        $other = $this->project($em, $this->user($em, 'open-of-session-other-'.uniqid().'@example.com'), 'Other');
-        $sessionId = Uuid::v4();
+        $project = $this->project($em, $this->user($em, 'open-by-key-'.uniqid().'@example.com'), 'Open by key');
+        $otherProject = $this->project($em, $this->user($em, 'open-by-key-other-'.uniqid().'@example.com'), 'Other');
+        $bridgeId = Uuid::v7();
+        $runKey = Uuid::v4();
         $cardId = Uuid::v7();
+        $at = new \DateTimeImmutable('2026-09-01 10:00:00');
 
-        $runs = [
-            $this->seedRun($em, $project, new \DateTimeImmutable('2026-09-01 10:00:00'), workKind: 'review', cardId: $cardId, state: WorkerRunState::Running, role: 'code-review'),
-            $match = $this->seedRun($em, $project, new \DateTimeImmutable('2026-09-01 11:00:00'), workKind: 'review', cardId: $cardId, state: WorkerRunState::Resumed, role: 'code-review'),
-            $this->seedRun($em, $project, new \DateTimeImmutable('2026-09-01 12:00:00'), workKind: 'review', cardId: Uuid::v7(), state: WorkerRunState::Running, role: 'code-review'),
-            $this->seedRun($em, $other, new \DateTimeImmutable('2026-09-01 12:00:00'), workKind: 'review', cardId: $cardId, state: WorkerRunState::Running, role: 'code-review'),
-            $this->seedRun($em, $project, new \DateTimeImmutable('2026-09-01 12:00:00'), workKind: 'fix', cardId: $cardId, state: WorkerRunState::Running, role: 'fix'),
-            $this->seedRun($em, $project, new \DateTimeImmutable('2026-09-01 12:00:00'), workKind: 'review', cardId: $cardId, state: WorkerRunState::Succeeded, role: 'code-review'),
-            $this->seedRun($em, $project, new \DateTimeImmutable('2026-09-01 12:00:00'), workKind: 'review', cardId: $cardId, state: WorkerRunState::Running, kind: WorkerRunKind::Interactive, role: 'code-review'),
-            $this->seedRun($em, $project, new \DateTimeImmutable('2026-09-01 13:00:00'), workKind: 'review', cardId: $cardId, state: WorkerRunState::Running),
-        ];
-        foreach ($runs as $run) {
-            $run->sessionId = $sessionId;
-        }
-        $this->seedRun($em, $project, new \DateTimeImmutable('2026-09-01 12:00:00'), workKind: 'review', cardId: $cardId, state: WorkerRunState::Running);
+        $match = $this->seedRun($em, $project, $at, workKind: 'review', bridgeId: $bridgeId, cardId: $cardId, state: WorkerRunState::Resumed, runKey: $runKey, role: 'code-review');
+        $closedKey = Uuid::v4();
+        $this->seedRun($em, $project, $at, workKind: 'review', bridgeId: $bridgeId, cardId: $cardId, state: WorkerRunState::Succeeded, runKey: $closedKey, role: 'code-review');
+        $interactiveKey = Uuid::v4();
+        $this->seedRun($em, $project, $at, workKind: 'review', bridgeId: $bridgeId, cardId: $cardId, state: WorkerRunState::Running, runKey: $interactiveKey, kind: WorkerRunKind::Interactive, role: 'code-review');
+        $foreignKey = Uuid::v4();
+        $this->seedRun($em, $otherProject, $at, workKind: 'review', bridgeId: $bridgeId, cardId: $cardId, state: WorkerRunState::Running, runKey: $foreignKey, role: 'code-review');
         $em->flush();
 
         $repository = self::getContainer()->get(WorkerRunRepository::class);
         self::assertInstanceOf(WorkerRunRepository::class, $repository);
 
-        self::assertSame($match, $repository->findOpenOfSessionForCard($project, $sessionId, $cardId, 'code-review'));
-        self::assertNull($repository->findOpenOfSessionForCard($project, Uuid::v4(), $cardId, 'code-review'));
-        self::assertNull($repository->findOpenOfSessionForCard($project, $sessionId, $cardId, 'design-review'));
+        self::assertSame($match, $repository->findOpenByRunKey($project, $bridgeId, $runKey, $cardId, 'code-review'));
+        self::assertNull($repository->findOpenByRunKey($project, $bridgeId, Uuid::v4(), $cardId, 'code-review'), 'another run key');
+        self::assertNull($repository->findOpenByRunKey($project, Uuid::v7(), $runKey, $cardId, 'code-review'), 'another bridge');
+        self::assertNull($repository->findOpenByRunKey($project, $bridgeId, $runKey, Uuid::v7(), 'code-review'), 'another card');
+        self::assertNull($repository->findOpenByRunKey($project, $bridgeId, $runKey, $cardId, 'design-review'), 'another role');
+        self::assertNull($repository->findOpenByRunKey($project, $bridgeId, $closedKey, $cardId, 'code-review'), 'a closed run');
+        self::assertNull($repository->findOpenByRunKey($project, $bridgeId, $interactiveKey, $cardId, 'code-review'), 'an interactive run');
+        self::assertNull($repository->findOpenByRunKey($project, $bridgeId, $foreignKey, $cardId, 'code-review'), 'a run of another project');
+        self::assertNull($repository->findOpenByRunKey($otherProject, $bridgeId, $runKey, $cardId, 'code-review'), 'the project of another run');
+    }
+
+    public function test_find_worker_by_run_key_answers_the_worker_run_of_that_launch_in_any_state(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $project = $this->project($em, $this->user($em, 'worker-by-key-'.uniqid().'@example.com'), 'Worker by key');
+        $otherProject = $this->project($em, $this->user($em, 'worker-by-key-other-'.uniqid().'@example.com'), 'Other');
+        $bridgeId = Uuid::v7();
+        $at = new \DateTimeImmutable('2026-09-01 10:00:00');
+        $openKey = Uuid::v4();
+        $closedKey = Uuid::v4();
+        $interactiveKey = Uuid::v4();
+
+        $open = $this->seedRun($em, $project, $at, bridgeId: $bridgeId, state: WorkerRunState::Running, runKey: $openKey);
+        $closed = $this->seedRun($em, $project, $at, bridgeId: $bridgeId, state: WorkerRunState::Succeeded, runKey: $closedKey);
+        $this->seedRun($em, $project, $at, bridgeId: $bridgeId, state: WorkerRunState::Running, runKey: $interactiveKey, kind: WorkerRunKind::Interactive);
+        $em->flush();
+
+        $repository = self::getContainer()->get(WorkerRunRepository::class);
+        self::assertInstanceOf(WorkerRunRepository::class, $repository);
+
+        self::assertSame($open, $repository->findWorkerByRunKey($project, $bridgeId, $openKey));
+        self::assertSame($closed, $repository->findWorkerByRunKey($project, $bridgeId, $closedKey));
+        self::assertNull($repository->findWorkerByRunKey($project, $bridgeId, Uuid::v4()), 'another run key');
+        self::assertNull($repository->findWorkerByRunKey($project, Uuid::v7(), $openKey), 'another bridge');
+        self::assertNull($repository->findWorkerByRunKey($project, $bridgeId, $interactiveKey), 'an interactive run');
+        self::assertNull($repository->findWorkerByRunKey($otherProject, $bridgeId, $openKey), 'another project');
     }
 
     private function warningClosedAt(EntityManagerInterface $em, Project $project, Uuid $cardId, WorkerRunState $state): WorkerRun

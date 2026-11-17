@@ -10,15 +10,13 @@ use App\Module\AgentReview\Command\SubmitDocumentReviewHandler;
 use App\Module\AgentReview\Entity\AgentReviewCategory;
 use App\Module\AgentReview\Entity\AgentReviewFinding;
 use App\Module\AgentReview\Entity\AgentReviewSeverity;
-use App\Module\Board\Mcp\AgentRunCause;
 use App\Module\Board\Mcp\BoardSubjectResolver;
+use App\Module\Bridge\Service\CallerRun;
 use App\Module\Review\Mcp\ReviewSubjectResolver;
 use App\Security\McpBoundProjectVoter;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;
 use Mcp\Exception\ToolCallException;
-use Symfony\Component\HttpFoundation\RequestStack;
-use Symfony\Component\Uid\Uuid;
 
 #[McpTool(name: self::NAME, description: 'Submit the review of a draft design document of a card. Only a running design review worker of the card can call it: the call must come from the loupe CLI session of a worker run with the design-review role on this card. Pass the cardId, the documentId of a draft that the card links, the versionNumber that you read, a summary, and the findings. Each finding has a severity (important, nit or pre-existing), a title and a body, and names no file. A finding can set needsPerson, for a gap that a worker cannot settle from the design and the code alone and that the owner must decide. The review fails when a finding without needsPerson has a severity that the project counts as failing, important by default.')]
 final readonly class DocumentReviewSubmitTool
@@ -53,7 +51,7 @@ final readonly class DocumentReviewSubmitTool
         private BoardSubjectResolver $cards,
         private ReviewSubjectResolver $documents,
         private SubmitDocumentReviewHandler $submitReview,
-        private RequestStack $requests,
+        private CallerRun $callerRun,
     ) {
     }
 
@@ -88,7 +86,7 @@ final readonly class DocumentReviewSubmitTool
             $review = ($this->submitReview)(new SubmitDocumentReviewCommand(
                 card: $card,
                 document: $document,
-                sessionId: $this->sessionId(),
+                runKey: $this->callerRun->workerRunKey(),
                 versionNumber: $versionNumber,
                 summary: $summary,
                 findings: $this->findings($findings),
@@ -106,13 +104,6 @@ final readonly class DocumentReviewSubmitTool
         } catch (\Throwable $e) {
             throw new ToolCallException('The review could not be stored. The error has been logged.', previous: $e);
         }
-    }
-
-    private function sessionId(): ?Uuid
-    {
-        $session = $this->requests->getCurrentRequest()?->headers->get(AgentRunCause::SESSION_HEADER);
-
-        return null !== $session && Uuid::isValid($session) ? Uuid::fromString($session) : null;
     }
 
     /**

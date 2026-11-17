@@ -22,6 +22,7 @@ use App\Tests\Module\Board\BoardColumnFixtures;
 use App\Tests\Support\McpTokenScenario;
 use App\Tests\Support\RecordingAuditor;
 use Mcp\Exception\ToolCallException;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
 
@@ -213,11 +214,19 @@ final class DocumentVerdictToolsTest extends KernelTestCase
         ($this->withdraw)((string) $document->id, 1, (string) $first->id);
     }
 
-    public function test_a_bridge_worker_is_refused_for_both_tools(): void
+    /** @return iterable<string, array{bool}> */
+    public static function workerCalls(): iterable
+    {
+        yield 'a run credential' => [true];
+        yield 'a header that names a worker session' => [false];
+    }
+
+    #[DataProvider('workerCalls')]
+    public function test_a_bridge_worker_is_refused_for_both_tools(bool $credential): void
     {
         $document = $this->decisionDocument();
         $this->actAsMcpTokenBoundTo($document->project);
-        $this->workerSession($document);
+        $this->workerSession($document, $credential);
         $this->audit->forget();
 
         foreach ([

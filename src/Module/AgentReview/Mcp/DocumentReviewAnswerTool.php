@@ -9,15 +9,13 @@ use App\Module\AgentReview\Command\AnswerDocumentReviewCommand;
 use App\Module\AgentReview\Command\AnswerDocumentReviewHandler;
 use App\Module\AgentReview\Entity\DocumentReviewAnswer;
 use App\Module\AgentReview\Entity\DocumentReviewFindingAnswer;
-use App\Module\Board\Mcp\AgentRunCause;
 use App\Module\Board\Mcp\BoardSubjectResolver;
+use App\Module\Bridge\Service\CallerRun;
 use App\Module\Review\Mcp\ReviewSubjectResolver;
 use App\Security\McpBoundProjectVoter;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;
 use Mcp\Exception\ToolCallException;
-use Symfony\Component\HttpFoundation\RequestStack;
-use Symfony\Component\Uid\Uuid;
 
 #[McpTool(name: self::NAME, description: 'Answer each finding of the latest agent review that a card got for a draft design document. A review of another card that links the same document does not count. Only a running design fix worker of the card can call it: the call must come from the loupe CLI session of a worker run with the design-revise role on this card. Pass the cardId, the documentId and one answer for each finding of the latest review, counted from 0 in the order document_get_review lists them. An answer is fixed, not-changed with a reason, or to-owner for a finding that only the owner can settle. A finding that needs a person always takes to-owner. Call it once, after you revise the draft. A review that already has its answers refuses a second call.')]
 final readonly class DocumentReviewAnswerTool
@@ -54,7 +52,7 @@ final readonly class DocumentReviewAnswerTool
         private BoardSubjectResolver $cards,
         private ReviewSubjectResolver $documents,
         private AnswerDocumentReviewHandler $answerReview,
-        private RequestStack $requests,
+        private CallerRun $callerRun,
     ) {
     }
 
@@ -77,7 +75,7 @@ final readonly class DocumentReviewAnswerTool
             $review = ($this->answerReview)(new AnswerDocumentReviewCommand(
                 card: $card,
                 document: $document,
-                sessionId: $this->sessionId(),
+                runKey: $this->callerRun->workerRunKey(),
                 answers: $this->answers($answers),
             ));
 
@@ -89,13 +87,6 @@ final readonly class DocumentReviewAnswerTool
         } catch (\Throwable $e) {
             throw new ToolCallException('The answers could not be stored. The error has been logged.', previous: $e);
         }
-    }
-
-    private function sessionId(): ?Uuid
-    {
-        $session = $this->requests->getCurrentRequest()?->headers->get(AgentRunCause::SESSION_HEADER);
-
-        return null !== $session && Uuid::isValid($session) ? Uuid::fromString($session) : null;
     }
 
     /**

@@ -49,7 +49,7 @@ final readonly class SubmitDocumentReviewHandler
         $cardId = $card->id ?? throw new \LogicException('A stored card has an id.');
         $projectId = $card->project->id ?? throw new \LogicException('A stored project has an id.');
 
-        $run = null === $command->sessionId ? null : $this->workerRuns->findOpenOfSessionForCard($card->project, $command->sessionId, $cardId, 'design-review');
+        $run = null === $command->runKey ? null : $this->workerRuns->findOpenByRunKey($card->project, $command->runKey->bridgeId, $command->runKey->runKey, $cardId, 'design-review');
         if (null === $run) {
             throw new DomainErrors(['session' => self::NO_REVIEW_RUN]);
         }
