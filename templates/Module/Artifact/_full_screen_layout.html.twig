@@ -14,8 +14,7 @@
 {% set project = current_project() %}
 {% if project %}
 <div hidden data-live-project="{{ project.id }}"></div>
-{# A frame response replaces the cookie of its host page, so only a full page subscribes. #}
-{% if not app.request.headers.has('Turbo-Frame') %}{% do mercure_subscribe(worker_runs_topic(project)) %}{% endif %}
+{% include '_mercure_project_topics.html.twig' with {project: project} only %}
 {% endif %}
 {% include '_live_bands.html.twig' only %}
 {% endif %}
