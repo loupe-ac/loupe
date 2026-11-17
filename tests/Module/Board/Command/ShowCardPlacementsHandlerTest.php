@@ -16,6 +16,7 @@ use App\Module\Board\Service\BoardPlacementContextReader;
 use App\Module\Board\Service\CardPlacer;
 use App\Module\Board\Service\LaneDecks;
 use App\Module\Project\Entity\Project;
+use App\Module\Workflow\Contract\FactsPass;
 use App\Tests\Module\Board\BoardColumnFixtures;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
@@ -99,12 +100,13 @@ final class ShowCardPlacementsHandlerTest extends KernelTestCase
 
         $registry = self::getContainer()->get('doctrine');
         self::assertInstanceOf(ManagerRegistry::class, $registry);
-        $failing = new class($registry, $broken) extends CardRepository {
+        $failing = new class($registry, self::getContainer()->get(FactsPass::class), $broken) extends CardRepository {
             public function __construct(
                 ManagerRegistry $registry,
+                FactsPass $factsPass,
                 private readonly string $broken,
             ) {
-                parent::__construct($registry);
+                parent::__construct($registry, $factsPass);
             }
 
             #[\Override]
