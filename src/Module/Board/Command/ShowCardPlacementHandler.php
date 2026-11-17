@@ -18,6 +18,6 @@ final readonly class ShowCardPlacementHandler
 
     public function __invoke(ShowCardPlacementCommand $command): CardPlacementView
     {
-        return $this->placer->place($this->contextReader->read($command->project), $command->card);
+        return $this->placer->place($this->contextReader->read($command->project, null === $command->card ? [] : [$command->card->id ?? throw new \LogicException('A placed card has an id.')]), $command->card);
     }
 }
