@@ -613,8 +613,10 @@ see the filtered environment as well. A process of the same user can read the
 start environment of another process with `ps -E`, so a worker cannot read a
 secret from the bridge, unless the name is in the base list or in `passEnv`.
 
-The bridge logs `worker_env_dropped` at start and at each reload. It names each
-variable that it dropped, and never a value. A bridge that is already running
+The bridge logs `worker_env_dropped` at start and at each reload. It lists the
+variables that a worker loses for each harness, in `claude_code` and `codex`, and
+never a value. A name such as `OPENAI_API_KEY` can show under `claude_code` only,
+because a Codex worker still gets it. A bridge that is already running
 cannot get a dropped variable back. A reload that adds a `passEnv` name logs
 `pass_env_needs_restart`, and changes nothing for that name. Put the value in an
 env file and run `loupe bridge reload`, or restart the bridge from a shell that

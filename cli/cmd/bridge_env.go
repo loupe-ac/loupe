@@ -41,21 +41,19 @@ func restartFiltered(path string) error {
 	return nil
 }
 
-// droppedEnv gives the sorted names that a worker of some harness loses: the
+// droppedEnv gives the sorted names that a worker of the harness loses: the
 // names the restart removed from the bridge, and the names of the bridge
-// environment that a worker filter drops now, such as a bridge-only name or a
-// passEnv name that a reload removed.
-func droppedEnv() []string {
+// environment that the filter of that harness drops now, such as a bridge-only
+// name or a passEnv name that a reload removed.
+func droppedEnv(harness string) []string {
 	seen := map[string]bool{}
 	if v := os.Getenv(envallow.FilteredMarker); v != "" {
 		for _, name := range strings.Split(v, ",") {
 			seen[name] = true
 		}
 	}
-	for _, harness := range []string{envallow.HarnessClaude, envallow.HarnessCodex} {
-		for _, name := range envallow.DroppedFor(harness) {
-			seen[name] = true
-		}
+	for _, name := range envallow.DroppedFor(harness) {
+		seen[name] = true
 	}
 	delete(seen, envallow.FilteredMarker)
 	names := make([]string, 0, len(seen))
@@ -67,9 +65,11 @@ func droppedEnv() []string {
 	return names
 }
 
-// logDroppedEnv names the variables that workers do not get.
+// logDroppedEnv names the variables that each harness does not get.
 func logDroppedEnv(log *slog.Logger) {
-	log.Info("worker_env_dropped", "names", droppedEnv())
+	log.Info("worker_env_dropped",
+		"claude_code", droppedEnv(envallow.HarnessClaude),
+		"codex", droppedEnv(envallow.HarnessCodex))
 }
 
 // applyPassEnv takes the passEnv list of a reloaded rule file. A name that the

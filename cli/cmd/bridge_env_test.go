@@ -81,7 +81,7 @@ func TestDroppedEnvNamesWorkerLossesAfterAReload(t *testing.T) {
 	t.Cleanup(func() { envallow.SetPass(nil) })
 
 	envallow.SetPass([]string{"RELOAD_PASS_VAR"})
-	got := droppedEnv()
+	got := droppedEnv(envallow.HarnessClaude)
 	if !slices.Contains(got, "GONE_AT_RESTART") || !slices.Contains(got, "LOUPE_ROTATE_TOKEN") || slices.Contains(got, "RELOAD_PASS_VAR") {
 		t.Fatalf("dropped before the reload = %v", got)
 	}
@@ -90,7 +90,19 @@ func TestDroppedEnvNamesWorkerLossesAfterAReload(t *testing.T) {
 	}
 
 	envallow.SetPass(nil)
-	if got = droppedEnv(); !slices.Contains(got, "RELOAD_PASS_VAR") {
+	if got = droppedEnv(envallow.HarnessClaude); !slices.Contains(got, "RELOAD_PASS_VAR") {
 		t.Fatalf("a passEnv name removed by a reload must be named: %v", got)
+	}
+}
+
+func TestDroppedEnvSeparatesHarnesses(t *testing.T) {
+	t.Setenv("OPENAI_API_KEY", "o")
+	t.Setenv("ANTHROPIC_API_KEY", "a")
+	claude, codex := droppedEnv(envallow.HarnessClaude), droppedEnv(envallow.HarnessCodex)
+	if !slices.Contains(claude, "OPENAI_API_KEY") || slices.Contains(claude, "ANTHROPIC_API_KEY") {
+		t.Fatalf("claude-code loses = %v", claude)
+	}
+	if !slices.Contains(codex, "ANTHROPIC_API_KEY") || slices.Contains(codex, "OPENAI_API_KEY") {
+		t.Fatalf("codex loses = %v", codex)
 	}
 }
