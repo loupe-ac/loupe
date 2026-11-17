@@ -58,6 +58,30 @@ final class ListSitesApiTest extends WebTestCase
         self::assertCount(2, $data['sites']);
     }
 
+    public function test_a_credential_bound_to_one_project_lists_that_project_only(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $em = $this->em();
+
+        $owner = $this->user($em, 'list-sites-bound@example.com');
+        $site1 = new Project($owner, 'bound-site-one');
+        $site2 = new Project($owner, 'bound-site-two');
+        $em->persist($site1);
+        $em->persist($site2);
+        $em->flush();
+
+        $raw = AgentCredential::tokenFor(static::getContainer(), $owner, 'agent mcp', $site2);
+
+        $client->request(Request::METHOD_GET, '/api/v1/bridge/projects',
+            server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw]);
+
+        self::assertResponseIsSuccessful();
+        $data = json_decode((string) $client->getResponse()->getContent(), true);
+        self::assertIsArray($data);
+        self::assertSame([(string) $site2->id], array_column($data['sites'], 'id'));
+    }
+
     /** The bridge lists these slugs when a rule file names a project that does not exist. */
     public function test_each_site_carries_its_slug(): void
     {
