@@ -164,10 +164,10 @@ final class WorkerRunRepositoryTest extends KernelTestCase
 
         self::assertEquals(
             ['fix' => new \DateTimeImmutable('2026-01-01 10:30:00'), 'implement' => new \DateTimeImmutable('2026-01-01 10:10:00')],
-            $runs->findOpenWorkSinceOfCard($cardId),
+            $runs->findOpenWorkSinceOfCard($cardId)['all'],
         );
-        self::assertSame(['fix', 'implement'], array_keys($runs->findOpenWorkSinceOfCard($cardId)));
-        self::assertSame([], $runs->findOpenWorkSinceOfCard(Uuid::v7()));
+        self::assertSame(['fix', 'implement'], array_keys($runs->findOpenWorkSinceOfCard($cardId)['all']));
+        self::assertSame([], $runs->findOpenWorkSinceOfCard(Uuid::v7())['all']);
     }
 
     public function test_find_open_work_since_of_card_can_leave_out_the_runs_that_a_person_started(): void
@@ -186,8 +186,8 @@ final class WorkerRunRepositoryTest extends KernelTestCase
         $runs = self::getContainer()->get(WorkerRunRepository::class);
         self::assertInstanceOf(WorkerRunRepository::class, $runs);
 
-        self::assertSame(['fix', 'implement', 'resume', 'session'], array_keys($runs->findOpenWorkSinceOfCard($cardId)));
-        self::assertSame(['fix', 'implement'], array_keys($runs->findOpenWorkSinceOfCard($cardId, ruleOwnedOnly: true)));
+        self::assertSame(['fix', 'implement', 'resume', 'session'], array_keys($runs->findOpenWorkSinceOfCard($cardId)['all']));
+        self::assertSame(['fix', 'implement'], array_keys($runs->findOpenWorkSinceOfCard($cardId)['ruleOwned']));
     }
 
     public function test_find_oldest_open_interactive_row_of_card_answers_the_oldest_open_session(): void
