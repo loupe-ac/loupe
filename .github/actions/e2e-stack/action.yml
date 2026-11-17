@@ -9,6 +9,10 @@ runs:
         node: 'true'
         docker: 'true'
 
+    # The review page imports Mermaid from public/vendor/, which git does not hold.
+    - shell: bash
+      run: bin/vendor-mermaid.sh
+
     # By name, not a bare `up`: the `tailwind` service is a watcher, and it
     # would race the stylesheet build in the setup action. The worker is not
     # needed either — every message dispatched under the X-Playwright header

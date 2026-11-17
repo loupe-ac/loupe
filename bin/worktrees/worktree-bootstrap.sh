@@ -216,6 +216,17 @@ for d in node_modules e2e/node_modules; do
     ln -s "${prefix}${d}" "$root/$d"
 done
 
+# Mermaid for the review page. public/vendor/ is gitignored, so a worktree copies
+# the main checkout's build when it has one and installs it otherwise.
+if [ ! -f "$root/public/vendor/mermaid/12.0.0/mermaid.esm.min.mjs" ]; then
+    if [ -d "$main/public/vendor/mermaid" ] && cmp -s "$main/package-lock.json" "$root/package-lock.json"; then
+        mkdir -p "$root/public/vendor"
+        rsync -a "$main/public/vendor/mermaid" "$root/public/vendor/"
+    else
+        "$root/bin/vendor-mermaid.sh"
+    fi
+fi
+
 # var/tailwind must be a REAL directory, not a symlink to main's. Templates
 # render from the `tailwind` Twig namespace, and a shared build only ever
 # contains the classes main's watcher saw — so a class introduced in this

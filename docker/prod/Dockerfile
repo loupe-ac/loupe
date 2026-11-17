@@ -9,6 +9,14 @@ RUN npm ci --ignore-scripts=false --no-audit --no-fund
 COPY public/live-review/widget.js public/live-review/widget.js
 RUN npm run build:widget
 
+# The Mermaid ES module build for the review page, installed from the npm
+# package that package-lock.json pins and written to the path the app imports.
+FROM node:22-alpine AS mermaid
+WORKDIR /build
+COPY package.json package-lock.json ./
+COPY bin/vendor-mermaid.sh bin/vendor-mermaid.sh
+RUN bin/vendor-mermaid.sh /build/out
+
 # Pinned by digest so the same Dockerfile always produces the same base layer:
 # `php:8.5-fpm-alpine` is a mutable tag that is rebuilt on every patch release
 # and every Alpine bump, so without this two builds a week apart ship different
@@ -129,6 +137,7 @@ COPY . .
 RUN rm -rf website docs
 
 COPY --from=widget /build/var/widget.min.js public/live-review/widget.js
+COPY --from=mermaid /build/out public/vendor/mermaid
 
 RUN set -eux; \
 	mkdir -p var/cache var/log var/share var/tailwind var/exports; \

@@ -29,6 +29,10 @@
 /.phpunit.cache/
 ###< phpunit/phpunit ###
 
+# Mermaid for the review page. bin/vendor-mermaid.sh installs it from the pinned
+# npm package, so git holds no copy.
+/public/vendor/
+
 ###> symfony/asset-mapper ###
 /public/assets/
 ###< symfony/asset-mapper ###

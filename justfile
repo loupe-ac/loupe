@@ -414,6 +414,10 @@ garage-reset:
         echo "garage: no volumes to remove" >&2
     fi
 
+# Install the Mermaid build that the review page imports into public/vendor/.
+vendor-mermaid:
+    bin/vendor-mermaid.sh
+
 # Provision the dedicated e2e target: a disposable database plus an nginx sidecar
 # serving THIS checkout. Idempotent. The suite truncates every table, so it must
 # never point at the dev database.
@@ -425,6 +429,8 @@ e2e-up:
     project=$(grep -E '^COMPOSE_PROJECT_NAME=' "$main/.env" | head -1 | cut -d= -f2-)
     host="e2e.${project}.dev.localhost"
     db="app_e2e"
+
+    bin/vendor-mermaid.sh
 
     # fastcgi_param lands in $_SERVER; Symfony's Dotenv skips names already
     # there, so these beat .env.local. WORKTREE_DB_SUFFIX is the same knob a
