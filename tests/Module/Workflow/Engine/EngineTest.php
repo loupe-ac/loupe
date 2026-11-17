@@ -331,6 +331,23 @@ final class EngineTest extends KernelTestCase
         self::assertContains('work', $late[0]['context']['rules']);
     }
 
+    public function test_a_mark_that_lands_during_the_fact_read_keeps_the_miss_error(): void
+    {
+        $card = $this->boundCard([self::requestRule('work', self::ALWAYS)]);
+        $cardId = $card->id ?? throw new \LogicException('A flushed card has an id.');
+        $this->clearMark($card);
+        $connection = $this->em()->getConnection();
+        $this->provider()->onBuild = static function () use ($connection, $cardId): void {
+            $connection->executeStatement('INSERT INTO workflow_card_changes (card_id, changed_at) VALUES (:card, LOCALTIMESTAMP(0)) ON CONFLICT (card_id) DO NOTHING', ['card' => $cardId->toRfc4122()]);
+        };
+
+        $this->engine()->evaluate($cardId, new \DateTimeImmutable(self::NOON), reportMiss: true);
+
+        $misses = $this->missRecords();
+        self::assertCount(1, $misses);
+        self::assertSame('error', $misses[0]['level']);
+    }
+
     public function test_an_ordinary_check_reports_no_miss_for_the_same_change(): void
     {
         $card = $this->boundCard([self::requestRule('work', self::ALWAYS)]);

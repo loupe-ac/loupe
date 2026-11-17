@@ -252,9 +252,11 @@ final readonly class Engine
             return null;
         }
 
+        // Before the facts, so a mark seen here belongs to a writer whose change the facts already hold.
+        // A writer that commits after this read, but before the facts, leaves the error in place.
+        $markedAfterClear = $reportMiss && $this->workflowCardChanges->isMarked($cardId);
         $run = new Evaluation($card, $project, $template, $this->facts($card, $now), $automated ? $this->workflowRuleStates->findForCard($cardId) : [], $now);
-        // Before the pass writes anything, so a mark here came from a writer that committed after the check cleared it.
-        $run->markedAfterClear = $reportMiss && $this->workflowCardChanges->isMarked($cardId);
+        $run->markedAfterClear = $markedAfterClear;
         $run->markersDue = null !== $run->card->markersDueAt && $run->card->markersDueAt <= $run->now;
         if (!$automated) {
             $this->markers->run($run);
