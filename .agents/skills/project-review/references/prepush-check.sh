@@ -6,7 +6,8 @@
 # --base is the base ref of the pull request. --prototype is yes when the card, its parent, its source card or a linked design links an artifact.
 # Prints one line for each gap: "gap: <text>" or "not-proven: <text>". Prints "clean" when there is none.
 # Exits 0 when clean, 1 when a gap needs a fix, 2 when the only gaps are "Not proven" lines.
-# A line that reads "Not proven: accepted by the owner: <reason>" is an accepted exception and counts as clean.
+# A line that reads "Not proven: accepted by the owner: <reason>" is an accepted exception and counts as clean,
+# when a line of the build notes cites the owner's answer as "inbox item <id>". The script cannot read the inbox, so the review reads that item.
 # Exits 64 on a bad argument or an input it cannot read, such as a base ref with no merge base.
 set -o pipefail
 usage="usage: prepush-check.sh --profile <file> --body <file> --notes <file> --base <ref> --card-type <type> --prototype yes|no"
@@ -95,6 +96,8 @@ if [ $applies = yes ]; then
   while IFS= read -r line; do
     [ -n "$line" ] || continue
     if grep -qiE 'not proven: accepted by the owner:' <<<"$line"; then
+      grep -qiE 'accepted by the owner.*inbox item [0-9a-f][0-9a-f-]{7,}' "$notes" ||
+        gaps+=("accepted Not proven line has no build notes entry that cites its inbox item: $line")
       continue
     fi
     if grep -qi 'not proven' <<<"$line"; then

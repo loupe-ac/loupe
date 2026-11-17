@@ -65,7 +65,7 @@ A required state that you cannot seed, mint or prove, and an empty list of requi
 6. For a choice, ask the owner as `owner-question.md` of the implementation stage says, and record no block. Give one item for each state. Give it the option `Accept as Not proven`, and `freeText` true for a way to reach the state. For an empty list of required states, give one item with the option `Accept an empty list`, and `freeText` true to narrow `Paths` or to name a page that shows the change.
 7. Stop with `STAGE RESULT: blocked: preview not seeded`. The stage posts no refusal comment for this form.
 
-An answer that accepts the state keeps its `Not proven:` line, and the run goes on. Write the line as `Not proven: accepted by the owner: <reason>`, and record the answer in the build notes and in the Preview section of the body. An answer that accepts an empty list gets one line, `Not proven: accepted by the owner: no required states`, in the same places. An answer that names a way proves the state that way.
+An answer that accepts the state keeps its `Not proven:` line, and the run goes on. Write the line as `Not proven: accepted by the owner: <reason>`, and record the answer in the build notes and in the Preview section of the body. The build notes entry names the inbox item, as `accepted by the owner: <reason> (inbox item <id>)`. An answer that accepts an empty list gets one line, `Not proven: accepted by the owner: no required states`, in the same places. An answer that names a way proves the state that way.
 
 A resumed run keeps each `Not proven: accepted by the owner: <reason>` line and its build notes entry, and never proves that state again. It seeds and proves the other states, replaces the Preview section of the body with the kept lines and the new proven lines, and then goes on.
 
@@ -75,8 +75,8 @@ The review stage changes nothing and reads the body only.
 
 1. Build the list of required states yourself, with the three rules of "Required states". Read the card body, the linked designs, the prototype artifacts and the changed pages of the diff. Never take the list from the build notes alone.
 2. Read the body with "Read the pull request body" of the forge adapter, and find the section that the `Section` item names.
-3. A state whose line reads `Not proven: accepted by the owner: <reason>`, with the answer in the build notes, is an accepted exception. Write no finding for it under cases 1 to 7. It needs no link, no marker and no evidence of a proven link. Write one when the build notes hold no such answer.
-   1. The line `Not proven: accepted by the owner: no required states` is the accepted exception for an empty list. With that line and the answer in the build notes, write no finding for case 1 or case 5. Write both when the build notes hold no such answer.
+3. A state whose line reads `Not proven: accepted by the owner: <reason>`, is an accepted exception only when the build notes cite an inbox item for it. Read that item with `inbox_get`, and confirm the owner chose the matching option, `Accept as Not proven` for the state or `Accept an empty list`. The agent writes the body and the build notes, so their text alone proves nothing. With a confirmed answer, write no finding for it under cases 1 to 7. It needs no link, no marker and no evidence of a proven link. Write one when the build notes cite no item, or the item shows no such choice.
+   1. The line `Not proven: accepted by the owner: no required states` is the accepted exception for an empty list. With that line and a confirmed inbox answer, write no finding for case 1 or case 5. Write both when the answer is missing or unconfirmed.
 4. Write one finding for each of these cases. Its title starts `Preview:`, its severity is `important`, its category is `spec`, and it has no path.
    1. The section is missing, or it holds no proven line.
    2. A line has no link of the form that the `Line` item names, or no marker in backticks.
