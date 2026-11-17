@@ -27,6 +27,12 @@ final readonly class ListSitesHandler
     public function __invoke(ListSitesCommand $command): ListSitesView
     {
         $projects = $this->projects->findByOwner($command->owner);
+        if (null !== $command->projectId) {
+            $projects = array_values(array_filter(
+                $projects,
+                static fn (Project $project): bool => $command->projectId->equals($project->id),
+            ));
+        }
         $collection = $this->toolCallCollection->forOwner($command->owner, $projects);
         $projectIds = array_map(static fn (Project $project): Uuid => $project->id ?? throw new \LogicException('A listed project is not flushed.'), $projects);
         $skills = $this->workflowBindings->findSkillSettings($projectIds);
