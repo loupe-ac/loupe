@@ -73,6 +73,17 @@ class ProjectRepository extends ServiceEntityRepository
         );
     }
 
+    /**
+     * The lock of a bridge report. It waits for each writer that holds the row with FOR UPDATE, and for
+     * none of the other reports or inserts that point at the project. An experiment archive, a bucket
+     * rule change, an analytics settings change and a project delete rely on that wait, so each of them
+     * must keep FOR UPDATE.
+     */
+    public function lockForReport(Project $project): void
+    {
+        $this->lockKeyShare($project);
+    }
+
     /** @return list<Project> */
     public function findByOwner(User $owner): array
     {

@@ -12,6 +12,7 @@ use App\Module\Project\Entity\Project;
 use App\Outbox\AgentPush;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Support\AgentCredential;
+use App\Tests\Support\RunsFactJobs;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -210,6 +211,7 @@ final class WorkerRunSessionUsageApiTest extends WebTestCase
         self::assertJsonStringEqualsJsonString('{"runs":1,"updated":1}', (string) $client->getResponse()->getContent());
         self::assertSame([[(string) $run->id, 'claude-interactive']], $this->usageRows());
         self::assertSame(WorkerRunUsageSource::Estimated, $this->runOf($run)->usageSource);
+        RunsFactJobs::run(self::getContainer());
         self::assertSame(250000, (int) $this->em()->getConnection()->fetchOne('SELECT cost_micro_usd FROM bridge_worker_run_facts WHERE run_id = ?', [(string) $run->id]));
     }
 
