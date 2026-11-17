@@ -61,10 +61,13 @@ func (g *fakeGitHub) publishSkill(pkg, version string, archive, checksumOf []byt
 	name := pkg + "_" + version + ".tar.gz"
 	sum := sha256.Sum256(checksumOf)
 	g.blobs["/skills/"+name] = archive
-	g.blobs["/skills/sums/"+pkg+version] = []byte(hex.EncodeToString(sum[:]) + "  " + name + "\n")
+	sums := []byte(hex.EncodeToString(sum[:]) + "  " + name + "\n")
+	g.blobs["/skills/sums/"+pkg+version] = sums
+	g.blobs["/skills/sigs/"+pkg+version] = g.key.Sign(sums)
 	g.extra = append(g.extra, update.Release{TagName: "skills/" + pkg + "/v" + version, Assets: []update.Asset{
 		{Name: name, URL: g.server.URL + "/skills/" + name},
 		{Name: "checksums.txt", URL: g.server.URL + "/skills/sums/" + pkg + version},
+		{Name: "checksums.txt.sig", URL: g.server.URL + "/skills/sigs/" + pkg + version},
 	}})
 }
 
@@ -235,8 +238,8 @@ func TestASharedSetupUpdatesItsOwnSkillsUnderAutoUpdate(t *testing.T) {
 	if heldVersion(h.u.dir, "loupe") != "1.1.0" {
 		t.Fatalf("the store holds %q", heldVersion(h.u.dir, "loupe"))
 	}
-	if _, downloads := gh.counts(); downloads != 2 {
-		t.Fatalf("downloads = %d: the shared setup must fetch no CLI archive", downloads)
+	if got := gh.archives(); got != 0 {
+		t.Fatalf("archive downloads = %d: the shared setup must fetch no CLI archive", got)
 	}
 }
 

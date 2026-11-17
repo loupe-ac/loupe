@@ -1,0 +1,82 @@
+---
+title: 'Signing releases'
+description: 'How CLI and skills releases are signed, how to rotate the release key, what to do when it leaks, and how to reinstall a bridge.'
+---
+
+Each CLI release and each skills release carries a file named `checksums.txt.sig`. It is a signature of `checksums.txt` with a release key. GitHub does not hold that key. The bridge updater, the skills refresh, `install.sh` and the Homebrew job check the signature before they trust `checksums.txt`. A release with no valid signature is never installed.
+
+This page is for the person who releases Loupe. A user of the CLI reads [Installing the CLI](../getting-started/cli.md).
+
+## The keys
+
+Two keys are trusted from the first signed release: the active key, and a backup key that you keep offline. Their public lines sit in `cli/internal/update/release_keys`, in the `allowed_signers` format of `ssh-keygen`. `cli/install.sh` and the `cli-install-release` recipe of the `justfile` hold the same lines. A Go test fails when the three copies differ.
+
+The private active key is one value in a sops file outside the repository, `~/.config/loupe/release-signing.enc.yaml`. It is encrypted to your age key, like `terraform/secrets.enc.yaml`. Keep the backup key off every machine that runs agents.
+
+## Sign a release
+
+A release workflow builds the archives and `checksums.txt`, attests `checksums.txt`, and publishes a draft release. Nobody can install a draft. Sign it from your machine:
+
+```bash
+just sign-release cli/v2.8.0
+```
+
+The recipe downloads `checksums.txt` of the draft once and checks its attestation. The attestation must come from the release workflow, on a commit that is an ancestor of `origin/main`. The recipe prints the file sums and the commits since the last signed tag. It signs the same local file, uploads `checksums.txt.sig`, verifies it against `release_keys`, and publishes the draft. A CLI release then starts the `cli-homebrew.yml` workflow on `main`, which updates the Homebrew tap.
+
+Read the printed commits before you approve. A signature proves that you released the code. It does not prove that the code is good.
+
+## Rotate the key on a plan
+
+Rotate the key when you retire it, or on a schedule. Take these steps in order:
+
+1. Make a new key pair. Add the public line to `release_keys`, `cli/install.sh` and the `cli-install-release` recipe.
+2. Ship a CLI release that you sign with the old key. It teaches each bridge the new key.
+3. Open the bridges page. Wait until the bridges you care about run that release or a later one.
+4. Sign the next releases with the new key. Put the new private key in the sops file.
+5. Ship a later release that removes the old key from `release_keys`.
+
+A bridge that missed the middle release in step 2 finds the newest release that a key it trusts signed. It installs that release, and then trusts the new key. This walk works only while the middle release stays inside the CLI range of the server. A bridge that was offline for the whole rotation needs a reinstall.
+
+## When the active key leaks
+
+An attacker with the key can sign a release that every bridge accepts. Act in this order:
+
+1. Take the fingerprint of the stolen public key:
+
+   ```bash
+   ssh-keygen -lf <(echo 'ssh-ed25519 <the base64 blob of the key line>')
+   ```
+
+   The output starts with `SHA256:`. That text is the fingerprint.
+2. Add the fingerprint to `REVOKED_RELEASE_KEYS` in `src/Module/Bridge/Service/CliCompatibility.php`, as one string in the list:
+
+   ```php
+   public const array REVOKED_RELEASE_KEYS = ['SHA256:mPVVTkHngFt3LMCmwB7Nw6BtoS371HG9RRKbhn6T4jM'];
+   ```
+
+3. Deploy the app. The heartbeat answer, `GET /api/v1/bridge/events` and `GET /api/versions` then carry the list as `revokedReleaseKeys`. The instance also serves `install.sh` without the lines of those keys.
+4. Sign a CLI release with the backup key. That release removes the stolen key from `release_keys`.
+
+At its next check, each bridge of the instance stores the list. The list only grows, because an instance can only take trust away. A bridge refuses a release that a listed key signed. It deletes a staged binary from that key. It skips a stored skill version from that key, also for a session that resumes, and deletes it. Workers then start with the highest skill version left.
+
+A self-hosted instance carries the list only after its operator deploys the new app version.
+
+### Reinstall a bridge that ran a bad release
+
+A bridge that already runs a CLI from the stolen key runs the attacker's code. The code can ignore the list and any later release. Only a reinstall recovers it.
+
+Use the `install.sh` that your instance serves. That copy leaves out the stolen key lines. It skips each release that the stolen key signed, also a higher one, and installs the newest release that the backup key signed:
+
+```bash
+curl -fsSL https://<your Loupe instance>/install.sh | sh
+```
+
+To skip that walk, pin the release that the backup key signed:
+
+```bash
+curl -fsSL https://<your Loupe instance>/install.sh | sh -s -- --version <version>
+```
+
+Do not use a copy of `install.sh` from the repository, or the `just` recipe. They trust the stolen key until the backup release removes it.
+
+The bridges page shows the CLI version of each bridge, so you can find the ones to reinstall.

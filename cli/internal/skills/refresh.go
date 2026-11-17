@@ -28,6 +28,13 @@ const tagPrefix = "skills/"
 // checksumsName is the checksums asset of a release.
 const checksumsName = "checksums.txt"
 
+// signatureName is the signature asset of a release.
+const signatureName = update.SignatureName
+
+// signerFile, in the folder of a stored version, holds the fingerprint of the
+// release key that signed it.
+const signerFile = ".signer"
+
 // failuresDir is the folder in the store that holds one file for each package
 // whose last update failed.
 const failuresDir = ".failures"
@@ -152,6 +159,7 @@ func writeFailure(path string, failure Result) error {
 type release struct {
 	version            string
 	archive, checksums update.Asset
+	signature          update.Asset
 	archiveName        string
 }
 
@@ -166,6 +174,8 @@ type release struct {
 // blocked remembers the versions that the CLI cannot use, so no later call
 // downloads them again. The caller keeps it for the life of the process.
 func Refresh(ctx context.Context, hc *http.Client, configDir, cliVersion string, releases []update.Release, packages []string, blocked map[string]string) []Result {
+	RemoveRevoked(configDir)
+	revoked := update.LoadRevoked(configDir)
 	names := slices.Compact(slices.Sorted(slices.Values(packages)))
 	results := make([]Result, len(names))
 	installed := map[string]string{}
@@ -174,7 +184,7 @@ func Refresh(ctx context.Context, hc *http.Client, configDir, cliVersion string,
 	for pass := 0; pass <= len(names); pass++ {
 		progress := false
 		for i, pkg := range names {
-			r := refreshPackage(ctx, hc, configDir, cliVersion, releases, pkg, blocked)
+			r := refreshPackage(ctx, hc, configDir, cliVersion, releases, pkg, blocked, revoked)
 			if r.Installed != "" {
 				progress = true
 				installed[pkg] = r.Installed
@@ -195,7 +205,7 @@ func Refresh(ctx context.Context, hc *http.Client, configDir, cliVersion string,
 	return results
 }
 
-func refreshPackage(ctx context.Context, hc *http.Client, configDir, cliVersion string, releases []update.Release, pkg string, blocked map[string]string) Result {
+func refreshPackage(ctx context.Context, hc *http.Client, configDir, cliVersion string, releases []update.Release, pkg string, blocked map[string]string, revoked []string) Result {
 	if !ValidName(pkg) {
 		return Result{Package: pkg, State: StateFailed, Reason: fmt.Sprintf("%q is not a valid package name", pkg)}
 	}
@@ -220,7 +230,7 @@ func refreshPackage(ctx context.Context, hc *http.Client, configDir, cliVersion 
 
 			continue
 		}
-		err := installRelease(ctx, hc, &s, pkg, rel)
+		err := installRelease(ctx, hc, &s, pkg, rel, revoked)
 		var held heldBack
 		switch {
 		case err == nil:
@@ -304,8 +314,8 @@ type heldBack struct {
 func (h heldBack) Error() string { return h.reason }
 
 // publishedVersions lists the releases of a package that a CLI may use, the
-// highest first: not a draft, not a prerelease, with the archive and the
-// checksums file.
+// highest first: not a draft, not a prerelease, with the archive, the
+// checksums file and its signature.
 func publishedVersions(releases []update.Release, pkg string) []release {
 	var out []release
 	for _, r := range releases {
@@ -328,9 +338,11 @@ func publishedVersions(releases []update.Release, pkg string) []release {
 				rel.archive = a
 			case checksumsName:
 				rel.checksums = a
+			case signatureName:
+				rel.signature = a
 			}
 		}
-		if rel.archive.URL == "" || rel.checksums.URL == "" {
+		if rel.archive.URL == "" || rel.checksums.URL == "" || rel.signature.URL == "" {
 			continue
 		}
 		rel.version, rel.archiveName = tagVersion, archiveName
@@ -349,13 +361,23 @@ func exactVersion(s string) bool {
 }
 
 // installRelease downloads, verifies and unpacks one release, and moves it into the
-// store. It returns a heldBack error for a version that does not fit.
-func installRelease(ctx context.Context, hc *http.Client, s *solver, pkg string, rel release) error {
-	archive, err := update.Download(ctx, hc, rel.archive.URL)
+// store. The signature of checksums.txt is checked before the archive is read.
+// It returns a heldBack error for a version that does not fit, and for a version
+// whose signature fails.
+func installRelease(ctx context.Context, hc *http.Client, s *solver, pkg string, rel release, revoked []string) error {
+	checksums, err := update.Download(ctx, hc, rel.checksums.URL)
 	if err != nil {
 		return err
 	}
-	checksums, err := update.Download(ctx, hc, rel.checksums.URL)
+	sig, err := update.Download(ctx, hc, rel.signature.URL)
+	if err != nil {
+		return err
+	}
+	signer, err := update.VerifySignature(checksums, sig, revoked)
+	if err != nil {
+		return heldBack{reason: fmt.Sprintf("%s %s has no valid release signature: %v", pkg, rel.version, err)}
+	}
+	archive, err := update.Download(ctx, hc, rel.archive.URL)
 	if err != nil {
 		return err
 	}
@@ -386,6 +408,9 @@ func installRelease(ctx context.Context, hc *http.Client, s *solver, pkg string,
 	}
 
 	if err := s.unfit(pkg, rel.version, tmp); err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(tmp, signerFile), []byte(signer+"\n"), 0o644); err != nil {
 		return err
 	}
 

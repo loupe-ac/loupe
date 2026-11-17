@@ -324,10 +324,10 @@ func updateCmd(t *testing.T, self selfUpdate, args ...string) (string, error) {
 func noSelfUpdate(t *testing.T) selfUpdate {
 	exe := filepath.Join(t.TempDir(), "loupe")
 
-	return selfUpdate{apiBase: "http://127.0.0.1:1", version: "1.0.0", executable: func() (string, error) { return exe, nil }, serverRange: func(context.Context) (string, error) {
+	return selfUpdate{apiBase: "http://127.0.0.1:1", version: "1.0.0", executable: func() (string, error) { return exe, nil }, serverPolicy: func(context.Context) (serverPolicy, error) {
 		t.Fatal("the command updated itself while a bridge runs")
 
-		return "", nil
+		return serverPolicy{}, nil
 	}}
 }
 
@@ -515,18 +515,18 @@ func selfUpdateAgainst(t *testing.T, gh *fakeGitHub, running string) (selfUpdate
 	}
 
 	return selfUpdate{
-		version:     running,
-		goos:        "linux",
-		goarch:      "amd64",
-		apiBase:     gh.server.URL,
-		hc:          gh.server.Client(),
-		executable:  func() (string, error) { return exe, nil },
-		serverRange: func(context.Context) (string, error) { return "", config.ErrNotLoggedIn },
+		version:      running,
+		goos:         "linux",
+		goarch:       "amd64",
+		apiBase:      gh.server.URL,
+		hc:           gh.server.Client(),
+		executable:   func() (string, error) { return exe, nil },
+		serverPolicy: func(context.Context) (serverPolicy, error) { return serverPolicy{}, config.ErrNotLoggedIn },
 	}, exe
 }
 
 func withServerRange(self selfUpdate, cliRange string) selfUpdate {
-	self.serverRange = func(context.Context) (string, error) { return cliRange, nil }
+	self.serverPolicy = func(context.Context) (serverPolicy, error) { return serverPolicy{cliRange: cliRange}, nil }
 
 	return self
 }
@@ -607,22 +607,22 @@ func TestReadServerRangeAsksGetEventsWithTheStoredLogin(t *testing.T) {
 
 			return
 		}
-		w.Write([]byte(`{"hubUrl":"h","jwt":"j","topic":"t","projects":[],"flags":{},"cliRange":"^1.0"}`))
+		w.Write([]byte(`{"hubUrl":"h","jwt":"j","topic":"t","projects":[],"flags":{},"cliRange":"^1.0","revokedReleaseKeys":["SHA256:stolen"]}`))
 	}))
 	defer server.Close()
 	if err := config.Save(testLogin(server.URL)); err != nil {
 		t.Fatal(err)
 	}
 
-	if got, err := readServerRange(context.Background()); err != nil || got != "^1.0" {
-		t.Fatalf("range = %q, err = %v", got, err)
+	if got, err := readServerPolicy(context.Background()); err != nil || got.cliRange != "^1.0" || len(got.revoked) != 1 || got.revoked[0] != "SHA256:stolen" {
+		t.Fatalf("policy = %+v, err = %v", got, err)
 	}
 }
 
-func TestReadServerRangeFailsWithNoLoginOrNoRange(t *testing.T) {
+func TestReadServerPolicyFailsWithNoLoginOrNoRange(t *testing.T) {
 	keyring.MockInit()
 	shortConfigHome(t)
-	if _, err := readServerRange(context.Background()); !errors.Is(err, config.ErrNotLoggedIn) {
+	if _, err := readServerPolicy(context.Background()); !errors.Is(err, config.ErrNotLoggedIn) {
 		t.Fatalf("err = %v", err)
 	}
 
@@ -633,7 +633,7 @@ func TestReadServerRangeFailsWithNoLoginOrNoRange(t *testing.T) {
 	if err := config.Save(testLogin(server.URL)); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := readServerRange(context.Background()); err == nil {
+	if _, err := readServerPolicy(context.Background()); err == nil {
 		t.Fatal("a server with no range gave no error")
 	}
 }

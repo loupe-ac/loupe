@@ -224,6 +224,25 @@ func TestHeartbeatReturnsTheRangeOfTheReply(t *testing.T) {
 	}
 }
 
+func TestHeartbeatReturnsTheRevokedReleaseKeysOfTheReply(t *testing.T) {
+	for body, want := range map[string]int{
+		`{"cliRange":"^1.0","revokedReleaseKeys":["SHA256:a","SHA256:b"]}`: 2,
+		`{"cliRange":"^1.0","revokedReleaseKeys":[]}`:                      0,
+		`{"cliRange":"^1.0"}`: 0,
+	} {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = io.WriteString(w, body)
+		}))
+
+		got, err := New(server.URL, "t", server.Client()).Heartbeat(context.Background(), heartbeatBridgeID, Heartbeat{CLIVersion: "v"})
+		server.Close()
+
+		if err != nil || len(got.RevokedReleaseKeys) != want {
+			t.Fatalf("%s: revoked = %v, err = %v", body, got.RevokedReleaseKeys, err)
+		}
+	}
+}
+
 func TestHeartbeatSendsTheUpdateState(t *testing.T) {
 	var body string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -49,3 +49,36 @@ func TestLoadStateRefusesABrokenFile(t *testing.T) {
 		t.Fatal("a broken file loaded")
 	}
 }
+
+func TestRevokedKeysOnlyGrow(t *testing.T) {
+	dir := t.TempDir()
+	grew, err := AddRevoked(dir, []string{"SHA256:a", "SHA256:b", "SHA256:a", ""})
+	if err != nil || !grew {
+		t.Fatalf("first add: grew = %v, err = %v", grew, err)
+	}
+	if grew, _ := AddRevoked(dir, []string{"SHA256:b"}); grew {
+		t.Fatal("a known key grew the set")
+	}
+	if grew, _ := AddRevoked(dir, nil); grew {
+		t.Fatal("an empty list grew the set")
+	}
+	if got := LoadRevoked(dir); len(got) != 2 || got[0] != "SHA256:a" || got[1] != "SHA256:b" {
+		t.Fatalf("revoked = %v", got)
+	}
+}
+
+func TestSaveKeepsTheRevokedKeysOfTheFile(t *testing.T) {
+	dir := t.TempDir()
+	stale, _ := LoadState(dir)
+	if _, err := AddRevoked(dir, []string{"SHA256:a"}); err != nil {
+		t.Fatal(err)
+	}
+	stale.Skip("1.3.0")
+	if err := stale.Save(dir); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := LoadState(dir)
+	if len(got.Revoked) != 1 || got.Revoked[0] != "SHA256:a" || !got.Skipped("1.3.0") {
+		t.Fatalf("state = %+v", got)
+	}
+}

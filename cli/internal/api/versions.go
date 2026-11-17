@@ -27,6 +27,9 @@ type Versions struct {
 		Status  string `json:"status"`
 	} `json:"versions"`
 	CLIRange string `json:"cliRange"`
+	// RevokedReleaseKeys lists the fingerprints of release keys the server
+	// revoked. An older server sends none.
+	RevokedReleaseKeys []string `json:"revokedReleaseKeys"`
 }
 
 // Serves reports whether the server serves the given API version.

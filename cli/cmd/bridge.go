@@ -624,7 +624,7 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 				updates.install = installMethod(updates.executable)
 				updates.onDrain = r.setDraining
 				updates.setState(updateOff, "")
-				hb.onRange, hb.update = updates.setRange, updates.state
+				hb.onRange, hb.onRevoked, hb.update = updates.setRange, updates.setRevoked, updates.state
 			}
 		} else {
 			hook := logStaged(r.log, version)
@@ -642,7 +642,7 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 			updates.install = installMethod(updates.executable)
 			updates.onDrain = r.setDraining
 			updates.skillNames = r.skillNames
-			hb.onRange, hb.update = updates.setRange, updates.state
+			hb.onRange, hb.onRevoked, hb.update = updates.setRange, updates.setRevoked, updates.state
 		}
 		hb.skills = r.skillReports
 		if r.update != nil {

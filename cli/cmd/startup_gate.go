@@ -29,6 +29,8 @@ type startupGate struct {
 	autoUpdate bool
 	// updateNow installs the release that fits the range.
 	updateNow func(ctx context.Context, cliRange string) error
+	// onRevoked stores the revoked release keys the server names. It may be nil.
+	onRevoked func(fingerprints []string)
 	warn      func(msg string)
 }
 
@@ -85,6 +87,11 @@ func newStartupGate(autoUpdate bool, warn func(string), out io.Writer) startupGa
 		shared:     setup.Source != config.SourceDefault,
 		autoUpdate: autoUpdate,
 		warn:       warn,
+		onRevoked: func(fingerprints []string) {
+			if dir, err := config.Dir(); err == nil && len(fingerprints) > 0 {
+				_, _ = update.AddRevoked(dir, fingerprints)
+			}
+		},
 	}
 	g.updateNow = func(ctx context.Context, cliRange string) error {
 		self := selfUpdate{
@@ -94,8 +101,8 @@ func newStartupGate(autoUpdate bool, warn func(string), out io.Writer) startupGa
 			apiBase:    updateAPI(),
 			hc:         &http.Client{Timeout: updateTimeout},
 			executable: exe,
-			serverRange: func(context.Context) (string, error) {
-				return cliRange, nil
+			serverPolicy: func(context.Context) (serverPolicy, error) {
+				return serverPolicy{cliRange: cliRange}, nil
 			},
 		}
 
@@ -116,6 +123,10 @@ func checkStartup(ctx context.Context, client *api.Client, gate startupGate) err
 	versions, err := client.CheckServer(ctx)
 	if err != nil {
 		return err
+	}
+
+	if gate.onRevoked != nil {
+		gate.onRevoked(versions.RevokedReleaseKeys)
 	}
 
 	return gate.check(ctx, versions.CLIRange)

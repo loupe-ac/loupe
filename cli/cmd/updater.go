@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -225,6 +226,28 @@ func (u *updater) setRange(r string) {
 	u.mu.Unlock()
 	u.settle()
 
+	select {
+	case u.kick <- struct{}{}:
+	default:
+	}
+}
+
+// setRevoked stores the release keys that a server answer revokes. A new key
+// asks for a check, which deletes a staged binary that the key signed.
+func (u *updater) setRevoked(fingerprints []string) {
+	if len(fingerprints) == 0 {
+		return
+	}
+	grew, err := update.AddRevoked(u.dir, fingerprints)
+	if err != nil {
+		u.log.Warn("update_revoked_unsaved", "error", err.Error())
+
+		return
+	}
+	if !grew {
+		return
+	}
+	u.log.Warn("release_key_revoked", "fingerprints", fingerprints)
 	select {
 	case u.kick <- struct{}{}:
 	default:
@@ -498,8 +521,9 @@ func (u *updater) runCheck(ctx context.Context, force bool) updateResult {
 	st, err := update.LoadState(u.dir)
 	if err != nil {
 		u.log.Warn("update_state_unreadable", "error", err.Error())
-		st = &update.State{Staged: map[string]string{}}
+		st = &update.State{Staged: map[string]string{}, Signers: map[string]string{}}
 	}
+	u.dropRevokedStaged(st)
 	releases, err := update.FetchReleases(ctx, u.hc, u.apiBase)
 	if err != nil {
 		u.failed(ctx, err, "")
@@ -512,7 +536,18 @@ func (u *updater) runCheck(ctx context.Context, force bool) updateResult {
 	if force {
 		skip = nil
 	}
-	c, found := update.Pick(releases, cliRange, u.goos, u.goarch, skip)
+	signed, found, err := update.PickSigned(ctx, u.hc, releases, u.goos, u.goarch, func(v update.Version) bool {
+		return update.Satisfies(v.String(), cliRange) && !skip[v.String()] && update.ShouldInstall(u.version, v, cliRange)
+	}, st.Revoked, u.signatureRejected)
+	if err != nil {
+		u.failed(ctx, err, "")
+
+		return u.result(outcomeFailed, "", err.Error())
+	}
+	if signed.Reads > 0 {
+		u.log.Info("update_signatures_read", "count", signed.Reads)
+	}
+	c := signed.Candidate
 	if !found || !update.ShouldInstall(u.version, c.Version, cliRange) {
 		if update.Satisfies(u.version, cliRange) {
 			u.setState(updateCurrent, "")
@@ -545,7 +580,7 @@ func (u *updater) runCheck(ctx context.Context, force bool) updateResult {
 		return u.result(updateBlocked, to, err.Error())
 	}
 
-	path, err := u.stage(ctx, st, c)
+	path, err := u.stage(ctx, st, signed)
 	if err != nil {
 		if errors.As(err, new(rejectedError)) {
 			return u.result(outcomeRejected, to, err.Error())
@@ -623,13 +658,49 @@ func (u *updater) refreshSkills(ctx context.Context, releases []update.Release, 
 // rejectedError is a downloaded archive that failed its checks.
 type rejectedError struct{ error }
 
-// stage downloads, verifies and writes the binary of c, unless an earlier
-// check already staged it. An archive that fails its checks gives a
-// rejectedError.
-func (u *updater) stage(ctx context.Context, st *update.State, c update.Candidate) (string, error) {
+// signatureRejected logs a release whose signature failed, once for each
+// version.
+func (u *updater) signatureRejected(c update.Candidate, err error) {
+	if u.once("signature|" + c.Version.String()) {
+		u.log.Warn("update_signature_rejected", "from", u.version, "version", c.Version.String(), "reason", err.Error())
+	}
+}
+
+// dropRevokedStaged deletes each staged binary whose signer is now revoked.
+func (u *updater) dropRevokedStaged(st *update.State) {
+	changed := false
+	for v, signer := range st.Signers {
+		if !slices.Contains(st.Revoked, signer) {
+			continue
+		}
+		if err := os.RemoveAll(filepath.Dir(update.StagePath(u.dir, v))); err != nil {
+			u.log.Warn("update_stage_failed", "to", v, "error", err.Error())
+
+			continue
+		}
+		delete(st.Staged, v)
+		delete(st.Signers, v)
+		changed = true
+		u.log.Warn("update_staged_deleted", "version", v, "reason", "its release key is revoked")
+	}
+	if changed {
+		if err := st.Save(u.dir); err != nil {
+			u.log.Warn("update_stage_failed", "error", err.Error())
+		}
+	}
+}
+
+// stage downloads, verifies and writes the binary of a signed release, unless an
+// earlier check already staged it from the same signer. An archive that fails
+// its checks gives a rejectedError.
+func (u *updater) stage(ctx context.Context, st *update.State, signed update.Signed) (string, error) {
+	c := signed.Candidate
 	to := c.Version.String()
 	path := update.StagePath(u.dir, to)
-	if st.Staged[to] == path {
+	if st.Signers == nil {
+		st.Signers = map[string]string{}
+	}
+	if st.Staged[to] == path && st.Signers[to] == signed.Signer {
 		if _, err := os.Stat(path); err == nil && (u.goos != "darwin" || update.PanelSettled(u.dir, to)) {
 			return path, nil
 		}
@@ -642,13 +713,7 @@ func (u *updater) stage(ctx context.Context, st *update.State, c update.Candidat
 
 		return "", err
 	}
-	checksums, err := update.Download(ctx, u.hc, c.Checksums.URL)
-	if err != nil {
-		u.failed(ctx, err, to)
-
-		return "", err
-	}
-	if err := update.Verify(archive, checksums, c.Archive.Name); err != nil {
+	if err := update.Verify(archive, signed.ChecksumsData, c.Archive.Name); err != nil {
 		u.log.Warn("update_rejected", "from", u.version, "to", to, "reason", err.Error())
 
 		return "", rejectedError{err}
@@ -675,6 +740,7 @@ func (u *updater) stage(ctx context.Context, st *update.State, c update.Candidat
 		return "", err
 	}
 	st.Staged[to] = path
+	st.Signers[to] = signed.Signer
 	if err := st.Save(u.dir); err != nil {
 		u.log.Warn("update_stage_failed", "from", u.version, "to", to, "error", err.Error())
 	}
@@ -725,16 +791,17 @@ func (u *updater) ensurePanel(ctx context.Context, releases []update.Release) (s
 	if _, ok := libexecPanel(u.executable); ok && config.Current().Source == config.SourceDefault {
 		return "", nil
 	}
-	c, found := update.PickWhere(releases, u.goos, u.goarch, func(v update.Version) bool { return update.Compare(v, running) == 0 })
-	if !found {
-		return "", fmt.Errorf("no release of %s ships the Live review panel for this platform", running)
+	signed, found, err := update.PickSigned(ctx, u.hc, releases, u.goos, u.goarch, func(v update.Version) bool { return update.Compare(v, running) == 0 }, update.LoadRevoked(u.dir), u.signatureRejected)
+	if err != nil {
+		return "", fmt.Errorf("could not read the signature of %s: %w", running, err)
 	}
+	if !found {
+		return "", fmt.Errorf("no signed release of %s ships the Live review panel for this platform", running)
+	}
+	c := signed.Candidate
 	archive, err := update.Download(ctx, u.hc, c.Archive.URL)
 	if err == nil {
-		var checksums []byte
-		if checksums, err = update.Download(ctx, u.hc, c.Checksums.URL); err == nil {
-			err = update.Verify(archive, checksums, c.Archive.Name)
-		}
+		err = update.Verify(archive, signed.ChecksumsData, c.Archive.Name)
 	}
 	if err != nil {
 		return "", fmt.Errorf("could not fetch the Live review panel for %s: %w", running, err)

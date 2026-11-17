@@ -121,8 +121,8 @@ func TestTheUpdaterDoesNotDownloadAgainWhenTheArchiveHoldsNoPanel(t *testing.T) 
 	h.u.check(context.Background())
 	h.u.check(context.Background())
 
-	if _, downloads := gh.counts(); downloads != 2 {
-		t.Fatalf("downloads = %d, want the archive and the checksums once", downloads)
+	if got := gh.archives(); got != 1 {
+		t.Fatalf("archive downloads = %d, want 1", got)
 	}
 }
 
@@ -207,8 +207,8 @@ func TestUpdateLeavesAPanelThatIsThere(t *testing.T) {
 	if err != nil || strings.Contains(out, "panel") {
 		t.Fatalf("err = %v, out = %q", err, out)
 	}
-	if _, downloads := gh.counts(); downloads != 0 {
-		t.Fatalf("downloads = %d", downloads)
+	if got := gh.archives(); got != 0 {
+		t.Fatalf("archive downloads = %d", got)
 	}
 }
 

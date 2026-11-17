@@ -96,6 +96,7 @@ type fakeHeartbeats struct {
 	errors []error
 	// cliRange, paused and commands are what each successful answer carries.
 	cliRange string
+	revoked  []string
 	paused   *bool
 	commands []api.Command
 	// watch is the watch list each successful answer carries.
@@ -110,7 +111,7 @@ func (f *fakeHeartbeats) Heartbeat(_ context.Context, bridgeID string, hb api.He
 	f.sent = append(f.sent, hb)
 	f.ids = append(f.ids, bridgeID)
 	if len(f.errors) == 0 {
-		return api.HeartbeatReply{CLIRange: f.cliRange, Paused: f.paused, Commands: f.commands, WatchSessions: f.watch, WorkRequests: f.work}, nil
+		return api.HeartbeatReply{CLIRange: f.cliRange, RevokedReleaseKeys: f.revoked, Paused: f.paused, Commands: f.commands, WatchSessions: f.watch, WorkRequests: f.work}, nil
 	}
 	err := f.errors[0]
 	f.errors = f.errors[1:]
@@ -285,6 +286,34 @@ func TestTheHeartbeatCarriesTheRangeAndTheUpdateState(t *testing.T) {
 	}
 	if client.sent[0].Update != nil || client.sent[1].Update == nil || *client.sent[1].Update != state {
 		t.Fatalf("updates = %+v, %+v", client.sent[0].Update, client.sent[1].Update)
+	}
+}
+
+// The revoked keys of an answer reach their hook before the range does, so the
+// check that the range starts reads them.
+func TestTheHeartbeatHandsTheRevokedKeysOnBeforeTheRange(t *testing.T) {
+	client := &fakeHeartbeats{cliRange: "^1.0", revoked: []string{"SHA256:a"}}
+	var mu sync.Mutex
+	var order []string
+	hh := startHeartbeater(t, client, time.Minute, func(h *heartbeater) {
+		h.onRevoked = func(f []string) {
+			mu.Lock()
+			defer mu.Unlock()
+			order = append(order, "revoked "+strings.Join(f, ","))
+		}
+		h.onRange = func(string) {
+			mu.Lock()
+			defer mu.Unlock()
+			order = append(order, "range")
+		}
+	})
+
+	hh.tick(t, time.Minute)
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(order) < 2 || order[0] != "revoked SHA256:a" || order[1] != "range" {
+		t.Fatalf("order = %v", order)
 	}
 }
 
