@@ -11,9 +11,11 @@ use App\Module\GitHub\View\GitHubRepositoryFacts;
 use App\Module\SiteReview\Command\ListedSite;
 use App\Module\SiteReview\Command\ListSitesCommand;
 use App\Module\SiteReview\Command\ListSitesHandler;
+use App\Security\AuthenticatedCredential;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 
 /**
  * Lists the caller's projects for the loupe CLI, which checks a token with it
@@ -22,6 +24,8 @@ use Symfony\Component\Routing\Attribute\Route;
  * which skill packages its workers need, whether it needs a profile, whether
  * the owner still has to start discovery, and the GitHub facts of its
  * repositories.
+ *
+ * A token bound to one project lists that project alone.
  *
  * Agent-scoped tokens only. The firewall grants this path to
  * ROLE_API_AGENT alone, so a project-bound widget token gets 403
@@ -53,6 +57,7 @@ final class ListSitesController extends AppController
 {
     public function __construct(
         private readonly ListSitesHandler $listSites,
+        private readonly TokenStorageInterface $tokenStorage,
     ) {
     }
 
@@ -63,7 +68,7 @@ final class ListSitesController extends AppController
             throw new \LogicException('Sites endpoint reached without an authenticated User.');
         }
 
-        $view = ($this->listSites)(new ListSitesCommand($user));
+        $view = ($this->listSites)(new ListSitesCommand($user, AuthenticatedCredential::of($this->tokenStorage->getToken())?->projectId));
 
         return $this->json(['sites' => array_values(array_map(
             static fn (ListedSite $site): array => [
