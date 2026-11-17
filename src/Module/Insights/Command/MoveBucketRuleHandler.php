@@ -35,6 +35,7 @@ final readonly class MoveBucketRuleHandler
         $ruleId = (string) ($command->rule->id ?? throw new \LogicException('A stored rule has an id.'));
 
         $moved = $this->em->wrapInTransaction(function () use ($command, $project, $ruleId): bool {
+            // Keep FOR UPDATE: a bridge report waits for no weaker lock.
             $this->em->lock($project, LockMode::PESSIMISTIC_WRITE);
 
             $ordered = $this->insightsBucketRules->findOrderedFresh($project);
