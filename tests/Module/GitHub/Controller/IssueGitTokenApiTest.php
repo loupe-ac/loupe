@@ -6,7 +6,6 @@ namespace App\Tests\Module\GitHub\Controller;
 
 use App\Module\Forge\Entity\ForgeRepository;
 use App\Module\Forge\Entity\ForgeRepositorySource;
-use App\Module\Forge\Repository\ForgeRepositoryRepository;
 use App\Module\GitHub\Entity\GitHubInstallation;
 use App\Module\GitHub\Entity\GitHubRepositorySelection;
 use App\Module\GitHub\Repository\GitHubInstallationRepository;
@@ -454,24 +453,13 @@ final class IssueGitTokenApiTest extends WebTestCase
         $configuration = new GitHubAppConfiguration(null, null, null, null, '123456', $pem);
         static::getContainer()->set(GitHubAppConfiguration::class, $configuration);
         $clock = new MockClock('2026-10-18 13:00:00');
-        // A private pool, because parallel workers share the filesystem pool and other tests clear it.
-        $cache = new ArrayAdapter();
+        $api = new GitHubAppApi($http, $configuration, $clock);
+        static::getContainer()->set(GitHubAppApi::class, $api);
+        $cache = new ArrayAdapter(clock: $clock);
         $encryptor = static::getContainer()->get(Encryptor::class);
         self::assertInstanceOf(Encryptor::class, $encryptor);
-        $api = new GitHubAppApi($http, $configuration, $clock);
-        $tokenStore = new GitHubRepositoryTokenStore($cache, $encryptor, $clock);
-        $installationList = new GitHubAppInstallationList($api, $cache);
-        static::getContainer()->set(GitHubAppApi::class, $api);
-        static::getContainer()->set(GitHubRepositoryTokenStore::class, $tokenStore);
-        static::getContainer()->set(GitHubAppInstallationList::class, $installationList);
-        static::getContainer()->set(GitHubGitTokenIssuer::class, new GitHubGitTokenIssuer(
-            static::getContainer()->get(ForgeRepositoryRepository::class),
-            static::getContainer()->get(GitHubInstallationRepository::class),
-            $api,
-            $installationList,
-            $tokenStore,
-            $configuration,
-        ));
+        static::getContainer()->set(GitHubAppInstallationList::class, new GitHubAppInstallationList($api, $cache));
+        static::getContainer()->set(GitHubRepositoryTokenStore::class, new GitHubRepositoryTokenStore($cache, $encryptor, $clock));
     }
 
     /** @param ?string $repository the repository to ask for, or null to send an empty object */
