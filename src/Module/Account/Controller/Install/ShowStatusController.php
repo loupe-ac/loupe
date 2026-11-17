@@ -36,7 +36,11 @@ final class ShowStatusController extends AppController
 
     public function __invoke(Request $request): Response
     {
-        $this->installAccessGuard->ensureAccessible($request);
+        $this->installAccessGuard->ensureOpen();
+
+        if (!$this->installAccessGuard->isUnlocked($request)) {
+            return $this->redirectToRoute('app_install_unlock');
+        }
 
         if (true !== $request->getSession()->get(SeedFlagsController::SESSION_FLAGS_SEEDED)) {
             return $this->redirectToRoute('app_install_flags');
