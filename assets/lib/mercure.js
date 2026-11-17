@@ -115,11 +115,7 @@ function flush() {
     }
 
     const connecting = source !== undefined || retryTimeout !== undefined;
-    if (
-        connecting &&
-        page.hub === openHub &&
-        sameTopics(page.topics, openTopics)
-    ) {
+    if (connecting && page.hub === openHub && covers(openTopics, page.topics)) {
         // A late subscriber on an open connection still needs its open.
         if (isOpen) {
             notifyOpen((s) => !s.opened);
@@ -131,11 +127,9 @@ function flush() {
     open(page);
 }
 
-function sameTopics(left, right) {
-    return (
-        left.length === right.length &&
-        left.every((topic, index) => topic === right[index])
-    );
+/** Tells whether the open connection already carries every topic of the page. */
+function covers(open, wanted) {
+    return wanted.every((topic) => open.includes(topic));
 }
 
 function open(page) {
