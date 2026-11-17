@@ -331,7 +331,7 @@ final class EngineTest extends KernelTestCase
         self::assertContains('work', $late[0]['context']['rules']);
     }
 
-    public function test_a_mark_that_lands_during_the_fact_read_keeps_the_miss_error(): void
+    public function test_a_mark_that_lands_during_the_fact_read_raises_no_miss_error(): void
     {
         $card = $this->boundCard([self::requestRule('work', self::ALWAYS)]);
         $cardId = $card->id ?? throw new \LogicException('A flushed card has an id.');
@@ -343,9 +343,9 @@ final class EngineTest extends KernelTestCase
 
         $this->engine()->evaluate($cardId, new \DateTimeImmutable(self::NOON), reportMiss: true);
 
-        $misses = $this->missRecords();
-        self::assertCount(1, $misses);
-        self::assertSame('error', $misses[0]['level']);
+        self::assertSame([], $this->missRecords());
+        $late = array_values(array_filter($this->logger->records, static fn (array $record): bool => 'workflow.change_after_late_mark' === $record['message']));
+        self::assertCount(1, $late);
     }
 
     public function test_an_ordinary_check_reports_no_miss_for_the_same_change(): void

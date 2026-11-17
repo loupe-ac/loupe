@@ -252,10 +252,11 @@ final readonly class Engine
             return null;
         }
 
-        // Before the facts, so a mark seen here belongs to a writer whose change the facts already hold.
-        // A writer that commits after this read, but before the facts, leaves the error in place.
+        $facts = $this->facts($card, $now);
+        // After the facts, so a writer that commits its fact and mark during the fact read explains the change.
+        // The reads share no snapshot, so a mark that lands just after the facts also raises no error.
         $markedAfterClear = $reportMiss && $this->workflowCardChanges->isMarked($cardId);
-        $run = new Evaluation($card, $project, $template, $this->facts($card, $now), $automated ? $this->workflowRuleStates->findForCard($cardId) : [], $now);
+        $run = new Evaluation($card, $project, $template, $facts, $automated ? $this->workflowRuleStates->findForCard($cardId) : [], $now);
         $run->markedAfterClear = $markedAfterClear;
         $run->markersDue = null !== $run->card->markersDueAt && $run->card->markersDueAt <= $run->now;
         if (!$automated) {
