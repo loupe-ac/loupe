@@ -218,8 +218,10 @@ done
 
 # Mermaid for the review page. public/vendor/ is gitignored, so a worktree copies
 # the main checkout's build when it has one and installs it otherwise.
-if [ ! -f "$root/public/vendor/mermaid/12.0.0/mermaid.esm.min.mjs" ]; then
-    if [ -d "$main/public/vendor/mermaid" ] && cmp -s "$main/package-lock.json" "$root/package-lock.json"; then
+mermaid_dir=public/vendor/mermaid/12.0.0
+if [ ! -f "$root/$mermaid_dir/mermaid.esm.min.mjs" ]; then
+    if [ -f "$main/$mermaid_dir/mermaid.esm.min.mjs" ] && [ -f "$main/$mermaid_dir/LICENSE" ] && [ -f "$main/$mermaid_dir/THIRD-PARTY.md" ] \
+        && cmp -s "$main/package-lock.json" "$root/package-lock.json"; then
         mkdir -p "$root/public/vendor"
         rsync -a "$main/public/vendor/mermaid" "$root/public/vendor/"
     else
