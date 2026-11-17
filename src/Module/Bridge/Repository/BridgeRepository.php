@@ -7,6 +7,7 @@ namespace App\Module\Bridge\Repository;
 use App\Module\Account\Entity\User;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Project\Entity\Project;
+use App\Module\Workflow\Contract\FactsPass;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\ORM\Query\Expr\Join;
 use Doctrine\Persistence\ManagerRegistry;
@@ -18,8 +19,10 @@ use Symfony\Component\Uid\Uuid;
  */
 class BridgeRepository extends ServiceEntityRepository
 {
-    public function __construct(ManagerRegistry $registry)
-    {
+    public function __construct(
+        ManagerRegistry $registry,
+        private readonly FactsPass $factsPass,
+    ) {
         parent::__construct($registry, Bridge::class);
     }
 
@@ -127,7 +130,7 @@ class BridgeRepository extends ServiceEntityRepository
     /** @return list<Bridge> */
     public function findByOwner(User $owner): array
     {
-        return $this->findBy(['owner' => $owner], ['lastSeenAt' => 'DESC']);
+        return $this->factsPass->remember('bridges-of-owner:'.$owner->id, fn (): array => $this->findBy(['owner' => $owner], ['lastSeenAt' => 'DESC']));
     }
 
     /**

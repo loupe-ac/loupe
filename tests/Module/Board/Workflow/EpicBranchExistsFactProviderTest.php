@@ -8,15 +8,25 @@ use App\Module\Board\Entity\Card;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Workflow\EpicBranchExistsFactProvider;
 use App\Module\Board\Workflow\EpicBranchExistsFacts;
+use App\Module\Forge\Entity\ForgeRepository;
+use App\Module\Forge\Entity\ForgeRepositorySource;
+use App\Module\Forge\Messenger\CheckForgeBranch;
+use App\Module\Forge\Service\BranchPresence;
 use App\Module\Forge\Service\BranchReader;
 use App\Module\Forge\Service\BranchReaders;
+use App\Module\Forge\Service\ForgeBranchPresence;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Workshop\WorkshopConnection;
 use App\Module\Project\Workshop\WorkshopConnectionsProviderInterface;
 use App\Module\Workflow\Contract\EpicBranches;
 use App\Tests\Module\Board\Mcp\BoardToolScenario;
+use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Clock\MockClock;
+use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 use Symfony\Component\Uid\Uuid;
 
 final class EpicBranchExistsFactProviderTest extends KernelTestCase
@@ -33,8 +43,23 @@ final class EpicBranchExistsFactProviderTest extends KernelTestCase
     /** @var list<WorkshopConnection> */
     private array $connections = [];
 
-    /** @var array<string, list<string>> remote URL => the branches that repository holds */
+    /** @var array<string, list<string>> readable remote URL => the branches whose stored answer is "exists" */
     private array $branches = [];
+
+    /** @var array<string, list<string>> readable remote URL => the branches whose stored answer is "does not exist" */
+    private array $absent = [];
+
+    /** @var list<string> */
+    private array $unreadable = [];
+
+    /** @var array<string, ForgeRepository> */
+    private array $rows = [];
+
+    /** @var array<string, true> */
+    private array $seeded = [];
+
+    private MockClock $clock;
+    private ?ForgeBranchPresence $presence = null;
 
     private ?string $pattern = 'epic/{number}';
 
@@ -48,6 +73,7 @@ final class EpicBranchExistsFactProviderTest extends KernelTestCase
         self::assertInstanceOf(EntityManagerInterface::class, $em);
         $this->em = $em;
         $this->asked = new \ArrayObject();
+        $this->clock = new MockClock('2026-11-16 12:00:00');
         $this->project = $this->makeProject('epic-branch-exists');
     }
 
@@ -141,7 +167,7 @@ final class EpicBranchExistsFactProviderTest extends KernelTestCase
         $this->branches = [self::REMOTE => ['epic/1']];
 
         self::assertTrue($this->exists($child));
-        self::assertSame([self::REMOTE.' epic/1'], $this->asked->getArrayCopy());
+        self::assertSame([self::REMOTE], $this->asked->getArrayCopy());
     }
 
     public function test_two_bridges_read_true_only_when_both_repositories_hold_the_branch(): void
@@ -249,6 +275,106 @@ final class EpicBranchExistsFactProviderTest extends KernelTestCase
         self::assertTrue($this->provider()->fingerprint(new EpicBranchExistsFacts(true, new \DateTimeImmutable('2026-11-16 12:00:00'))));
     }
 
+    public function test_a_missing_answer_reads_false_and_queues_one_check(): void
+    {
+        $child = $this->child();
+        $this->connections = [$this->connection('a'), $this->connection('b')];
+        $this->branches = [self::REMOTE => []];
+
+        self::assertFalse($this->exists($child));
+        self::assertFalse($this->exists($child));
+
+        $checks = $this->checks();
+        self::assertCount(1, $checks);
+        self::assertSame('epic/1', $checks[0]->branch);
+        self::assertSame((string) $this->project->id, $checks[0]->projectId);
+    }
+
+    public function test_a_missing_answer_queues_another_check_after_the_request_window(): void
+    {
+        $child = $this->child();
+        $this->connections = [$this->connection('a')];
+        $this->branches = [self::REMOTE => []];
+
+        $this->exists($child);
+        $this->clock->sleep(ForgeBranchPresence::REQUEST_WINDOW_SECONDS - 1);
+        $this->exists($child);
+        self::assertCount(1, $this->checks());
+
+        $this->clock->sleep(1);
+        $this->exists($child);
+        self::assertCount(2, $this->checks());
+    }
+
+    public function test_every_missing_answer_of_two_repositories_queues_its_check(): void
+    {
+        $child = $this->child();
+        $this->connections = [$this->connection('a'), $this->connection('b', remote: self::OTHER_REMOTE)];
+        $this->branches = [self::REMOTE => [], self::OTHER_REMOTE => []];
+
+        self::assertFalse($this->exists($child));
+        self::assertCount(2, $this->checks());
+    }
+
+    public function test_a_stored_answer_of_absent_reads_false_and_refreshes_after_ten_minutes(): void
+    {
+        $child = $this->child();
+        $this->connections = [$this->connection('a')];
+        $this->absent = [self::REMOTE => ['epic/1']];
+
+        self::assertFalse($this->exists($child));
+        self::assertSame([], $this->checks());
+
+        $this->clock->sleep(ForgeBranchPresence::ABSENT_REFRESH_SECONDS);
+
+        self::assertFalse($this->exists($child));
+        self::assertCount(1, $this->checks());
+    }
+
+    public function test_a_stored_answer_of_exists_keeps_reading_true_and_refreshes_after_a_day(): void
+    {
+        $child = $this->child();
+        $this->connections = [$this->connection('a')];
+        $this->branches = [self::REMOTE => ['epic/1']];
+        self::assertTrue($this->exists($child));
+
+        $this->clock->sleep(ForgeBranchPresence::PRESENT_REFRESH_SECONDS - 1);
+        self::assertTrue($this->exists($child));
+        self::assertSame([], $this->checks());
+
+        $this->clock->sleep(1);
+        self::assertTrue($this->exists($child));
+        self::assertCount(1, $this->checks());
+    }
+
+    public function test_a_repository_the_project_cannot_read_reads_false_whatever_the_store_holds(): void
+    {
+        $child = $this->child();
+        $this->connections = [$this->connection('a')];
+        $this->branches = [self::REMOTE => ['epic/1']];
+        self::assertTrue($this->exists($child));
+
+        $this->unreadable = [self::REMOTE];
+
+        self::assertFalse($this->exists($child));
+        self::assertSame([], $this->checks());
+    }
+
+    public function test_an_access_change_voids_the_stored_answer(): void
+    {
+        $child = $this->child();
+        $this->connections = [$this->connection('a')];
+        $this->branches = [self::REMOTE => ['epic/1']];
+        self::assertTrue($this->exists($child));
+
+        $this->clock->sleep(5);
+        $row = $this->rows[self::REMOTE];
+        $this->presence?->markAccessChanged($row);
+
+        self::assertFalse($this->exists($child));
+        self::assertCount(1, $this->checks());
+    }
+
     public function test_the_fingerprint_is_the_exists_flag(): void
     {
         self::assertTrue($this->provider()->fingerprint(new EpicBranchExistsFacts(true)));
@@ -323,26 +449,92 @@ final class EpicBranchExistsFactProviderTest extends KernelTestCase
                 return [];
             }
         };
-        $reader = new readonly class($this->branches, $this->asked) implements BranchReader {
-            /**
-             * @param array<string, list<string>> $branches
-             * @param \ArrayObject<int, string>   $asked
-             */
+        $reader = new readonly class($this) implements BranchReader {
             public function __construct(
-                private array $branches,
-                private \ArrayObject $asked,
+                private EpicBranchExistsFactProviderTest $test,
             ) {
             }
 
             #[\Override]
-            public function exists(Project $project, string $remoteUrl, string $branch): bool
+            public function readableRepository(Project $project, string $remoteUrl): ?ForgeRepository
             {
-                $this->asked->append($remoteUrl.' '.$branch);
+                return $this->test->readable($project, $remoteUrl);
+            }
 
-                return \in_array($branch, $this->branches[$remoteUrl] ?? [], true);
+            #[\Override]
+            public function readableRepositoryAt(Project $project, string $forge, string $path): ?ForgeRepository
+            {
+                return null;
+            }
+
+            #[\Override]
+            public function presence(Project $project, ForgeRepository $repository, string $branch): BranchPresence
+            {
+                throw new \LogicException('The provider reads the store and never the forge.');
             }
         };
 
-        return new EpicBranchExistsFactProvider($cards, $epicBranches, $workshop, new BranchReaders([$reader]));
+        $connection = self::getContainer()->get(Connection::class);
+        $bus = self::getContainer()->get(MessageBusInterface::class);
+        self::assertInstanceOf(Connection::class, $connection);
+        self::assertInstanceOf(MessageBusInterface::class, $bus);
+        $presence = $this->presence ??= new ForgeBranchPresence($connection, $bus, new ArrayAdapter(), $this->clock);
+        $this->seed();
+
+        return new EpicBranchExistsFactProvider($cards, $epicBranches, $workshop, new BranchReaders([$reader]), $presence);
+    }
+
+    /** Called by the reader stub. */
+    public function readable(Project $project, string $remoteUrl): ?ForgeRepository
+    {
+        $this->asked->append($remoteUrl);
+        if (\in_array($remoteUrl, $this->unreadable, true) || !(\array_key_exists($remoteUrl, $this->branches) || \array_key_exists($remoteUrl, $this->absent))) {
+            return null;
+        }
+
+        return $this->rows[$remoteUrl] ??= $this->row($project, $remoteUrl);
+    }
+
+    private function row(Project $project, string $remoteUrl): ForgeRepository
+    {
+        $row = new ForgeRepository($project, 'github', (string) (90_000 + \count($this->rows)), basename($remoteUrl, '.git'), ForgeRepositorySource::Installation, '1');
+        $this->em->persist($row);
+        $this->em->flush();
+
+        return $row;
+    }
+
+    private function seed(): void
+    {
+        $presence = $this->presence ?? throw new \LogicException('The store exists.');
+        foreach ([[$this->branches, true], [$this->absent, false]] as [$map, $exists]) {
+            foreach ($map as $remote => $branches) {
+                foreach ($branches as $branch) {
+                    $key = $remote.' '.$branch;
+                    if (isset($this->seeded[$key])) {
+                        continue;
+                    }
+                    $this->seeded[$key] = true;
+                    $presence->record($this->rows[$remote] ??= $this->row($this->project, $remote), $branch, $exists, $this->clock->now());
+                }
+            }
+        }
+    }
+
+    /** @return list<CheckForgeBranch> */
+    private function checks(): array
+    {
+        $transport = self::getContainer()->get('messenger.transport.jobs');
+        self::assertInstanceOf(InMemoryTransport::class, $transport);
+
+        $checks = [];
+        foreach ($transport->getSent() as $envelope) {
+            $message = $envelope->getMessage();
+            if ($message instanceof CheckForgeBranch) {
+                $checks[] = $message;
+            }
+        }
+
+        return $checks;
     }
 }

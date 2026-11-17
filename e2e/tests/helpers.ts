@@ -356,8 +356,20 @@ export async function submitRedirectingForm(
 }
 
 /**
+ * Opens the emailed verification link and presses Confirm. The link itself
+ * only shows a page, so a caller asserts where the browser lands afterwards.
+ */
+export async function confirmEmailLink(
+    page: Page,
+    link: string,
+): Promise<void> {
+    await page.goto(link);
+    await page.getByRole('button', { name: 'Confirm email address' }).click();
+}
+
+/**
  * Fill the registration form, poll Mailpit for the verification link, and
- * navigate to it. Returns with the browser on the first-run wizard's welcome
+ * follow it and press Confirm. Returns with the browser on the first-run wizard's welcome
  * step — a brand-new account owns no project and hasn't completed (or
  * skipped) the wizard yet, so LandingController lands it there.
  */
@@ -402,7 +414,7 @@ export async function registerFreshUser(
         received.body,
         /https?:\/\/[^\s"<]+\/register\/verify[^\s"<]*/,
     );
-    await page.goto(link);
+    await confirmEmailLink(page, link);
     await expect(page).toHaveURL('/welcome');
 }
 

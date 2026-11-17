@@ -9,6 +9,7 @@ use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Service\BoardCardColumnLookup;
 use App\Module\Bridge\Service\CardColumnLookupInterface;
 use App\Module\Project\Entity\Project;
+use App\Module\Workflow\Service\PassMemo;
 use App\Tests\Module\Board\Mcp\BoardToolScenario;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
@@ -32,7 +33,7 @@ final class BoardCardColumnLookupTest extends KernelTestCase
 
         $registry = self::getContainer()->get('doctrine');
         self::assertInstanceOf(ManagerRegistry::class, $registry);
-        $this->lookup = new BoardCardColumnLookup(new CardRepository($registry));
+        $this->lookup = new BoardCardColumnLookup(new CardRepository($registry, new PassMemo()));
     }
 
     public function test_it_returns_the_slug_of_the_column_the_card_sits_in(): void

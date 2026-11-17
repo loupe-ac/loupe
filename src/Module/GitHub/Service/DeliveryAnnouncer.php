@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\GitHub\Service;
 
 use App\Module\Forge\Entity\ForgeRepositorySource;
+use App\Module\Forge\Event\ForgeBranchDeleted;
 use App\Module\Forge\Event\ForgeBranchPushed;
 use App\Module\Forge\Event\ForgeDeliveryReceived;
 use App\Module\Forge\Event\ForgePullRequestBranchChanged;
@@ -90,6 +91,11 @@ final readonly class DeliveryAnnouncer
         $pushedBranch = $delivery->pushedBranch();
         if (null !== $pushedBranch) {
             $this->events->dispatch(new ForgeBranchPushed($project->id ?? throw new \LogicException('A claimed project has an id.'), GitHubDelivery::FORGE, $repository->fullName, $pushedBranch));
+        }
+
+        $deletedBranch = $delivery->deletedBranch();
+        if (null !== $deletedBranch) {
+            $this->events->dispatch(new ForgeBranchDeleted($project->id ?? throw new \LogicException('A claimed project has an id.'), GitHubDelivery::FORGE, $repository->fullName, $deletedBranch));
         }
 
         $pullRequestBranch = $delivery->pullRequestHeadBranch();

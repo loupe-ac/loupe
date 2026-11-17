@@ -9,6 +9,7 @@ use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Workflow\Contract\CardDirectory;
 use App\Module\Workflow\Contract\CardSnapshot;
+use App\Module\Workflow\Contract\FactsPass;
 use Symfony\Component\DependencyInjection\Attribute\AsAlias;
 use Symfony\Component\Uid\Uuid;
 
@@ -18,6 +19,7 @@ final readonly class BoardCardDirectory implements CardDirectory
     public function __construct(
         private CardRepository $cards,
         private CardEventRepository $cardEvents,
+        private FactsPass $factsPass,
     ) {
     }
 
@@ -81,6 +83,6 @@ final readonly class BoardCardDirectory implements CardDirectory
     {
         $id = $cardId->toRfc4122();
 
-        return $this->cardEvents->findNewestMoveAtOfCards([$id])[$id] ?? null;
+        return $this->factsPass->remember('newest-move-at:'.$id, fn (): ?\DateTimeImmutable => $this->cardEvents->findNewestMoveAtOfCards([$id])[$id] ?? null);
     }
 }

@@ -5,10 +5,11 @@ import { handleLostAccess, onLostAccess } from '../lib/live_fetch.js';
 
 /**
  * Shows each card change on the board as it happens. A burst of messages for
- * one card costs one placement fetch, a card in a drag waits until the drag
- * settles, and a card another person changed is marked for a moment. A failed
- * placement retries with a growing wait, and after the last retry the card is
- * marked stale. A reconnect places each card the page missed.
+ * one card costs one placement, a card in a drag waits until the drag
+ * settles, and a card another person changed is marked for a moment. The cards
+ * that are due together share one placements request. A failed placement
+ * retries with a growing wait, and after the last retry the card is marked
+ * stale. A reconnect places each card the page missed.
  *
  * A column change, or a reconnect that finds another board structure, updates
  * the columns and lanes in place. A burst costs one structure fetch, and a
@@ -26,6 +27,9 @@ import { handleLostAccess, onLostAccess } from '../lib/live_fetch.js';
  */
 
 const SETTLE_MILLISECONDS = 150;
+// A card whose settle wait ends within this time joins the batch that starts.
+const GATHER_MILLISECONDS = 20;
+const MAX_BATCH = 50;
 const BUSY_RETRY_MILLISECONDS = 200;
 // A stalled request would hold the queue for every card.
 const FETCH_TIMEOUT_MILLISECONDS = 10000;
@@ -66,8 +70,7 @@ const BUSY_SELECTOR = [
 export default class extends Controller {
     static targets = ['paused'];
     static values = {
-        placement: String,
-        placeholder: String,
+        placements: String,
         stale: String,
         manifest: String,
         structure: String,
@@ -86,6 +89,10 @@ export default class extends Controller {
         this.flashes = new Map();
         this.waiters = new Map();
         this.queue = Promise.resolve();
+        this.due = new Set();
+        this.sequence = 0;
+        this.gatherTimer = undefined;
+        this.batchQueued = false;
         this.onPlaced = (event) => this.placed(event.detail ?? {});
         this.onMissed = (event) => this.missed(event.detail ?? {});
         // A row that changed while the list loaded missed its placement.
@@ -151,6 +158,9 @@ export default class extends Controller {
         document.removeEventListener('board:placed', this.onPlaced);
         document.removeEventListener('board:place-missed', this.onMissed);
         document.removeEventListener('turbo:frame-render', this.onFrameRender);
+        clearTimeout(this.gatherTimer);
+        this.gatherTimer = undefined;
+        this.due.clear();
         this.pending.forEach((entry) => clearTimeout(entry.timer));
         this.pending.clear();
         this.expected.clear();
@@ -671,45 +681,119 @@ export default class extends Controller {
         return this.pending.get(cardId);
     }
 
+    /** A new change renews the settle wait, also for a card that waits in the due set. */
     schedule(cardId, entry, delay) {
         clearTimeout(entry.timer);
+        this.due.delete(cardId);
+        entry.dueAt = Date.now() + delay;
+        entry.order = ++this.sequence;
         entry.timer = setTimeout(
             () => this.fetchPlacement(cardId, entry),
             delay,
         );
     }
 
-    /** One placement at a time, so an older answer never renders last. */
+    /**
+     * Adds the card to the due set. The request starts in a later task, so the
+     * cards that are due together can join it.
+     */
     fetchPlacement(cardId, entry) {
         entry.timer = undefined;
-        entry.inFlight = true;
-        const run = this.queue.then(() => this.place(cardId, entry));
+        entry.dueAt = undefined;
+        this.due.add(cardId);
+        this.startGather();
+    }
+
+    startGather() {
+        if (this.gatherTimer === undefined) {
+            this.gatherTimer = setTimeout(() => this.gather(), 0);
+        }
+    }
+
+    /**
+     * Moves each card that is due within the gather window into the due set,
+     * then queues one request. One request runs at a time, so an older answer
+     * never renders last.
+     */
+    gather() {
+        this.gatherTimer = undefined;
+        const horizon = Date.now() + GATHER_MILLISECONDS;
+        [...this.pending.entries()]
+            .filter(
+                ([, entry]) =>
+                    entry.timer !== undefined && entry.dueAt <= horizon,
+            )
+            .sort(
+                ([, first], [, second]) =>
+                    first.dueAt - second.dueAt || first.order - second.order,
+            )
+            .forEach(([cardId, entry]) => {
+                clearTimeout(entry.timer);
+                entry.timer = undefined;
+                entry.dueAt = undefined;
+                this.due.add(cardId);
+            });
+        if (this.batchQueued) {
+            return;
+        }
+        this.batchQueued = true;
+        const run = this.queue.then(() => {
+            this.batchQueued = false;
+
+            return this.placeDue();
+        });
         this.queue = run.catch(() => {});
     }
 
-    async place(cardId, entry) {
-        if (this.pending.get(cardId) !== entry) {
-            return;
-        }
-        const card = document.getElementById(`board-card-${cardId}`);
-        if (this.busyFor(cardId)) {
-            this.orderCheckDue = true;
-            entry.inFlight = false;
+    /** Takes up to one batch from the due set, and leaves a card that is busy for a retry. */
+    takeBatch() {
+        const batch = [];
+        for (const cardId of [...this.due]) {
+            if (batch.length >= MAX_BATCH) {
+                break;
+            }
+            this.due.delete(cardId);
+            const entry = this.pending.get(cardId);
+            if (entry === undefined) {
+                continue;
+            }
+            if (this.busyFor(cardId)) {
+                this.orderCheckDue = true;
+                entry.again = false;
+                this.schedule(cardId, entry, BUSY_RETRY_MILLISECONDS);
+                continue;
+            }
+            const card = document.getElementById(`board-card-${cardId}`);
+            entry.inFlight = true;
+            this.expected.set(cardId, {
+                digest: card?.dataset.cardDigest,
+                group: card?.parentElement,
+                previous: previousCardId(card),
+                remote: entry.remote,
+            });
+            entry.remote = false;
             entry.again = false;
-            this.schedule(cardId, entry, BUSY_RETRY_MILLISECONDS);
-
-            return;
+            batch.push([cardId, entry]);
         }
 
-        this.expected.set(cardId, {
-            digest: card?.dataset.cardDigest,
-            group: card?.parentElement,
-            previous: previousCardId(card),
-            remote: entry.remote,
-        });
-        entry.remote = false;
-        entry.again = false;
+        return batch;
+    }
 
+    async placeDue() {
+        const batch = this.takeBatch();
+        try {
+            if (batch.length > 0) {
+                await this.placeBatch(batch);
+            }
+        } finally {
+            // The cards past the cap of one request go in the next one.
+            if (this.due.size > 0) {
+                this.startGather();
+            }
+        }
+    }
+
+    async placeBatch(batch) {
         let html = null;
         let failure = RETRY;
         const abort = new AbortController();
@@ -718,9 +802,9 @@ export default class extends Controller {
             FETCH_TIMEOUT_MILLISECONDS,
         );
         try {
-            // A read of one card's placement, with no form to submit.
+            // A read of the placements of several cards, with no form to submit.
             // eslint-disable-next-line no-restricted-syntax
-            const response = await fetch(this.urlFor(cardId), {
+            const response = await fetch(this.urlFor(batch), {
                 headers: { Accept: STREAM_TYPE, 'X-Loupe-Live-Refresh': '1' },
                 credentials: 'same-origin',
                 signal: abort.signal,
@@ -739,32 +823,59 @@ export default class extends Controller {
             clearTimeout(timeout);
         }
 
-        entry.inFlight = false;
-        if (this.pending.get(cardId) !== entry) {
-            return;
-        }
-        if (this.busyFor(cardId)) {
-            this.orderCheckDue = true;
-            entry.remote ||= this.expected.get(cardId)?.remote ?? false;
-            entry.again = false;
-            this.expected.delete(cardId);
-            this.schedule(cardId, entry, BUSY_RETRY_MILLISECONDS);
-
-            return;
-        }
-        if (entry.again) {
-            entry.again = false;
-            this.schedule(cardId, entry, SETTLE_MILLISECONDS);
-        }
-        if (html === null) {
-            entry.remote ||= this.expected.get(cardId)?.remote ?? false;
-            this.expected.delete(cardId);
-            if (entry.timer === undefined) {
-                this.fail(cardId, entry, failure);
+        const dropped = new Set();
+        const lost = [];
+        for (const [cardId, entry] of batch) {
+            entry.inFlight = false;
+            if (this.pending.get(cardId) !== entry) {
+                dropped.add(cardId);
+                continue;
             }
-        } else {
+            if (this.busyFor(cardId)) {
+                this.orderCheckDue = true;
+                entry.remote ||= this.expected.get(cardId)?.remote ?? false;
+                entry.again = false;
+                this.expected.delete(cardId);
+                this.schedule(cardId, entry, BUSY_RETRY_MILLISECONDS);
+                dropped.add(cardId);
+                continue;
+            }
+            if (entry.again) {
+                entry.again = false;
+                this.schedule(cardId, entry, SETTLE_MILLISECONDS);
+            }
+            if (html === null) {
+                entry.remote ||= this.expected.get(cardId)?.remote ?? false;
+                this.expected.delete(cardId);
+                if (entry.timer === undefined) {
+                    lost.push([cardId, entry]);
+                }
+            }
+        }
+        lost.forEach(([cardId, entry]) => this.fail(cardId, entry, failure));
+        if (html === null) {
+            return;
+        }
+
+        const streams = document.createElement('template');
+        streams.innerHTML = html;
+        const answered = new Set();
+        streams.content.querySelectorAll('turbo-stream').forEach((element) => {
+            const target = element.getAttribute('target') ?? '';
+            const cardId = target.replace('board-card-', '');
+            if (dropped.has(cardId)) {
+                element.remove();
+            } else {
+                answered.add(cardId);
+            }
+        });
+        // A card the answer leaves out counts as a miss and retries.
+        batch
+            .filter(([cardId]) => !dropped.has(cardId) && !answered.has(cardId))
+            .forEach(([cardId]) => this.missed({ cardId }));
+        if (streams.content.querySelector('turbo-stream') !== null) {
             // A miss can report inside this call or on a later frame.
-            renderStreamMessage(html);
+            renderStreamMessage(streams.innerHTML);
         }
     }
 
@@ -836,11 +947,12 @@ export default class extends Controller {
         );
     }
 
-    urlFor(cardId) {
-        return this.placementValue.replace(
-            this.placeholderValue,
-            encodeURIComponent(cardId),
-        );
+    urlFor(batch) {
+        const cards = batch
+            .map(([cardId]) => encodeURIComponent(cardId))
+            .join(',');
+
+        return `${this.placementsValue}?cards=${cards}`;
     }
 
     placed({ cardId, removed, leftDeck, deckEpic }) {
@@ -857,7 +969,11 @@ export default class extends Controller {
         const entry = this.pending.get(cardId);
         if (entry !== undefined) {
             entry.attempts = 0;
-            if (!entry.inFlight && entry.timer === undefined) {
+            if (
+                !entry.inFlight &&
+                entry.timer === undefined &&
+                !this.due.has(cardId)
+            ) {
                 this.pending.delete(cardId);
             }
         }
@@ -909,7 +1025,11 @@ export default class extends Controller {
         this.expected.delete(cardId);
         const entry = this.entryFor(cardId);
         entry.remote ||= remote;
-        if (entry.inFlight || entry.timer !== undefined) {
+        if (
+            entry.inFlight ||
+            entry.timer !== undefined ||
+            this.due.has(cardId)
+        ) {
             return;
         }
         this.fail(cardId, entry, RETRY);

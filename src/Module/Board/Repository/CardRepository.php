@@ -16,6 +16,7 @@ use App\Module\Board\View\BacklogSort;
 use App\Module\Board\Workflow\ChildMark;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\Actor;
+use App\Module\Workflow\Contract\FactsPass;
 use App\Module\Workflow\Contract\MarkerKind;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Common\Collections\AbstractLazyCollection;
@@ -46,8 +47,10 @@ class CardRepository extends ServiceEntityRepository
     /** Whether the board shows card c. A terminal column reads as findCompletedSince() does. */
     private const string SHOWN = '(NOT k.terminal OR (c.completed_at >= :since AND (p.id IS NULL OR NOT pk.terminal)))';
 
-    public function __construct(ManagerRegistry $registry)
-    {
+    public function __construct(
+        ManagerRegistry $registry,
+        private readonly FactsPass $factsPass,
+    ) {
         parent::__construct($registry, Card::class);
     }
 
@@ -83,6 +86,8 @@ class CardRepository extends ServiceEntityRepository
         return array_values($this->createQueryBuilder('c')
             ->join('c.column', 'k')
             ->addSelect('k')
+            ->leftJoin('c.parent', 'p')
+            ->addSelect('p')
             ->andWhere('c.project = :project')
             ->andWhere('c.id IN (:ids)')
             ->setParameter('project', $project)
@@ -1169,6 +1174,10 @@ class CardRepository extends ServiceEntityRepository
         }
 
         return $this->createQueryBuilder('c')
+            ->join('c.column', 'k')
+            ->addSelect('k')
+            ->leftJoin('c.parent', 'p')
+            ->addSelect('p')
             ->andWhere('c.id = :cardId')
             ->andWhere('c.project = :projectId')
             ->setParameter('cardId', Uuid::fromString($cardId), UuidType::NAME)
@@ -1267,6 +1276,12 @@ class CardRepository extends ServiceEntityRepository
      * @return array{done: int, total: int}
      */
     public function childProgressOf(Card $epic): array
+    {
+        return $this->factsPass->remember('child-progress:'.$epic->id, fn (): array => $this->readChildProgressOf($epic));
+    }
+
+    /** @return array{done: int, total: int} */
+    private function readChildProgressOf(Card $epic): array
     {
         /** @var array{done: int|string|null, total: int|string} $row */
         $row = $this->getEntityManager()->getConnection()->fetchAssociative(
@@ -1453,6 +1468,37 @@ class CardRepository extends ServiceEntityRepository
             ->addOrderBy('c.id', 'ASC')
             ->getQuery()
             ->getResult());
+    }
+
+    /**
+     * The ids of the lane epics, in the order findLaneEpics() gives them, with no card row hydrated.
+     *
+     * @param list<string> $laneTypes the type keys with the lane capability
+     *
+     * @return list<string>
+     */
+    public function findLaneEpicIds(Project $project, array $laneTypes): array
+    {
+        if ([] === $laneTypes) {
+            return [];
+        }
+
+        return array_values(array_map(strval(...), $this->createQueryBuilder('c')
+            ->select('c.id')
+            ->join('c.column', 'k')
+            ->andWhere('c.project = :project')
+            ->andWhere('c.type IN (:laneTypes)')
+            ->andWhere('c.laneEnabled = true')
+            ->andWhere('k.terminal = false')
+            ->setParameter('project', $project)
+            ->setParameter('laneTypes', $laneTypes)
+            ->orderBy('k.position', 'ASC')
+            ->addOrderBy('k.id', 'ASC')
+            ->addOrderBy('c.position', 'ASC')
+            ->addOrderBy('c.createdAt', 'ASC')
+            ->addOrderBy('c.id', 'ASC')
+            ->getQuery()
+            ->getSingleColumnResult()));
     }
 
     /** The id of the last card the board shows in the column, or null when it shows none. */

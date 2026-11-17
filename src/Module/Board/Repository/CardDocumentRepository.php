@@ -12,6 +12,7 @@ use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\DocumentStatus;
 use App\Module\Review\Entity\DocumentVersion;
+use App\Module\Workflow\Contract\FactsPass;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\Types\Type;
 use Doctrine\DBAL\Types\Types;
@@ -23,8 +24,10 @@ use Symfony\Component\Uid\Uuid;
 /** @extends ServiceEntityRepository<CardDocument> */
 final class CardDocumentRepository extends ServiceEntityRepository
 {
-    public function __construct(ManagerRegistry $registry)
-    {
+    public function __construct(
+        ManagerRegistry $registry,
+        private readonly FactsPass $factsPass,
+    ) {
         parent::__construct($registry, CardDocument::class);
     }
 
@@ -181,6 +184,14 @@ final class CardDocumentRepository extends ServiceEntityRepository
      * @return list<array{id: string, status: string, title: string, versionAt: ?\DateTimeImmutable, version: ?int, publishedAt: ?\DateTimeImmutable, entryUnansweredDecisions: ?int, entryOpenThreads: ?int, newestReviewId: ?string, rejectedBefore: bool, newestReviewWithdrewApproval: bool, newestApprovalAt: ?\DateTimeImmutable, newestApprovalByWorkflow: bool, tags: list<string>}>
      */
     public function findStatusesAndTagsForCard(Card $card): array
+    {
+        return $this->factsPass->remember('card-document-statuses:'.$card->id, fn (): array => $this->readStatusesAndTagsForCard($card));
+    }
+
+    /**
+     * @return list<array{id: string, status: string, title: string, versionAt: ?\DateTimeImmutable, version: ?int, publishedAt: ?\DateTimeImmutable, entryUnansweredDecisions: ?int, entryOpenThreads: ?int, newestReviewId: ?string, rejectedBefore: bool, newestReviewWithdrewApproval: bool, newestApprovalAt: ?\DateTimeImmutable, newestApprovalByWorkflow: bool, tags: list<string>}>
+     */
+    private function readStatusesAndTagsForCard(Card $card): array
     {
         $connection = $this->getEntityManager()->getConnection();
         $rows = $connection->fetchAllAssociative(

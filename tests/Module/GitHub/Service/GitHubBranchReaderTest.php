@@ -8,9 +8,11 @@ use App\Module\Account\Entity\User;
 use App\Module\Forge\Entity\ForgeRepository;
 use App\Module\Forge\Entity\ForgeRepositorySource;
 use App\Module\Forge\Repository\ForgeRepositoryRepository;
+use App\Module\Forge\Service\BranchPresence;
 use App\Module\Forge\Service\BranchReaders;
 use App\Module\GitHub\Entity\GitHubInstallation;
 use App\Module\GitHub\Entity\GitHubRepositorySelection;
+use App\Module\GitHub\Repository\GitHubInstallationRepository;
 use App\Module\GitHub\Service\GitHubAppApi;
 use App\Module\GitHub\Service\GitHubAppConfiguration;
 use App\Module\GitHub\Service\GitHubBranchReader;
@@ -48,7 +50,7 @@ final class GitHubBranchReaderTest extends KernelTestCase
         $project = $this->connected('loupe-ac/loupe', 74_001);
         $this->responses = [$this->token(), new MockResponse('{"name":"epic/852"}', ['http_code' => 200])];
 
-        self::assertTrue($this->reader()->exists($project, 'https://github.com/loupe-ac/loupe.git', 'epic/852'));
+        self::assertSame(BranchPresence::Exists, $this->probe($project, 'https://github.com/loupe-ac/loupe.git', 'epic/852'));
         self::assertSame('https://api.github.com/repos/loupe-ac/loupe/branches/epic/852', $this->requests[1]['url']);
     }
 
@@ -57,7 +59,7 @@ final class GitHubBranchReaderTest extends KernelTestCase
         $project = $this->connected('loupe-ac/loupe', 74_002);
         $this->responses = [$this->token(), new MockResponse('{}', ['http_code' => 200])];
 
-        self::assertTrue($this->reader()->exists($project, 'git@github.com:loupe-ac/loupe.git', 'team x/e#1?'));
+        self::assertSame(BranchPresence::Exists, $this->probe($project, 'git@github.com:loupe-ac/loupe.git', 'team x/e#1?'));
         self::assertSame('https://api.github.com/repos/loupe-ac/loupe/branches/team%20x/e%231%3F', $this->requests[1]['url']);
     }
 
@@ -66,66 +68,120 @@ final class GitHubBranchReaderTest extends KernelTestCase
         $project = $this->connected('loupe-ac/loupe', 74_003);
         $this->responses = [$this->token(), new MockResponse('{"message":"Branch not found"}', ['http_code' => 404])];
 
-        self::assertFalse($this->reader()->exists($project, 'https://github.com/loupe-ac/loupe', 'epic/852'));
+        self::assertSame(BranchPresence::Absent, $this->probe($project, 'https://github.com/loupe-ac/loupe', 'epic/852'));
         self::assertCount(2, $this->requests);
     }
 
-    public function test_a_server_error_reads_false_and_throws_nothing(): void
+    public function test_a_server_error_is_unreadable_and_throws_nothing(): void
     {
         $project = $this->connected('loupe-ac/loupe', 74_004);
         $this->responses = [$this->token(), new MockResponse('{"message":"Server Error"}', ['http_code' => 500])];
 
-        self::assertFalse($this->reader()->exists($project, 'https://github.com/loupe-ac/loupe', 'epic/852'));
+        self::assertSame(BranchPresence::Unreadable, $this->probe($project, 'https://github.com/loupe-ac/loupe', 'epic/852'));
         self::assertCount(2, $this->requests);
     }
 
-    public function test_a_rate_limit_reads_false(): void
+    public function test_a_rate_limit_is_unreadable(): void
     {
         $project = $this->connected('loupe-ac/loupe', 74_005);
         $this->responses = [$this->token(), new MockResponse('{"message":"rate limit"}', ['http_code' => 403, 'response_headers' => ['x-ratelimit-remaining' => '0']])];
 
-        self::assertFalse($this->reader()->exists($project, 'https://github.com/loupe-ac/loupe', 'epic/852'));
+        self::assertSame(BranchPresence::Unreadable, $this->probe($project, 'https://github.com/loupe-ac/loupe', 'epic/852'));
     }
 
-    public function test_a_missing_app_configuration_reads_false_with_no_request(): void
+    public function test_a_missing_app_configuration_is_unreadable_with_no_request(): void
     {
         $project = $this->connected('loupe-ac/loupe', 74_006);
 
-        self::assertFalse($this->reader(appId: null)->exists($project, 'https://github.com/loupe-ac/loupe', 'epic/852'));
+        self::assertSame(BranchPresence::Unreadable, $this->probe($project, 'https://github.com/loupe-ac/loupe', 'epic/852', appId: null));
         self::assertSame([], $this->requests);
     }
 
-    public function test_a_remote_of_another_forge_reads_false_with_no_request(): void
+    public function test_a_remote_of_another_forge_is_not_readable(): void
     {
         $project = $this->connected('loupe-ac/loupe', 74_007);
 
-        self::assertFalse($this->reader()->exists($project, 'https://gitlab.com/loupe-ac/loupe.git', 'epic/852'));
+        self::assertNull($this->reader()->readableRepository($project, 'https://gitlab.com/loupe-ac/loupe.git'));
         self::assertSame([], $this->requests);
     }
 
-    public function test_a_repository_the_project_did_not_connect_reads_false_with_no_request(): void
+    public function test_a_repository_the_project_did_not_connect_is_not_readable(): void
     {
         $project = $this->connected('loupe-ac/loupe', 74_008);
 
-        self::assertFalse($this->reader()->exists($project, 'https://github.com/loupe-ac/other', 'epic/852'));
+        self::assertNull($this->reader()->readableRepository($project, 'https://github.com/loupe-ac/other'));
         self::assertSame([], $this->requests);
     }
 
-    public function test_a_repository_that_only_another_project_connected_reads_false_with_no_request(): void
+    public function test_a_repository_that_only_another_project_connected_is_not_readable(): void
     {
         $this->connected('loupe-ac/loupe', 74_009);
 
-        self::assertFalse($this->reader()->exists($this->project(), 'https://github.com/loupe-ac/loupe', 'epic/852'));
+        self::assertNull($this->reader()->readableRepository($this->project(), 'https://github.com/loupe-ac/loupe'));
         self::assertSame([], $this->requests);
     }
 
-    public function test_the_registry_reads_true_when_any_reader_does(): void
+    public function test_the_registry_answers_the_first_reader_that_can(): void
     {
         $project = $this->connected('loupe-ac/loupe', 74_010);
         $this->responses = [$this->token(), new MockResponse('{}', ['http_code' => 200])];
+        $registry = new BranchReaders([$this->reader()]);
 
-        self::assertTrue(new BranchReaders([$this->reader()])->exists($project, 'https://github.com/loupe-ac/loupe', 'epic/852'));
-        self::assertFalse(new BranchReaders([])->exists($project, 'https://github.com/loupe-ac/loupe', 'epic/852'));
+        $row = $registry->readableRepository($project, 'https://github.com/loupe-ac/loupe');
+        self::assertInstanceOf(ForgeRepository::class, $row);
+        self::assertSame(BranchPresence::Exists, $registry->presence($project, $row, 'epic/852'));
+        self::assertNull(new BranchReaders([])->readableRepository($project, 'https://github.com/loupe-ac/loupe'));
+        self::assertSame(BranchPresence::Unreadable, new BranchReaders([])->presence($project, $row, 'epic/852'));
+    }
+
+    public function test_a_row_with_lost_access_a_removed_installation_and_a_suspended_one_are_not_readable(): void
+    {
+        $project = $this->connected('loupe-ac/loupe', 74_011);
+        $row = $this->reader()->readableRepositoryAt($project, 'github', 'loupe-ac/loupe');
+        self::assertInstanceOf(ForgeRepository::class, $row);
+
+        $installation = self::getContainer()->get(GitHubInstallationRepository::class)->findOneByInstallationId(74_011);
+        self::assertInstanceOf(GitHubInstallation::class, $installation);
+        $installation->suspendedAt = new \DateTimeImmutable();
+        $this->em->flush();
+        self::assertNull($this->reader()->readableRepositoryAt($project, 'github', 'loupe-ac/loupe'));
+
+        $installation->suspendedAt = null;
+        $installation->removedAt = new \DateTimeImmutable();
+        $this->em->flush();
+        self::assertNull($this->reader()->readableRepositoryAt($project, 'github', 'loupe-ac/loupe'));
+
+        $installation->removedAt = null;
+        $row->accessLostAt = new \DateTimeImmutable();
+        $this->em->flush();
+        self::assertNull($this->reader()->readableRepositoryAt($project, 'github', 'loupe-ac/loupe'));
+        self::assertSame([], $this->requests);
+    }
+
+    public function test_a_repository_that_only_a_plain_webhook_delivers_is_not_readable(): void
+    {
+        $project = $this->project();
+        $this->em->persist(new ForgeRepository($project, 'github', '74012', 'loupe-ac/loupe', ForgeRepositorySource::Hook));
+        $this->em->flush();
+
+        self::assertNull($this->reader()->readableRepositoryAt($project, 'github', 'loupe-ac/loupe'));
+        self::assertNull($this->reader()->readableRepository($project, 'https://github.com/loupe-ac/loupe'));
+    }
+
+    public function test_a_path_is_readable_only_on_its_own_forge(): void
+    {
+        $project = $this->connected('loupe-ac/loupe', 74_013);
+
+        self::assertNull($this->reader()->readableRepositoryAt($project, 'gitlab', 'loupe-ac/loupe'));
+        self::assertInstanceOf(ForgeRepository::class, $this->reader()->readableRepositoryAt($project, 'github', 'LOUPE-AC/loupe'));
+    }
+
+    private function probe(Project $project, string $remote, string $branch, ?string $appId = '123456'): ?BranchPresence
+    {
+        $reader = $this->reader($appId);
+        $row = $reader->readableRepository($project, $remote);
+
+        return null === $row ? null : $reader->presence($project, $row, $branch);
     }
 
     private function connected(string $path, int $installationId): Project
