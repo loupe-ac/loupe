@@ -98,6 +98,20 @@ in a sealed sandbox. Scripts run with an opaque origin. They cannot use cookies
 or storage, and some pages do not work. The viewer shows a limited preview
 notice.
 
+The app domain also refuses to serve an artifact file to an app page that loads
+it as a script, a worker or any other non-frame resource. Without this check, a
+script tag injected into an app page could run an uploaded `.js` file under the
+script rule of the app. The server reads the fetch metadata headers that the
+browser sends. A framed page, a link opened by a person and the scripts of the
+sealed frame itself work as before. A request with no such headers is served,
+because agents and scripts send none. Safari before 16.4 and every browser on a
+plain-HTTP instance send none, so the check does not cover them. Set
+`ARTIFACT_CONTENT_HOST` to close that gap.
+
+The `artifacts.guard_script_loads` flag turns the check on. It is on by default.
+Switch it off in the admin area if a self-hosted setup needs an app page to load
+an artifact file directly.
+
 ## Health check
 
 The system status page at `/admin/status` has an *Artifact content domain* row.
