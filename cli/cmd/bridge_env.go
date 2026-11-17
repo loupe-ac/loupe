@@ -90,11 +90,10 @@ func logDroppedEnv(log *slog.Logger) {
 		"codex", droppedEnv(envallow.HarnessCodex))
 }
 
-// applyPassEnv takes the passEnv list of a reloaded rule file. The previous
-// list is the one that held before the swap. A name that the
+// applyPassEnv takes the passEnv list of a reloaded rule file. A name that the
 // bridge did not start with logs pass_env_needs_restart, because the variable
 // is gone from the bridge process. An env file holds the value instead.
-func applyPassEnv(log *slog.Logger, set *rules.Set, previous []string) {
+func applyPassEnv(log *slog.Logger, set *rules.Set) {
 	next := set.PassEnv()
 	for _, name := range next {
 		if !slices.Contains(startupPass, name) {
@@ -103,28 +102,24 @@ func applyPassEnv(log *slog.Logger, set *rules.Set, previous []string) {
 		}
 	}
 	envallow.SetPass(next)
-	unsetRemoved(log, previous)
 	logDroppedEnv(log)
 }
 
-// unsetRemoved clears from the bridge process each variable that a passEnv
-// pattern of the old list matched and no list allows now. A bridge-only name
-// stays, because the bridge needs it. The process image keeps the old value
-// until an update or a restart, so the log says that.
-func unsetRemoved(log *slog.Logger, previous []string) {
-	keep := append(envallow.Union(), envallow.Pass()...)
+// removedPassEnv gives the sorted names of the bridge environment that the
+// live passEnv list allows and the next list, with the base lists, does not.
+// The process image keeps such a value, and ps -E shows it to a worker, so a
+// reload that removes it must not take effect. A restart does.
+func removedPassEnv(next []string) []string {
+	live := append(envallow.Union(), envallow.Pass()...)
+	keep := append(envallow.Union(), next...)
 	var gone []string
 	for _, entry := range os.Environ() {
 		name, _, _ := strings.Cut(entry, "=")
-		if envallow.Match(name, previous) && !envallow.Match(name, keep) {
+		if envallow.Match(name, live) && !envallow.Match(name, keep) && !slices.Contains(gone, name) {
 			gone = append(gone, name)
 		}
 	}
-	for _, name := range gone {
-		os.Unsetenv(name)
-	}
-	if len(gone) > 0 {
-		log.Warn("pass_env_removed_needs_restart", "names", gone,
-			"message", "The bridge dropped these variables from its environment. The process image keeps them until loupe bridge update or a restart.")
-	}
+	slices.Sort(gone)
+
+	return gone
 }

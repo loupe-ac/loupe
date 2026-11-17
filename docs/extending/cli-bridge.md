@@ -618,7 +618,10 @@ variables that a worker loses for each harness, in `claude_code` and `codex`, an
 never a value. A name such as `OPENAI_API_KEY` can show under `claude_code` only,
 because a Codex worker still gets it. A bridge that is already running
 cannot get a dropped variable back. A reload that adds a `passEnv` name logs
-`pass_env_needs_restart`, and changes nothing for that name. Put the value in an
+`pass_env_needs_restart`, and changes nothing for that name. A reload that
+removes a `passEnv` name the bridge holds fails at the `passEnv` stage and
+changes nothing, because the process image keeps the value and `ps -E` shows it.
+Restart the bridge to remove the name. Put the value in an
 env file and run `loupe bridge reload`, or restart the bridge from a shell that
 holds the variable while no worker runs. A name that you write before
 `loupe update` reaches the new bridge, because the handover passes the old

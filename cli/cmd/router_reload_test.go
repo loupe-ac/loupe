@@ -11,6 +11,7 @@ import (
 
 	"github.com/loupe-ac/loupe/cli/internal/api"
 	"github.com/loupe-ac/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/envallow"
 	"github.com/loupe-ac/loupe/cli/internal/event"
 	"github.com/loupe-ac/loupe/cli/internal/rules"
 )
@@ -103,6 +104,28 @@ func TestAReloadThatFailsToParseKeepsTheSet(t *testing.T) {
 	}
 	if len(h.events(t, "reload_applied")) != 0 {
 		t.Fatal("a failed reload logged reload_applied")
+	}
+}
+
+// A passEnv name that the bridge process still holds cannot be removed by a
+// reload, because ps -E shows the value of the process image.
+func TestAReloadThatRemovesAHeldPassEnvNameKeepsTheSet(t *testing.T) {
+	t.Setenv("REMOVED_BY_RELOAD", "secret")
+	t.Cleanup(func() { envallow.SetPass(nil) })
+	h := newHarness(t)
+	envallow.SetPass([]string{"REMOVED_BY_RELOAD"})
+	old := h.router.rules()
+
+	res := h.reload(t, defaultRules)
+
+	if res.OK || res.Stage != "passEnv" || len(res.Problems) != 1 || !strings.Contains(res.Problems[0], "REMOVED_BY_RELOAD") {
+		t.Fatalf("result = %+v, want a passEnv failure", res)
+	}
+	if h.router.rules() != old {
+		t.Fatal("a rejected reload swapped the set")
+	}
+	if !slices.Equal(envallow.Pass(), []string{"REMOVED_BY_RELOAD"}) {
+		t.Fatal("a rejected reload changed the live list")
 	}
 }
 

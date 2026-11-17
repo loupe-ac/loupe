@@ -128,6 +128,14 @@ func (r *router) reloadLocked(ctx context.Context, src reloadSource) reloadResul
 
 		return reloadResult{Stage: stage, Problems: problems}
 	}
+	if gone := removedPassEnv(b.set.PassEnv()); len(gone) > 0 {
+		cancel()
+		done(false)
+		problems := []string{"passEnv no longer lists " + strings.Join(gone, ", ") + ", and the bridge process still holds the value. Restart the bridge to remove it."}
+		r.log.Error("reload_failed", "stage", "passEnv", "problems", problems)
+
+		return reloadResult{Stage: "passEnv", Problems: problems}
+	}
 	// The swap dispatches, and a new rule file can name a project the last read
 	// lacked. A failed read fails no reload.
 	r.loadSkills(buildCtx)
@@ -146,11 +154,10 @@ func (r *router) reloadLocked(ctx context.Context, src reloadSource) reloadResul
 
 		return r.lockFailed(err)
 	}
-	previousPass := envallow.Pass()
 	res := r.swap(b, seq)
 	done(res.OK)
 	if res.OK {
-		applyPassEnv(r.log, b.set, previousPass)
+		applyPassEnv(r.log, b.set)
 		go r.syncCodexPlugins(r.workerContext())
 	}
 

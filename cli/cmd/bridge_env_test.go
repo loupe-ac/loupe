@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"io"
-	"log/slog"
 	"os"
 	"slices"
 	"strings"
@@ -145,43 +143,18 @@ func TestHandoverEnvironRefiltersAfterAPassListChange(t *testing.T) {
 	}
 }
 
-func TestUnsetRemovedClearsOnlyARemovedPassName(t *testing.T) {
+func TestRemovedPassEnvNamesOnlyAHeldPassName(t *testing.T) {
 	t.Setenv("REMOVED_LATER", "secret")
 	t.Setenv("STILL_PASSED", "ok")
 	t.Setenv("BRIDGE_ONLY", "keep")
 	t.Cleanup(func() { envallow.SetPass(nil) })
+	envallow.SetPass([]string{"REMOVED_LATER", "STILL_PASSED", "NOT_SET"})
 
-	previous := []string{"REMOVED_LATER", "STILL_PASSED"}
-	envallow.SetPass([]string{"STILL_PASSED"})
-	unsetRemoved(slog.New(slog.NewTextHandler(io.Discard, nil)), previous)
-
-	if _, ok := os.LookupEnv("REMOVED_LATER"); ok {
-		t.Fatal("a removed passEnv name stayed in the bridge environment")
+	got := removedPassEnv([]string{"STILL_PASSED"})
+	if !slices.Equal(got, []string{"REMOVED_LATER"}) {
+		t.Fatalf("removedPassEnv = %v", got)
 	}
-	if os.Getenv("STILL_PASSED") != "ok" || os.Getenv("BRIDGE_ONLY") != "keep" {
-		t.Fatal("a kept name was unset")
-	}
-}
-
-func TestApplyPassEnvClearsANameThatTheReloadRemoved(t *testing.T) {
-	t.Setenv("REMOVED_BY_RELOAD", "secret")
-	t.Setenv("STILL_PASSED", "ok")
-	t.Cleanup(func() { envallow.SetPass(nil); startupPass = nil })
-	startupPass = []string{"REMOVED_BY_RELOAD", "STILL_PASSED"}
-	envallow.SetPass(startupPass)
-
-	next, err := rules.Parse([]byte("passEnv: [STILL_PASSED]\nprojects:\n  loupe:\n    dir: "+t.TempDir()+"\n    work:\n      review:\n        prompt: x\n"), rules.Defaults{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	previous := envallow.Pass()
-	envallow.SetPass(next.PassEnv())
-	applyPassEnv(slog.New(slog.NewTextHandler(io.Discard, nil)), next, previous)
-
-	if _, ok := os.LookupEnv("REMOVED_BY_RELOAD"); ok {
-		t.Fatal("a passEnv name removed by a reload stayed in the bridge environment")
-	}
-	if os.Getenv("STILL_PASSED") != "ok" {
-		t.Fatal("a kept name was unset")
+	if got := removedPassEnv([]string{"REMOVED_LATER", "STILL_PASSED"}); len(got) != 0 {
+		t.Fatalf("a kept list removed %v", got)
 	}
 }
