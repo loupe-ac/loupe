@@ -32,6 +32,7 @@ final readonly class RedirectUnverifiedUserListener
         'app_register_check_email',
         'app_register_resend',
         'app_verify_email',
+        'app_verify_email_submit',
         'app_forgot_password_request',
         'app_forgot_password_check_email',
         'app_reset_password',
@@ -87,7 +88,7 @@ final readonly class RedirectUnverifiedUserListener
         }
 
         $request = $event->getRequest();
-        // The confirmation signs the person in through the form sign-in, which returns to this address.
+        // A sign-in after the confirmation returns to this address.
         if ($this->isPageLoad($request) && $request->hasSession()) {
             $this->saveTargetPath($request->getSession(), self::FIREWALL, $request->getUri());
         }
