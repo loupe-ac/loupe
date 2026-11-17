@@ -8,6 +8,7 @@ import { request as playwrightRequest } from '@playwright/test';
 import { Page } from '@playwright/test';
 import { coverageScaled } from './timeouts';
 import {
+    confirmEmailLink,
     Credentials,
     extractLink,
     getEmailWithSubject,
@@ -381,7 +382,7 @@ export function createTest(credentials: Credentials) {
                         received.body,
                         /https?:\/\/[^\s"<]+\/register\/verify[^\s"<]*/,
                     );
-                    await page.goto(link);
+                    await confirmEmailLink(page, link);
                     if (page.url().includes('/welcome')) {
                         await page
                             .getByRole('button', { name: 'Skip setup' })
