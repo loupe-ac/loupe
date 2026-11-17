@@ -215,7 +215,7 @@ func startLoginGate(ctx context.Context, log *slog.Logger, cfg config.Config) {
 	if err != nil || cfg.OAuth == nil {
 		return
 	}
-	hc := &http.Client{Timeout: refreshTimeout, Transport: withUserAgent(nil)}
+	hc := &http.Client{Timeout: refreshTimeout, Transport: withUserAgent(nil, cfg.AllowsHTTP())}
 	setBridgeGate(newLoginGate(ctx, log, path, func(ctx context.Context) error {
 		return probeLogin(ctx, cfg.BaseURL, hc)
 	}))

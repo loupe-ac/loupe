@@ -12,6 +12,7 @@ final class GitHubGitTokenRefused extends \RuntimeException
     public const string INSTALLATION_SUSPENDED = 'installation_suspended';
     public const string NO_REPOSITORY = 'no_repository';
     public const string MISSING_GRANT = 'missing_grant';
+    public const string NO_PUSH_ACCESS = 'no_push_access';
     public const string GITHUB_UNAVAILABLE = 'github_unavailable';
 
     /**

@@ -144,7 +144,7 @@ final class AuthorizeController extends AppController
                 $e->setPayload([...$e->getPayload(), 'iss' => $this->issuer()]);
             }
 
-            return $this->httpFoundation->createResponse($e->generateHttpResponse($this->psrResponses->createResponse()));
+            return $this->forwardToClient($e->generateHttpResponse($this->psrResponses->createResponse()));
         }
     }
 
@@ -215,7 +215,27 @@ final class AuthorizeController extends AppController
             $response = $response->withHeader('Location', $location.(str_contains($location, '?') ? '&' : '?').http_build_query(['iss' => $this->issuer()]));
         }
 
-        return $this->httpFoundation->createResponse($response);
+        return $this->forwardToClient($response);
+    }
+
+    /**
+     * A redirect to the client is a page that forwards, not a 302. The browser
+     * checks each hop of a redirect that follows a form post against the
+     * form-action rule, and a client may redirect onward. A refresh starts a
+     * new navigation, which the rule does not govern.
+     */
+    private function forwardToClient(ResponseInterface $response): Response
+    {
+        $target = $response->getHeaderLine('Location');
+        if ('' === $target) {
+            return $this->httpFoundation->createResponse($response);
+        }
+
+        $page = $this->render('@OAuth/forward.html.twig', ['target' => $target]);
+        $page->headers->set('Cache-Control', 'no-store');
+        $page->headers->set('Referrer-Policy', 'no-referrer');
+
+        return $page;
     }
 
     private function issuer(): string

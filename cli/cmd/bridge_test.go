@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/config"
 	"github.com/loupe-ac/loupe/cli/internal/logfile"
 	"github.com/loupe-ac/loupe/cli/internal/rules"
 	"github.com/spf13/cobra"
@@ -836,5 +837,45 @@ func TestTheHeartbeatBodyCarriesTheRuleFileName(t *testing.T) {
 		if hb := heartbeatBody(set); hb.Name == nil || *hb.Name != want {
 			t.Fatalf("name: %s gave %v, want %q", value, hb.Name, want)
 		}
+	}
+}
+
+// A bridge that signed in to a plain-HTTP instance with the opt-in reaches the
+// plain-HTTP hub that the server names.
+func TestTheBridgeReachesAPlainHTTPHubWithTheStoredOptIn(t *testing.T) {
+	t.Setenv(config.AllowHTTPEnv, "")
+	fake := &fakeLoupe{flags: `{"bridge.heartbeat_interval_seconds":3600}`}
+	server := httptest.NewServer(http.HandlerFunc(fake.serve))
+	t.Cleanup(server.Close)
+	routeLAN(t, server)
+	cfg := testLogin("http://loupe.lan")
+	cfg.AllowHTTP = true
+
+	body := "accounts:\n  claude:\n    harness: claude-code\ndefaults:\n  account: claude\nprojects:\n  loupe:\n    dir: " + t.TempDir() + "\nwork:\n  plan:\n    prompt: go\n"
+	set, err := rules.Parse([]byte(body), rules.Defaults{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := set.Check(context.Background(), apiClient(cfg)); err != nil {
+		t.Fatal(err)
+	}
+	r := withRules(&router{log: newBridgeLogger(&syncBuffer{}), worker: (&fakeWorker{result: finishedRun}).ops(), bridgeID: testBridgeID}, set)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	cmd := &cobra.Command{}
+	cmd.SetContext(ctx)
+	done := make(chan error, 1)
+	go func() { done <- subscribe(cmd, cfg, r) }()
+
+	eventually(t, "the hub request", func() bool {
+		fake.mu.Lock()
+		defer fake.mu.Unlock()
+
+		return len(fake.hubAuth) > 0
+	})
+	cancel()
+	if err := <-done; err != nil && strings.Contains(err.Error(), "unencrypted") {
+		t.Fatalf("an opted-in hub was refused: %v", err)
 	}
 }

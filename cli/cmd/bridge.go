@@ -44,7 +44,7 @@ const refreshTimeout = 15 * time.Second
 var bridgeReach = &reachTracker{}
 
 func apiClient(cfg config.Config) *api.Client {
-	hc := &http.Client{Timeout: refreshTimeout, Transport: reachTransport{base: withUserAgent(nil), tracker: bridgeReach}}
+	hc := &http.Client{Timeout: refreshTimeout, Transport: reachTransport{base: withUserAgent(nil, cfg.AllowsHTTP()), tracker: bridgeReach}}
 
 	var tokens api.TokenSource = tokenSource(cfg, hc)
 	if g := currentBridgeGate(); g != nil {
@@ -160,6 +160,9 @@ func startBridge(cmd *cobra.Command, o bridgeRunOptions) error {
 	}
 	path, err := rulesPathOr(o.rulesPath)
 	if err != nil {
+		return err
+	}
+	if err := restartFiltered(path); err != nil {
 		return err
 	}
 	pin, err := makeSetupPin()
@@ -350,6 +353,7 @@ func logBridgeStart(log *slog.Logger, cmd *cobra.Command, set *rules.Set, path, 
 		}
 		log.Warn("max_workers_flag_ignored", "flag_value", flag, "max_workers", set.MaxWorkers(), "message", message)
 	}
+	logDroppedEnv(log)
 	log.Info("bridge_started", "rules", path, "projects", set.Projects(), "work_kinds", set.WorkKinds(),
 		"max_workers", set.MaxWorkers(), "worker_pools", poolSizes(set), "log_file", logPath, "bridge_id", bridgeID, "version", cliVersion())
 }
@@ -706,7 +710,7 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 		r.log.Info("control_listening", "socket", r.control.Addr().String())
 	}
 
-	err = transport.Subscribe(ctx, &http.Client{Transport: withUserAgent(nil)}, events.HubURL, []string{events.Topic}, jwtRefresher(cfg, r.bridgeID, events.JWT, r.onRefresh), r.handler())
+	err = transport.Subscribe(ctx, &http.Client{Transport: withUserAgent(nil, cfg.AllowsHTTP())}, events.HubURL, []string{events.Topic}, jwtRefresher(cfg, r.bridgeID, events.JWT, r.onRefresh), r.handler(), cfg.AllowsHTTP())
 	failed := err != nil && ctx.Err() == nil
 	if failed {
 		logUpgradeRequired(r.log, err)

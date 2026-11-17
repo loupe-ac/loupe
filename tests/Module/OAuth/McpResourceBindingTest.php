@@ -74,7 +74,7 @@ final class McpResourceBindingTest extends WebTestCase
         $this->browser->loginUser($this->user);
         $this->browser->request(Request::METHOD_GET, $this->scenario->authorizeUrl('mcp', ['resource' => 'https://evil.example/mcp']));
 
-        $query = OAuthScenario::redirectQuery((string) $this->browser->getResponse()->headers->get('Location'));
+        $query = OAuthScenario::redirectQuery(OAuthScenario::clientLocation($this->browser));
         self::assertSame('invalid_target', $query['error']);
         self::assertSame('state-123', $query['state']);
         self::assertSame($this->issuer(), $query['iss']);
@@ -85,7 +85,7 @@ final class McpResourceBindingTest extends WebTestCase
         $this->browser->loginUser($this->user);
         $this->browser->request(Request::METHOD_GET, $this->scenario->authorizeUrl('agent', ['resource' => $this->mcpUri()]));
 
-        $query = OAuthScenario::redirectQuery((string) $this->browser->getResponse()->headers->get('Location'));
+        $query = OAuthScenario::redirectQuery(OAuthScenario::clientLocation($this->browser));
         self::assertSame('invalid_target', $query['error']);
     }
 
@@ -95,7 +95,7 @@ final class McpResourceBindingTest extends WebTestCase
         $url = $this->scenario->authorizeUrl('mcp', ['resource' => $this->mcpUri()]).'&resource='.rawurlencode('https://evil.example/mcp');
         $this->browser->request(Request::METHOD_GET, $url);
 
-        $query = OAuthScenario::redirectQuery((string) $this->browser->getResponse()->headers->get('Location'));
+        $query = OAuthScenario::redirectQuery(OAuthScenario::clientLocation($this->browser));
         self::assertSame('invalid_target', $query['error']);
     }
 
@@ -106,7 +106,7 @@ final class McpResourceBindingTest extends WebTestCase
         $this->browser->submit($crawler->selectButton('consent_form_approve')->form([
             'consent_form[project]' => (string) $this->project->id,
         ]));
-        $query = OAuthScenario::redirectQuery((string) $this->browser->getResponse()->headers->get('Location'));
+        $query = OAuthScenario::redirectQuery(OAuthScenario::clientLocation($this->browser));
         $this->browser->restart();
 
         $response = OAuthScenario::postToken($this->browser, [

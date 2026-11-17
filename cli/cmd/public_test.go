@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/config"
 )
 
 const testProjectID = "0192f3c4-5d6e-7f80-9123-456789abcdef"
@@ -378,5 +379,34 @@ func TestPublicProjectListFailureKeepsItsCode(t *testing.T) {
 	_, err := publicProject(context.Background(), s, "", sendOptions{})
 	if code, _ := ExitCode(err); code != exitAuth {
 		t.Fatalf("exit = %d, err = %v", code, err)
+	}
+}
+
+func TestPublicClientKeyPathTakesThePlainHTTPOptInFromTheEnvironment(t *testing.T) {
+	var auth string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth = r.Header.Get("Authorization")
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer srv.Close()
+	routeLAN(t, srv)
+	t.Setenv(apiKeyEnv, "key-1")
+	t.Setenv("LOUPE_URL", "http://loupe.lan")
+	t.Setenv(config.AllowHTTPEnv, "")
+
+	if _, err := publicClient(nil); err == nil || !strings.Contains(err.Error(), "unencrypted") {
+		t.Fatalf("without the opt-in: want a refusal, got %v", err)
+	}
+
+	t.Setenv(config.AllowHTTPEnv, "1")
+	s, err := publicClient(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.send(context.Background(), api.PublicRequest{Method: "GET", Path: "/api/v1/projects"}, sendOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if auth != "Bearer key-1" {
+		t.Fatalf("Authorization = %q", auth)
 	}
 }
