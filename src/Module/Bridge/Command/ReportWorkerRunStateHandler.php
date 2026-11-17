@@ -11,6 +11,7 @@ use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Event\BilledCostAwaited;
 use App\Module\Bridge\Event\ResumableWorkerRunEnded;
 use App\Module\Bridge\Event\WorkerRunChanged;
+use App\Module\Bridge\EventListener\WorkerRunFactListener;
 use App\Module\Bridge\Repository\WorkerRunBilledCostRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkerRunStateChangeRepository;
@@ -23,7 +24,6 @@ use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\WorkSubject\WorkSubjectHandlers;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
-use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
@@ -54,19 +54,21 @@ final readonly class ReportWorkerRunStateHandler
         private WorkerRunUsageRecorder $usageRecorder,
         private EventDispatcherInterface $events,
         private WorkSubjectHandlers $subjects,
+        private WorkerRunFactListener $factListener,
     ) {
     }
 
     public function __invoke(ReportWorkerRunStateCommand $command): ReportWorkerRunStateResult
     {
         /** @var array{ReportWorkerRunStateResult, bool, bool, bool} $outcome */
-        $outcome = $this->em->wrapInTransaction(function () use ($command): array {
-            // The project lock serialises two first reports of one run, which
-            // would otherwise both miss the read and trip the unique index.
+        $outcome = $this->factListener->deferredTransaction($this->em, function () use ($command): array {
             $project = $this->lockedProject($command);
             if (null === $project) {
                 return [new ReportWorkerRunStateResult(null, newState: false), false, false, false];
             }
+            // Serialises two first reports of one run, which would otherwise
+            // both miss the read and trip the unique index.
+            $this->workerRuns->lockRunKey($project, $command->bridgeId, $command->runKey);
 
             $run = $this->workerRuns->findOneByRunKey($project, $command->bridgeId, $command->runKey);
             // Read after the run lock, so a reopening never predates a timeout
@@ -380,7 +382,7 @@ final readonly class ReportWorkerRunStateHandler
             return null;
         }
 
-        $this->em->lock($project, LockMode::PESSIMISTIC_WRITE);
+        $this->projects->lockForReport($project);
 
         return $this->projects->findOneByIdOrSlugForOwner($command->handle, $command->owner);
     }

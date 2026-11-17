@@ -20,6 +20,7 @@ use App\Module\Project\Entity\Project;
 use App\Outbox\AgentPush;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Support\AgentCredential;
+use App\Tests\Support\RunsFactJobs;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -626,6 +627,7 @@ final class WorkerRunStatesApiTest extends WebTestCase
         self::assertSame(WorkerRunWakeTrigger::Agent, $run->wakeTrigger);
         self::assertSame(5_399_500, $run->wakeGapMs);
         self::assertSame([12, 3, 90_000], [$run->wakeFirstInputTokens, $run->wakeFirstCacheReadTokens, $run->wakeFirstCacheWriteTokens]);
+        RunsFactJobs::run(self::getContainer());
         $fact = $em->getConnection()->fetchAssociative('SELECT wake_trigger, wake_gap_ms, wake_first_input_tokens, wake_first_cache_read_tokens, wake_first_cache_write_tokens FROM bridge_worker_run_facts WHERE run_id = ?', [(string) $run->id]);
         self::assertSame(['wake_trigger' => 'agent', 'wake_gap_ms' => 5_399_500, 'wake_first_input_tokens' => 12, 'wake_first_cache_read_tokens' => 3, 'wake_first_cache_write_tokens' => 90_000], $fact);
     }

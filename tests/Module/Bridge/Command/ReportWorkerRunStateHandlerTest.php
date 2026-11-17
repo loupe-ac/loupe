@@ -31,6 +31,7 @@ use App\Module\Project\Entity\Project;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Support\DispatchedEvents;
 use App\Tests\Support\RecordingAuditor;
+use App\Tests\Support\RunsFactJobs;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Mercure\Jwt\StaticTokenProvider;
@@ -81,6 +82,26 @@ final class ReportWorkerRunStateHandlerTest extends KernelTestCase
         self::assertFalse($repeat->newState);
         self::assertNull($foreign->run);
         self::assertSame([], $changes->events());
+    }
+
+    public function test_two_first_reports_of_one_run_leave_one_run_row_and_the_handler_takes_the_run_key_lock(): void
+    {
+        self::bootKernel();
+        [$owner, $project] = $this->scenario('handler-first-twice');
+        $connection = $this->em()->getConnection();
+        $runKey = Uuid::v4();
+        $held = static fn (): int => (int) $connection->fetchOne("SELECT COUNT(*) FROM pg_locks WHERE locktype = 'advisory' AND pid = pg_backend_pid()");
+        $before = $held();
+
+        $first = $this->report($owner, $project, $runKey, WorkerRunState::Queued);
+        $afterFirst = $held();
+        $second = $this->report($owner, $project, $runKey, WorkerRunState::Queued);
+
+        self::assertGreaterThan($before, $afterFirst, 'The handler must take the run key advisory lock, which the test transaction keeps.');
+        self::assertSame($afterFirst, $held(), 'A second report of the same run waits on the same lock key.');
+        self::assertTrue($first->newState);
+        self::assertFalse($second->newState);
+        self::assertSame(1, (int) $connection->fetchOne('SELECT COUNT(*) FROM bridge_worker_runs WHERE run_key = ?', [$runKey->toRfc4122()]));
     }
 
     private const string BRIDGE = '0199a0e2-9d4c-7c5e-9f2a-3b1c6d7e8f90';
@@ -1253,6 +1274,7 @@ final class ReportWorkerRunStateHandlerTest extends KernelTestCase
 
     private function storedPeak(WorkerRun $run, string $table, string $key): ?int
     {
+        RunsFactJobs::run(self::getContainer());
         $peak = $this->em()->getConnection()->fetchOne(
             \sprintf('SELECT peak_context_tokens FROM %s WHERE %s = ?', $table, $key),
             [(string) $run->id],

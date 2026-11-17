@@ -13,6 +13,7 @@ use App\Module\Bridge\Command\TimeOutQuietWorkerRunsCommand;
 use App\Module\Bridge\Command\TimeOutQuietWorkerRunsHandler;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\EventListener\WorkerRunFactListener;
+use App\Module\Bridge\Messenger\WriteWorkerRunFacts;
 use App\Module\Bridge\ValueObject\WorkerRunModelUsage;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkerRunUsageReport;
@@ -20,10 +21,12 @@ use App\Module\Bridge\ValueObject\WorkerRunUsageSource;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Bridge\BridgeScenario;
+use App\Tests\Support\RunsFactJobs;
 use Doctrine\DBAL\Exception\DriverException;
 use Doctrine\ORM\Event\OnFlushEventArgs;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
+use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Contracts\Service\ResetInterface;
 
@@ -51,6 +54,24 @@ final class WorkerRunFactListenerTest extends KernelTestCase
         self::assertSame(300000, $fact['duration_ms']);
         self::assertSame(10, $fact['tokens_in']);
         self::assertSame('reported', $fact['usage_source']);
+    }
+
+    public function test_a_state_report_queues_one_write_for_its_run_and_writes_no_fact_inline(): void
+    {
+        [$owner, $project] = $this->scenario('facts-one-job');
+        $transport = self::getContainer()->get('messenger.transport.insights');
+        self::assertInstanceOf(InMemoryTransport::class, $transport);
+        $transport->reset();
+
+        $run = $this->report($owner, $project, Uuid::v4(), WorkerRunState::Succeeded, self::usage(WorkerRunUsageSource::Reported, '0.500000'));
+
+        $writes = array_values(array_filter(
+            array_map(static fn ($envelope): object => $envelope->getMessage(), $transport->getSent()),
+            static fn (object $message): bool => $message instanceof WriteWorkerRunFacts,
+        ));
+        self::assertCount(1, $writes);
+        self::assertSame([(string) $run->id], $writes[0]->runIds);
+        self::assertFalse($this->em()->getConnection()->fetchOne('SELECT run_id FROM bridge_worker_run_facts WHERE run_id = ?', [(string) $run->id]));
     }
 
     public function test_a_later_report_with_better_usage_changes_the_cost(): void
@@ -245,6 +266,7 @@ final class WorkerRunFactListenerTest extends KernelTestCase
     /** @return array<string, mixed> */
     private function fact(WorkerRun $run): array
     {
+        RunsFactJobs::run(self::getContainer());
         $fact = $this->em()->getConnection()->fetchAssociative(
             'SELECT * FROM bridge_worker_run_facts WHERE run_id = ?',
             [(string) $run->id],
