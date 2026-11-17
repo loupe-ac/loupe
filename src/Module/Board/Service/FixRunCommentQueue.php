@@ -10,6 +10,7 @@ use App\Module\Board\Repository\CardPullRequestRepository;
 use App\Module\Board\Repository\PullRequestCommentRepository;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Repository\WorkRequestRepository;
+use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Forge\Entity\PullRequestChecks;
 use App\Module\Forge\Entity\PullRequestMergeability;
@@ -33,7 +34,7 @@ final readonly class FixRunCommentQueue
     private const string FIX_ROLE = 'fix';
 
     /** A run received in this window counts after it ends, and an older closed run is history. */
-    private const string RECENT = '-1 hour';
+    private const string RECENT = '1 hour';
 
     public function __construct(
         private PullRequestCommenters $commenters,
@@ -60,7 +61,24 @@ final readonly class FixRunCommentQueue
             return [];
         }
 
-        return $this->pullRequestComments->findUncommentedRecentRuns($card->id ?? throw new \LogicException('A stored card has an id.'), self::FIX_ROLE, $this->clock->now()->modify(self::RECENT));
+        return $this->pullRequestComments->findUncommentedRecentRuns($card->id ?? throw new \LogicException('A stored card has an id.'), self::FIX_ROLE, $this->clock->now()->modify('-'.self::RECENT));
+    }
+
+    /**
+     * The first instant at which a closed run of $runs leaves the window, one second after its end because the read keeps a run whose time is not before the start of the window.
+     * An open run leaves only when a write closes it, so it gives no time.
+     *
+     * @param list<WorkerRun> $runs what uncommentedRuns() returned
+     */
+    public function changesAt(array $runs): ?\DateTimeImmutable
+    {
+        $open = WorkerRunState::openStates();
+        $times = array_map(
+            static fn (WorkerRun $run): \DateTimeImmutable => $run->endedAt ?? $run->receivedAt,
+            array_filter($runs, static fn (WorkerRun $run): bool => !\in_array($run->state, $open, true)),
+        );
+
+        return [] === $times ? null : min($times)->modify('+'.self::RECENT)->modify('+1 second');
     }
 
     /** Answers whether it stored a comment. One savepoint holds the reads too, so a failed statement leaves the transaction of the caller usable. */
@@ -77,7 +95,7 @@ final readonly class FixRunCommentQueue
         }
         $projectId = $card->project->id ?? throw new \LogicException('A stored card has a project id.');
         $cardId = $card->id ?? throw new \LogicException('A stored card has an id.');
-        $runs = $this->pullRequestComments->findUncommentedRecentRuns($cardId, self::FIX_ROLE, $this->clock->now()->modify(self::RECENT));
+        $runs = $this->pullRequestComments->findUncommentedRecentRuns($cardId, self::FIX_ROLE, $this->clock->now()->modify('-'.self::RECENT));
         if ([] === $runs) {
             return false;
         }

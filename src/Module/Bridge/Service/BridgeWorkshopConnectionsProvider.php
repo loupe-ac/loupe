@@ -45,6 +45,7 @@ final readonly class BridgeWorkshopConnectionsProvider implements WorkshopConnec
                 $repository['remoteUrl'] ?? null,
                 null !== $connection->bridge->gitIdentities,
                 $connection->status->loginExpired,
+                null === $connection->status->lastSeenAt ? null : $this->liveness->quietAt($connection->status->lastSeenAt),
             );
         }
 

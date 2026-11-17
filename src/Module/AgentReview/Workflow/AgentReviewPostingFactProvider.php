@@ -49,9 +49,12 @@ final readonly class AgentReviewPostingFactProvider implements FactProvider
         ));
         $latest = $this->agentReviews->findLatestOfHeads($open);
 
+        $due = $this->uncommented->among($latest);
+
         return new AgentReviewPostingFacts(
             [] !== $this->posts->dueForCard($card),
-            array_map(static fn (AgentReview $review): string => (string) $review->id, $this->uncommented->among($latest)),
+            array_map(static fn (AgentReview $review): string => (string) $review->id, $due),
+            $this->uncommented->changesAt($due),
         );
     }
 

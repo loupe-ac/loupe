@@ -34,10 +34,11 @@ final readonly class FixRunFactProvider implements FactProvider
     public function build(CardSnapshot $snapshot): object
     {
         $card = $this->cards->find($snapshot->id) ?? throw new \LogicException('The card of the facts exists.');
-        $ids = array_map(static fn (WorkerRun $run): string => ($run->id ?? throw new \LogicException('A stored run has an id.'))->toRfc4122(), $this->fixRunComments->uncommentedRuns($card));
+        $runs = $this->fixRunComments->uncommentedRuns($card);
+        $ids = array_map(static fn (WorkerRun $run): string => ($run->id ?? throw new \LogicException('A stored run has an id.'))->toRfc4122(), $runs);
         sort($ids);
 
-        return new FixRunFacts($ids);
+        return new FixRunFacts($ids, $this->fixRunComments->changesAt($runs));
     }
 
     #[\Override]

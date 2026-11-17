@@ -176,6 +176,45 @@ final class EpicBranchExistsFactProviderTest extends KernelTestCase
         self::assertCount(1, $this->asked);
     }
 
+    public function test_the_time_is_the_earliest_quiet_time_of_the_live_bridges_with_a_repository(): void
+    {
+        $child = $this->child();
+        $this->connections = [
+            $this->connection('a', quietAt: new \DateTimeImmutable('2026-11-16 12:10:01')),
+            $this->connection('b', quietAt: new \DateTimeImmutable('2026-11-16 12:05:01')),
+            $this->connection('c', quiet: true, quietAt: new \DateTimeImmutable('2026-11-16 12:01:01')),
+            new WorkshopConnection('d', '1.0.0', false, '/agents', 'd', quietAt: new \DateTimeImmutable('2026-11-16 12:00:01')),
+        ];
+        $this->branches = [self::REMOTE => ['epic/1']];
+
+        $facts = $this->provider()->build($child->snapshot());
+
+        self::assertInstanceOf(EpicBranchExistsFacts::class, $facts);
+        self::assertTrue($facts->exists);
+        self::assertEquals(new \DateTimeImmutable('2026-11-16 12:05:01'), $facts->changesAt());
+    }
+
+    public function test_the_time_stays_when_the_branch_is_missing_and_is_null_with_no_live_bridge(): void
+    {
+        $child = $this->child();
+        $this->connections = [$this->connection('a', quietAt: new \DateTimeImmutable('2026-11-16 12:10:01'))];
+
+        $missing = $this->provider()->build($child->snapshot());
+        self::assertInstanceOf(EpicBranchExistsFacts::class, $missing);
+        self::assertFalse($missing->exists);
+        self::assertEquals(new \DateTimeImmutable('2026-11-16 12:10:01'), $missing->changesAt());
+
+        $this->connections = [$this->connection('a', quiet: true)];
+        $none = $this->provider()->build($child->snapshot());
+        self::assertInstanceOf(EpicBranchExistsFacts::class, $none);
+        self::assertNull($none->changesAt());
+    }
+
+    public function test_the_time_is_left_out_of_the_fingerprint(): void
+    {
+        self::assertTrue($this->provider()->fingerprint(new EpicBranchExistsFacts(true, new \DateTimeImmutable('2026-11-16 12:00:00'))));
+    }
+
     public function test_the_fingerprint_is_the_exists_flag(): void
     {
         self::assertTrue($this->provider()->fingerprint(new EpicBranchExistsFacts(true)));
@@ -200,9 +239,9 @@ final class EpicBranchExistsFactProviderTest extends KernelTestCase
         return $card;
     }
 
-    private function connection(string $id, string $remote = self::REMOTE, bool $quiet = false): WorkshopConnection
+    private function connection(string $id, string $remote = self::REMOTE, bool $quiet = false, ?\DateTimeImmutable $quietAt = null): WorkshopConnection
     {
-        return new WorkshopConnection($id, '1.0.0', $quiet, '/agents', $id, repositoryPath: '/work/loupe', repositoryRemoteUrl: $remote);
+        return new WorkshopConnection($id, '1.0.0', $quiet, '/agents', $id, repositoryPath: '/work/loupe', repositoryRemoteUrl: $remote, quietAt: $quietAt);
     }
 
     private function exists(Card $card): bool

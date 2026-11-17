@@ -385,6 +385,35 @@ final class WorkTakersTest extends KernelTestCase
         self::assertEquals(new \DateTimeImmutable('2026-10-16 12:20:00'), $reading->quietAt);
     }
 
+    public function test_a_bridge_reads_quiet_from_its_quiet_time_and_not_one_second_before(): void
+    {
+        [$project, , $owner] = $this->scenario('quiet-time');
+        $bridge = $this->bridge($owner, $project, seenSecondsAgo: 10);
+        $liveness = self::getContainer()->get(BridgeLiveness::class);
+        self::assertInstanceOf(BridgeLiveness::class, $liveness);
+
+        $quietAt = $liveness->quietAt($bridge->lastSeenAt);
+
+        self::assertEquals($bridge->lastSeenAt->modify(\sprintf('+%d seconds', $this->window() + 1)), $quietAt);
+        self::assertTrue($bridge->lastSeenAt < $liveness->quietBefore($quietAt), 'quiet at the returned time');
+        self::assertFalse($bridge->lastSeenAt < $liveness->quietBefore($quietAt->modify('-1 second')), 'online one second before');
+    }
+
+    public function test_a_claimed_request_with_a_quiet_bridge_reads_the_same_after_its_lease_ended(): void
+    {
+        [$project, $request, $owner] = $this->scenario('claimed-quiet-past-lease', state: WorkRequestState::Claimed);
+        $bridge = $this->bridge($owner, $project, seenSecondsAgo: $this->window() + 60);
+        $request->bridgeId = $bridge->id;
+        $request->leaseUntil = new \DateTimeImmutable('2026-10-16 11:30:00');
+        $this->em()->flush();
+
+        $reading = $this->read($project, $request);
+
+        self::assertSame(WorkTakerState::Disconnected, $reading->state);
+        self::assertTrue($reading->claimed);
+        self::assertEquals(new \DateTimeImmutable('2026-10-16 11:30:00'), $reading->quietAt, 'the reaper write changes the answer, and the time stays the lease end');
+    }
+
     public function test_a_claimed_request_whose_bridge_still_sends_heartbeats_has_no_reading(): void
     {
         [$project, $request, $owner] = $this->scenario('claimed-alive', state: WorkRequestState::Claimed);

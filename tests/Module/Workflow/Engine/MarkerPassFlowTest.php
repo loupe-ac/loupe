@@ -7,18 +7,32 @@ namespace App\Tests\Module\Workflow\Engine;
 use App\Module\Board\Command\SaveBoardAutomationSettingsCommand;
 use App\Module\Board\Command\SaveBoardAutomationSettingsHandler;
 use App\Module\Board\Entity\Card;
+use App\Module\Board\Entity\CardEvent;
+use App\Module\Board\Entity\CardEventKind;
 use App\Module\Board\Event\CardChanged;
+use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\CardHolds;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
+use App\Module\Workflow\Command\EvaluateDueWorkflowCardsCommand;
+use App\Module\Workflow\Command\EvaluateDueWorkflowCardsHandler;
+use App\Module\Workflow\Contract\Actor;
+use App\Module\Workflow\Contract\CardsDueForMarkers;
 use App\Module\Workflow\Engine\Engine;
 use App\Module\Workflow\Entity\WorkflowBinding;
 use App\Module\Workflow\Entity\WorkflowSlotLink;
+use App\Module\Workflow\Messenger\EvaluateCard;
+use App\Module\Workflow\Repository\WorkflowRuleStateRepository;
+use App\Module\Workflow\Service\EvaluationTrigger;
 use App\Tests\Module\Workflow\Action\ActionScenario;
+use App\Tests\Support\AgentCredential;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
+use Symfony\Component\Uid\Uuid;
 
 /** The engine runs the marker pass after the rule pass, for held cards and boards with the automation off too. */
 final class MarkerPassFlowTest extends KernelTestCase
@@ -160,6 +174,29 @@ final class MarkerPassFlowTest extends KernelTestCase
         self::assertSame(['paused', 'run-stopped'], $this->keys($card));
     }
 
+    public function test_a_timed_rule_fires_at_its_stored_time_with_no_sweep(): void
+    {
+        $card = $this->quietCard();
+        $this->em()->persist(new CardEvent($card, $card->project, CardEventKind::Moved, Actor::Human, occurredAt: new \DateTimeImmutable('2026-10-02 11:50:00')));
+        $this->em()->flush();
+
+        $this->evaluate($card);
+
+        self::assertSame([], $this->liveRequests($card), 'the card is not quiet for 30 minutes yet');
+        self::assertEquals(new \DateTimeImmutable('2026-10-02 12:20:00'), $card->markersDueAt);
+
+        $this->transport()->reset();
+        $this->sweepDue(self::NOON);
+        self::assertSame([], $this->sentCardIds(), 'the card is not due at 12:00');
+        $this->sweepDue('2026-10-02 12:20:00');
+        self::assertSame([(string) $card->id], $this->sentCardIds(), 'the minute task queues it at its time');
+
+        $this->evaluate($card, '2026-10-02 12:20:00');
+
+        self::assertCount(1, $this->liveRequests($card), 'the rule fired at its time');
+        self::assertNull($card->markersDueAt, 'no later time is left');
+    }
+
     private function boundCard(): Card
     {
         self::bootKernel();
@@ -183,6 +220,98 @@ final class MarkerPassFlowTest extends KernelTestCase
         $this->em()->flush();
 
         return $this->card($project, 'next');
+    }
+
+    public function test_a_held_claim_with_a_quiet_bridge_stays_out_of_the_minute_task_after_its_lease_ended(): void
+    {
+        $card = $this->heldClaimCard();
+        $this->hold($card);
+        $request = new WorkRequest($card->project, WorkSubject::CARD, $card->id ?? throw new \LogicException('A flushed card has an id.'), $card->number, 'work', null, 'work', new \DateTimeImmutable('2026-10-02 11:00:00'));
+        $request->state = WorkRequestState::Claimed;
+        $request->leaseUntil = new \DateTimeImmutable('2026-10-02 11:50:00');
+        $bridge = new Bridge(AgentCredential::managed($this->em(), $card->project->owner, $card->project->owner->id), Uuid::v4(), [(string) $card->project->id], 'b4e39aa7', new \DateTimeImmutable('2026-10-02 08:00:00'));
+        $request->bridgeId = $bridge->id;
+        $this->em()->persist($bridge);
+        $this->em()->persist($request);
+        $this->em()->flush();
+
+        $this->evaluate($card);
+        self::assertSame(['disconnected'], $this->keys($card), 'the quiet bridge shows while the claim is held');
+        self::assertNull($card->markersDueAt, 'the lease end is already past, so no time is stored');
+
+        $this->transport()->reset();
+        $this->sweepDue('2026-10-02 12:01:00');
+        $this->sweepDue('2026-10-02 12:02:00');
+        self::assertSame([], $this->sentCardIds());
+    }
+
+    private function heldClaimCard(): Card
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('marker-flow-held-claim');
+        $this->em()->persist(new WorkflowBinding($project, 'test', '1', [
+            'key' => 'test',
+            'version' => 1,
+            'defaultType' => 'feature',
+            'types' => [['key' => 'feature', 'label' => 'board.card.type.feature', 'tone' => 'lime']],
+            'slots' => [['key' => 'one', 'label' => 'one']],
+            'manualMoves' => [],
+            'backoffMinutes' => [10],
+            'rules' => [],
+            'markers' => [['key' => 'disconnected', 'kind' => 'waiting', 'label' => 'marker.work_requested', 'when' => ['card.run.work_taker_disconnected' => []]]],
+        ]));
+        $this->em()->persist(new WorkflowSlotLink($project, 'one', $this->column($project, 'next')->id));
+        $this->em()->flush();
+
+        return $this->card($project, 'next');
+    }
+
+    private function quietCard(): Card
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('marker-flow-quiet');
+        $this->em()->persist(new WorkflowBinding($project, 'test', '1', [
+            'key' => 'test',
+            'version' => 1,
+            'defaultType' => 'feature',
+            'types' => [['key' => 'feature', 'label' => 'board.card.type.feature', 'tone' => 'lime']],
+            'slots' => [['key' => 'one', 'label' => 'one']],
+            'manualMoves' => [],
+            'backoffMinutes' => [10],
+            'rules' => [['id' => 'work', 'slot' => 'one', 'when' => ['card.quiet_for' => ['delay' => 30]], 'then' => ['request' => ['kind' => 'work']]]],
+            'markers' => [],
+        ]));
+        $this->em()->persist(new WorkflowSlotLink($project, 'one', $this->column($project, 'next')->id));
+        $this->em()->flush();
+
+        return $this->card($project, 'next');
+    }
+
+    private function sweepDue(string $at): void
+    {
+        new EvaluateDueWorkflowCardsHandler(
+            $this->service(WorkflowRuleStateRepository::class),
+            $this->service(CardsDueForMarkers::class),
+            $this->service(EvaluationTrigger::class),
+            new MockClock($at),
+        )(new EvaluateDueWorkflowCardsCommand());
+    }
+
+    private function transport(): InMemoryTransport
+    {
+        $transport = self::getContainer()->get('messenger.transport.card_eval');
+        self::assertInstanceOf(InMemoryTransport::class, $transport);
+
+        return $transport;
+    }
+
+    /** @return list<string> */
+    private function sentCardIds(): array
+    {
+        return array_values(array_map(
+            static fn (EvaluateCard $message): string => $message->cardId,
+            array_filter(array_map(static fn ($envelope): object => $envelope->getMessage(), $this->transport()->getSent()), static fn (object $message): bool => $message instanceof EvaluateCard),
+        ));
     }
 
     /** A card whose rule "work" gets one retry 10 minutes after a refusal, then a recovery. */
