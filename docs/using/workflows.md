@@ -306,7 +306,8 @@ A marker reads the same conditions as a rule. These conditions suit markers:
   a percentage from 1 to 100. The condition reads false for a bridge with no
   name, for a bridge that you renamed, for a window whose reset time passed with
   no new reading, and for a reading that gives no use. A new reading evaluates
-  the cards of the projects that the bridge follows. See
+  the cards that wait for a bridge. It also evaluates every open card of a
+  project whose workflow uses this condition. See
   [Account usage](analytics.md#account-usage).
 - `card.inbox.open_question`: an open inbox question names the card. The
   optional `blocking` is `true` to match only a blocking ask, or `false` to
