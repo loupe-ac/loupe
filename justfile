@@ -288,6 +288,7 @@ audit:
     bin/worktrees/compose-exec.sh composer audit --locked
     npm audit
     cd e2e && npm audit
+    cd website && npm audit
 
 # Not part of `ci`, unlike `audit` above: needs host tooling as well as outbound
 # network, and scans all of history rather than the current tree. gitleaks matches
