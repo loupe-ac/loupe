@@ -151,7 +151,20 @@ describe('subscribe', () => {
         expect(onError).not.toHaveBeenCalled();
     });
 
-    it('reopens when a Turbo visit changes the topics', () => {
+    it('keeps the connection when a Turbo visit asks for the same topics', () => {
+        subscribe(BOARD, vi.fn());
+        vi.runOnlyPendingTimers();
+        const first = latest();
+
+        renderPage([BOARD_TOPIC, REVIEW_TOPIC]);
+        document.dispatchEvent(new Event('turbo:load'));
+        vi.runOnlyPendingTimers();
+
+        expect(first.closed).toBe(false);
+        expect(FakeEventSource.instances).toHaveLength(1);
+    });
+
+    it('keeps the connection when a Turbo visit asks for fewer topics', () => {
         subscribe(BOARD, vi.fn());
         vi.runOnlyPendingTimers();
         const first = latest();
@@ -160,8 +173,22 @@ describe('subscribe', () => {
         document.dispatchEvent(new Event('turbo:load'));
         vi.runOnlyPendingTimers();
 
+        expect(first.closed).toBe(false);
+        expect(FakeEventSource.instances).toHaveLength(1);
+    });
+
+    it('reopens when a Turbo visit asks for a topic the connection lacks', () => {
+        subscribe(BOARD, vi.fn());
+        vi.runOnlyPendingTimers();
+        const first = latest();
+        const other = 'https://app.test/projects/1/documents';
+
+        renderPage([BOARD_TOPIC, other]);
+        document.dispatchEvent(new Event('turbo:load'));
+        vi.runOnlyPendingTimers();
+
         expect(first.closed).toBe(true);
-        expect(latest().topics()).toEqual([BOARD_TOPIC]);
+        expect(latest().topics()).toEqual([BOARD_TOPIC, other]);
     });
 
     it('keeps the connection when a subscription leaves and returns in one tick', () => {
