@@ -380,3 +380,11 @@ when@test:
 
         App\Tests\Module\Workflow\Fact\ListsDocumentsReady:
             autoconfigure: true
+
+        # Paratest processes share one cache directory, so a clear() in one
+        # process wipes the entries of another. Each process gets its own.
+        cache.app:
+            class: Symfony\Component\Cache\Adapter\FilesystemAdapter
+            arguments: ['app', 0, '%kernel.cache_dir%/pools/test%env(default::TEST_TOKEN)%']
+            tags:
+                - { name: cache.pool, clearer: cache.app_clearer, reset: reset }
