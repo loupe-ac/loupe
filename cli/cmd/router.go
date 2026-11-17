@@ -1361,9 +1361,20 @@ func (r *router) reserveProjectLocked(dir string) func() {
 }
 
 // guardFolder runs the folder guard once on the folder that res names, and
-// records a refusal as the failure of the before command.
+// records a refusal as the failure of the before command. A failed before
+// command still claims the worktree it made, so the next run of the card is
+// not refused.
 func (r *router) guardFolder(p pending, res procResult) procResult {
-	if res.guarded || res.failure() != "" || res.dir == "" || res.noFolder {
+	if res.guarded {
+		return res
+	}
+	if res.failure() != "" {
+		res.guarded = true
+		r.claimFailedFolder(p, res)
+
+		return res
+	}
+	if res.dir == "" || res.noFolder {
 		return res
 	}
 	res.guarded = true
@@ -1427,6 +1438,15 @@ func (r *router) afterBefore(p pending, began time.Time, res procResult) {
 	}
 	failed := workerResult{exitCode: code, output: failedOutput(withCommandLine(failure, argv), res.output), killed: res.killed && !res.timedOut, timedOut: res.timedOut, dir: res.runDir, before: true}
 	r.settle(p, endedRun{res: failed, began: began, elapsed: time.Since(began)})
+}
+
+// claimFailedFolder claims for the card of the run the worktree that its failed
+// before command made.
+func (r *router) claimFailedFolder(p pending, res procResult) {
+	card, _ := cardOf(p.event)
+	r.folderMu.Lock()
+	defer r.folderMu.Unlock()
+	claimMadeWorktree(r.workerContext(), p.spec.dir, res.runDir, card)
 }
 
 // refuseFolder runs the folder guard on the folder the before command printed,

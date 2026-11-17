@@ -2243,6 +2243,10 @@ with no claim file passes and gets the claim when the command made it in this
 run. A folder that already existed and has no claim fails, because a person or
 another tool can have made it.
 
+A `before` command that fails still claims the worktree it made for the card,
+so the next run of the card passes in that folder. The bridge claims it only
+when the command made exactly one new worktree.
+
 The `before` commands of one project run one at a time, from that list until
 the check of the printed folder. So a worktree that another card's `before`
 command makes cannot pass as the worktree of this run. Cards of one project
