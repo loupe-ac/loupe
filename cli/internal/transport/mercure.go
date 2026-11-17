@@ -17,6 +17,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/loupe-ac/loupe/cli/internal/config"
 )
 
 // Handler receives stream lifecycle and data callbacks. Any may be nil.
@@ -61,9 +63,12 @@ func Fatal(err error) error { return fatal{err} }
 // cancelled. It only returns a non-nil error for unrecoverable setup problems
 // and for a token error that Fatal wraps; transient stream failures (and other
 // token refresh failures) are reported via Handler.OnError and retried.
-func Subscribe(ctx context.Context, hc *http.Client, hubURL string, topics []string, token TokenFunc, h Handler) error {
+func Subscribe(ctx context.Context, hc *http.Client, hubURL string, topics []string, token TokenFunc, h Handler, allowHTTP bool) error {
 	if len(topics) == 0 {
 		return errors.New("subscribe needs at least one topic")
+	}
+	if err := config.CheckServerURL(hubURL, allowHTTP); err != nil {
+		return fmt.Errorf("hub address: %w", err)
 	}
 	endpoint, err := url.Parse(hubURL)
 	if err != nil {
