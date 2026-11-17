@@ -7,9 +7,9 @@ description: "Creating the first administrator, and why sign-up is closed until 
 Set `INSTALL_TOKEN` **before** the first deploy. The install wizard at
 `/install` is how you create the first administrator, and in production it
 **fails closed**: with `APP_ENV=prod` and no token configured it returns 404
-outright. A forgotten variable locks the wizard rather than exposing it. Append
-the token once as `?token=<value>`; the app remembers it for the rest of that
-session.
+outright. A forgotten variable locks the wizard rather than exposing it. Open `/install`, and paste the token into the form that it shows. The app
+remembers it for the rest of that session. Never put the token in the URL,
+because the access log and the browser history would keep it.
 
 If you forget it you are not locked out, but the fix is a shell rather than a
 browser — see [Recovering an instance](recovering.md).
