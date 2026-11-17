@@ -101,8 +101,15 @@ if [ $applies = yes ]; then
       cited=no
       while IFS= read -r nline; do
         grep -qiE 'accepted by the owner.*inbox item [0-9a-f][0-9a-f-]{7,}' <<<"$nline" || continue
-        [ -z "$state" ] || grep -qiF -- "$state" <<<"$nline" || continue
-        [ -z "$reason" ] || grep -qiF -- "$reason" <<<"$nline" || continue
+        lower_line=$(tr '[:upper:]' '[:lower:]' <<<"${nline#- }")
+        if [ -n "$state" ]; then
+          lower_state=$(tr '[:upper:]' '[:lower:]' <<<"$state")
+          case $lower_line in "$lower_state:"* | "$lower_state :"*) ;; *) continue ;; esac
+        fi
+        if [ -n "$reason" ]; then
+          lower_reason=$(tr '[:upper:]' '[:lower:]' <<<"$reason")
+          case $lower_line in *"accepted by the owner: $lower_reason ("* | *"accepted by the owner: $lower_reason("*) ;; *) continue ;; esac
+        fi
         cited=yes
         break
       done < "$notes"
