@@ -24,6 +24,16 @@ final readonly class AccountUsageFactProvider implements FactProvider
     }
 
     #[\Override]
+    public function sourceTables(): array
+    {
+        return [
+            'bridge_account_readings',
+            'bridges',
+            'projects',
+        ];
+    }
+
+    #[\Override]
     public function isOn(): bool
     {
         return true;

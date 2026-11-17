@@ -38,6 +38,24 @@ final readonly class FactsBuilder
     ) {
     }
 
+    /**
+     * The SQL tables that the engine reads for a card, besides the tables of the providers.
+     *
+     * @return list<string>
+     */
+    public function sourceTables(): array
+    {
+        return [
+            'board_cards',
+            'board_columns',
+            'projects',
+            'workflow_bindings',
+            'workflow_pending_baselines',
+            'workflow_rule_states',
+            'workflow_slot_links',
+        ];
+    }
+
     public function build(CardSnapshot $snapshot, \DateTimeImmutable $now): Facts
     {
         $provided = $this->pass->during(fn (): array => $this->providedByClass($snapshot));

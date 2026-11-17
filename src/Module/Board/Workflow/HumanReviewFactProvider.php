@@ -28,6 +28,21 @@ final readonly class HumanReviewFactProvider extends BoardFactProvider
     }
 
     #[\Override]
+    public function sourceTables(): array
+    {
+        return [
+            'agent_reviews',
+            'board_card_pull_requests',
+            'board_cards',
+            'board_columns',
+            'forge_pull_requests',
+            'forge_repositories',
+            'workflow_bindings',
+            'workflow_setting_overrides',
+        ];
+    }
+
+    #[\Override]
     public function legacyGroup(): string
     {
         return 'human-review';

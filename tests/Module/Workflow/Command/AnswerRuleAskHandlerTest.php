@@ -37,6 +37,7 @@ use App\Module\Workflow\Entity\WorkflowRuleState;
 use App\Module\Workflow\Entity\WorkflowSlotLink;
 use App\Module\Workflow\Messenger\EvaluateCard;
 use App\Module\Workflow\Messenger\EvaluateCardHandler;
+use App\Module\Workflow\Repository\WorkflowCardChangeRepository;
 use App\Module\Workflow\Repository\WorkflowQueuedEvaluationRepository;
 use App\Module\Workflow\Repository\WorkflowRuleStateRepository;
 use App\Tests\Module\Workflow\Action\ActionScenario;
@@ -333,7 +334,7 @@ final class AnswerRuleAskHandlerTest extends KernelTestCase
 
     private function evaluate(Card $card): void
     {
-        $handler = new EvaluateCardHandler(new EvaluateWorkflowCardHandler($this->service(Engine::class), new MockClock()), $this->service(WorkflowQueuedEvaluationRepository::class), new EventDispatcher());
+        $handler = new EvaluateCardHandler(new EvaluateWorkflowCardHandler($this->service(Engine::class), new MockClock()), $this->service(WorkflowQueuedEvaluationRepository::class), $this->service(WorkflowCardChangeRepository::class), new EventDispatcher());
         $handler(new EvaluateCard((string) $card->id));
         $this->em()->flush();
     }

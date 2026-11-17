@@ -62,11 +62,11 @@ final class FullDevSeedTest extends KernelTestCase
 {
     private const string DAY = '2026-11-01 12:00:00';
 
-    /** The tables whose rows a later day adds: the daily demo runs, their card and the buckets of their tool time. */
+    /** The tables whose rows a later day adds: the daily demo runs, their card, the buckets of their tool time and the mark of that card. */
     private const array TIME_SERIES_TABLES = [
         'board_cards', 'board_card_events', 'bridge_worker_runs', 'bridge_worker_run_facts',
         'bridge_worker_run_tool_calls', 'bridge_worker_run_usage', 'bridge_worker_run_bucket_times',
-        'bridge_account_readings',
+        'bridge_account_readings', 'workflow_card_changes',
     ];
 
     private const string SPEND_QUERY = 'SELECT SUM(cost_usd) AS cost, SUM(input_tokens) AS input, SUM(output_tokens) AS output FROM bridge_worker_run_usage';

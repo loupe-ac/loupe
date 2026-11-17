@@ -21,6 +21,16 @@ final readonly class EpicBranchSyncFactProvider extends BoardFactProvider
     }
 
     #[\Override]
+    public function sourceTables(): array
+    {
+        return [
+            'board_card_links',
+            'board_cards',
+            'board_columns',
+        ];
+    }
+
+    #[\Override]
     public function legacyGroup(): string
     {
         return 'epic-branch-sync';

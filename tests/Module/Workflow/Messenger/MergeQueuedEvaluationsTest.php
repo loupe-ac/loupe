@@ -10,6 +10,7 @@ use App\Module\Workflow\Engine\Engine;
 use App\Module\Workflow\Install\WorkflowInstallFlags;
 use App\Module\Workflow\Messenger\EvaluateCard;
 use App\Module\Workflow\Messenger\EvaluateCardHandler;
+use App\Module\Workflow\Repository\WorkflowCardChangeRepository;
 use App\Module\Workflow\Repository\WorkflowQueuedEvaluationRepository;
 use App\Module\Workflow\Service\EvaluationTrigger;
 use App\Module\Workflow\Service\WorkflowRowCleaner;
@@ -129,6 +130,7 @@ final class MergeQueuedEvaluationsTest extends KernelTestCase
         return new EvaluateCardHandler(
             new EvaluateWorkflowCardHandler($this->service(Engine::class), new MockClock('2026-10-30 12:00:00')),
             $this->service(WorkflowQueuedEvaluationRepository::class),
+            $this->service(WorkflowCardChangeRepository::class),
             new EventDispatcher(),
         );
     }

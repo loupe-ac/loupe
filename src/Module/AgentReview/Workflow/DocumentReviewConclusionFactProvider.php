@@ -24,6 +24,14 @@ final readonly class DocumentReviewConclusionFactProvider implements FactProvide
     }
 
     #[\Override]
+    public function sourceTables(): array
+    {
+        return [
+            'document_agent_reviews',
+        ];
+    }
+
+    #[\Override]
     public function isOn(): bool
     {
         return true;

@@ -110,6 +110,35 @@ final class DeleteWorkflowDataOnProjectDeletingTest extends KernelTestCase
         self::assertSame([0, 0, 0, 0], $this->rowCounts($projectId));
     }
 
+    public function test_no_change_mark_outlives_a_deleted_project(): void
+    {
+        self::bootKernel();
+        $doomed = $this->workflowProject('marks-deleter');
+        $spared = $this->workflowProject('marks-spared');
+        $this->ruleState($doomed);
+        $this->ruleState($spared);
+        $connection = $this->em()->getConnection();
+        $doomedCards = $connection->fetchFirstColumn('SELECT id FROM board_cards WHERE project_id = :id', ['id' => (string) $doomed->id]);
+        $sparedCards = $connection->fetchFirstColumn('SELECT id FROM board_cards WHERE project_id = :id', ['id' => (string) $spared->id]);
+        self::assertNotSame([], $doomedCards);
+        $doomedId = (string) $doomed->id;
+        $sparedId = (string) $spared->id;
+        self::assertSame(1, (int) $connection->fetchOne('SELECT COUNT(*) FROM workflow_project_changes WHERE project_id = :id', ['id' => $doomedId]));
+
+        $deleter = self::getContainer()->get(ProjectDeleter::class);
+        self::assertInstanceOf(ProjectDeleter::class, $deleter);
+        $deleter->delete($doomed);
+
+        self::assertSame(0, (int) $connection->fetchOne('SELECT COUNT(*) FROM workflow_project_changes WHERE project_id = :id', ['id' => $doomedId]));
+        foreach ($doomedCards as $card) {
+            self::assertSame(0, (int) $connection->fetchOne('SELECT COUNT(*) FROM workflow_card_changes WHERE card_id = :id', ['id' => $card]));
+        }
+        self::assertSame(1, (int) $connection->fetchOne('SELECT COUNT(*) FROM workflow_project_changes WHERE project_id = :id', ['id' => $sparedId]));
+        foreach ($sparedCards as $card) {
+            self::assertSame(1, (int) $connection->fetchOne('SELECT COUNT(*) FROM workflow_card_changes WHERE card_id = :id', ['id' => $card]));
+        }
+    }
+
     private function ruleState(Project $project): void
     {
         $card = new Card($project, $this->column($project, 'next'), 'Card', '', 1);

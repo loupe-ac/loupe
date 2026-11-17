@@ -24,6 +24,20 @@ final readonly class ParentDocumentsFactProvider extends BoardFactProvider
     }
 
     #[\Override]
+    public function sourceTables(): array
+    {
+        return [
+            'board_card_documents',
+            'board_cards',
+            'document_tags',
+            'document_versions',
+            'documents',
+            'reviews',
+            'tags',
+        ];
+    }
+
+    #[\Override]
     public function legacyGroup(): string
     {
         return 'parent-documents';

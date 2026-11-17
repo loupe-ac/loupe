@@ -20,6 +20,7 @@ use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Engine\Engine;
 use App\Module\Workflow\Messenger\EvaluateCard;
 use App\Module\Workflow\Messenger\EvaluateCardHandler;
+use App\Module\Workflow\Repository\WorkflowCardChangeRepository;
 use App\Module\Workflow\Repository\WorkflowQueuedEvaluationRepository;
 use App\Tests\Module\Workflow\Action\ActionScenario;
 use App\Tests\Support\EpicBranchesExist;
@@ -144,6 +145,7 @@ final class ColumnEventsReachRelatedCardsTest extends KernelTestCase
         $handler = new EvaluateCardHandler(
             new EvaluateWorkflowCardHandler($this->service(Engine::class), new MockClock('2026-10-02 12:00:00')),
             $this->service(WorkflowQueuedEvaluationRepository::class),
+            $this->service(WorkflowCardChangeRepository::class),
             new EventDispatcher(),
         );
         foreach ($cardIds as $cardId) {

@@ -35,6 +35,22 @@ final readonly class DocumentReviewFactProvider implements FactProvider
     }
 
     #[\Override]
+    public function sourceTables(): array
+    {
+        return [
+            'board_card_documents',
+            'board_cards',
+            'document_agent_reviews',
+            'document_tags',
+            'document_versions',
+            'documents',
+            'reviews',
+            'tags',
+            'workflow_bindings',
+        ];
+    }
+
+    #[\Override]
     public function isOn(): bool
     {
         return true;

@@ -25,6 +25,18 @@ final readonly class WaitingAskFactProvider implements FactProvider
     }
 
     #[\Override]
+    public function sourceTables(): array
+    {
+        return [
+            'bridge_worker_runs',
+            'feature_flag',
+            'inbox_ask_items',
+            'inbox_asks',
+            'inbox_items',
+        ];
+    }
+
+    #[\Override]
     public function isOn(): bool
     {
         return true;

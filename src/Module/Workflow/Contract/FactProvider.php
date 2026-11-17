@@ -25,6 +25,13 @@ interface FactProvider
     /** The part of the facts whose change counts as a change, comparable across evaluations. */
     public function fingerprint(object $facts): mixed;
 
+    /**
+     * The SQL tables that build() reads, for any card. The trigger migration and the tests use the list.
+     *
+     * @return list<string>
+     */
+    public function sourceTables(): array;
+
     /** The translation key of the label of the module that owns the facts. */
     public function source(): string;
 }
