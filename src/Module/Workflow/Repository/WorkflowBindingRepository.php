@@ -44,6 +44,27 @@ class WorkflowBindingRepository extends ServiceEntityRepository
     }
 
     /**
+     * The stored `types` and `defaultType` alone, so a caller that needs only the card types skips the rules of the template. Null when the project is bound to no template.
+     *
+     * @return array{types: mixed, defaultType: mixed}|null
+     */
+    public function findTypesSource(Uuid $projectId): ?array
+    {
+        $row = $this->getEntityManager()->getConnection()->fetchAssociative(
+            'SELECT definition->\'types\' AS types, definition->\'defaultType\' AS default_type FROM workflow_bindings WHERE project_id = :projectId',
+            ['projectId' => $projectId->toRfc4122()],
+        );
+        if (false === $row) {
+            return null;
+        }
+
+        return [
+            'types' => \is_string($row['types']) ? json_decode($row['types'], true, 512, \JSON_THROW_ON_ERROR) : null,
+            'defaultType' => \is_string($row['default_type']) ? json_decode($row['default_type'], true, 512, \JSON_THROW_ON_ERROR) : null,
+        ];
+    }
+
+    /**
      * The skill packages and the profile need that the stored copy of each project names, in one read. A copy from before the fields has null for both, and so has a value that the template parser would drop from a stored copy.
      *
      * @param list<Uuid> $projectIds
