@@ -38,10 +38,10 @@ final readonly class MarkEmailVerifiedHandler
             ?? throw new DomainErrors(['email' => 'account.console.error.user_not_found']);
 
         // Revoked before the already-verified check, not after it: /register/verify
-        // logs in whoever presents a valid token and never asks whether the account
-        // is verified already, while social linking sets emailVerifiedAt without
-        // clearing it. So "already verified" is precisely the state a live login
-        // link survives in, and returning early there would leave it working.
+        // never asks whether the account is verified already, while social linking
+        // sets emailVerifiedAt without clearing the token. So "already verified" is
+        // precisely the state a live link survives in, and returning early there
+        // would leave it working.
         $tokenRevoked = $user->hasEmailVerificationToken();
         $user->clearEmailVerificationToken();
 
