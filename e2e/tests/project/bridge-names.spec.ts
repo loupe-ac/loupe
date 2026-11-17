@@ -64,27 +64,27 @@ test('a bridge shows its name, and a second claim of the name shows a clash', as
     await heartbeat(unnamed);
 
     await page.goto(`/projects/${projectId}/agents`);
-    const card = (bridgeId: string) =>
+    const agentCard = (bridgeId: string) =>
         page.locator(`[data-agent-connection-id="${bridgeId}"]`);
-    await expect(card(holder).locator('.lp-agent-card__name')).toHaveText(
+    await expect(agentCard(holder).locator('.lp-agent-card__name')).toHaveText(
         'homelab',
     );
-    await expect(card(holder).locator('[data-agent-name-clash]')).toHaveCount(
-        0,
-    );
-    await expect(card(claimer).locator('.lp-agent-card__name')).toHaveText(
+    await expect(
+        agentCard(holder).locator('[data-agent-name-clash]'),
+    ).toHaveCount(0);
+    await expect(agentCard(claimer).locator('.lp-agent-card__name')).toHaveText(
         claimer.slice(-12),
     );
-    const clash = card(claimer).locator('[data-agent-name-clash]');
+    const clash = agentCard(claimer).locator('[data-agent-name-clash]');
     await expect(clash).toBeVisible();
     await expect(clash).toContainText('Name already in use');
     await expect(clash).toContainText('homelab');
-    await expect(card(unnamed).locator('.lp-agent-card__name')).toHaveText(
+    await expect(agentCard(unnamed).locator('.lp-agent-card__name')).toHaveText(
         unnamed.slice(-12),
     );
-    await expect(card(unnamed).locator('[data-agent-name-clash]')).toHaveCount(
-        0,
-    );
+    await expect(
+        agentCard(unnamed).locator('[data-agent-name-clash]'),
+    ).toHaveCount(0);
 
     await report(holder);
     await report(unnamed);
