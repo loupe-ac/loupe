@@ -176,6 +176,7 @@ export default defineConfig({
             { slug: 'operating/restoring' },
             { slug: 'operating/rotating-encryption-key' },
             { slug: 'operating/rotating-secrets' },
+            { slug: 'operating/release-signing' },
           ],
         },
         {

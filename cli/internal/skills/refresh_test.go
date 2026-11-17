@@ -16,6 +16,7 @@ import (
 	"testing"
 
 	"github.com/loupe-ac/loupe/cli/internal/update"
+	"github.com/loupe-ac/loupe/cli/internal/update/signtest"
 )
 
 // pkgFile is one file of a test archive.
@@ -63,11 +64,14 @@ type fakeReleases struct {
 	sums     map[string][]byte
 	releases []update.Release
 	hits     int
+	// key signs the checksums of each release, and is the only trusted key.
+	key *signtest.Key
 }
 
 func newFakeReleases(t *testing.T) *fakeReleases {
 	t.Helper()
-	f := &fakeReleases{archives: map[string][]byte{}, sums: map[string][]byte{}}
+	f := &fakeReleases{archives: map[string][]byte{}, sums: map[string][]byte{}, key: signtest.New(t)}
+	f.key.Trust(t)
 	f.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		f.mu.Lock()
 		defer f.mu.Unlock()
@@ -91,12 +95,15 @@ func (f *fakeReleases) publish(pkg, version string, archive []byte) *update.Rele
 	name := pkg + "_" + version + ".tar.gz"
 	sum := sha256.Sum256(archive)
 	f.archives["/"+name] = archive
-	f.sums["/sums/"+pkg+"/"+version] = []byte(hex.EncodeToString(sum[:]) + "  " + name + "\n")
+	sums := []byte(hex.EncodeToString(sum[:]) + "  " + name + "\n")
+	f.sums["/sums/"+pkg+"/"+version] = sums
+	f.sums["/sigs/"+pkg+"/"+version] = f.key.Sign(sums)
 	f.releases = append(f.releases, update.Release{
 		TagName: "skills/" + pkg + "/v" + version,
 		Assets: []update.Asset{
 			{Name: name, URL: f.server.URL + "/" + name},
 			{Name: "checksums.txt", URL: f.server.URL + "/sums/" + pkg + "/" + version},
+			{Name: "checksums.txt.sig", URL: f.server.URL + "/sigs/" + pkg + "/" + version},
 		},
 	})
 
@@ -524,5 +531,188 @@ func TestStatusNamesAPackageWithNoUsableVersion(t *testing.T) {
 
 	if got.State != StateFailed || got.Version != "" || got.Reason == "" {
 		t.Fatalf("got %+v", got)
+	}
+}
+
+func TestRefreshInstallsNothingFromAReleaseWithABadSignature(t *testing.T) {
+	dir, f := t.TempDir(), newFakeReleases(t)
+	put(t, dir, "loupe", "1.0.0", "")
+	f.publish("loupe", "1.2.0", goodArchive(t, "1.2.0", `{}`))
+	f.publish("loupe", "1.1.0", goodArchive(t, "1.1.0", `{}`))
+	f.sums["/sigs/loupe/1.2.0"] = signtest.New(t).Sign(f.sums["/sums/loupe/1.2.0"])
+
+	got := refresh(t, f, dir, "1.0.0", nil, "loupe")
+
+	if got[0].Installed != "1.1.0" || got[0].Version != "1.1.0" {
+		t.Fatalf("got %+v, want the lower version 1.1.0", got[0])
+	}
+	if got[0].State != StateFailed || !strings.Contains(got[0].Reason, "signature") || !strings.Contains(got[0].Reason, "1.2.0") {
+		t.Fatalf("the result does not name the signature of 1.2.0: %+v", got[0])
+	}
+	if _, err := os.Stat(filepath.Join(StoreDir(dir), "loupe", "1.2.0")); err == nil {
+		t.Fatal("the version with a bad signature is in the store")
+	}
+}
+
+func TestRefreshChecksTheSignatureBeforeItDownloadsTheArchive(t *testing.T) {
+	dir, f := t.TempDir(), newFakeReleases(t)
+	f.publish("loupe", "1.1.0", goodArchive(t, "1.1.0", `{}`))
+	f.sums["/sigs/loupe/1.1.0"] = []byte("garbage")
+	archiveHits := 0
+	inner := f.server.Config.Handler
+	f.server.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, ".tar.gz") {
+			archiveHits++
+		}
+		inner.ServeHTTP(w, r)
+	})
+
+	got := refresh(t, f, dir, "1.0.0", nil, "loupe")
+
+	if got[0].State != StateFailed || archiveHits != 0 {
+		t.Fatalf("got %+v, archive downloads %d", got[0], archiveHits)
+	}
+}
+
+func TestRefreshRetriesAVersionWithABadSignatureOnTheNextRun(t *testing.T) {
+	dir, f := t.TempDir(), newFakeReleases(t)
+	f.publish("loupe", "1.1.0", goodArchive(t, "1.1.0", `{}`))
+	good := f.sums["/sigs/loupe/1.1.0"]
+	f.sums["/sigs/loupe/1.1.0"] = []byte("garbage")
+	blocked := map[string]string{}
+	if got := refresh(t, f, dir, "1.0.0", blocked, "loupe"); got[0].State != StateFailed {
+		t.Fatalf("got %+v", got[0])
+	}
+	if len(blocked) != 0 {
+		t.Fatalf("a bad signature blocked the version for the process: %v", blocked)
+	}
+	f.sums["/sigs/loupe/1.1.0"] = good
+	if got := refresh(t, f, dir, "1.0.0", blocked, "loupe"); got[0].Installed != "1.1.0" {
+		t.Fatalf("got %+v", got[0])
+	}
+}
+
+func TestRefreshIgnoresAReleaseWithNoSignatureAsset(t *testing.T) {
+	dir, f := t.TempDir(), newFakeReleases(t)
+	f.publish("loupe", "1.1.0", goodArchive(t, "1.1.0", `{}`))
+	f.publish("loupe", "1.2.0", goodArchive(t, "1.2.0", `{}`))
+	last := &f.releases[len(f.releases)-1]
+	last.Assets = last.Assets[:2]
+
+	got := refresh(t, f, dir, "1.0.0", nil, "loupe")
+
+	if got[0].Installed != "1.1.0" || got[0].State != StateCurrent {
+		t.Fatalf("got %+v", got[0])
+	}
+}
+
+func TestRefreshWritesTheSignerNextToTheVersion(t *testing.T) {
+	dir, f := t.TempDir(), newFakeReleases(t)
+	f.publish("loupe", "1.1.0", goodArchive(t, "1.1.0", `{}`))
+
+	refresh(t, f, dir, "1.0.0", nil, "loupe")
+
+	data, err := os.ReadFile(filepath.Join(StoreDir(dir), "loupe", "1.1.0", ".signer"))
+	if err != nil || strings.TrimSpace(string(data)) != f.key.Fingerprint {
+		t.Fatalf(".signer = %q, %v, want %s", data, err, f.key.Fingerprint)
+	}
+}
+
+func TestRefreshRefusesARevokedKey(t *testing.T) {
+	dir, f := t.TempDir(), newFakeReleases(t)
+	f.publish("loupe", "1.1.0", goodArchive(t, "1.1.0", `{}`))
+	if _, err := update.AddRevoked(dir, []string{f.key.Fingerprint}); err != nil {
+		t.Fatal(err)
+	}
+
+	got := refresh(t, f, dir, "1.0.0", nil, "loupe")
+
+	if got[0].State != StateFailed || got[0].Installed != "" {
+		t.Fatalf("got %+v", got[0])
+	}
+}
+
+// storeSigned puts a version in the store as the refresh does, with its signer.
+func storeSigned(t *testing.T, dir, pkg, version, signer string) {
+	t.Helper()
+	put(t, dir, pkg, version, "")
+	if err := os.WriteFile(filepath.Join(StoreDir(dir), pkg, version, ".signer"), []byte(signer+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestAStoredVersionFromARevokedKeyIsNeverPickedAndTheRefreshDeletesIt(t *testing.T) {
+	dir := t.TempDir()
+	storeSigned(t, dir, "loupe", "1.0.0", "SHA256:good")
+	storeSigned(t, dir, "loupe", "2.99.0", "SHA256:stolen")
+	if _, err := update.AddRevoked(dir, []string{"SHA256:stolen"}); err != nil {
+		t.Fatal(err)
+	}
+
+	picks, err := Resolve(dir, "1.5.0", []string{"loupe"})
+	if err != nil || picks[0].Version != "1.0.0" {
+		t.Fatalf("Resolve = %+v, %v, want the highest version left, 1.0.0", picks, err)
+	}
+	if cur := Current(dir, "1.5.0", [][]string{{"loupe"}}); cur["loupe/2.99.0"] || !cur["loupe/1.0.0"] {
+		t.Fatalf("Current = %v", cur)
+	}
+	if _, err := os.Stat(filepath.Join(StoreDir(dir), "loupe", "2.99.0")); err != nil {
+		t.Fatal("the folder is gone before a refresh")
+	}
+
+	f := newFakeReleases(t)
+	f.publish("loupe", "1.0.0", goodArchive(t, "1.0.0", `{}`))
+	refresh(t, f, dir, "1.5.0", nil, "loupe")
+
+	if _, err := os.Stat(filepath.Join(StoreDir(dir), "loupe", "2.99.0")); err == nil {
+		t.Fatal("the refresh kept the version of the revoked key")
+	}
+	if _, err := os.Stat(filepath.Join(StoreDir(dir), "loupe", "1.0.0")); err != nil {
+		t.Fatal("the refresh deleted the good version")
+	}
+}
+
+func TestACodexPickSkipsAVersionFromARevokedKey(t *testing.T) {
+	dir := t.TempDir()
+	storeSigned(t, dir, "loupe", "1.0.0", "SHA256:good")
+	storeSigned(t, dir, "loupe", "2.99.0", "SHA256:stolen")
+	if _, err := update.AddRevoked(dir, []string{"SHA256:stolen"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range CodexPicks(dir, "1.5.0") {
+		if p.Version == "2.99.0" {
+			t.Fatalf("CodexPicks chose %+v", p)
+		}
+	}
+}
+
+func TestExactRefusesARecordedVersionFromARevokedKey(t *testing.T) {
+	dir := t.TempDir()
+	storeSigned(t, dir, "loupe", "1.0.0", "SHA256:good")
+	storeSigned(t, dir, "loupe", "2.99.0", "SHA256:stolen")
+	recorded := map[string]string{"loupe": "2.99.0"}
+	if _, ok := Exact(dir, recorded); !ok {
+		t.Fatal("Exact refused a version before its key was revoked")
+	}
+	if _, err := update.AddRevoked(dir, []string{"SHA256:stolen"}); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, ok := Exact(dir, recorded); ok {
+		t.Fatal("Exact returned a version from a revoked key, before the refresh deleted it")
+	}
+	if picks, ok := Exact(dir, map[string]string{"loupe": "1.0.0"}); !ok || len(picks) != 1 {
+		t.Fatalf("Exact refused a good version: %+v", picks)
+	}
+}
+
+func TestAVersionWithNoSignerFileIsNotRevoked(t *testing.T) {
+	dir := t.TempDir()
+	put(t, dir, "loupe", "1.0.0", "")
+	if _, err := update.AddRevoked(dir, []string{"SHA256:stolen"}); err != nil {
+		t.Fatal(err)
+	}
+	if picks, err := Resolve(dir, "1.5.0", []string{"loupe"}); err != nil || picks[0].Version != "1.0.0" {
+		t.Fatalf("Resolve = %+v, %v", picks, err)
 	}
 }

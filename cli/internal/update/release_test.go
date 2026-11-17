@@ -20,7 +20,7 @@ func release(tag string, assets ...string) Release {
 }
 
 func full(tag, version string) Release {
-	return release(tag, "loupe_"+version+"_linux_amd64.tar.gz", "checksums.txt")
+	return release(tag, "loupe_"+version+"_linux_amd64.tar.gz", "checksums.txt", "checksums.txt.sig")
 }
 
 func TestAssetName(t *testing.T) {
@@ -47,7 +47,7 @@ func TestPickReturnsTheHighestUsableRelease(t *testing.T) {
 		full("cli/v1.6.5", "1.6.5"),
 		full("cli/v2.0.0", "2.0.0"),
 		full("cli/v1.9.7-rc.1", "1.9.7-rc.1"),
-		release("cli/v1.9.6", "loupe_1.9.6_darwin_amd64.tar.gz", "checksums.txt"),
+		release("cli/v1.9.6", "loupe_1.9.6_darwin_amd64.tar.gz", "checksums.txt", "checksums.txt.sig"),
 	}
 
 	got, ok := Pick(releases, "^1.0", "linux", "amd64", map[string]bool{"1.6.5": true})
@@ -62,6 +62,20 @@ func TestPickReturnsTheHighestUsableRelease(t *testing.T) {
 	}
 	if got.Checksums.Name != "checksums.txt" || got.Checksums.URL != "https://example.test/cli/v1.5.0/checksums.txt" {
 		t.Fatalf("Checksums = %+v", got.Checksums)
+	}
+}
+
+func TestPickIgnoresAReleaseWithNoSignature(t *testing.T) {
+	unsigned := release("cli/v1.9.0", "loupe_1.9.0_linux_amd64.tar.gz", "checksums.txt")
+	got, ok := Pick([]Release{full("cli/v1.2.0", "1.2.0"), unsigned}, "^1.0", "linux", "amd64", nil)
+	if !ok || got.Tag != "cli/v1.2.0" {
+		t.Fatalf("Pick = %+v, %v, want the signed cli/v1.2.0", got, ok)
+	}
+	if got.Signature.URL != "https://example.test/cli/v1.2.0/checksums.txt.sig" {
+		t.Fatalf("Signature = %+v", got.Signature)
+	}
+	if _, ok := Pick([]Release{unsigned}, "^1.0", "linux", "amd64", nil); ok {
+		t.Fatal("Pick found a release with no signature")
 	}
 }
 

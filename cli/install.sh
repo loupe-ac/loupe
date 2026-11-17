@@ -85,6 +85,38 @@ sha256() {
 	fi
 }
 
+# write_release_keys prints the keys that may sign a release, in allowed_signers format.
+# The markers are comment lines for ssh-keygen. Keep one key on each line between them.
+write_release_keys() {
+	cat <<'EOF'
+# BEGIN release_keys
+loupe-release ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAUeC5MaWHXeMaiqKi9xzbbVIBvclqrpBTYr8OdIQUOs
+loupe-release ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJ45ZR/m+TS0VjF4rHIbtWD5JcIcbqhW4TegaR0CuWZb
+# END release_keys
+EOF
+}
+
+# check_release VERSION downloads checksums.txt of a release and its signature, and checks
+# the signature against the trusted keys. On failure it sets reason and returns 1.
+check_release() {
+	rel="$work/$1"
+	rbase="$github_download/loupe-ac/loupe/releases/download/cli/v$1"
+	mkdir -p "$rel"
+	if ! fetch "$rbase/checksums.txt" "$rel/checksums.txt"; then
+		reason='cannot download checksums.txt'
+		return 1
+	fi
+	if ! fetch "$rbase/checksums.txt.sig" "$rel/checksums.txt.sig"; then
+		reason='cannot download checksums.txt.sig'
+		return 1
+	fi
+	if ! ssh-keygen -Y verify -f "$work/allowed_signers" -I loupe-release -n loupe-release \
+		-s "$rel/checksums.txt.sig" <"$rel/checksums.txt" >/dev/null 2>&1; then
+		reason='the signature of checksums.txt is not valid for a trusted key'
+		return 1
+	fi
+}
+
 # ask PROMPT reads one answer from the terminal on fd 3 into answer.
 # A pasted block can feed its comment line to the prompt, so a comment counts as empty.
 ask() {
@@ -184,12 +216,12 @@ published_tags() {
 	}' "$1"
 }
 
-latest_version() {
+# candidate_versions prints the versions of the major, highest first.
+candidate_versions() {
 	# Only plain X.Y.Z tags match, so a pre-release such as cli/v1.2.0-rc1 does not.
 	sed -n 's/^cli\/v\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\)$/\1/p' "$work/tags" |
 		grep "^$major\." |
-		sort -t. -k1,1n -k2,2n -k3,3n |
-		tail -n 1
+		sort -t. -k1,1nr -k2,2nr -k3,3nr
 }
 
 main() {
@@ -225,6 +257,7 @@ main() {
 
 	has curl || has wget || die "this script needs curl or wget."
 	has sha256sum || has shasum || die "this script needs sha256sum or shasum to check the download."
+	has ssh-keygen || die "this script needs ssh-keygen from the OpenSSH client, version 8.2 or later, to check the release signature. Nothing was installed."
 
 	if has brew && brew list --formula loupe >/dev/null 2>&1; then
 		say "loupe is already installed with Homebrew. To upgrade it, run: brew upgrade loupe"
@@ -242,8 +275,12 @@ main() {
 	work=$(mktemp -d)
 	trap 'rm -rf "$work"' EXIT
 
+	write_release_keys >"$work/allowed_signers"
+
 	if [ -n "$version" ]; then
 		say "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || die "the version must look like 1.2.3, not $version."
+		reason=''
+		check_release "$version" || die "loupe $version is not signed: $reason. Nothing was installed."
 	else
 		: >"$work/tags"
 		page=1
@@ -255,17 +292,27 @@ main() {
 			cat "$work/page.tags" >>"$work/tags"
 			page=$((page + 1))
 		done
-		version=$(latest_version)
-		[ -n "$version" ] || die "no loupe CLI release $major.x found. The GitHub API rate limit can cause this. Try again later, or use --version."
+		candidates=$(candidate_versions)
+		[ -n "$candidates" ] || die "no loupe CLI release $major.x found. The GitHub API rate limit can cause this. Try again later, or use --version."
+		# The first release from the top that a trusted key signed wins.
+		for candidate in $candidates; do
+			reason=''
+			if check_release "$candidate"; then
+				version=$candidate
+				break
+			fi
+			say "Skipping loupe $candidate: $reason." >&2
+		done
+		[ -n "$version" ] || die "no signed loupe CLI release found. Nothing was installed. Check that ssh-keygen is OpenSSH 8.2 or later."
 	fi
 
 	archive="loupe_${version}_${os}_${arch}.tar.gz"
 	base="$github_download/loupe-ac/loupe/releases/download/cli/v$version"
 	say "Downloading loupe $version for $os/$arch."
 	fetch "$base/$archive" "$work/$archive" || die "cannot download $base/$archive."
-	fetch "$base/checksums.txt" "$work/checksums.txt" || die "cannot download $base/checksums.txt."
+	checksums="$work/$version/checksums.txt"
 
-	expected=$(awk -v f="$archive" '$2 == f { print $1 }' "$work/checksums.txt")
+	expected=$(awk -v f="$archive" '$2 == f { print $1 }' "$checksums")
 	[ -n "$expected" ] || die "checksums.txt has no entry for $archive. Nothing was installed."
 	actual=$(sha256 "$work/$archive")
 	[ "$actual" = "$expected" ] || die "the checksum of $archive does not match checksums.txt. Nothing was installed."

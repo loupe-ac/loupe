@@ -118,6 +118,11 @@ func pruneVersions(dir string, keep ...string) error {
 			delete(st.Staged, v)
 		}
 	}
+	for v := range st.Signers {
+		if !slices.Contains(keep, v) {
+			delete(st.Signers, v)
+		}
+	}
 
 	return errors.Join(append(errs, st.Save(dir))...)
 }

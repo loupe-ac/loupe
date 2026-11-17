@@ -1,0 +1,38 @@
+[
+  {
+    "attestation": {
+      "bundle": {},
+      "bundle_url": "https://api.github.com/attestations/1"
+    },
+    "verificationResult": {
+      "mediaType": "application/vnd.dev.sigstore.verificationresult+json;version=0.1",
+      "signature": {
+        "certificate": {
+          "certificateIssuer": "CN=sigstore-intermediate,O=sigstore.dev",
+          "subjectAlternativeName": "https://github.com/loupe-ac/loupe/.github/workflows/cli-release.yml@refs/tags/cli/v1.0.0",
+          "issuer": "https://token.actions.githubusercontent.com",
+          "githubWorkflowTrigger": "push",
+          "githubWorkflowSHA": "@COMMIT@",
+          "githubWorkflowName": "CLI release",
+          "githubWorkflowRepository": "loupe-ac/loupe",
+          "githubWorkflowRef": "refs/tags/cli/v1.0.0",
+          "buildSignerURI": "https://github.com/loupe-ac/loupe/.github/workflows/cli-release.yml@refs/tags/cli/v1.0.0",
+          "buildSignerDigest": "@COMMIT@",
+          "runnerEnvironment": "github-hosted",
+          "sourceRepositoryURI": "https://github.com/loupe-ac/loupe",
+          "sourceRepositoryDigest": "@COMMIT@",
+          "sourceRepositoryRef": "refs/tags/cli/v1.0.0",
+          "sourceRepositoryIdentifier": "1",
+          "sourceRepositoryOwnerURI": "https://github.com/loupe-ac",
+          "sourceRepositoryOwnerIdentifier": "2",
+          "buildConfigURI": "https://github.com/loupe-ac/loupe/.github/workflows/cli-release.yml@refs/tags/cli/v1.0.0",
+          "buildConfigDigest": "@COMMIT@",
+          "buildTrigger": "push",
+          "runInvocationURI": "https://github.com/loupe-ac/loupe/actions/runs/1/attempts/1",
+          "sourceRepositoryVisibilityAtSigning": "public"
+        }
+      },
+      "verifiedTimestamps": []
+    }
+  }
+]

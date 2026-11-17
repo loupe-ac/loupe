@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/loupe-ac/loupe/cli/internal/update"
 )
 
 // packageFile is the file of a package that names the lowest CLI it runs on and
@@ -189,8 +191,12 @@ func (s *solver) fail(err error) {
 // first.
 func (s *solver) candidates(pkg string) []candidate {
 	var list []candidate
+	revoked := update.LoadRevoked(s.configDir)
 	for _, v := range versions(s.configDir, pkg) {
 		dir := filepath.Join(StoreDir(s.configDir), pkg, v)
+		if signedByRevoked(dir, revoked) {
+			continue
+		}
 		meta := readPackage(dir)
 		if meta.MinCli != "" && s.cliVersion != "" && compareVersions(s.cliVersion, meta.MinCli) < 0 {
 			continue
@@ -201,13 +207,48 @@ func (s *solver) candidates(pkg string) []candidate {
 	return list
 }
 
+// signedByRevoked reports whether the version in dir names a revoked key as its
+// signer. A version with no signer file, which an earlier CLI stored, is not.
+func signedByRevoked(dir string, revoked []string) bool {
+	if len(revoked) == 0 {
+		return false
+	}
+	data, err := os.ReadFile(filepath.Join(dir, signerFile))
+
+	return err == nil && slices.Contains(revoked, strings.TrimSpace(string(data)))
+}
+
+// RemoveRevoked deletes each stored version whose signer is a revoked key, also
+// the highest one, and returns them as package/version.
+func RemoveRevoked(configDir string) []string {
+	revoked := update.LoadRevoked(configDir)
+	if len(revoked) == 0 {
+		return nil
+	}
+	var removed []string
+	for _, pkg := range Held(configDir) {
+		for _, v := range versions(configDir, pkg) {
+			dir := filepath.Join(StoreDir(configDir), pkg, v)
+			if signedByRevoked(dir, revoked) && os.RemoveAll(dir) == nil {
+				removed = append(removed, pkg+"/"+v)
+			}
+		}
+	}
+
+	return removed
+}
+
 // Exact returns the folders of the recorded versions, and false when any of
-// them is gone.
+// them is gone or names a revoked signer.
 func Exact(configDir string, recorded map[string]string) ([]Pick, bool) {
+	revoked := update.LoadRevoked(configDir)
 	picks := make([]Pick, 0, len(recorded))
 	for _, pkg := range slices.Sorted(maps.Keys(recorded)) {
 		dir := filepath.Join(StoreDir(configDir), pkg, recorded[pkg])
 		if info, err := os.Stat(dir); err != nil || !info.IsDir() {
+			return nil, false
+		}
+		if signedByRevoked(dir, revoked) {
 			return nil, false
 		}
 		picks = append(picks, Pick{Package: pkg, Version: recorded[pkg], Dir: dir})

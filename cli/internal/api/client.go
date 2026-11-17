@@ -147,6 +147,9 @@ type Events struct {
 	// CliRange is the range of CLI versions the server supports. An older
 	// server sends none.
 	CliRange string `json:"cliRange"`
+	// RevokedReleaseKeys lists the fingerprints of release keys the server
+	// revoked. An older server sends none.
+	RevokedReleaseKeys []string `json:"revokedReleaseKeys"`
 	// Head is the highest outbox sequence of the caller's projects, and 0 when
 	// they hold no event. An older server sends none, which reads as nil.
 	Head *int64 `json:"head"`
@@ -842,7 +845,10 @@ type HostSample struct {
 // the reply has no paused key, as from an older server.
 type HeartbeatReply struct {
 	CLIRange string
-	Paused   *bool
+	// RevokedReleaseKeys lists the fingerprints of revoked release keys. Nil
+	// says the reply names none.
+	RevokedReleaseKeys []string
+	Paused             *bool
 	// Commands are decoded and not checked. Run each through
 	// event.CheckCommand before use.
 	Commands []Command
@@ -971,6 +977,7 @@ func (c *Client) Heartbeat(ctx context.Context, bridgeID string, hb Heartbeat) (
 		// The heartbeat landed, so a reply it cannot read is not a failure.
 		var reply struct {
 			CLIRange      string            `json:"cliRange"`
+			Revoked       []string          `json:"revokedReleaseKeys"`
 			Paused        *bool             `json:"paused"`
 			Commands      []json.RawMessage `json:"commands"`
 			WorkRequests  []json.RawMessage `json:"workRequests"`
@@ -981,13 +988,14 @@ func (c *Client) Heartbeat(ctx context.Context, bridgeID string, hb Heartbeat) (
 		_ = decodeBody(resp.Body, &reply)
 
 		return HeartbeatReply{
-			CLIRange:        strings.TrimSpace(reply.CLIRange),
-			Paused:          reply.Paused,
-			Commands:        decodeCommands(reply.Commands),
-			WorkRequests:    decodeWorkRequests(reply.WorkRequests),
-			LostClaims:      decodeLostClaims(reply.LostClaims),
-			WatchSessions:   decodeWatchSessions(reply.WatchSessions),
-			BlockedAccounts: decodeBlockedAccounts(reply.Blocked),
+			CLIRange:           strings.TrimSpace(reply.CLIRange),
+			RevokedReleaseKeys: reply.Revoked,
+			Paused:             reply.Paused,
+			Commands:           decodeCommands(reply.Commands),
+			WorkRequests:       decodeWorkRequests(reply.WorkRequests),
+			LostClaims:         decodeLostClaims(reply.LostClaims),
+			WatchSessions:      decodeWatchSessions(reply.WatchSessions),
+			BlockedAccounts:    decodeBlockedAccounts(reply.Blocked),
 		}, nil
 	case resp.StatusCode == http.StatusNoContent:
 		return HeartbeatReply{}, nil
