@@ -13,12 +13,11 @@ use App\Module\Artifact\Install\ArtifactInstallFlags;
 use App\Module\Artifact\Repository\ArtifactBlobRepository;
 use App\Module\Artifact\Repository\ArtifactRepository;
 use App\Module\Artifact\Service\ArtifactCardLinksInterface;
-use App\Module\Bridge\Repository\WorkerRunRepository;
+use App\Module\Bridge\Service\CallerRun;
 use App\Module\Project\Repository\ProjectRepository;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
-use Symfony\Component\Uid\Uuid;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
@@ -36,7 +35,7 @@ final readonly class StoreArtifactVersionHandler
         private ProjectRepository $projects,
         private ArtifactRepository $artifacts,
         private ArtifactBlobRepository $artifactBlobs,
-        private WorkerRunRepository $workerRuns,
+        private CallerRun $callerRun,
         private FeatureFlagService $featureFlags,
         private ArtifactCardLinksInterface $cardLinks,
         private EntityManagerInterface $em,
@@ -63,7 +62,7 @@ final readonly class StoreArtifactVersionHandler
             throw new DomainErrors(['session' => 'artifact.error.session_too_long']);
         }
 
-        if (null !== $session && Uuid::isValid($session) && null !== $this->workerRuns->findWorkerOfSession($project, Uuid::fromString($session))) {
+        if ($this->callerRun->headerNamesWorker($project)) {
             throw new DomainErrors(['session' => 'artifact.error.worker_refused']);
         }
 

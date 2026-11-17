@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Review\Api;
 
-use App\Module\Board\Mcp\AgentRunCause;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkRequest;
+use App\Module\Bridge\Service\CallerRun;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
@@ -406,7 +406,7 @@ final class DocumentReviewApiTest extends WebTestCase
         $em->flush();
         $em->persist(new WorkerRun(project: $project, bridgeId: Uuid::v4(), subjectType: WorkSubject::CARD, subjectId: $subject, cardNumber: 1, workKind: 'tech-design-revise', state: WorkerRunState::Running, sessionId: $session, workRequestId: $request->id));
         $em->flush();
-        $header = ['HTTP_'.strtoupper(str_replace('-', '_', AgentRunCause::SESSION_HEADER)) => (string) $session];
+        $header = ['HTTP_'.strtoupper(str_replace('-', '_', CallerRun::SESSION_HEADER)) => (string) $session];
 
         $calls = [
             [Request::METHOD_POST, $this->url($document, '/verdicts'), '{"versionNumber":1,"verdict":"approved","expectedVerdictId":null}'],

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Inbox\Mcp;
 
-use App\Module\Board\Mcp\AgentRunCause;
+use App\Module\Bridge\Service\CallerRun;
 use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
@@ -12,6 +12,7 @@ use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Mcp\InboxJoinTool;
 use App\Module\Inbox\Mcp\InboxWithdrawTool;
 use App\Security\McpBoundProjectVoter;
+use App\Tests\Module\Bridge\Support\CallsAsWorkerRun;
 use App\Tests\Support\McpTokenScenario;
 use App\Tests\Support\RecordingAuditor;
 use Doctrine\ORM\EntityManagerInterface;
@@ -23,6 +24,7 @@ use Symfony\Component\Uid\Uuid;
 
 final class InboxJoinToolTest extends KernelTestCase
 {
+    use CallsAsWorkerRun;
     use InboxToolScenario;
     use McpTokenScenario;
 
@@ -236,6 +238,34 @@ final class InboxJoinToolTest extends KernelTestCase
         self::assertFalse(($this->tool)($asked['items'][0]['itemId'], $session)['closed']);
     }
 
+    public function test_a_run_credential_that_names_another_session_is_refused(): void
+    {
+        $this->enableInbox();
+        $project = $this->makeProject('inbox-join-credential');
+        $this->actAsMcpTokenBoundTo($project);
+        $session = (string) Uuid::v4();
+        $asked = $this->askQuestion('Which column?');
+        $this->callAsWorkerRun(Uuid::v4(), Uuid::v4(), Uuid::v4(), $project->id);
+
+        $this->expectException(ToolCallException::class);
+        $this->expectExceptionMessage('sessionId: Pass your own session id. This call comes from another session.');
+        ($this->tool)($asked['items'][0]['itemId'], $session);
+    }
+
+    public function test_a_run_credential_that_names_the_session_argument_wins_over_a_conflicting_header(): void
+    {
+        $this->enableInbox();
+        $project = $this->makeProject('inbox-join-credential-wins');
+        $this->actAsMcpTokenBoundTo($project);
+        $session = Uuid::v4();
+        $asked = $this->askQuestion('Which column?');
+        $this->callAsWorkerRun(Uuid::v4(), Uuid::v4(), $session, $project->id);
+        $this->sendFromSession((string) Uuid::v4());
+        $session = (string) $session;
+
+        self::assertFalse(($this->tool)($asked['items'][0]['itemId'], $session)['closed']);
+    }
+
     private function assertNotJoinable(InboxItem $item): void
     {
         $this->em->persist($item);
@@ -252,7 +282,7 @@ final class InboxJoinToolTest extends KernelTestCase
     private function sendFromSession(string $sessionId): void
     {
         $request = Request::create('/mcp', Request::METHOD_POST);
-        $request->headers->set(AgentRunCause::SESSION_HEADER, $sessionId);
+        $request->headers->set(CallerRun::SESSION_HEADER, $sessionId);
         $requests = self::getContainer()->get(RequestStack::class);
         self::assertInstanceOf(RequestStack::class, $requests);
         $requests->push($request);

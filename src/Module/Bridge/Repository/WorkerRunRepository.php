@@ -987,26 +987,41 @@ class WorkerRunRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
-    /** The newest open worker run of $role that the session runs on the card, or null. */
-    public function findOpenOfSessionForCard(Project $project, Uuid $sessionId, Uuid $cardId, string $role): ?WorkerRun
+    /** The worker run that one launch reported, on the unique key of the bridge and the run key. */
+    public function findWorkerByRunKey(Project $project, Uuid $bridgeId, Uuid $runKey): ?WorkerRun
     {
         return $this->createQueryBuilder('r')
             ->andWhere('r.project = :project')
-            ->andWhere('r.sessionId = :sessionId')
+            ->andWhere('r.bridgeId = :bridgeId')
+            ->andWhere('r.runKey = :runKey')
+            ->andWhere('r.kind = :kind')
+            ->setParameter('project', $project)
+            ->setParameter('bridgeId', $bridgeId, UuidType::NAME)
+            ->setParameter('runKey', $runKey, UuidType::NAME)
+            ->setParameter('kind', WorkerRunKind::Worker->value)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    /** The open worker run of that launch when it works the card in $role, or null on any mismatch. */
+    public function findOpenByRunKey(Project $project, Uuid $bridgeId, Uuid $runKey, Uuid $cardId, string $role): ?WorkerRun
+    {
+        return $this->createQueryBuilder('r')
+            ->andWhere('r.project = :project')
+            ->andWhere('r.bridgeId = :bridgeId')
+            ->andWhere('r.runKey = :runKey')
             ->andWhere('r.subjectType = :cardSubject AND r.subjectId = :cardId')
             ->andWhere('r.role = :role')
             ->andWhere('r.kind = :kind')
             ->andWhere('r.state IN (:openStates)')
             ->setParameter('project', $project)
-            ->setParameter('sessionId', $sessionId, UuidType::NAME)
+            ->setParameter('bridgeId', $bridgeId, UuidType::NAME)
+            ->setParameter('runKey', $runKey, UuidType::NAME)
             ->setParameter('cardId', $cardId, UuidType::NAME)
             ->setParameter('cardSubject', WorkSubject::CARD)
             ->setParameter('role', $role)
             ->setParameter('kind', WorkerRunKind::Worker->value)
             ->setParameter('openStates', array_map(static fn (WorkerRunState $state): string => $state->value, WorkerRunState::openStates()))
-            ->orderBy('r.receivedAt', 'DESC')
-            ->addOrderBy('r.id', 'DESC')
-            ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
     }
@@ -1115,57 +1130,6 @@ class WorkerRunRepository extends ServiceEntityRepository
             ->setParameter('cardId', $cardId, UuidType::NAME)
             ->setParameter('cardSubject', WorkSubject::CARD)
             ->orderBy('r.receivedAt', 'DESC')
-            ->addOrderBy('r.id', 'DESC')
-            ->setMaxResults(1)
-            ->getQuery()
-            ->getOneOrNullResult();
-    }
-
-    /**
-     * The run of a claude session most likely to act on the card: a run on
-     * that card first, then an open run, then the newest. Any kind counts.
-     */
-    public function findLikeliestOfSession(Project $project, Uuid $sessionId, Uuid $cardId): ?WorkerRun
-    {
-        return $this->createQueryBuilder('r')
-            ->addSelect('CASE WHEN r.subjectType = :cardSubject AND r.subjectId = :cardId THEN 0 ELSE 1 END AS HIDDEN onCardFirst')
-            ->addSelect('CASE WHEN r.state IN (:openStates) THEN 0 ELSE 1 END AS HIDDEN openFirst')
-            ->andWhere('r.project = :project')
-            ->andWhere('r.sessionId = :sessionId')
-            ->setParameter('project', $project)
-            ->setParameter('sessionId', $sessionId, UuidType::NAME)
-            ->setParameter('cardId', $cardId, UuidType::NAME)
-            ->setParameter('cardSubject', WorkSubject::CARD)
-            ->setParameter('openStates', array_map(
-                static fn (WorkerRunState $state): string => $state->value,
-                WorkerRunState::openStates(),
-            ))
-            ->orderBy('onCardFirst', 'ASC')
-            ->addOrderBy('openFirst', 'ASC')
-            ->addOrderBy('r.receivedAt', 'DESC')
-            ->addOrderBy('r.id', 'DESC')
-            ->setMaxResults(1)
-            ->getQuery()
-            ->getOneOrNullResult();
-    }
-
-    /** The worker run of a claude session: an open run first, then the newest. An interactive run does not count. */
-    public function findWorkerOfSession(Project $project, Uuid $sessionId): ?WorkerRun
-    {
-        return $this->createQueryBuilder('r')
-            ->addSelect('CASE WHEN r.state IN (:openStates) THEN 0 ELSE 1 END AS HIDDEN openFirst')
-            ->andWhere('r.project = :project')
-            ->andWhere('r.sessionId = :sessionId')
-            ->andWhere('r.kind = :kind')
-            ->setParameter('project', $project)
-            ->setParameter('sessionId', $sessionId, UuidType::NAME)
-            ->setParameter('kind', WorkerRunKind::Worker->value)
-            ->setParameter('openStates', array_map(
-                static fn (WorkerRunState $state): string => $state->value,
-                WorkerRunState::openStates(),
-            ))
-            ->orderBy('openFirst', 'ASC')
-            ->addOrderBy('r.receivedAt', 'DESC')
             ->addOrderBy('r.id', 'DESC')
             ->setMaxResults(1)
             ->getQuery()

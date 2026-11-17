@@ -4,14 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Inbox\Mcp;
 
-use App\Module\Board\Mcp\AgentRunCause;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Project\Entity\Project;
-use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\RequestStack;
+use App\Tests\Module\Bridge\Support\CallsAsWorkerRun;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -20,27 +18,28 @@ use Symfony\Component\Uid\Uuid;
  */
 trait AgentResponseScenario
 {
-    /** Sends the next tool call from a session that a bridge worker run of the project owns. */
+    use CallsAsWorkerRun;
+
+    /** Sends the next tool call with the run credential of a bridge worker run of the project. */
     private function asWorkerSession(Project $project): void
     {
+        $bridgeId = Uuid::v4();
+        $runKey = Uuid::v4();
         $sessionId = Uuid::v4();
         $this->em->persist(new WorkerRun(
             project: $project,
-            bridgeId: Uuid::v4(),
+            bridgeId: $bridgeId,
             subjectType: WorkSubject::CARD,
             subjectId: Uuid::v4(),
             cardNumber: 1,
             workKind: 'implement',
             state: WorkerRunState::Running,
+            runKey: $runKey,
             sessionId: $sessionId,
         ));
         $this->em->flush();
 
-        $request = Request::create('/mcp', Request::METHOD_POST);
-        $request->headers->set(AgentRunCause::SESSION_HEADER, (string) $sessionId);
-        $requests = self::getContainer()->get(RequestStack::class);
-        self::assertInstanceOf(RequestStack::class, $requests);
-        $requests->push($request);
+        $this->callAsWorkerRun($bridgeId, $runKey, $sessionId, $project->id);
     }
 
     /** @return array{itemId: string, state: string} */

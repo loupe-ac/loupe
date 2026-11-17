@@ -14,6 +14,7 @@ use App\Tests\Support\McpRefusalMessages;
 use App\Tests\Support\McpTokenScenario;
 use App\Tests\Support\RecordingAuditor;
 use Mcp\Exception\ToolCallException;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 final class DocumentDecisionToolsTest extends KernelTestCase
@@ -178,11 +179,19 @@ final class DocumentDecisionToolsTest extends KernelTestCase
         ($this->answer)((string) $document->id, 1, 'target', [0, 1]);
     }
 
-    public function test_a_bridge_worker_is_refused_for_both_tools(): void
+    /** @return iterable<string, array{bool}> */
+    public static function workerCalls(): iterable
+    {
+        yield 'a run credential' => [true];
+        yield 'a header that names a worker session' => [false];
+    }
+
+    #[DataProvider('workerCalls')]
+    public function test_a_bridge_worker_is_refused_for_both_tools(bool $credential): void
     {
         $document = $this->decisionDocument();
         $this->actAsMcpTokenBoundTo($document->project);
-        $this->workerSession($document);
+        $this->workerSession($document, $credential);
 
         foreach ([
             'answer' => fn () => ($this->answer)((string) $document->id, 1, 'target', [0]),

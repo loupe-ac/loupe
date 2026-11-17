@@ -10,14 +10,12 @@ use App\Module\AgentReview\Command\SubmitAgentReviewHandler;
 use App\Module\AgentReview\Entity\AgentReviewCategory;
 use App\Module\AgentReview\Entity\AgentReviewFinding;
 use App\Module\AgentReview\Entity\AgentReviewSeverity;
-use App\Module\Board\Mcp\AgentRunCause;
 use App\Module\Board\Mcp\BoardSubjectResolver;
+use App\Module\Bridge\Service\CallerRun;
 use App\Security\McpBoundProjectVoter;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;
 use Mcp\Exception\ToolCallException;
-use Symfony\Component\HttpFoundation\RequestStack;
-use Symfony\Component\Uid\Uuid;
 
 #[McpTool(name: self::NAME, description: 'Submit the review of a pull request of a card. Only a running review worker of the card can call it: the call must come from the loupe CLI session of a worker run with the code-review role on this card. Pass the cardId, the URL of a pull request that the card links, the full 40-character commit SHA that you reviewed, a summary, and the findings. Each finding names a file path relative to the repository root, a line range on the reviewed commit, a severity (important, nit or pre-existing), a title and a body. A finding has a category: code (the default) or spec, a gap between the change and the approved design. Only a spec finding can leave out the path and the lines, for a requirement that no code builds. A spec finding can also set needsPerson, for a gap that a worker cannot settle from the design and the code alone. Loupe stores the review against that commit, also when the pull request has a newer head. The result field current says whether the commit matches the last head commit that Loupe read from the forge. That commit can be older than the head on the forge. The review fails when a finding has a severity that the project counts as failing, important by default.')]
 final readonly class AgentReviewSubmitTool
@@ -50,7 +48,7 @@ final readonly class AgentReviewSubmitTool
     public function __construct(
         private BoardSubjectResolver $subjects,
         private SubmitAgentReviewHandler $submitReview,
-        private RequestStack $requests,
+        private CallerRun $callerRun,
     ) {
     }
 
@@ -86,7 +84,7 @@ final readonly class AgentReviewSubmitTool
 
             $review = ($this->submitReview)(new SubmitAgentReviewCommand(
                 card: $card,
-                sessionId: $this->sessionId(),
+                runKey: $this->callerRun->workerRunKey(),
                 pullRequestUrl: $pullRequestUrl,
                 headSha: $headSha,
                 summary: $summary,
@@ -107,13 +105,6 @@ final readonly class AgentReviewSubmitTool
         } catch (\Throwable $e) {
             throw new ToolCallException('The review could not be stored. The error has been logged.', previous: $e);
         }
-    }
-
-    private function sessionId(): ?Uuid
-    {
-        $session = $this->requests->getCurrentRequest()?->headers->get(AgentRunCause::SESSION_HEADER);
-
-        return null !== $session && Uuid::isValid($session) ? Uuid::fromString($session) : null;
     }
 
     /**
