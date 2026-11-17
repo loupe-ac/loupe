@@ -415,6 +415,39 @@ func checkFolder(ctx context.Context, c folderCheck) string {
 	return ""
 }
 
+// claimMadeWorktree claims for card the worktree that a failed before command
+// made, so the next run of the card may work in it. The project lock holds
+// while the command runs, so a worktree that the snapshot of the run lacks is
+// one that the command made. It claims nothing when the run has no snapshot,
+// or when the command made no worktree or more than one.
+func claimMadeWorktree(ctx context.Context, project, runDir, card string) {
+	if card == "" {
+		return
+	}
+	snapshot, known := readWorktreeSnapshot(runDir)
+	if !known {
+		return
+	}
+	paths, err := listWorktreePaths(ctx, project)
+	if err != nil {
+		return
+	}
+	var made []string
+	for _, path := range paths {
+		if !slices.Contains(snapshot, path) {
+			made = append(made, path)
+		}
+	}
+	if len(made) != 1 {
+		return
+	}
+	gitDir, _, err := gitDirs(ctx, made[0])
+	if err != nil {
+		return
+	}
+	_ = writeClaim(filepath.Join(gitDir, claimFile), card)
+}
+
 // writeClaim creates the claim file of card, and fails when the file exists, so
 // two checks that both read no claim cannot both win. The card id goes into a
 // temporary file that a hard link then puts in place, so a reader never sees
