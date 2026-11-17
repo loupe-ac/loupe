@@ -6,6 +6,7 @@ namespace App\Tests\Security;
 
 use App\Module\Account\Repository\UserRepository;
 use App\Module\OAuth\Repository\PreviewTokenRepository;
+use App\Module\OAuth\Repository\WorkerRunCredentialRepository;
 use App\Module\OAuth\Security\OAuthAccessTokenAuthenticator;
 use App\Module\OAuth\Service\McpResource;
 use App\Module\Project\Repository\ProjectRepository;
@@ -55,6 +56,7 @@ final class BearerTokenTest extends TestCase
             self::createStub(AccessTokenManagerInterface::class),
             new McpResource('https://loupe.example'),
             self::createStub(PreviewTokenRepository::class),
+            self::createStub(WorkerRunCredentialRepository::class),
             new NullLogger(),
             SilentAuditor::create(),
             new RecordedAccountSignals()->publisher,
