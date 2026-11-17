@@ -24,7 +24,8 @@ use Ubermuda\AuditBundle\AuditSubject;
  * Adds the ticked repositories to the project. GitHub has no call that checks
  * one repository against one installation, so the handler lists each ticked
  * installation again with the owner's token. The posted path and installation
- * only name the pick. Whatever the list shows decides the claim.
+ * only name the pick. Whatever the list shows decides the claim, and the list
+ * refuses a repository that the signed-in GitHub user cannot push to.
  */
 final readonly class AddGitHubRepositoriesHandler
 {
@@ -51,7 +52,9 @@ final readonly class AddGitHubRepositoriesHandler
 
         $added = [];
         $refused = [];
+        $readOnly = [];
         try {
+            $claimant = (string) $this->userApi->user($token)->id;
             $listed = $this->userApi->installations($token);
             $plans = [];
             foreach ($byInstallation as $installationId => $picks) {
@@ -63,8 +66,8 @@ final readonly class AddGitHubRepositoriesHandler
                 }
 
                 $reached = [];
-                foreach ($this->userApi->installationRepositories($token, $installationId)->repositories as $repository) {
-                    $reached[$repository->id] = $repository;
+                foreach ($this->userApi->installationRepositories($token, $installationId)->repositories as $entry) {
+                    $reached[$entry->repository->id] = $entry;
                 }
 
                 $plans[] = [$installation, $installationId, $picks, $reached];
@@ -82,9 +85,21 @@ final readonly class AddGitHubRepositoriesHandler
         foreach ($plans as [$installation, $installationId, $picks, $reached]) {
             $recorded = false;
             foreach ($picks as $pick) {
-                $repository = $reached[$pick->repositoryId] ?? null;
-                if (null === $repository) {
+                $entry = $reached[$pick->repositoryId] ?? null;
+                if (null === $entry) {
                     $refused[] = $pick->path;
+
+                    continue;
+                }
+
+                $repository = $entry->repository;
+                if (!$entry->canPush) {
+                    $this->logger->info('github.repository_read_only', [
+                        'projectId' => $projectId,
+                        'repositoryId' => $repository->id,
+                        'installationId' => $installationId,
+                    ]);
+                    $readOnly[] = $repository->fullName;
 
                     continue;
                 }
@@ -94,7 +109,7 @@ final readonly class AddGitHubRepositoriesHandler
                     $recorded = true;
                 }
 
-                $claim = $this->announcer->claim($command->project, $repository, ForgeRepositorySource::Installation, $installationId);
+                $claim = $this->announcer->claim($command->project, $repository, ForgeRepositorySource::Installation, $installationId, $claimant);
                 if (null === $claim) {
                     $refused[] = $repository->fullName;
 
@@ -114,10 +129,10 @@ final readonly class AddGitHubRepositoriesHandler
         $this->auditor->record(
             'github.repositories_added',
             AuditOutcome::Success,
-            ['projectId' => $projectId, 'added' => \count($added), 'refused' => \count($refused)],
+            ['projectId' => $projectId, 'added' => \count($added), 'refused' => \count($refused), 'readOnly' => \count($readOnly)],
             new AuditSubject('project', $projectId),
         );
 
-        return new AddedGitHubRepositories($added, $refused);
+        return new AddedGitHubRepositories($added, $refused, $readOnly);
     }
 }
