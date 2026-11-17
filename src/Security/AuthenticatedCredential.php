@@ -18,6 +18,9 @@ use Symfony\Component\Uid\Uuid;
  * exclusive with `projectId`: one names a set and the other names a member, so
  * a credential carrying both would answer the same question twice.
  *
+ * The three `worker*` fields name the run that a run credential was issued
+ * for, and stay null on any other credential.
+ *
  * `roles` holds one role per base scope the credential carries. One credential
  * reaches several firewalls, because the CLI needs the bridge endpoints and the
  * MCP endpoint from one login.
@@ -33,6 +36,9 @@ final readonly class AuthenticatedCredential
         public ?Uuid $projectId = null,
         public bool $allProjects = false,
         public ?string $accessTokenId = null,
+        public ?Uuid $workerBridgeId = null,
+        public ?Uuid $workerRunKey = null,
+        public ?Uuid $workerSessionId = null,
     ) {
         if ($allProjects && null !== $projectId) {
             throw new \LogicException('a credential covers one project or every project of its owner, never both.');

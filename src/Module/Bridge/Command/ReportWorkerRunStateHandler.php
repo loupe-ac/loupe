@@ -21,6 +21,7 @@ use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
+use App\Security\WorkerRunCredentialIssuerInterface;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
@@ -35,6 +36,7 @@ use Ubermuda\AuditBundle\AuditSubject;
  * report still fills a missing session, start and experiment, but outcome
  * data follows the state that owns it. The outcome or the stop that
  * closes the run also writes its usage, through WorkerRunUsageRecorder.
+ * A state that is not open also revokes the run credentials of the launch.
  */
 final readonly class ReportWorkerRunStateHandler
 {
@@ -51,6 +53,7 @@ final readonly class ReportWorkerRunStateHandler
         private WorkerRunChangedPublisher $publisher,
         private WorkerRunUsageRecorder $usageRecorder,
         private EventDispatcherInterface $events,
+        private WorkerRunCredentialIssuerInterface $credentials,
     ) {
     }
 
@@ -123,6 +126,11 @@ final readonly class ReportWorkerRunStateHandler
             }
 
             $this->em->flush();
+            // Any closing report revokes, a repeat too, because a repeat can follow a failed first attempt.
+            // The key names one launch, so the late close of an older launch revokes only its own tokens.
+            if (!$command->state->isOpen()) {
+                $this->credentials->revokeForRun($project, $command->bridgeId, $command->runKey);
+            }
             $awaited = $closes && $billed && $this->awaitBilledCost($run);
             $this->searchIndexer->index($run);
 

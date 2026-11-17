@@ -43,6 +43,7 @@ final readonly class GrantRepository
              FROM oauth2_access_token a JOIN oauth2_client c ON c.identifier = a.client
              WHERE a.identifier IN ('.self::LIVE_ACCESS_TOKENS.')
                AND NOT EXISTS (SELECT 1 FROM oauth_preview_tokens p WHERE p.access_token_id = a.identifier)
+               AND NOT EXISTS (SELECT 1 FROM oauth_worker_run_credentials w WHERE w.access_token_id = a.identifier)
              GROUP BY c.identifier, c.name, a.scopes
              ORDER BY c.name, a.scopes',
             ['userId' => $userId->toRfc4122()],
