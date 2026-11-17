@@ -9,7 +9,7 @@ optionally, a Mercure hub.
 
 | Process | What it is |
 |---|---|
-| **Web** | `docker/prod/Dockerfile`, running supervisord as PID 1: `php-fpm` + `nginx`, and nothing else. No background process runs here. Listens on port 80. |
+| **Web** | `docker/prod/Dockerfile`, running supervisord as PID 1: `php-fpm` + `nginx`, and nothing else. No background process runs here. Listens on ports 80 and 8080. |
 | **Worker** | The *same image*, started with a different command. Deliberately **not** a supervisord program inside the web container, so worker restarts never recycle php-fpm and nginx. It consumes `scheduler_default` first, then `jobs` — a deep jobs backlog must not delay schedule ticks. It is also the only thing that runs scheduled work: **everything recurring rides its schedule**, including the hourly `app:purge-expired-exports`, so without a worker expired archives are never purged and nothing periodic happens at all. |
 | **Postgres** | Any Postgres the app can reach. It also carries the message queue: `MESSENGER_TRANSPORT_DSN` defaults to `doctrine://default?auto_setup=0`, so there is no broker to run. Sessions and the application cache live here too (`sessions`, `cache_items`), so **web replicas share both** — no sticky sessions to configure, no session loss on deploy, and the per-IP rate limits are counted once across the fleet rather than once per replica. |
 | **Object storage** | Only needed when `EXPORT_STORAGE=s3`. Any S3-compatible bucket; required whenever the web and worker processes do not share a filesystem, or data-export downloads 404. |
