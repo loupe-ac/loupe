@@ -16,6 +16,7 @@ use App\Module\Bridge\ValueObject\WorkRequestContext;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Project\Entity\Project;
+use App\Module\Workflow\Service\PassMemo;
 use App\Outbox\OutboxWriter;
 use App\Tests\Module\Bridge\BlockingRepositories;
 use App\Tests\Module\Bridge\BridgeScenario;
@@ -202,7 +203,7 @@ final class ReopenLapsedWorkRequestsHandlerTest extends KernelTestCase
         $announcer = self::getContainer()->get(WorkRequestAnnouncer::class);
         self::assertInstanceOf(WorkRequestAnnouncer::class, $announcer);
 
-        return new ReopenLapsedWorkRequestsHandler(new WorkRequestRepository($registry), $outbox, $this->em(), new MockClock(self::NOW), $announcer, self::getContainer()->get(HeldProjects::class), self::getContainer()->get(BridgeLiveness::class));
+        return new ReopenLapsedWorkRequestsHandler(new WorkRequestRepository($registry, new PassMemo()), $outbox, $this->em(), new MockClock(self::NOW), $announcer, self::getContainer()->get(HeldProjects::class), self::getContainer()->get(BridgeLiveness::class));
     }
 
     /** @return list<array<string, mixed>> */
