@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace App\Module\Account\Command;
 
 use App\Module\Account\Entity\User;
+use App\Module\Project\Repository\ProjectRepository;
+use App\Module\Project\Service\CurrentProjectProvider;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\DependencyInjection\Attribute\When;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Security\Core\Exception\UserNotFoundException;
 use Symfony\Component\Security\Core\User\UserProviderInterface;
 
@@ -22,6 +25,8 @@ final readonly class PreviewLoginHandler
     public function __construct(
         private UserProviderInterface $userProvider,
         private Security $security,
+        private ProjectRepository $projects,
+        private RequestStack $requestStack,
     ) {
     }
 
@@ -34,6 +39,13 @@ final readonly class PreviewLoginHandler
         }
 
         $this->security->login($user, 'form_login');
+
+        // A link carries no session, so the account page would show no remembered project. Seed it.
+        $remembered = $this->projects->findOldestByOwner($user);
+        $session = $this->requestStack->getCurrentRequest()?->getSession();
+        if (null !== $remembered && null !== $session) {
+            $session->set(CurrentProjectProvider::LAST_VISITED_SESSION_KEY, (string) $remembered->id);
+        }
 
         return $user;
     }
