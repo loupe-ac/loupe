@@ -41,6 +41,24 @@ func restartFiltered(path string) error {
 	return nil
 }
 
+// handoverEnviron is the environment of the bridge image that an update execs.
+// It drops each name that the live passEnv list no longer allows, and keeps
+// the marker with the dropped names added, so the new image need not restart.
+func handoverEnviron() []string {
+	environ := os.Environ()
+	patterns := append(envallow.Union(), envallow.Pass()...)
+	dropped := envallow.Dropped(environ, append(patterns, envallow.FilteredMarker))
+	if len(dropped) == 0 {
+		return environ
+	}
+	names := dropped
+	if v := os.Getenv(envallow.FilteredMarker); v != "" {
+		names = append(strings.Split(v, ","), dropped...)
+	}
+
+	return append(envallow.Filter(environ, patterns), envallow.FilteredMarker+"="+strings.Join(names, ","))
+}
+
 // droppedEnv gives the sorted names that a worker of the harness loses: the
 // names the restart removed from the bridge, and the names of the bridge
 // environment that the filter of that harness drops now, such as a bridge-only

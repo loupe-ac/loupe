@@ -106,3 +106,39 @@ func TestDroppedEnvSeparatesHarnesses(t *testing.T) {
 		t.Fatalf("codex loses = %v", codex)
 	}
 }
+
+func TestPendingFixesThePassListOfItsRuleSet(t *testing.T) {
+	old, err := rules.Parse([]byte("passEnv: [OLD_ONLY]\nprojects:\n  loupe:\n    dir: "+t.TempDir()+"\n    work:\n      review:\n        prompt: x\n"), rules.Defaults{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("OLD_ONLY", "1")
+	t.Setenv("NEW_ONLY", "2")
+	p := pending{set: old}
+	p.apply(rules.Match{})
+	t.Cleanup(func() { envallow.SetPass(nil) })
+
+	envallow.SetPass([]string{"NEW_ONLY"})
+	env := p.spec.environ()
+	if !slices.Contains(env, "OLD_ONLY=1") || slices.Contains(env, "NEW_ONLY=2") {
+		t.Fatalf("a worker delayed past a swap used the later list: %v", env)
+	}
+}
+
+func TestHandoverEnvironRefiltersAfterAPassListChange(t *testing.T) {
+	t.Setenv("PATH", "/bin")
+	t.Setenv("REMOVED_LATER", "secret")
+	t.Setenv("STILL_PASSED", "ok")
+	t.Setenv(envallow.FilteredMarker, "EARLIER")
+	t.Cleanup(func() { envallow.SetPass(nil) })
+
+	envallow.SetPass([]string{"STILL_PASSED"})
+	env := handoverEnviron()
+	joined := strings.Join(env, "\n")
+	if strings.Contains(joined, "REMOVED_LATER=") || !strings.Contains(joined, "STILL_PASSED=ok") {
+		t.Fatalf("handover env = %v", env)
+	}
+	if !strings.Contains(joined, envallow.FilteredMarker+"=EARLIER,") || !strings.Contains(joined, "REMOVED_LATER") {
+		t.Fatalf("the marker must keep and extend the dropped names: %v", env)
+	}
+}

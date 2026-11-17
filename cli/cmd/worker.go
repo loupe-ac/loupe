@@ -171,6 +171,19 @@ type workerSpec struct {
 	mcpConfig string
 	// hideSkills names the skills a Codex worker must not see.
 	hideSkills []string
+	// pass is the passEnv list of the rule set that chose this run, and
+	// passFixed says it was taken. A run with no rule set reads the live list.
+	pass      []string
+	passFixed bool
+}
+
+// environ is the bridge environment that this run's harness may see.
+func (s workerSpec) environ() []string {
+	if s.passFixed {
+		return envallow.EnvironWith(s.harnessName, s.pass)
+	}
+
+	return envallow.Environ(s.harnessName)
 }
 
 // workerOps is the process surface the router drives. Tests replace run so the
@@ -436,7 +449,7 @@ func startWorker(ctx context.Context, spec workerSpec) (*exec.Cmd, string, *atom
 	// The shell always starts, so a program it cannot run must fail here to
 	// read as a run that never started.
 	h := spec.adapter()
-	if _, err := envfile.LookPath(h.Program(), envfile.Overlay(envallow.Environ(spec.harnessName), spec.env), spec.dir); err != nil {
+	if _, err := envfile.LookPath(h.Program(), envfile.Overlay(spec.environ(), spec.env), spec.dir); err != nil {
 		return nil, "", nil, err
 	}
 	if spec.runID == "" {
@@ -471,7 +484,7 @@ func startWorker(ctx context.Context, spec workerSpec) (*exec.Cmd, string, *atom
 	}
 
 	status := filepath.Join(dir, "status")
-	command := spec.harnessCommand(workerEnv(envfile.Overlay(envallow.Environ(spec.harnessName), spec.env), spec.sessionID, spec.socket, spec.agent, creds))
+	command := spec.harnessCommand(workerEnv(envfile.Overlay(spec.environ(), spec.env), spec.sessionID, spec.socket, spec.agent, creds))
 	for path, content := range command.Files {
 		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 			return nil, dir, nil, fmt.Errorf("write worker file: %w", err)
