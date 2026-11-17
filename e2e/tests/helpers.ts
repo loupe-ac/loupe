@@ -364,7 +364,11 @@ export async function confirmEmailLink(
     link: string,
 ): Promise<void> {
     await page.goto(link);
-    await page.getByRole('button', { name: 'Confirm email address' }).click();
+    await submitRedirectingForm(
+        page,
+        page.getByRole('button', { name: 'Confirm email address' }),
+        '/register/verify',
+    );
 }
 
 /**
