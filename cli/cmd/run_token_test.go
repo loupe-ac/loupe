@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"net/http"
@@ -106,6 +107,62 @@ func TestPublicCommandOnTheRunPathSendsTheTokenToLoupeURL(t *testing.T) {
 	_ = resp
 	if auth != "Bearer run-token" || path != "/api/v1/projects/x/cards/1" {
 		t.Fatalf("server saw %q at %q", auth, path)
+	}
+}
+
+func TestArtifactCreateOnTheRunPathSendsTheTokenAndProject(t *testing.T) {
+	var auth, path string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth, path = r.Header.Get("Authorization"), r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"artifactId":"a1","versionNumber":1,"url":"https://app/a1","versionUrl":"https://app/a1/v1"}`))
+	}))
+	t.Cleanup(srv.Close)
+	runPath(t, srv.URL)
+	file := filepath.Join(t.TempDir(), "index.html")
+	write(t, file, "<h1>Hi</h1>")
+
+	var out bytes.Buffer
+	root := newRootCmd()
+	root.SetOut(&out)
+	root.SetErr(&out)
+	root.SetArgs([]string{"artifact", "create", file, "--name", "Mock"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("artifact create: %v", err)
+	}
+	if auth != "Bearer run-token" || path != "/api/v1/projects/"+projectA+"/artifacts" {
+		t.Fatalf("server saw %q at %q", auth, path)
+	}
+	if !strings.Contains(out.String(), "https://app/a1\n") {
+		t.Fatalf("stdout = %q", out.String())
+	}
+}
+
+func TestMcpOnTheRunPathSendsTheTokenAndProject(t *testing.T) {
+	var auth, project, path string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if auth == "" {
+			auth, project, path = r.Header.Get("Authorization"), r.Header.Get("X-Loupe-Project"), r.URL.Path
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	t.Cleanup(srv.Close)
+	runPath(t, srv.URL)
+
+	in, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = w.WriteString(`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"t","version":"1"}}}` + "\n")
+	_ = w.Close()
+	stdin := os.Stdin
+	os.Stdin = in
+	t.Cleanup(func() { os.Stdin = stdin; _ = in.Close() })
+
+	_ = runMcp(t)
+	if auth != "Bearer run-token" || project != projectA || path != mcpPath {
+		t.Fatalf("server saw %q for project %q at %q", auth, project, path)
 	}
 }
 
