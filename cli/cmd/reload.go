@@ -134,8 +134,6 @@ func (r *router) reloadLocked(ctx context.Context, src reloadSource) reloadResul
 	cancel()
 	// The checks have their own time, so a slow build turns off no account.
 	// A failing account fails no reload.
-	prevPass := envallow.Pass()
-	envallow.SetPass(b.set.PassEnv())
 	if src.checkAccounts != nil {
 		checkCtx, cancel := context.WithTimeout(ctx, reloadAccountsTimeout)
 		b.accounts = src.checkAccounts(checkCtx, b.set)
@@ -144,16 +142,12 @@ func (r *router) reloadLocked(ctx context.Context, src reloadSource) reloadResul
 		b.set.SetProjectProblems(projectsOff(b.accounts))
 	}
 	if err := check(); err != nil {
-		envallow.SetPass(prevPass)
 		done(false)
 
 		return r.lockFailed(err)
 	}
 	res := r.swap(b, seq)
 	done(res.OK)
-	if !res.OK {
-		envallow.SetPass(prevPass)
-	}
 	if res.OK {
 		applyPassEnv(r.log, b.set)
 		go r.syncCodexPlugins(r.workerContext())
@@ -247,6 +241,7 @@ func (r *router) swap(b built, seq uint64) reloadResult {
 	for _, id := range gone {
 		killGone(set, id)
 	}
+	envallow.SetPass(set.PassEnv())
 	r.set.Store(set)
 	r.claimWaits.reset()
 	r.hookRunner.setHooks(b.hooks)

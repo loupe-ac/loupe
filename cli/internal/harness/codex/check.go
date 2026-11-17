@@ -204,7 +204,7 @@ func (h Harness) providerProblem(sess session, haveSession bool) string {
 // it checks that the loupe MCP server is the `loupe mcp` command, is enabled,
 // is found on PATH, and approves its tools without a prompt.
 func (h Harness) Check(ctx context.Context, spec harness.CheckSpec) []harness.Problem {
-	env := envfile.Overlay(envallow.Environ(envallow.HarnessCodex), spec.Env)
+	env := envfile.Overlay(envallow.EnvironWith(envallow.HarnessCodex, spec.Pass), spec.Env)
 	slugs := slices.Sorted(maps.Keys(spec.Projects))
 	if len(slugs) == 0 {
 		slugs = []string{""}

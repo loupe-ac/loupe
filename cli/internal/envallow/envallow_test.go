@@ -48,3 +48,14 @@ func TestEnvironUsesPass(t *testing.T) {
 		t.Fatalf("unexpected env %v", env)
 	}
 }
+
+func TestEnvironWithIgnoresTheActivePass(t *testing.T) {
+	t.Setenv("ACTIVE_VAR", "1")
+	t.Setenv("CANDIDATE_VAR", "1")
+	SetPass([]string{"ACTIVE_VAR"})
+	t.Cleanup(func() { SetPass(nil) })
+	env := EnvironWith(HarnessClaude, []string{"CANDIDATE_VAR"})
+	if !slices.Contains(env, "CANDIDATE_VAR=1") || slices.Contains(env, "ACTIVE_VAR=1") {
+		t.Fatalf("unexpected env %v", env)
+	}
+}

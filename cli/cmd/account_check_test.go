@@ -303,22 +303,28 @@ func TestAProjectProblemFailsOnlyThatProject(t *testing.T) {
 	}
 }
 
-func TestReloadChecksAccountsWithTheNewPassEnv(t *testing.T) {
+func TestReloadKeepsTheOldPassEnvUntilTheSwap(t *testing.T) {
 	h := newHarness(t)
 	envallow.SetPass([]string{"OLD_PASS"})
 	t.Cleanup(func() { envallow.SetPass(nil) })
 	src := h.source("passEnv: [NEW_PASS]\n" + defaultRules)
-	var seen []string
-	src.checkAccounts = func(context.Context, *rules.Set) []accountResult {
-		seen = envallow.Pass()
+	var during, spec []string
+	src.checkAccounts = func(_ context.Context, set *rules.Set) []accountResult {
+		during, spec = envallow.Pass(), set.PassEnv()
 
 		return nil
 	}
 	if res := h.router.reload(context.Background(), src); !res.OK {
 		t.Fatalf("result = %+v", res)
 	}
-	if !slices.Equal(seen, []string{"NEW_PASS"}) {
-		t.Fatalf("the check ran with pass names %v, want [NEW_PASS]", seen)
+	if !slices.Equal(during, []string{"OLD_PASS"}) {
+		t.Fatalf("a worker launched during the checks saw pass names %v, want [OLD_PASS]", during)
+	}
+	if !slices.Equal(spec, []string{"NEW_PASS"}) {
+		t.Fatalf("the check set held pass names %v, want [NEW_PASS]", spec)
+	}
+	if got := envallow.Pass(); !slices.Equal(got, []string{"NEW_PASS"}) {
+		t.Fatalf("after the swap pass names = %v, want [NEW_PASS]", got)
 	}
 
 	envallow.SetPass([]string{"OLD_PASS"})

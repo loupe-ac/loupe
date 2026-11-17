@@ -138,7 +138,13 @@ func Patterns(harness string) []string {
 
 // Environ gives the environment of this process, filtered for the harness.
 func Environ(harness string) []string {
-	return Filter(os.Environ(), Patterns(harness))
+	return EnvironWith(harness, Pass())
+}
+
+// EnvironWith is Environ with the pass names given, so a check can use the
+// list of a rule set that is not active yet.
+func EnvironWith(harness string, pass []string) []string {
+	return Filter(os.Environ(), append(Base(harness), pass...))
 }
 
 // DroppedFor gives the names of this process that a worker of the harness

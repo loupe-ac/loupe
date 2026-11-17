@@ -21,7 +21,7 @@ const checkTimeout = 10 * time.Second
 // start, so a check of either would stop a worker that runs. It reads no field
 // of auth status, because those name the person.
 func (h Harness) Check(ctx context.Context, spec harness.CheckSpec) []harness.Problem {
-	env := envfile.Overlay(envallow.Environ(envallow.HarnessClaude), spec.Env)
+	env := envfile.Overlay(envallow.EnvironWith(envallow.HarnessClaude, spec.Pass), spec.Env)
 	slugs := slices.Sorted(maps.Keys(spec.Projects))
 	// A worker starts in its project folder, which a relative PATH entry
 	// counts from, so each project finds its own claude.
