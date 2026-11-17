@@ -198,6 +198,7 @@ module "app" {
 
     var.stripe_secret_key == "" ? {} : { STRIPE_SECRET_KEY = { value = var.stripe_secret_key, type = "SECRET" } },
     var.stripe_webhook_secret == "" ? {} : { STRIPE_WEBHOOK_SECRET = { value = var.stripe_webhook_secret, type = "SECRET" } },
+    var.stripe_custom_domain_origin == "" ? {} : { STRIPE_CUSTOM_DOMAIN_ORIGIN = { value = var.stripe_custom_domain_origin } },
     var.sentry_dsn == "" ? {} : { SENTRY_DSN = { value = var.sentry_dsn, type = "SECRET" } },
     var.sentry_traces_sample_rate == "" ? {} : { SENTRY_TRACES_SAMPLE_RATE = { value = var.sentry_traces_sample_rate } },
     var.sentry_profiles_sample_rate == "" ? {} : { SENTRY_PROFILES_SAMPLE_RATE = { value = var.sentry_profiles_sample_rate } },

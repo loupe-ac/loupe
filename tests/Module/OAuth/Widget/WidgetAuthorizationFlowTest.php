@@ -49,7 +49,7 @@ final class WidgetAuthorizationFlowTest extends WebTestCase
         self::assertSelectorNotExists('[name="consent_form[project]"]');
 
         $this->browser->submit($crawler->selectButton('consent_form_approve')->form());
-        $location = (string) $this->browser->getResponse()->headers->get('Location');
+        $location = OAuthScenario::clientLocation($this->browser);
         self::assertStringStartsWith($this->callbackUrl().'?', $location);
 
         $message = $this->followToCallback();
@@ -120,7 +120,7 @@ final class WidgetAuthorizationFlowTest extends WebTestCase
         self::assertNull($approve->attr('disabled'));
 
         $this->browser->submit($crawler->selectButton('consent_form_approve')->form());
-        self::assertResponseRedirects();
+        self::assertNotSame('', OAuthScenario::clientLocation($this->browser));
     }
 
     public function test_a_wildcard_entry_covers_one_label_under_it(): void
@@ -218,7 +218,7 @@ final class WidgetAuthorizationFlowTest extends WebTestCase
         $this->browser->request(Request::METHOD_POST, $form->getUri(), $values);
 
         self::assertResponseStatusCodeSame(422);
-        self::assertFalse($this->browser->getResponse()->headers->has('Location'));
+        self::assertSame('', OAuthScenario::clientLocation($this->browser));
         self::assertSame(0, $this->countRows('oauth2_authorization_code'));
     }
 
@@ -362,7 +362,7 @@ final class WidgetAuthorizationFlowTest extends WebTestCase
     /** @return array{targetOrigin: ?string, payload: array<string, mixed>} */
     private function followToCallback(): array
     {
-        $location = (string) $this->browser->getResponse()->headers->get('Location');
+        $location = OAuthScenario::clientLocation($this->browser);
         self::assertStringStartsWith($this->callbackUrl().'?', $location);
 
         return $this->readCallback($this->browser->request(Request::METHOD_GET, $location));
