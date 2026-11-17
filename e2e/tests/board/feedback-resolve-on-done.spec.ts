@@ -65,12 +65,15 @@ test('moving a card to Done resolves the feedback on it', async ({ page }) => {
     await expect(entry.locator('.lp-status-chip')).toHaveText('Pending');
 
     await page.getByRole('tab', { name: 'Details', exact: true }).click();
-    // The select submits on change, and the move answers with the board.
-    await page
+    // The select submits on change, and the move leaves the card page in place.
+    const column = page
         .locator('#card-panel-details')
-        .getByLabel('Column', { exact: true })
-        .selectOption({ label: 'Done' });
-    await expect(page).toHaveURL(new RegExp(`/projects/${projectId}/board$`));
+        .getByLabel('Column', { exact: true });
+    const moved = page.waitForResponse(
+        (r) => r.url().includes('/move') && r.request().method() === 'POST',
+    );
+    await column.selectOption({ label: 'Done' });
+    expect((await moved).status()).toBe(200);
 
     await page.goto(cardUrl);
     await page.getByRole('tab', { name: 'Feedback', exact: true }).click();

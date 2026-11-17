@@ -437,15 +437,17 @@ test("the card's own page moves it without a pointer", async ({
     await page.getByRole('tab', { name: 'Details', exact: true }).click();
     const moveForm = page.locator('.lp-card-move__form');
     await expect(moveForm).toBeVisible();
+    const moved = page.waitForResponse(
+        (r) => r.url().includes('/move') && r.request().method() === 'POST',
+    );
     await moveForm.locator('select[name$="[column]"]').selectOption({
         label: 'In progress',
     });
-
-    await expect(page).toHaveURL(board.boardUrl);
-    await waitForDragReady(page);
-    expect(await titlesIn(page, IN_PROGRESS)).toEqual(['Bravo']);
+    // The card page stays in place, so the board shows the move on a visit.
+    expect((await moved).status()).toBe(200);
 
     await page.goto(board.boardUrl);
+    await waitForDragReady(page);
     expect(await titlesIn(page, IN_PROGRESS)).toEqual(['Bravo']);
 });
 
