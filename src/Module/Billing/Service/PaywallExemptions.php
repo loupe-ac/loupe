@@ -31,6 +31,7 @@ final readonly class PaywallExemptions
         'app_register_check_email',
         'app_register_resend',
         'app_verify_email',
+        'app_verify_email_submit',
         'app_waitlist_join',
         'app_waitlist_notify',
         'app_account_settings',

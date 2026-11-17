@@ -456,9 +456,9 @@ final class IssueGitTokenApiTest extends WebTestCase
         $api = new GitHubAppApi($http, $configuration, $clock);
         static::getContainer()->set(GitHubAppApi::class, $api);
         $cache = new ArrayAdapter(clock: $clock);
-        static::getContainer()->set(GitHubAppInstallationList::class, new GitHubAppInstallationList($api, $cache));
         $encryptor = static::getContainer()->get(Encryptor::class);
         self::assertInstanceOf(Encryptor::class, $encryptor);
+        static::getContainer()->set(GitHubAppInstallationList::class, new GitHubAppInstallationList($api, $cache));
         static::getContainer()->set(GitHubRepositoryTokenStore::class, new GitHubRepositoryTokenStore($cache, $encryptor, $clock));
     }
 
