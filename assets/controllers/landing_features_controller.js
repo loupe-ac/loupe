@@ -1,5 +1,7 @@
 import { Controller } from '@hotwired/stimulus';
 
+/* stimulusFetch: 'lazy' */
+
 /**
  * The feature carousel of the home page. One slide per feature sits in a track,
  * and the picked feature shows its description in the list.

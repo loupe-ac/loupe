@@ -1,5 +1,7 @@
 import { Controller } from '@hotwired/stimulus';
 
+/* stimulusFetch: 'lazy' */
+
 /**
  * Keeps the rows of an edited table level in the side by side view. The grid
  * pairs blocks, so a table is one grid row, and its inner rows drift once a

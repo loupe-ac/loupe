@@ -1,5 +1,7 @@
 import { Controller } from '@hotwired/stimulus';
 
+/* stimulusFetch: 'lazy' */
+
 /**
  * The Loupe Explainer in the home page hero. The explainer is a static page in
  * a same-origin iframe, so the frame takes the height of that page.

@@ -3,6 +3,8 @@ import { renderStreamMessage } from '@hotwired/turbo';
 import { on } from '../lib/live.js';
 import { handleLostAccess, onLostAccess } from '../lib/live_fetch.js';
 
+/* stimulusFetch: 'lazy' */
+
 /** A change often arrives with the next one close behind it. */
 export const DEBOUNCE_MILLISECONDS = 300;
 
