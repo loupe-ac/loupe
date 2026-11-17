@@ -11,6 +11,7 @@ use App\Module\Bridge\ValueObject\WorkerRunWakeTrigger;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Support\AgentCredential;
+use App\Tests\Support\RunsFactJobs;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -266,6 +267,7 @@ final class WorkerRunSessionWakeApiTest extends WebTestCase
     /** @return array{string|null, int|null, int|null} the trigger, the gap and the cache write of the fact row */
     private function factOf(WorkerRun $run): array
     {
+        RunsFactJobs::run(self::getContainer());
         $row = $this->em()->getConnection()->fetchAssociative(
             'SELECT wake_trigger, wake_gap_ms, wake_first_cache_write_tokens FROM bridge_worker_run_facts WHERE run_id = ?',
             [(string) $run->id],

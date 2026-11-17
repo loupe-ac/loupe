@@ -41,6 +41,7 @@ final readonly class CreateBucketRuleHandler
 
         $rule = $this->em->wrapInTransaction(function () use ($command, $project): InsightsBucketRule|DomainErrors {
             // The lock keeps two creates from sharing a position or passing the limit together.
+            // Keep FOR UPDATE: a bridge report waits for no weaker lock.
             $this->em->lock($project, LockMode::PESSIMISTIC_WRITE);
 
             return $this->writer->append($project, $command->pattern, $command->bucket);
