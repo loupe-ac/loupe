@@ -48,7 +48,7 @@ var previewTokenClient = func(f previewTokenFlags) (*api.Client, error) {
 		return nil, err
 	}
 	if run != nil {
-		hc := &http.Client{Timeout: previewTokenTimeout, Transport: withUserAgent(nil)}
+		hc := &http.Client{Timeout: previewTokenTimeout, Transport: withUserAgent(nil, config.AllowHTTPFromEnv())}
 
 		return api.NewWithSource(run.baseURL, run.token, hc), nil
 	}
@@ -63,7 +63,7 @@ var previewTokenClient = func(f previewTokenFlags) (*api.Client, error) {
 	if f.instance != "" && strings.TrimRight(f.instance, "/") != strings.TrimRight(cfg.BaseURL, "/") {
 		return nil, fmt.Errorf("you are signed in to %s, not to %s", cfg.BaseURL, f.instance)
 	}
-	hc := &http.Client{Timeout: previewTokenTimeout, Transport: withUserAgent(nil)}
+	hc := &http.Client{Timeout: previewTokenTimeout, Transport: withUserAgent(nil, cfg.AllowsHTTP())}
 
 	return api.NewWithSource(cfg.BaseURL, tokenSource(cfg, hc), hc), nil
 }

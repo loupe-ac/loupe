@@ -32,7 +32,7 @@ func TestSubscribeAsksForEveryTopicOnOneConnection(t *testing.T) {
 	go func() {
 		defer close(done)
 		_ = Subscribe(ctx, srv.Client(), srv.URL+"?topic=stale", topics,
-			func(context.Context) (string, error) { return "jwt", nil }, Handler{})
+			func(context.Context) (string, error) { return "jwt", nil }, Handler{}, false)
 	}()
 
 	select {
@@ -49,7 +49,7 @@ func TestSubscribeAsksForEveryTopicOnOneConnection(t *testing.T) {
 
 func TestSubscribeRefusesNoTopic(t *testing.T) {
 	err := Subscribe(context.Background(), http.DefaultClient, "https://hub.test", nil,
-		func(context.Context) (string, error) { return "jwt", nil }, Handler{})
+		func(context.Context) (string, error) { return "jwt", nil }, Handler{}, false)
 	if err == nil || !strings.Contains(err.Error(), "at least one topic") {
 		t.Fatalf("err = %v", err)
 	}
@@ -63,7 +63,7 @@ func TestSubscribeReturnsAFatalTokenError(t *testing.T) {
 	done := make(chan error, 1)
 	go func() {
 		done <- Subscribe(context.Background(), http.DefaultClient, "https://hub.test", []string{"t"},
-			func(context.Context) (string, error) { calls++; return "", Fatal(refused) }, Handler{})
+			func(context.Context) (string, error) { calls++; return "", Fatal(refused) }, Handler{}, false)
 	}()
 
 	select {
@@ -120,6 +120,7 @@ func TestSubscribeResumesFromLastEventID(t *testing.T) {
 					mu.Unlock()
 				},
 			},
+			false,
 		)
 	}()
 
@@ -200,6 +201,7 @@ func TestSubscribeDoesNotCommitIDOfUndeliveredEvent(t *testing.T) {
 					mu.Unlock()
 				},
 			},
+			false,
 		)
 	}()
 
@@ -274,6 +276,7 @@ func TestSubscribeClearsResumePointOnEmptyID(t *testing.T) {
 					mu.Unlock()
 				},
 			},
+			false,
 		)
 	}()
 
@@ -339,6 +342,7 @@ func TestStreamHandlesCRLFLineEndings(t *testing.T) {
 					mu.Unlock()
 				},
 			},
+			false,
 		)
 	}()
 
@@ -426,6 +430,7 @@ func TestSubscribeMintsAFreshTokenAfterA401(t *testing.T) {
 					mu.Unlock()
 				},
 			},
+			false,
 		)
 	}()
 
@@ -488,7 +493,7 @@ func TestSubscribeSendsTheSeededLastEventIDFirst(t *testing.T) {
 		go func() {
 			defer close(done)
 			_ = Subscribe(ctx, srv.Client(), srv.URL, []string{"https://example.test/topic"},
-				func(context.Context) (string, error) { return "jwt", nil }, Handler{LastEventID: seed})
+				func(context.Context) (string, error) { return "jwt", nil }, Handler{LastEventID: seed}, false)
 		}()
 
 		select {
@@ -544,7 +549,7 @@ func TestSubscribeReportsEachCommittedEventID(t *testing.T) {
 					trail = append(trail, "id:"+id)
 					mu.Unlock()
 				},
-			})
+			}, false)
 	}()
 
 	want := "data:a id:1 data:b id:2 data:c id:"
@@ -597,7 +602,7 @@ func TestSubscribeHandsEachEventOverWithItsID(t *testing.T) {
 					trail = append(trail, id+"="+string(data))
 					mu.Unlock()
 				},
-			})
+			}, false)
 	}()
 
 	want := "1=a 2=b =c"
@@ -656,7 +661,7 @@ func TestSubscribeRefusesAnAnswerThatIsNotAnEventStream(t *testing.T) {
 							default:
 							}
 						},
-					})
+					}, false)
 			}()
 
 			select {
@@ -702,7 +707,7 @@ func TestSubscribeAcceptsAnEventStreamWithACharset(t *testing.T) {
 				case got <- string(data):
 				default:
 				}
-			}})
+			}}, false)
 	}()
 
 	select {
@@ -744,7 +749,7 @@ func TestSubscribeBacksOffFromAnEmptyStream(t *testing.T) {
 				mu.Lock()
 				errs = append(errs, err.Error())
 				mu.Unlock()
-			}})
+			}}, false)
 	}()
 
 	deadline := time.After(5 * time.Second)
@@ -796,7 +801,7 @@ func TestSubscribeResetsTheBackoffAfterAHeartbeat(t *testing.T) {
 	go func() {
 		defer close(done)
 		_ = Subscribe(ctx, srv.Client(), srv.URL, []string{"https://example.test/topic"},
-			func(context.Context) (string, error) { return "jwt", nil }, Handler{})
+			func(context.Context) (string, error) { return "jwt", nil }, Handler{}, false)
 	}()
 
 	deadline := time.After(5 * time.Second)
@@ -850,7 +855,7 @@ func TestSubscribeReportsACleanClose(t *testing.T) {
 				OnConnect: func() { time.Sleep(200 * time.Millisecond) },
 				OnClose:   func(lived time.Duration, events int) { got <- closed{lived, events} },
 				OnError:   func(err error) { errs <- err },
-			})
+			}, false)
 	}()
 
 	select {
@@ -907,7 +912,7 @@ func TestSubscribeReportsNoCleanCloseOnAnErrorEnd(t *testing.T) {
 							default:
 							}
 						},
-					})
+					}, false)
 			}()
 
 			select {
@@ -923,5 +928,21 @@ func TestSubscribeReportsNoCleanCloseOnAnErrorEnd(t *testing.T) {
 				t.Fatal("an error end was reported as a clean close")
 			}
 		})
+	}
+}
+
+func TestSubscribeRefusesAPlainHTTPHubOnAnotherHostUnlessAllowed(t *testing.T) {
+	err := Subscribe(context.Background(), http.DefaultClient, "http://hub.lan", []string{"t"},
+		func(context.Context) (string, error) { return "jwt", nil }, Handler{}, false)
+	if err == nil || !strings.Contains(err.Error(), "unencrypted") {
+		t.Fatalf("err = %v, want a refusal", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	err = Subscribe(ctx, http.DefaultClient, "http://hub.lan", []string{"t"},
+		func(context.Context) (string, error) { return "jwt", nil }, Handler{}, true)
+	if err != nil && strings.Contains(err.Error(), "unencrypted") {
+		t.Fatalf("an opted-in hub was refused: %v", err)
 	}
 }

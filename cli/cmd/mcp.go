@@ -58,7 +58,7 @@ func newMcpCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				tokens = tokenSource(cfg, &http.Client{Timeout: refreshTimeout, Transport: withUserAgent(nil)})
+				tokens = tokenSource(cfg, &http.Client{Timeout: refreshTimeout, Transport: withUserAgent(nil, cfg.AllowsHTTP())})
 				project, source, err = mcpProjectSource(projectID, cmd.ErrOrStderr())
 			}
 			if err != nil {
@@ -74,7 +74,7 @@ func newMcpCmd() *cobra.Command {
 				ProjectSource: source,
 				Session:       mcpSession,
 				Base:          &mcpproxy.Retrying{},
-			})}
+			}, cfg.AllowsHTTP())}
 
 			fmt.Fprintln(cmd.ErrOrStderr(), mcpStartLine())
 
