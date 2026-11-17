@@ -50,6 +50,7 @@ final readonly class ArchiveExperimentHandler
         // archive is covered, and a report that waits for the lock reads its
         // clock after the archive, so it is not.
         $this->em->wrapInTransaction(function () use ($project, $experiment): void {
+            // Keep FOR UPDATE: a bridge report waits for no weaker lock.
             $this->em->lock($project, LockMode::PESSIMISTIC_WRITE);
 
             $now = $this->clock->now();
