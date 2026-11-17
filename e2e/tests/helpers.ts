@@ -364,7 +364,15 @@ export async function confirmEmailLink(
     link: string,
 ): Promise<void> {
     await page.goto(link);
+    // Turbo submits the form as XHR, so the click resolves before the verify
+    // request ends. Wait for it, so a later navigation never races it.
+    const verified = page.waitForResponse(
+        (response) =>
+            response.request().method() === 'POST' &&
+            response.url().includes('/register/verify'),
+    );
     await page.getByRole('button', { name: 'Confirm email address' }).click();
+    await verified;
 }
 
 /**
