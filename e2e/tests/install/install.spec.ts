@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { extractLink, getLatestEmailTo } from '../helpers';
+import { confirmEmailLink, extractLink, getLatestEmailTo } from '../helpers';
 import { coverageScaled } from '../timeouts';
 
 /**
@@ -75,15 +75,15 @@ test('first-install wizard creates an unverified admin who is gated until they f
         page.getByRole('heading', { name: 'Check your email' }),
     ).toBeVisible();
 
-    // Following the emailed verification link verifies the account and logs
-    // it in (VerifyEmailController authenticates on success), so ROLE_ADMIN
+    // Confirming through the emailed link verifies the account. The browser is
+    // already signed in as that admin, so it stays signed in, ROLE_ADMIN
     // access now works and the seeded flag value survived.
     const received = await getLatestEmailTo(request, ADMIN.email);
     const verificationUrl = extractLink(
         received.body,
         /https?:\/\/[^\s"<]+\/register\/verify[^\s"<]*/,
     );
-    await page.goto(verificationUrl);
+    await confirmEmailLink(page, verificationUrl);
     // Filtered by name, because the flag list is paged.
     await page.goto('/admin/feature-flags?q=registration.cap');
     // Scoped to the list row, not a bare getByText: the page also has a
