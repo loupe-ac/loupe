@@ -558,8 +558,8 @@ diagrams on the page still render. The comparison view always shows the source.
 
 Diagrams are behind the `review.mermaid.enabled` feature flag, and the flag
 ships off. While it is off, each block shows its source and a notice that names
-the flag. When the flag is on, the reader's browser loads Mermaid from
-jsDelivr (`cdn.jsdelivr.net`). Loupe itself makes no call.
+the flag. When the flag is on, the reader's browser loads Mermaid from the
+Loupe server, so diagrams work on an instance with no outbound access.
 
 ## Annotations
 
