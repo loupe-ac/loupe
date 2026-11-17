@@ -9,10 +9,11 @@ use App\Mercure\LiveUpdates;
 use App\Mercure\ProjectTopicBuilder;
 use App\Module\Bridge\Event\WorkerRunChanged;
 use App\Module\Bridge\EventListener\PublishCardWarningOnWorkerRunChanged;
+use App\Module\Bridge\Service\SidebarCountsSignal;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Tests\Support\FeatureFlags;
-use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Jwt\StaticTokenProvider;
@@ -20,7 +21,7 @@ use Symfony\Component\Mercure\MockHub;
 use Symfony\Component\Mercure\Update;
 use Symfony\Component\Uid\Uuid;
 
-final class PublishCardWarningOnWorkerRunChangedTest extends TestCase
+final class PublishCardWarningOnWorkerRunChangedTest extends KernelTestCase
 {
     /** @var list<Update> */
     private array $published = [];
@@ -57,6 +58,7 @@ final class PublishCardWarningOnWorkerRunChangedTest extends TestCase
 
     private function publish(WorkerRunChanged $event): void
     {
+        self::bootKernel();
         $live = new LiveUpdatePublisher(
             new RequestStack(),
             new \App\Mercure\LiveUpdateTransactionBuffer(),
@@ -73,7 +75,7 @@ final class PublishCardWarningOnWorkerRunChangedTest extends TestCase
             ),
         );
 
-        new PublishCardWarningOnWorkerRunChanged(new WorkerRunChangedPublisher(new ProjectTopicBuilder('https://loupe.test'), $live))($event);
+        new PublishCardWarningOnWorkerRunChanged(new WorkerRunChangedPublisher(new ProjectTopicBuilder('https://loupe.test'), $live, self::getContainer()->get(SidebarCountsSignal::class)))($event);
         $live->publish();
     }
 }

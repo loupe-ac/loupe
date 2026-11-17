@@ -166,6 +166,9 @@
     .lp-sidebar__nav-label--spaced {
         @apply mt-4;
     }
+    .lp-sidebar__live-status {
+        @apply m-0 px-3 pb-1.5 text-xs font-semibold text-chrome-dim empty:hidden;
+    }
     .lp-sidebar__spacer {
         @apply mt-auto;
     }
