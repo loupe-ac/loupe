@@ -6,6 +6,7 @@ namespace App\Module\Insights\Service;
 
 use App\Module\Bridge\Command\ShowExperimentCommand;
 use App\Module\Bridge\Command\ShowExperimentHandler;
+use App\Module\Bridge\Metric\MetricFacts;
 use App\Module\Insights\Command\ShowMetricsCommand;
 use App\Module\Insights\Entity\InsightsKeptResult;
 use App\Module\Insights\Entity\InsightsSavedGraph;
@@ -17,6 +18,7 @@ use App\Module\Insights\View\MetricsQuery;
 use App\Module\Insights\View\PublicExperimentResult;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\TemplateMetrics;
+use App\Module\Workflow\Contract\TemplateMetricSet;
 use Symfony\Component\HttpFoundation\InputBag;
 use Symfony\Component\Lock\Exception\ExceptionInterface as LockException;
 use Symfony\Component\Lock\SharedLockInterface;
@@ -48,9 +50,13 @@ final readonly class InsightsResultKeeper
      * The worker path: takes the lock first and reads the graph after it, so a settings change that saved before the
      * lock is in the result. A fresh read drops a graph that the entity manager already holds, so a settings save during the wait counts.
      *
+     * A refresh passes the fact set it loaded once, and its stamp is the time of the result. After the lock, the graph is
+     * skipped when a later second already holds a result of the same settings, so a refresh never replaces a newer result
+     * with an older one.
+     *
      * @return bool true when the compute kept a new row
      */
-    public function graphById(string $projectId, string $graphId): bool
+    public function graphById(string $projectId, string $graphId, ?MetricFacts $batch = null): bool
     {
         if (!Uuid::isValid($graphId)) {
             return false;
@@ -60,11 +66,15 @@ final readonly class InsightsResultKeeper
 
         try {
             $graph = $this->insightsSavedGraphs->findOneByIdAndProjectId($graphId, $projectId, true);
-            if (null === $graph || null !== $graph->removedAt || [] !== $this->health->check($graph->project, [$graph])) {
+            if (null === $graph) {
+                return false;
+            }
+            $templates = $this->templateMetrics->forProject($graph->project->requireId());
+            if (null !== $graph->removedAt || [] !== $this->health->check($graph->project, [$graph], $templates) || $this->keptNewer($graph, $batch)) {
                 return false;
             }
 
-            return $this->computeAndKeep($graph, $lock, true)[1];
+            return $this->computeAndKeep($graph, $lock, true, $templates, $batch)[1];
         } finally {
             $this->release($lock, true);
         }
@@ -91,14 +101,14 @@ final readonly class InsightsResultKeeper
     }
 
     /** @return array{0: KeptGraphResult, 1: bool} the result, and whether it was kept */
-    private function computeAndKeep(InsightsSavedGraph $graph, SharedLockInterface $lock, bool $held): array
+    private function computeAndKeep(InsightsSavedGraph $graph, SharedLockInterface $lock, bool $held, ?TemplateMetricSet $templates = null, ?MetricFacts $batch = null): array
     {
-        $startedAt = $this->insightsKeptResults->databaseNow();
+        $startedAt = $batch->to ?? $this->insightsKeptResults->databaseNow();
         $project = $graph->project;
         /** @var InputBag<string> $settings */
         $settings = new InputBag($graph->settings());
-        $query = MetricsQuery::fromQuery($settings, $this->templateMetrics->forProject($project->requireId()));
-        $result = $this->computer->compute(new ShowMetricsCommand($project, $query, $startedAt));
+        $query = MetricsQuery::fromQuery($settings, $templates ?? $this->templateMetrics->forProject($project->requireId()));
+        $result = $this->computer->compute(new ShowMetricsCommand($project, $query, $startedAt, $batch));
 
         $kept = false;
         if ($held && $this->stillHeld($lock)) {
@@ -141,6 +151,19 @@ final readonly class InsightsResultKeeper
         } finally {
             $this->release($lock, $held);
         }
+    }
+
+    /** The kept time has whole seconds, so only a result from a later second than the stamp counts as newer. */
+    private function keptNewer(InsightsSavedGraph $graph, ?MetricFacts $batch): bool
+    {
+        if (null === $batch) {
+            return false;
+        }
+        $kept = $this->insightsKeptResults->findForGraph($graph);
+
+        return null !== $kept
+            && $kept->settingsHash === InsightsKeptResult::hashOf($graph)
+            && $kept->computedAt > new \DateTimeImmutable('@'.$batch->to->getTimestamp());
     }
 
     private function stillHeld(SharedLockInterface $lock): bool

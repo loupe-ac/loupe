@@ -63,6 +63,7 @@ final class InstallReturnThroughSignInTest extends WebTestCase
         self::assertResponseRedirects('/register/check-email');
 
         $this->client->request(Request::METHOD_GET, '/register/verify?token='.$token);
+        $this->client->submitForm('Confirm email address');
 
         self::assertResponseRedirects('http://localhost'.self::SETUP);
     }
@@ -89,6 +90,7 @@ final class InstallReturnThroughSignInTest extends WebTestCase
         $em->flush();
 
         $this->client->request(Request::METHOD_GET, '/register/verify?token='.$token);
+        $this->client->submitForm('Confirm email address');
 
         self::assertResponseRedirects('http://localhost'.self::SETUP);
     }

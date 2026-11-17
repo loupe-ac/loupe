@@ -349,6 +349,16 @@ final class GitHubDeliveryTest extends TestCase
         self::assertNull($this->delivery('status', ['ref' => 'refs/heads/main', 'repository' => self::REPOSITORY])->pushedBranch());
     }
 
+    public function test_the_deleted_branch_is_the_branch_of_a_deleting_push_and_nothing_else(): void
+    {
+        self::assertSame('epic/852', $this->delivery('push', ['ref' => 'refs/heads/epic/852', 'deleted' => true, 'repository' => self::REPOSITORY])->deletedBranch());
+        self::assertNull($this->delivery('push', ['ref' => 'refs/heads/epic/852', 'deleted' => false, 'repository' => self::REPOSITORY])->deletedBranch());
+        self::assertNull($this->delivery('push', ['ref' => 'refs/heads/epic/852', 'repository' => self::REPOSITORY])->deletedBranch());
+        self::assertNull($this->delivery('push', ['ref' => 'refs/tags/v1.0', 'deleted' => true, 'repository' => self::REPOSITORY])->deletedBranch());
+        self::assertNull($this->delivery('push', ['ref' => 'refs/heads/', 'deleted' => true, 'repository' => self::REPOSITORY])->deletedBranch());
+        self::assertNull($this->delivery('status', ['ref' => 'refs/heads/main', 'deleted' => true, 'repository' => self::REPOSITORY])->deletedBranch());
+    }
+
     public function test_the_head_branch_is_read_for_the_pull_request_actions_that_change_a_branch_only(): void
     {
         $pullRequest = ['head' => ['ref' => 'loupe/init'], 'number' => 3];

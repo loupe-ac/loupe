@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Artifact\Controller;
 
+use App\Module\Artifact\Install\ArtifactInstallFlags;
 use App\Module\Artifact\Service\ArtifactContentSigner;
 use App\Tests\Module\Artifact\ArtifactScenario;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -99,6 +100,57 @@ final class ShowArtifactContentControllerTest extends WebTestCase
         $past = time() - 10;
         $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, '/artifact-content/'.$first.'/'.$past.'/'.$signer->sign($first, $past).'/index.html');
         self::assertResponseStatusCodeSame(404, 'expired link with a correct signature');
+    }
+
+    /** @return iterable<string, array{array<string, string>, int}> */
+    public static function fetchHeaders(): iterable
+    {
+        yield 'app page injects a script' => [['Sec-Fetch-Site' => 'same-origin', 'Sec-Fetch-Dest' => 'script'], 404];
+        yield 'app page starts a worker' => [['Sec-Fetch-Site' => 'same-origin', 'Sec-Fetch-Dest' => 'worker'], 404];
+        yield 'sibling sub-domain loads a script' => [['Sec-Fetch-Site' => 'same-site', 'Sec-Fetch-Dest' => 'script'], 404];
+        yield 'app page loads an image' => [['Sec-Fetch-Site' => 'same-origin', 'Sec-Fetch-Dest' => 'image'], 404];
+        yield 'app page fetches' => [['Sec-Fetch-Site' => 'same-origin', 'Sec-Fetch-Dest' => 'empty'], 404];
+        yield 'app page frames the file' => [['Sec-Fetch-Site' => 'same-origin', 'Sec-Fetch-Dest' => 'iframe'], 200];
+        yield 'app page navigates to the file' => [['Sec-Fetch-Site' => 'same-origin', 'Sec-Fetch-Dest' => 'document'], 200];
+        yield 'sealed frame loads a script' => [['Sec-Fetch-Site' => 'cross-site', 'Sec-Fetch-Dest' => 'script'], 200];
+        yield 'sealed frame fetches' => [['Sec-Fetch-Site' => 'cross-site', 'Sec-Fetch-Dest' => 'empty'], 200];
+        yield 'person opens the link' => [['Sec-Fetch-Site' => 'none', 'Sec-Fetch-Dest' => 'document'], 200];
+        yield 'no fetch headers' => [[], 200];
+    }
+
+    /** @param array<string, string> $headers */
+    #[DataProvider('fetchHeaders')]
+    public function test_the_sealed_route_refuses_an_app_page_that_loads_the_file_as_anything_but_a_frame(array $headers, int $status): void
+    {
+        $client = static::createClient();
+        $project = $this->switchedOnProject('content-fetch-'.md5(serialize($headers)).'@example.com');
+        $artifact = $this->storedArtifact($project, 'Prototype', [['app.js' => 'x']]);
+        $path = $this->signedPath($this->versionNumbered($artifact, 1), 'app.js');
+        $this->em()->clear();
+
+        $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, $path, server: array_combine(
+            array_map(static fn (string $name): string => 'HTTP_'.strtoupper(str_replace('-', '_', $name)), array_keys($headers)),
+            $headers,
+        ));
+
+        self::assertResponseStatusCodeSame($status);
+        if (200 === $status) {
+            self::assertTrue($client->getResponse()->headers->hasCacheControlDirective('no-store'));
+        }
+    }
+
+    public function test_the_guard_flag_off_serves_the_file_to_an_app_page(): void
+    {
+        $client = static::createClient();
+        $project = $this->switchedOnProject('content-fetch-off@example.com');
+        $this->em()->getConnection()->executeStatement("UPDATE feature_flag SET value = 'false' WHERE name = ?", [ArtifactInstallFlags::FLAG_GUARD_SCRIPT_LOADS]);
+        $artifact = $this->storedArtifact($project, 'Prototype', [['app.js' => 'x']]);
+        $path = $this->signedPath($this->versionNumbered($artifact, 1), 'app.js');
+        $this->em()->clear();
+
+        $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, $path, server: ['HTTP_SEC_FETCH_SITE' => 'same-origin', 'HTTP_SEC_FETCH_DEST' => 'script']);
+
+        self::assertResponseIsSuccessful();
     }
 
     /** @return iterable<string, array{string}> */

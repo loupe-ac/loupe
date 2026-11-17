@@ -7,10 +7,10 @@ namespace App\Tests\Module\Workflow\Service;
 use App\Module\Workflow\Command\BindWorkflowTemplateCommand;
 use App\Module\Workflow\Contract\CardTypeDefinition;
 use App\Module\Workflow\Contract\LabelTone;
+use App\Module\Workflow\Repository\WorkflowBindingRepository;
 use App\Module\Workflow\Service\TemplateCardTypeCatalog;
 use App\Module\Workflow\Template\ShippedTemplates;
 use App\Module\Workflow\Template\TemplateParser;
-use App\Module\Workflow\Template\TemplateSource;
 use App\Tests\Module\Workflow\WorkflowProjects;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
@@ -38,6 +38,22 @@ final class TemplateCardTypeCatalogTest extends KernelTestCase
         self::assertSame('feature', $types->defaultKey);
         self::assertSame(LabelTone::Pink, $types->get('bug')->tone);
         self::assertEquals(new CardTypeDefinition('epic', 'board.card.type.epic', LabelTone::Blue, true, true), $types->get('epic'));
+    }
+
+    public function test_a_stored_copy_with_a_field_this_version_does_not_know_gives_the_same_types(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('card-types-unknown-field');
+        $binding = $this->bindLifecycle($project);
+        $definition = $binding->definition;
+        $definition['aFieldOfALaterVersion'] = ['rules' => 'ignored'];
+        $binding->definition = $definition;
+        $this->em()->flush();
+
+        $types = $this->catalog()->forProject($project->requireId());
+
+        self::assertSame(self::SHIPPED_KEYS, array_map(static fn (CardTypeDefinition $type): string => $type->key, $types->all));
+        self::assertSame('feature', $types->defaultKey);
     }
 
     public function test_a_simple_project_gets_the_simple_types(): void
@@ -87,7 +103,7 @@ final class TemplateCardTypeCatalogTest extends KernelTestCase
         $container = self::getContainer();
 
         return new TemplateCardTypeCatalog(
-            $container->get(TemplateSource::class),
+            $container->get(WorkflowBindingRepository::class),
             $container->get(ShippedTemplates::class),
             $container->get(TemplateParser::class),
         );

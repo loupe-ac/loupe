@@ -36,9 +36,8 @@ final readonly class LinkSocialAccountHandler
         }
 
         // Revoking is what makes the superseded verification actually superseded:
-        // VerifyEmailHandler never checks isVerified() and its controller logs in
-        // whoever presents a valid token, so an outstanding link would keep
-        // working after the account is verified another way.
+        // VerifyEmailHandler never checks isVerified(), so an outstanding link
+        // would keep working after the account is verified another way.
         $newlyVerified = $command->profile->emailVerified && !$user->isVerified();
         if ($command->profile->emailVerified) {
             $user->emailVerifiedAt ??= new \DateTimeImmutable();

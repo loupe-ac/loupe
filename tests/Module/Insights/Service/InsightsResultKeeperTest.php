@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Insights\Service;
 
 use App\Module\Bridge\Metric\MetricCompare;
+use App\Module\Bridge\Metric\MetricFacts;
 use App\Module\Bridge\Metric\MetricRange;
 use App\Module\Bridge\Metric\MetricStatistic;
 use App\Module\Bridge\Metric\MetricUnit;
@@ -230,6 +231,61 @@ final class InsightsResultKeeperTest extends KernelTestCase
         self::assertSame([], $result->series);
         self::assertNotNull($result->query->formula?->problem);
         self::assertNull($this->service(KeptGraphView::class)->build($result, 'en')->layout);
+    }
+
+    public function test_a_refresh_skips_a_graph_whose_kept_result_is_from_a_later_second(): void
+    {
+        $project = $this->scenarioProject('keeper-newer');
+        $graph = $this->costGraph($project);
+        $graphId = (string) $graph->id;
+        $stamp = new \DateTimeImmutable('2026-11-16 10:00:00.500000', new \DateTimeZone('UTC'));
+        $this->kept()->keepGraph($graph, InsightsKeptResult::hashOf($graph), new \DateTimeImmutable('2026-11-16 10:00:02', new \DateTimeZone('UTC')), 'newer');
+        $this->em()->clear();
+
+        $result = $this->keeper()->graphById((string) $project->id, $graphId, new MetricFacts($project, $stamp));
+
+        self::assertFalse($result);
+        self::assertSame('newer', $this->payloadOf($graphId));
+        self::assertSame([], $this->events);
+    }
+
+    public function test_a_refresh_replaces_a_result_kept_in_the_same_second_or_with_other_settings(): void
+    {
+        $project = $this->scenarioProject('keeper-same-second');
+        $graph = $this->costGraph($project);
+        $graphId = (string) $graph->id;
+        $stamp = new \DateTimeImmutable('2026-11-16 10:00:00.500000', new \DateTimeZone('UTC'));
+        $this->kept()->keepGraph($graph, InsightsKeptResult::hashOf($graph), new \DateTimeImmutable('2026-11-16 10:00:00', new \DateTimeZone('UTC')), 'same second');
+        $this->em()->clear();
+
+        self::assertTrue($this->keeper()->graphById((string) $project->id, $graphId, new MetricFacts($project, $stamp)));
+        self::assertNotSame('same second', $this->payloadOf($graphId));
+
+        $this->kept()->keepGraph($graph, 'other settings', new \DateTimeImmutable('2026-11-16 10:00:09', new \DateTimeZone('UTC')), 'other');
+        $this->em()->clear();
+
+        self::assertTrue($this->keeper()->graphById((string) $project->id, $graphId, new MetricFacts($project, $stamp)));
+        self::assertNotSame('other', $this->payloadOf($graphId));
+    }
+
+    public function test_a_refresh_stamps_the_result_with_the_time_of_its_fact_set(): void
+    {
+        $project = $this->scenarioProject('keeper-stamp');
+        $graph = $this->costGraph($project);
+        $graphId = (string) $graph->id;
+        $stamp = new \DateTimeImmutable('2026-11-16 10:00:07.250000', new \DateTimeZone('UTC'));
+        $this->em()->clear();
+
+        self::assertTrue($this->keeper()->graphById((string) $project->id, $graphId, new MetricFacts($project, $stamp)));
+
+        $row = $this->kept()->findForGraph($graph);
+        self::assertNotNull($row);
+        self::assertSame('2026-11-16 10:00:07', $row->computedAt->format('Y-m-d H:i:s'));
+    }
+
+    private function payloadOf(string $graphId): string
+    {
+        return (string) $this->em()->getConnection()->fetchOne('SELECT payload FROM insights_kept_results WHERE saved_graph_id = :graph', ['graph' => $graphId]);
     }
 
     private function costGraph(Project $project): InsightsSavedGraph
