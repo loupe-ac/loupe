@@ -6,6 +6,7 @@ namespace App\Module\Board\Repository;
 
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardValue;
+use App\Module\Workflow\Contract\FactsPass;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\ORM\Query;
 use Doctrine\Persistence\ManagerRegistry;
@@ -13,15 +14,17 @@ use Doctrine\Persistence\ManagerRegistry;
 /** @extends ServiceEntityRepository<CardValue> */
 class CardValueRepository extends ServiceEntityRepository
 {
-    public function __construct(ManagerRegistry $registry)
-    {
+    public function __construct(
+        ManagerRegistry $registry,
+        private readonly FactsPass $factsPass,
+    ) {
         parent::__construct($registry, CardValue::class);
     }
 
     /** @return list<CardValue> every value the card holds, by key */
     public function findForCard(Card $card): array
     {
-        return array_values($this->findBy(['card' => $card], ['key' => 'ASC']));
+        return $this->factsPass->remember('card-values:'.$card->id, fn (): array => array_values($this->findBy(['card' => $card], ['key' => 'ASC'])));
     }
 
     /**

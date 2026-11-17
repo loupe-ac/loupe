@@ -8,6 +8,7 @@ use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\BoardColumns;
 use App\Module\Workflow\Contract\ColumnRef;
 use App\Module\Workflow\Contract\ColumnView;
+use App\Module\Workflow\Contract\FactsPass;
 use App\Module\Workflow\Contract\SweepProjectRows;
 use App\Module\Workflow\Entity\WorkflowSlotLink;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
@@ -21,6 +22,7 @@ class WorkflowSlotLinkRepository extends ServiceEntityRepository
         ManagerRegistry $registry,
         private readonly BoardColumns $boardColumns,
         private readonly SweepProjectRows $sweepRows,
+        private readonly FactsPass $factsPass,
     ) {
         parent::__construct($registry, WorkflowSlotLink::class);
     }
@@ -32,7 +34,7 @@ class WorkflowSlotLinkRepository extends ServiceEntityRepository
 
     public function findSlotKeyForColumnId(Project $project, ?Uuid $columnId): ?string
     {
-        return $this->sweepRows->remember('slot-key-of-column:'.$project->id.':'.$columnId, fn (): ?string => $this->findOneBy(['project' => $project, 'columnId' => $columnId])?->slotKey);
+        return $this->factsPass->remember('slot-key-of-column:'.$project->id.':'.$columnId, fn (): ?string => $this->sweepRows->remember('slot-key-of-column:'.$project->id.':'.$columnId, fn (): ?string => $this->findOneBy(['project' => $project, 'columnId' => $columnId])?->slotKey));
     }
 
     /** @return array<string, ?ColumnView> each slot key, mapped to its column, or null when the column is deleted */

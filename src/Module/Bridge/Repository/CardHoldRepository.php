@@ -7,6 +7,7 @@ namespace App\Module\Bridge\Repository;
 use App\Module\Account\Entity\User;
 use App\Module\Bridge\Entity\CardHold;
 use App\Module\Project\Entity\Project;
+use App\Module\Workflow\Contract\FactsPass;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\Persistence\ManagerRegistry;
@@ -18,8 +19,10 @@ use Symfony\Component\Uid\Uuid;
  */
 class CardHoldRepository extends ServiceEntityRepository
 {
-    public function __construct(ManagerRegistry $registry)
-    {
+    public function __construct(
+        ManagerRegistry $registry,
+        private readonly FactsPass $factsPass,
+    ) {
         parent::__construct($registry, CardHold::class);
     }
 
@@ -36,7 +39,7 @@ class CardHoldRepository extends ServiceEntityRepository
 
     public function existsForCard(Project $project, Uuid $cardId): bool
     {
-        return null !== $this->createQueryBuilder('h')
+        return $this->factsPass->remember('card-hold-exists:'.$project->id.':'.$cardId->toRfc4122(), fn (): bool => null !== $this->createQueryBuilder('h')
             ->select('1')
             ->andWhere('h.project = :project')
             ->andWhere('h.cardId = :cardId')
@@ -44,7 +47,7 @@ class CardHoldRepository extends ServiceEntityRepository
             ->setParameter('cardId', $cardId, UuidType::NAME)
             ->setMaxResults(1)
             ->getQuery()
-            ->getOneOrNullResult();
+            ->getOneOrNullResult());
     }
 
     /**
