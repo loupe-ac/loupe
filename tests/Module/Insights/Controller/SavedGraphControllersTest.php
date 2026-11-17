@@ -65,6 +65,34 @@ final class SavedGraphControllersTest extends WebTestCase
         self::assertSame('Cost per run, sum, last 30 days, per day', $this->stored($projectId)[0]->name);
     }
 
+    #[DataProvider('writeRoutes')]
+    public function test_a_save_and_an_update_need_the_manage_permission(string $route): void
+    {
+        $client = static::createClient();
+        $this->denyManage();
+        $project = $this->scenarioProject('manage-'.$route);
+        $projectId = (string) $project->id;
+        $graph = $this->seedSavedGraph($project, 'Keep me', 0);
+        $graphId = (string) $graph->id;
+        $this->em()->clear();
+
+        $client->loginUser($project->owner);
+        $path = 'save' === $route ? $this->savePath($projectId) : $this->updatePath($projectId, $graphId);
+        $client->request(Request::METHOD_POST, $path, $this->form(['name' => 'Changed']), [], self::HEADERS);
+
+        self::assertResponseStatusCodeSame(403);
+        $graphs = $this->stored($projectId);
+        self::assertCount(1, $graphs);
+        self::assertSame('Keep me', $graphs[0]->name);
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function writeRoutes(): iterable
+    {
+        yield 'save' => ['save'];
+        yield 'update' => ['update'];
+    }
+
     public function test_a_wrong_csrf_token_stores_nothing_and_flashes_an_error(): void
     {
         $client = static::createClient();
