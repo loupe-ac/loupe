@@ -24,7 +24,7 @@ A stop is a question when you can name two or more valid outcomes and only the o
 2. Each item has `freeText` true. Put the clear choices in `options`.
 3. The body of each item says what the code does now, and what the design or the card says. It gives the cost of each option for a user, in plain words. It ends with your recommendation and its confidence: high, moderate or low. The recommendation never replaces the answer. Never act on a recommendation alone.
 4. Put the id of this card in `cardIds` of each item. Add each other card that the question applies to, such as a sibling that waits on the same answer. The card filter of `inbox_list` reads only this field.
-5. Name a card as `card:<number>` and a pull request as `pr:owner/repo#<number>`, never by id. Link each document in `documentIds`, and write its review URL in the body: `/projects/{projectId}/documents/{documentId}/review`, with the `#heading-` anchor of the section when one applies. This covers the spec-review document, the build notes and the design section.
+5. Name a card as `card:<number>` and a pull request as `pr:owner/repo#<number>`, never by id. Link each document in `documentIds`. In the body, write it as a Markdown link with a short label, such as `[the build notes](<review URL>)`. The review URL is `<instance>/projects/<projectId>/documents/<documentId>/review`, with the `#heading-` anchor of the section when one applies. Take the instance from the prompt line `Loupe instance <url>.`. Never write a bare path or a bare URL. This covers the spec-review document, the build notes and the design section.
 6. Never give the owner a step in a document, the build notes or a pull request body. The worker writes them.
 
 ## The stop
