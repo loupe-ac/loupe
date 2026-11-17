@@ -1437,7 +1437,8 @@ process list does not show the token.
 
 A failed mint fails the launch, and the run goes through the normal launch
 failure path. A server with no mint route (HTTP 404) lets the launch go on with
-no token. That worker then works as before, with the session header alone.
+no token. That worker then has no run credential. Loupe no longer reads the
+session header as a run identity, so a review run of that worker fails.
 
 ### What the token reaches
 
@@ -1486,11 +1487,11 @@ cannot read your login folder.
 
 ### Bridges that are not updated
 
-A bridge with a CLI from before the run credential never asks for a token. For
-now, Loupe still reads the session header as the run identity of a session that
-never got a credential. A worker of such a bridge can still pass as a run of
-that bridge. A later release removes that fallback, and an older bridge's review
-runs then fail. Update the CLI of each bridge before then.
+A bridge with a CLI from before the run credential never asks for a token.
+Loupe does not read the session header as a run identity, so a worker of such a
+bridge has no run identity. Its review runs fail with the message that no review
+run is open, until you update the CLI of that bridge. Update the CLI of each
+bridge when you deploy this release.
 
 ## Experiments
 
