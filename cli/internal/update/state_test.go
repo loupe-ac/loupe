@@ -82,3 +82,21 @@ func TestSaveKeepsTheRevokedKeysOfTheFile(t *testing.T) {
 		t.Fatalf("state = %+v", got)
 	}
 }
+
+func TestStagedRevokedReadsTheFileEachTime(t *testing.T) {
+	dir := t.TempDir()
+	st, _ := LoadState(dir)
+	st.Signers = map[string]string{"1.2.0": "SHA256:a"}
+	if err := st.Save(dir); err != nil {
+		t.Fatal(err)
+	}
+	if StagedRevoked(dir, "1.2.0") {
+		t.Fatal("a signer that is not revoked reads as revoked")
+	}
+	if _, err := AddRevoked(dir, []string{"SHA256:a"}); err != nil {
+		t.Fatal(err)
+	}
+	if !StagedRevoked(dir, "1.2.0") || StagedRevoked(dir, "1.3.0") {
+		t.Fatal("StagedRevoked missed the signer, or flagged an unknown version")
+	}
+}

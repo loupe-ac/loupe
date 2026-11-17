@@ -292,3 +292,35 @@ func versionsServer(t *testing.T, body string) *httptest.Server {
 
 	return srv
 }
+
+func TestTheUpdaterRefusesAKeyThatItCouldNotSave(t *testing.T) {
+	gh := newFakeGitHub(t, "new binary", "cli/v1.2.0")
+	h := newTestUpdater(t, gh, "1.0.0")
+	h.u.setRange("^1.0")
+	if err := os.Mkdir(filepath.Join(h.u.dir, "update.json"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+
+	h.u.setRevoked([]string{gh.key.Fingerprint})
+	h.u.check(context.Background())
+
+	if len(h.staged) != 0 || h.events("update_revoked_unsaved") != 1 {
+		t.Fatalf("staged = %v, log = %s", h.staged, h.log.String())
+	}
+}
+
+func TestTheUpdaterDoesNotHandOverAKeyRevokedDuringTheDownload(t *testing.T) {
+	gh := newFakeGitHub(t, "new binary", "cli/v1.2.0")
+	h := newTestUpdater(t, gh, "1.0.0")
+	h.u.setRange("^1.0")
+	gh.onArchive = func() { h.u.setRevoked([]string{gh.key.Fingerprint}) }
+
+	h.u.check(context.Background())
+
+	if len(h.staged) != 0 {
+		t.Fatalf("staged = %v", h.staged)
+	}
+	if _, err := os.Stat(update.StagePath(h.u.dir, "1.2.0")); err == nil {
+		t.Fatal("the staged binary of a revoked key is still there")
+	}
+}

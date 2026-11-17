@@ -97,6 +97,22 @@ func AddRevoked(dir string, fingerprints []string) (bool, error) {
 	return true, st.save(dir)
 }
 
+// Revoke adds fingerprints to the in-memory revoked set and reports whether it
+// grew. It saves nothing.
+func (s *State) Revoke(fingerprints []string) bool { return s.addRevoked(fingerprints) }
+
+// StagedRevoked reports whether the staged binary of version names a signer
+// that update.json of dir now revokes. It reads the file each time.
+func StagedRevoked(dir, version string) bool {
+	st, err := LoadState(dir)
+	if err != nil {
+		return false
+	}
+	signer, ok := st.Signers[version]
+
+	return ok && slices.Contains(st.Revoked, signer)
+}
+
 func (s *State) addRevoked(fingerprints []string) bool {
 	grew := false
 	for _, f := range fingerprints {

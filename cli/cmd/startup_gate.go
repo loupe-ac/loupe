@@ -80,6 +80,7 @@ func updateCommand(install string, shared bool) string {
 func newStartupGate(autoUpdate bool, warn func(string), out io.Writer) startupGate {
 	setup := config.Current()
 	exe := os.Executable
+	var seen []string
 	g := startupGate{
 		version:    version,
 		install:    installMethod(exe),
@@ -88,6 +89,7 @@ func newStartupGate(autoUpdate bool, warn func(string), out io.Writer) startupGa
 		autoUpdate: autoUpdate,
 		warn:       warn,
 		onRevoked: func(fingerprints []string) {
+			seen = append(seen, fingerprints...)
 			if dir, err := config.Dir(); err == nil && len(fingerprints) > 0 {
 				_, _ = update.AddRevoked(dir, fingerprints)
 			}
@@ -102,7 +104,7 @@ func newStartupGate(autoUpdate bool, warn func(string), out io.Writer) startupGa
 			hc:         &http.Client{Timeout: updateTimeout},
 			executable: exe,
 			serverPolicy: func(context.Context) (serverPolicy, error) {
-				return serverPolicy{cliRange: cliRange}, nil
+				return serverPolicy{cliRange: cliRange, revoked: seen}, nil
 			},
 		}
 

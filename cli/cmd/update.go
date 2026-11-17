@@ -467,7 +467,7 @@ func (s selfUpdate) run(ctx context.Context, out io.Writer) error {
 	policy, rangeErr := s.serverPolicy(ctx)
 	cliRange := policy.cliRange
 	if _, err := update.AddRevoked(dir, policy.revoked); err != nil {
-		fmt.Fprintf(out, "warning: could not store the revoked release keys (%v)\n", err)
+		return fmt.Errorf("store the revoked release keys: %w", err)
 	}
 	var rule string
 	var keep func(update.Version) bool
@@ -496,6 +496,7 @@ func (s selfUpdate) run(ctx context.Context, out io.Writer) error {
 	if err != nil {
 		st = &update.State{Staged: map[string]string{}, Signers: map[string]string{}}
 	}
+	st.Revoke(policy.revoked)
 	u.dropRevokedStaged(st)
 	installable := keep
 	if rangeErr == nil && semver {

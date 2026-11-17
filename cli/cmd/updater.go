@@ -114,6 +114,8 @@ type updater struct {
 	log        *slog.Logger
 	autoUpdate func() bool
 	onStaged   stagedHook
+	// revoked holds the keys that server answers revoked, guarded by mu.
+	revoked []string
 	// onDrain holds back new work while the running version is outside the
 	// range, and releases it when the version is back inside.
 	onDrain    func(draining bool)
@@ -232,12 +234,24 @@ func (u *updater) setRange(r string) {
 	}
 }
 
+// heldRevoked returns the keys that server answers revoked since this process
+// started, also when saving them failed.
+func (u *updater) heldRevoked() []string {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+
+	return slices.Clone(u.revoked)
+}
+
 // setRevoked stores the release keys that a server answer revokes. A new key
 // asks for a check, which deletes a staged binary that the key signed.
 func (u *updater) setRevoked(fingerprints []string) {
 	if len(fingerprints) == 0 {
 		return
 	}
+	u.mu.Lock()
+	u.revoked = append(u.revoked, fingerprints...)
+	u.mu.Unlock()
 	grew, err := update.AddRevoked(u.dir, fingerprints)
 	if err != nil {
 		u.log.Warn("update_revoked_unsaved", "error", err.Error())
@@ -523,6 +537,7 @@ func (u *updater) runCheck(ctx context.Context, force bool) updateResult {
 		u.log.Warn("update_state_unreadable", "error", err.Error())
 		st = &update.State{Staged: map[string]string{}, Signers: map[string]string{}}
 	}
+	st.Revoke(u.heldRevoked())
 	u.dropRevokedStaged(st)
 	releases, err := update.FetchReleases(ctx, u.hc, u.apiBase)
 	if err != nil {
@@ -587,6 +602,15 @@ func (u *updater) runCheck(ctx context.Context, force bool) updateResult {
 		}
 
 		return u.result(outcomeFailed, to, err.Error())
+	}
+	// A heartbeat can revoke the signer while the release downloads.
+	if fresh, err := update.LoadState(u.dir); err == nil {
+		fresh.Revoke(u.heldRevoked())
+		if signer := fresh.Signers[to]; slices.Contains(fresh.Revoked, signer) {
+			u.dropRevokedStaged(fresh)
+
+			return u.result(outcomeFailed, to, "the release key of this version was revoked during the update")
+		}
 	}
 	prev := u.state()
 	u.setState(updateUpdating, to)

@@ -48,6 +48,8 @@ type fakeGitHub struct {
 	key      *signtest.Key
 	badSig   map[string]bool
 	unsigned map[string]bool
+	// onArchive runs when a client downloads the CLI archive.
+	onArchive func()
 }
 
 func newFakeGitHub(t *testing.T, binary string, tags ...string) *fakeGitHub {
@@ -101,6 +103,9 @@ func (g *fakeGitHub) serve(w http.ResponseWriter, r *http.Request) {
 	case "/dl/archive":
 		g.downloads++
 		g.archiveHits++
+		if g.onArchive != nil {
+			g.onArchive()
+		}
 		_, _ = w.Write(g.archive)
 	default:
 		if blob, ok := g.blobs[r.URL.Path]; ok {

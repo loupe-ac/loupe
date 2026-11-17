@@ -414,6 +414,9 @@ func installRelease(ctx context.Context, hc *http.Client, s *solver, pkg string,
 		return err
 	}
 
+	if slices.Contains(update.LoadRevoked(s.configDir), signer) {
+		return heldBack{reason: fmt.Sprintf("%s %s was signed by a key revoked during the download", pkg, rel.version)}
+	}
 	dest := filepath.Join(parent, rel.version)
 	if err := os.Rename(tmp, dest); err != nil {
 		// Another process, such as `loupe update`, may have installed it first.
