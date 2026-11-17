@@ -23,7 +23,7 @@ use Ubermuda\SymfonyExtra\Csrf\Attribute\CsrfToken;
 
 /** Retry on a slow tile. It queues the graph again and answers the waiting tile, so the notice timer starts over. */
 #[CsrfToken('insights-graph-refresh')]
-#[IsGranted(ProjectVoter::VIEW, subject: 'project')]
+#[IsGranted(ProjectVoter::MANAGE, subject: 'project')]
 #[Route(
     '/projects/{id:project}/analytics/dashboard/graphs/{graphId}/refresh',
     name: 'app_project_analytics_dashboard_graph_refresh',

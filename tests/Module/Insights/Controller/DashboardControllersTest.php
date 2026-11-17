@@ -202,6 +202,23 @@ final class DashboardControllersTest extends WebTestCase
         self::assertCount(0, $this->insightsTransport()->getSent());
     }
 
+    public function test_retry_needs_the_manage_permission_and_asks_the_worker_for_nothing_without_it(): void
+    {
+        $client = static::createClient();
+        $this->denyManage();
+        $project = $this->scenarioProject('retry-manage');
+        $graph = $this->seedSavedGraph($project, 'Cost trend', 0);
+        $graphId = (string) $graph->id;
+        $owner = $project->owner;
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $client->request(Request::METHOD_POST, '/projects/'.$project->id.self::BASE.'/graphs/'.$graphId.'/refresh', ['_csrf_token' => 'csrf-token'], [], self::HEADERS);
+
+        self::assertResponseStatusCodeSame(403);
+        self::assertCount(0, $this->insightsTransport()->getSent());
+    }
+
     public function test_the_forms_of_a_tile_post_what_the_controllers_read(): void
     {
         $client = static::createClient();
