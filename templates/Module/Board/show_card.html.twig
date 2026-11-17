@@ -205,8 +205,8 @@
                 <div class="lp-card-field"><dt>{{ 'board.card.overview.reporter'|trans }}</dt><dd>{{ ('board.card.reporter.' ~ card.reporter.value)|trans }}</dd></div>
                 <div class="lp-card-field"><dt>{{ 'board.card.overview.source'|trans }}</dt><dd>{{ ('board.card.source.' ~ card.source.kind.value)|trans }}</dd></div>
                 <div class="lp-card-field"><dt>{{ 'board.card.overview.created'|trans }}</dt><dd><twig:Ds:RelativeTime :datetime="card.createdAt" mode="date" /></dd></div>
-                <div class="lp-card-field"><dt>{{ 'board.card.overview.updated'|trans }}</dt><dd><twig:Ds:RelativeTime :datetime="card.updatedAt" /></dd></div>
-                {% if card.completedAt %}<div class="lp-card-field"><dt>{{ 'board.card.overview.completed'|trans }}</dt><dd><twig:Ds:RelativeTime :datetime="card.completedAt" mode="date" /></dd></div>{% endif %}
+                <div class="lp-card-field"><dt>{{ 'board.card.overview.updated'|trans }}</dt><dd id="card-updated-{{ card.id }}"><twig:Ds:RelativeTime :datetime="card.updatedAt" /></dd></div>
+                {% include '@Board/_card_completed_field.html.twig' with {card: card} only %}
             </dl>
         </section>
 

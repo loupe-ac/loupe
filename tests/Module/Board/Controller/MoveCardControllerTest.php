@@ -163,7 +163,9 @@ final class MoveCardControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         $body = (string) $client->getResponse()->getContent();
-        self::assertSame(2, substr_count($body, '<turbo-stream'));
+        self::assertSame(4, substr_count($body, '<turbo-stream'));
+        self::assertStringContainsString('action="update" target="card-updated-'.$cardId.'"', $body);
+        self::assertStringContainsString('action="replace" target="card-completed-'.$cardId.'"', $body);
         self::assertStringContainsString('action="replace" target="card-move-'.$cardId.'"', $body);
         self::assertStringContainsString('action="update" target="card-column-'.$cardId.'"', $body);
         self::assertStringNotContainsString('board-place', $body);
@@ -172,6 +174,32 @@ final class MoveCardControllerTest extends WebTestCase
         $moved = $em->find(Card::class, $cardId);
         self::assertInstanceOf(Card::class, $moved);
         self::assertSame('next', $moved->column->slug);
+    }
+
+    public function test_a_card_page_move_into_and_out_of_done_refreshes_the_completed_field(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+
+        $owner = $this->user($em, 'move-card-page-completed@example.com');
+        $project = $this->project($em, $owner);
+        $card = $this->card($em, $project, 'Finishing');
+        $cardId = $card->id;
+        $em->clear();
+
+        $client->loginUser($owner);
+        $this->move($client, $card, 'done', null, stream: true, origin: 'card');
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('class="lp-card-field" id="card-completed-'.$cardId.'"', (string) $client->getResponse()->getContent());
+
+        $em->clear();
+        $done = $em->find(Card::class, $cardId);
+        self::assertInstanceOf(Card::class, $done);
+        $this->move($client, $done, 'next', null, stream: true, origin: 'card');
+        self::assertResponseIsSuccessful();
+        $body = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('<div id="card-completed-'.$cardId.'" hidden></div>', $body);
+        self::assertStringNotContainsString('lp-card-field', $body);
     }
 
     public function test_a_refused_move_from_the_card_page_shows_the_message_under_the_select(): void
