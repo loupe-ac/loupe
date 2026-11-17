@@ -34,7 +34,11 @@ final class SeedFlagsController extends AppController
 
     public function __invoke(Request $request): Response
     {
-        $this->installAccessGuard->ensureAccessible($request);
+        $this->installAccessGuard->ensureOpen();
+
+        if (!$this->installAccessGuard->isUnlocked($request)) {
+            return $this->redirectToRoute('app_install_unlock');
+        }
 
         $form = $this->createForm(InstallFlagsFormType::class, $data = new InstallFlagsRequest());
         $form->handleRequest($request);

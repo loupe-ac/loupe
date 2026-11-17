@@ -3548,6 +3548,34 @@
                 <source>account.install.flags.submit</source>
                 <target>Continue</target>
             </trans-unit>
+            <trans-unit id="account.install.unlock.page.title">
+                <source>account.install.unlock.page.title</source>
+                <target>Install: unlock</target>
+            </trans-unit>
+            <trans-unit id="account.install.unlock.heading">
+                <source>account.install.unlock.heading</source>
+                <target>Unlock the installer</target>
+            </trans-unit>
+            <trans-unit id="account.install.unlock.intro">
+                <source>account.install.unlock.intro</source>
+                <target>Paste the INSTALL_TOKEN value that you set for this deployment.</target>
+            </trans-unit>
+            <trans-unit id="account.install.unlock.submit">
+                <source>account.install.unlock.submit</source>
+                <target>Unlock</target>
+            </trans-unit>
+            <trans-unit id="account.install.unlock.error.invalid">
+                <source>account.install.unlock.error.invalid</source>
+                <target>This token is not valid.</target>
+            </trans-unit>
+            <trans-unit id="account.install.unlock.error.rate_limited">
+                <source>account.install.unlock.error.rate_limited</source>
+                <target>Too many attempts. Try again in 15 minutes.</target>
+            </trans-unit>
+            <trans-unit id="account.form.install_unlock_form.token.label">
+                <source>account.form.install_unlock_form.token.label</source>
+                <target>Install token</target>
+            </trans-unit>
             <trans-unit id="account.form.install_flags_form.registration_cap.label">
                 <source>account.form.install_flags_form.registration_cap.label</source>
                 <target>Registration cap (0 = unlimited)</target>

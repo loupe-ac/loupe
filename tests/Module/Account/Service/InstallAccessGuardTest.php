@@ -16,9 +16,9 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 final class InstallAccessGuardTest extends TestCase
 {
-    private function requestWithSession(string $queryString = ''): Request
+    private function requestWithSession(): Request
     {
-        $request = Request::create('/install'.('' !== $queryString ? '?'.$queryString : ''));
+        $request = Request::create('/install');
         $request->setSession(new Session(new MockArraySessionStorage()));
 
         return $request;
@@ -38,55 +38,64 @@ final class InstallAccessGuardTest extends TestCase
         $guard = new InstallAccessGuard($this->installationState(1), '', 'test');
 
         $this->expectException(NotFoundHttpException::class);
-        $guard->ensureAccessible($this->requestWithSession());
+        $guard->ensureOpen();
     }
 
-    public function test_open_installation_with_no_configured_token_is_accessible(): void
+    public function test_open_installation_with_no_configured_token_is_unlocked(): void
     {
         $guard = new InstallAccessGuard($this->installationState(0), '', 'test');
 
-        $guard->ensureAccessible($this->requestWithSession());
-        $this->addToAssertionCount(1); // no exception thrown
+        $guard->ensureOpen();
+        self::assertTrue($guard->isUnlocked($this->requestWithSession()));
     }
 
-    public function test_configured_token_without_query_token_404s(): void
+    public function test_configured_token_is_locked_until_unlocked(): void
     {
         $guard = new InstallAccessGuard($this->installationState(0), 'secret-token', 'test');
 
-        $this->expectException(NotFoundHttpException::class);
-        $guard->ensureAccessible($this->requestWithSession());
+        $guard->ensureOpen();
+        self::assertFalse($guard->isUnlocked($this->requestWithSession()));
     }
 
-    public function test_configured_token_with_wrong_query_token_404s(): void
+    public function test_wrong_token_does_not_unlock(): void
     {
         $guard = new InstallAccessGuard($this->installationState(0), 'secret-token', 'test');
+        $request = $this->requestWithSession();
 
-        $this->expectException(NotFoundHttpException::class);
-        $guard->ensureAccessible($this->requestWithSession('token=wrong'));
+        self::assertFalse($guard->unlock($request->getSession(), 'wrong'));
+        self::assertFalse($guard->isUnlocked($request));
     }
 
-    public function test_configured_token_with_array_query_token_404s_instead_of_500ing(): void
+    public function test_query_string_token_does_not_unlock(): void
     {
         $guard = new InstallAccessGuard($this->installationState(0), 'secret-token', 'test');
+        $request = Request::create('/install?token=secret-token');
+        $request->setSession(new Session(new MockArraySessionStorage()));
 
-        $this->expectException(NotFoundHttpException::class);
-        $guard->ensureAccessible($this->requestWithSession('token[]=x'));
+        self::assertFalse($guard->isUnlocked($request));
     }
 
-    public function test_configured_token_with_correct_query_token_is_accessible_and_remembered(): void
+    public function test_correct_token_unlocks_remembers_and_changes_the_session_id(): void
     {
         $guard = new InstallAccessGuard($this->installationState(0), 'secret-token', 'test');
-        $request = $this->requestWithSession('token=secret-token');
+        $request = $this->requestWithSession();
+        $request->getSession()->start();
+        $before = $request->getSession()->getId();
 
-        $guard->ensureAccessible($request);
-        $this->addToAssertionCount(1); // no exception thrown
+        self::assertTrue($guard->unlock($request->getSession(), 'secret-token'));
+        self::assertNotSame($before, $request->getSession()->getId());
 
-        // A later step's request (no token in the URL) reuses the same
-        // session and must not be re-challenged.
-        $laterRequest = Request::create('/install/admin');
-        $laterRequest->setSession($request->getSession());
-        $guard->ensureAccessible($laterRequest);
-        $this->addToAssertionCount(1);
+        // A later step's request reuses the same session and is not re-challenged.
+        $later = Request::create('/install/admin');
+        $later->setSession($request->getSession());
+        self::assertTrue($guard->isUnlocked($later));
+    }
+
+    public function test_unlock_never_succeeds_when_no_token_is_configured(): void
+    {
+        $guard = new InstallAccessGuard($this->installationState(0), '', 'test');
+
+        self::assertFalse($guard->unlock($this->requestWithSession()->getSession(), ''));
     }
 
     public function test_production_without_a_configured_token_404s_rather_than_opening(): void
@@ -96,14 +105,16 @@ final class InstallAccessGuardTest extends TestCase
         $guard = new InstallAccessGuard($this->installationState(0), '', 'prod');
 
         $this->expectException(NotFoundHttpException::class);
-        $guard->ensureAccessible($this->requestWithSession());
+        $guard->ensureOpen();
     }
 
-    public function test_production_with_a_configured_token_still_admits_the_correct_token(): void
+    public function test_production_with_a_configured_token_admits_the_correct_token(): void
     {
         $guard = new InstallAccessGuard($this->installationState(0), 'secret-token', 'prod');
+        $request = $this->requestWithSession();
 
-        $guard->ensureAccessible($this->requestWithSession('token=secret-token'));
-        $this->addToAssertionCount(1); // no exception thrown
+        $guard->ensureOpen();
+        self::assertTrue($guard->unlock($request->getSession(), 'secret-token'));
+        self::assertTrue($guard->isUnlocked($request));
     }
 }
