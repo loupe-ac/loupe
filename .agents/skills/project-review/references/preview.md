@@ -67,7 +67,7 @@ A required state that you cannot seed, mint or prove, and an empty list of requi
 
 An answer that accepts the state keeps its `Not proven:` line, and the run goes on. Write the line as `Not proven: accepted by the owner: <reason>`, and record the answer in the build notes and in the Preview section of the body. An answer that accepts an empty list gets one line, `Not proven: accepted by the owner: no required states`, in the same places. An answer that names a way proves the state that way.
 
-A resumed run seeds and proves again, replaces the Preview section of the body, and then goes on.
+A resumed run keeps each `Not proven: accepted by the owner: <reason>` line and its build notes entry, and never proves that state again. It seeds and proves the other states, replaces the Preview section of the body with the kept lines and the new proven lines, and then goes on.
 
 ## Review stage
 
