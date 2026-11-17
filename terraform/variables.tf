@@ -431,6 +431,12 @@ variable "stripe_webhook_secret" {
   description = "STRIPE_WEBHOOK_SECRET used to verify inbound webhook signatures."
 }
 
+variable "stripe_custom_domain_origin" {
+  type        = string
+  default     = ""
+  description = "STRIPE_CUSTOM_DOMAIN_ORIGIN, such as https://payments.example.com. Set it when the Stripe account uses a custom domain for checkout and the customer portal, so the form-action rule of the CSP allows it. Not secret. Empty keeps only the default Stripe hosts."
+}
+
 variable "sentry_dsn" {
   type        = string
   sensitive   = true
