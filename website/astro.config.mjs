@@ -165,6 +165,7 @@ export default defineConfig({
             },
             { slug: 'operating/first-run' },
             { slug: 'operating/migrations' },
+            { slug: 'operating/database-connections' },
             { slug: 'operating/post-deploy-checks' },
             { slug: 'operating/sentry' },
             { slug: 'operating/artifact-content-domain' },

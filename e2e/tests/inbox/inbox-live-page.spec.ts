@@ -47,12 +47,18 @@ test('a new ask appears, and an ask closed elsewhere locks the typed form', asyn
     expect(seeded.status()).toBe(201);
     const first = await seeded.json();
 
+    // The hub keeps no history, so a change made before this connects is lost.
+    // The first check of the sidebar counts runs once the page listens.
+    const firstCheck = watcher.waitForResponse(
+        (response) =>
+            response
+                .url()
+                .includes(`/projects/${first.projectId}/sidebar-counts`) &&
+            response.status() === 204,
+    );
     await watcher.goto(`/projects/${first.projectId}/inbox`);
     await expect(watcher.locator('a.lp-list-row')).toHaveCount(1);
-    // The hub keeps no history, so a change made before this connects is lost.
-    await expect(
-        watcher.locator('a[data-live-pill-url-value$="/inbox/open-count"]'),
-    ).toHaveAttribute('data-live-pill-connected', '');
+    await firstCheck;
     await watcher.evaluate(() => {
         (window as unknown as { stayed: boolean }).stayed = true;
     });

@@ -28,6 +28,7 @@ final readonly class InboxChangedPublisher
         private ProjectTopicBuilder $projectTopics,
         private LiveUpdatePublisher $publisher,
         private ProjectsChangedPublisher $projectsChanged,
+        private InboxCountsSignal $sidebarCounts,
     ) {
     }
 
@@ -44,6 +45,7 @@ final readonly class InboxChangedPublisher
         $ownerId = $project->owner->id ?? throw new \LogicException('Project owner has no id.');
         $this->publisher->queue($this->userTopics->forInbox($ownerId), ['type' => self::TYPE, 'projectId' => (string) $projectId]);
         $this->projectsChanged->ownerChanged($ownerId);
+        $this->sidebarCounts->mark($project);
         $this->pageChanged($project, $askIds);
     }
 

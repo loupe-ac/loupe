@@ -10,4 +10,6 @@ enum GitHubPickerState: string
     case Free = 'free';
     case InProject = 'in-project';
     case OtherProject = 'other-project';
+    /** No project holds it, and the signed-in GitHub user cannot push to it. */
+    case ReadOnly = 'read-only';
 }

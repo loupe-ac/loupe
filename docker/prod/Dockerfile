@@ -13,6 +13,15 @@ RUN npm ci --ignore-scripts=false --no-audit --no-fund
 COPY public/live-review/widget.js public/live-review/widget.js
 RUN npm run build:widget
 
+# The Mermaid ES module build for the review page, installed from the npm
+# package that package-lock.json pins and written to the path the app imports.
+FROM node:22-alpine AS mermaid
+RUN apk add --no-cache bash
+WORKDIR /build
+COPY package.json package-lock.json ./
+COPY bin/vendor-mermaid.sh bin/vendor-mermaid.sh
+RUN bin/vendor-mermaid.sh /build/out
+
 # Pinned by digest so the same Dockerfile always produces the same base layer:
 # `php:8.5-fpm-alpine` is a mutable tag that is rebuilt on every patch release
 # and every Alpine bump, so without this two builds a week apart ship different
@@ -67,11 +76,11 @@ RUN apk add --no-cache postgresql-libs libzip libxslt icu-libs icu-data-full bas
  && rm -rf /tmp/excimer /tmp/excimer.tgz \
  && apk del .build-deps
 
-# Pinned and copied rather than curl-piped from getcomposer.org: the installer
-# was unversioned and its checksum unverified, so two builds a week apart shipped
-# different Composer versions under a Dockerfile that advertises reproducibility.
+# Copied from the official image rather than curl-piped from getcomposer.org: the
+# installer was unversioned and its checksum unverified. The minor tag takes each
+# patch release on purpose, to get Composer security fixes with no edit.
 # Composer stays in the final image because entrypoint.sh runs `dump-env prod`.
-COPY --from=composer:2.8 /usr/bin/composer /usr/local/bin/composer
+COPY --from=composer:2.11 /usr/bin/composer /usr/local/bin/composer
 
 ENV APP_ENV=prod
 
@@ -134,16 +143,15 @@ COPY . .
 RUN rm -rf website docs
 
 COPY --from=widget /build/var/widget.min.js public/live-review/widget.js
+COPY --from=mermaid /build/out public/vendor/mermaid
 
 RUN set -eux; \
 	mkdir -p var/cache var/log var/share var/tailwind var/exports; \
 	chmod +x bin/console;
 
-# git is Composer's fallback when a dist download fails. Without it a single
-# transient GitHub 5xx on one zipball fails the whole build, because the source
-# retry dies with "git was not found in your PATH".
-RUN apk add --no-cache git \
- && composer install --no-dev --prefer-dist --optimize-autoloader --classmap-authoritative
+# Composer retries a failed download three times and never falls back to a git
+# clone, so the build stage needs no git.
+RUN composer install --no-dev --prefer-dist --optimize-autoloader --classmap-authoritative
 RUN bin/console importmap:install
 # The bundle downloads this itself, through a plain HttpClient with no retry, so
 # one 5xx from GitHub fails the whole image build. It skips the download when the

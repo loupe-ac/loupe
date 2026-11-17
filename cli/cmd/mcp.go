@@ -53,13 +53,13 @@ func newMcpCmd() *cobra.Command {
 			// No timeout: an MCP session stays open for as long as the agent
 			// runs, and a client timeout would end it mid-conversation.
 			hc := &http.Client{Transport: withUserAgent(&mcpproxy.Credentials{
-				Tokens:        tokenSource(cfg, &http.Client{Timeout: refreshTimeout, Transport: withUserAgent(nil)}),
+				Tokens:        tokenSource(cfg, &http.Client{Timeout: refreshTimeout, Transport: withUserAgent(nil, cfg.AllowsHTTP())}),
 				Project:       project,
 				Setup:         setupFolder(),
 				ProjectSource: source,
 				Session:       mcpSession,
 				Base:          &mcpproxy.Retrying{},
-			})}
+			}, cfg.AllowsHTTP())}
 
 			fmt.Fprintln(cmd.ErrOrStderr(), mcpStartLine())
 

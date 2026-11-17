@@ -43,7 +43,7 @@ final class ShowDocumentMermaidTest extends WebTestCase
         self::assertCount(1, $root);
         self::assertSame($expected, $root->attr('data-mermaid-enabled-value'));
         self::assertSame(
-            'https://cdn.jsdelivr.net/npm/mermaid@12.0.0/dist/mermaid.esm.min.mjs',
+            '/vendor/mermaid/12.0.0/mermaid.esm.min.mjs',
             $root->attr('data-mermaid-module-url-value'),
         );
         self::assertCount(1, $root->filter('[data-mermaid-target="doc"] pre > code.language-mermaid'));

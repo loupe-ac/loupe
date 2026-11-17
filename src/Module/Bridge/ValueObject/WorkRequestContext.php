@@ -25,6 +25,7 @@ final readonly class WorkRequestContext
     /** The longest epic branch pattern plus the digits of the largest card number. A test ties it to the template rule. */
     public const int MAX_EPIC_BRANCH_LENGTH = 265;
 
+    /** The bridge copies this rule and the length limit in cli/internal/event/event.go, validEpicBranch. */
     private const string EPIC_BRANCH_PATTERN = '#^(?!.*\.\.)(?!.*\.lock(?:/|$))[A-Za-z0-9_](?:[A-Za-z0-9._-]|/(?![/.-]))*(?<![./])$#D';
 
     private const string REASON_PATTERN = '/^[a-z][a-z0-9-]{0,63}$/D';

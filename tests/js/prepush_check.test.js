@@ -229,6 +229,80 @@ describe('prepush-check.sh', () => {
         expect(r.out).not.toContain('gap:');
     });
 
+    const cited =
+        '## Answers\n\n- Run list: Not proven: accepted by the owner: reached only by a POST (inbox item 01a1e72d-0812-7891-bed2-4138642bbbb9)\n';
+
+    it('exits 0 when the only Not proven lines are accepted by the owner', () => {
+        const r = run(
+            `## Preview\n\n${dataLine}\n- Run list: Not proven: accepted by the owner: reached only by a POST\n`,
+            { notes: cited },
+        );
+        expect(r.status).toBe(0);
+        expect(r.out).toBe('clean\n');
+    });
+
+    it('exits 0 for an accepted empty list of required states', () => {
+        const r = run(
+            '## Preview\n\n- Not proven: accepted by the owner: no required states\n',
+            {
+                notes: '## Answers\n\n- accepted by the owner: no required states (inbox item 01a1e72d-0812)\n',
+            },
+        );
+        expect(r.status).toBe(0);
+    });
+
+    it('exits 1 when an accepted line has no inbox citation in the build notes', () => {
+        const r = run(
+            '## Preview\n\n- Not proven: accepted by the owner: no required states\n',
+            {
+                notes: '## Preview\n\n- accepted by the owner: no required states\n',
+            },
+        );
+        expect(r.status).toBe(1);
+        expect(r.out).toContain('cites its inbox item');
+    });
+
+    it('exits 1 when the inbox citation belongs to another accepted state', () => {
+        const r = run(
+            `## Preview\n\n${dataLine}\n- Run list: Not proven: accepted by the owner: reached only by a POST\n- Export: Not proven: accepted by the owner: needs a paid plan\n`,
+            { notes: cited },
+        );
+        expect(r.status).toBe(1);
+        expect(r.out).toContain('Export: Not proven');
+        expect(r.out).not.toContain(
+            'gap: accepted Not proven line has no build notes entry that cites its inbox item: - Run list',
+        );
+    });
+
+    it('exits 0 when each accepted state has its own inbox citation', () => {
+        const r = run(
+            `## Preview\n\n${dataLine}\n- Run list: Not proven: accepted by the owner: reached only by a POST\n- Export: Not proven: accepted by the owner: needs a paid plan\n`,
+            {
+                notes:
+                    cited +
+                    '- Export: Not proven: accepted by the owner: needs a paid plan (inbox item 01a1e72d-0812-7891-bed2-4138642bbbc)\n',
+            },
+        );
+        expect(r.status).toBe(0);
+    });
+
+    it('exits 1 when the citation names a longer state or reason', () => {
+        const longer =
+            '## Answers\n\n- Export archive: Not proven: accepted by the owner: needs a paid plan (inbox item 01a1e72d-0812-7891-bed2-4138642bbbc)\n';
+        const state = run(
+            '## Preview\n\n- Export: Not proven: accepted by the owner: needs a paid plan\n',
+            { notes: longer },
+        );
+        expect(state.status).toBe(1);
+        const reason = run(
+            '## Preview\n\n- Export: Not proven: accepted by the owner: needs a paid plan\n',
+            {
+                notes: '## Answers\n\n- Export: Not proven: accepted by the owner: needs a paid plan upgrade (inbox item 01a1e72d-0812-7891-bed2-4138642bbbc)\n',
+            },
+        );
+        expect(reason.status).toBe(1);
+    });
+
     it('exits 1 when a gap sits next to a Not proven line', () => {
         const r = run('## Summary\n\n- Run list: Not proven: cannot seed\n');
         expect(r.status).toBe(1);

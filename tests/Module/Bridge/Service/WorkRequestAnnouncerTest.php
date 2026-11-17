@@ -8,6 +8,7 @@ use App\Mercure\LiveUpdatePublisher;
 use App\Mercure\LiveUpdates;
 use App\Mercure\ProjectTopicBuilder;
 use App\Module\Bridge\Event\WorkRequestChanged;
+use App\Module\Bridge\Service\SidebarCountsSignal;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Bridge\Service\WorkRequestAnnouncer;
 use App\Module\Bridge\ValueObject\WorkRequestState;
@@ -60,7 +61,7 @@ final class WorkRequestAnnouncerTest extends KernelTestCase
         $topics = self::getContainer()->get(ProjectTopicBuilder::class);
         self::assertInstanceOf(ProjectTopicBuilder::class, $topics);
 
-        new WorkRequestAnnouncer($events, new WorkerRunChangedPublisher($topics, $live))->announce($a, $b, $c);
+        new WorkRequestAnnouncer($events, new WorkerRunChangedPublisher($topics, $live, self::getContainer()->get(SidebarCountsSignal::class)))->announce($a, $b, $c);
         $live->publish();
 
         self::assertEquals([
@@ -83,7 +84,7 @@ final class WorkRequestAnnouncerTest extends KernelTestCase
         });
         $live = new LiveUpdatePublisher(new RequestStack(), new \App\Mercure\LiveUpdateTransactionBuffer(), FeatureFlags::service(), new NullLogger(), fn (): HubInterface => $this->createStub(HubInterface::class));
 
-        new WorkRequestAnnouncer($events, new WorkerRunChangedPublisher(new ProjectTopicBuilder('https://loupe.test'), $live))->announce();
+        new WorkRequestAnnouncer($events, new WorkerRunChangedPublisher(new ProjectTopicBuilder('https://loupe.test'), $live, self::getContainer()->get(SidebarCountsSignal::class)))->announce();
 
         self::assertSame(0, $dispatched);
     }

@@ -101,6 +101,17 @@ final readonly class OAuthScenario
     }
 
     /**
+     * The address the last answer sends the browser to, read from the page that
+     * forwards to the client. Empty when the answer is not such a page.
+     */
+    public static function clientLocation(KernelBrowser $browser): string
+    {
+        $link = $browser->getCrawler()->filter('[data-testid="oauth-forward-link"]');
+
+        return 0 < $link->count() ? (string) $link->attr('href') : '';
+    }
+
+    /**
      * The query of a redirect to the client.
      *
      * @return array<array-key, string>
@@ -126,7 +137,7 @@ final readonly class OAuthScenario
         $browser->submit(self::consentForm($browser, $this->authorizeUrl('mcp', $authorizeOverrides), [
             'consent_form[project]' => (string) $project->id,
         ]));
-        $query = self::redirectQuery((string) $browser->getResponse()->headers->get('Location'));
+        $query = self::redirectQuery(self::clientLocation($browser));
         $browser->restart();
         $tokens = self::postToken($browser, [
             'grant_type' => 'authorization_code',
@@ -161,7 +172,7 @@ final readonly class OAuthScenario
             $form['consent_form[project]'] = (string) $project->id;
         }
         $browser->submit($form);
-        $query = self::redirectQuery((string) $browser->getResponse()->headers->get('Location'));
+        $query = self::redirectQuery(self::clientLocation($browser));
         $browser->getCookieJar()->clear();
         $tokens = self::postToken($browser, [
             'grant_type' => 'authorization_code',
