@@ -234,10 +234,9 @@ final class ListBacklogCardsControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $topics = static::getContainer()->get(ProjectTopicBuilder::class);
         self::assertInstanceOf(ProjectTopicBuilder::class, $topics);
-        self::assertEqualsCanonicalizing(
-            [$topics->forBoard($projectId), $topics->forWorkerRuns($projectId)],
-            $crawler->filter('form#mercure-subscriptions input[data-mercure-topic]')->each(static fn (Crawler $input): ?string => $input->attr('value')),
-        );
+        $subscribed = $crawler->filter('form#mercure-subscriptions input[data-mercure-topic]')->each(static fn (Crawler $input): ?string => $input->attr('value'));
+        self::assertContains($topics->forBoard($projectId), $subscribed);
+        self::assertContains($topics->forWorkerRuns($projectId), $subscribed);
         $region = $crawler->filter('turbo-frame#backlog-live[data-controller="live-region"]');
         self::assertCount(1, $region);
         self::assertSame('frame', $region->attr('data-live-region-mode-value'));

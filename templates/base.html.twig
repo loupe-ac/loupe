@@ -13,6 +13,7 @@
             {% include '_live_bands.html.twig' only %}
             {# Off a project page the sidebar keeps the last project visited; the topbar does not. #}
             {% with {project: sidebar_project()} %}
+            {% include '_mercure_project_topics.html.twig' with {project: project} only %}
             <aside class="lp-sidebar lp-sidebar--drawer" id="lp-sidebar" data-drawer-target="panel">
                 <button type="button" class="lp-sidebar__close"
                         data-drawer-target="dismiss"
@@ -77,7 +78,6 @@
                     <span class="lp-sidebar__nav-label">{{ 'nav.group.workspace'|trans }}</span>
                     <twig:Ds:NavItem :url="path('app_project_workshop', {id: project.id})" icon="lucide:layout-dashboard" :label="'nav.link.workshop'|trans" :active="route == 'app_project_workshop'" />
                     {% if is_feature_enabled('inbox.enabled') %}
-                    {% do mercure_subscribe(inbox_topic(app.user)) %}
                     <twig:Ds:NavItem :url="path('app_project_inbox', {id: project.id})" icon="lucide:inbox" :label="'nav.link.inbox'|trans" :active="route == 'app_project_inbox'">
                         {# Shown only while something waits on the owner, and amber then. #}
                         {% include '@Inbox/_open_count.html.twig' with {project: project, openCount: project_inbox_open_count(project)} only %}
@@ -94,8 +94,6 @@
                         {% include '@Bridge/_agents_count.html.twig' with {project: project, figures: project_agents_figures(project)} only %}
                     </twig:Ds:NavItem>
                     <twig:Ds:NavItem :url="path('app_project_workflow', {id: project.id})" icon="lucide:workflow" :label="'nav.link.workflow'|trans" :active="route == 'app_project_workflow'" />
-                    {# A frame response replaces the cookie of its host page, so only a full page subscribes. #}
-                    {% if not app.request.headers.has('Turbo-Frame') %}{% do mercure_subscribe(worker_runs_topic(project)) %}{% endif %}
                     <twig:Ds:NavItem :url="path('app_project_worker_runs', {id: project.id, outcome: 'open'})" icon="lucide:activity" :label="'nav.link.activity'|trans" :active="route in ['app_project_worker_runs', 'app_project_activity']">
                         {% include '@Bridge/_activity_open_count.html.twig' with {project: project, openCount: project_open_run_count(project)} only %}
                     </twig:Ds:NavItem>
