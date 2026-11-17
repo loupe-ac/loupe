@@ -457,7 +457,7 @@ func TestTheWorkerRunsWithTheMatchingRulesSettings(t *testing.T) {
 		dir: h.dir, permissionMode: "plan", model: "opus", schema: schema, sessionID: testSession,
 		prompt: "Review " + testCard + " in loupe, for review.\n\n" + directive.Footer,
 		runID:  calls[0].runID, rule: "work:review", key: testCard, account: "claude", harnessName: "claude-code",
-		project: "loupe",
+		project: "loupe", passFixed: true,
 	}
 	if !reflect.DeepEqual(calls[0], want) {
 		t.Fatalf("worker = %+v, want %+v", calls[0], want)

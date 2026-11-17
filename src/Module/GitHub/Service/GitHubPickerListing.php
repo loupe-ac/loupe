@@ -49,8 +49,8 @@ final readonly class GitHubPickerListing
         $ids = [];
         foreach ($installations as $installation) {
             $lists[$installation->id] = $this->userApi->installationRepositories($token, $installation->id);
-            foreach ($lists[$installation->id]->repositories as $repository) {
-                $ids[] = $repository->externalId();
+            foreach ($lists[$installation->id]->repositories as $listed) {
+                $ids[] = $listed->repository->externalId();
             }
         }
 
@@ -59,9 +59,11 @@ final readonly class GitHubPickerListing
         $accounts = [];
         foreach ($installations as $installation) {
             $list = $lists[$installation->id];
-            $repositories = array_map(function ($repository) use ($rows, $project, $tick, &$found): GitHubPickerRepository {
+            $repositories = array_map(function (GitHubListedRepository $listed) use ($rows, $project, $tick, &$found): GitHubPickerRepository {
+                $repository = $listed->repository;
                 $row = $rows[$repository->externalId()] ?? null;
                 $state = match (true) {
+                    null === $row && !$listed->canPush => GitHubPickerState::ReadOnly,
                     null === $row => GitHubPickerState::Free,
                     $this->isOf($row, $project) => GitHubPickerState::InProject,
                     default => GitHubPickerState::OtherProject,
@@ -72,6 +74,7 @@ final readonly class GitHubPickerListing
                 return new GitHubPickerRepository(
                     $repository,
                     $state,
+                    $listed->canPush,
                     GitHubPickerState::OtherProject === $state && null !== $row && $this->authorization->isGranted(ProjectVoter::VIEW, $row->project) ? $row->project->name : null,
                     $isTick && GitHubPickerState::Free === $state,
                 );

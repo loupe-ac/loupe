@@ -98,6 +98,7 @@ type initOptions struct {
 	repoint   bool
 	rulesPath string
 	baseURL   string
+	allowHTTP bool
 	name      string
 	folder    string
 	domain    string
@@ -183,6 +184,7 @@ func newInitCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&o.verbose, "verbose", false, "print one line for each step with its reason, the form a script reads")
 	cmd.Flags().StringVar(&o.rulesPath, "rules", "", "read and write the rule file at this `path`; empty uses rules.yaml in your config directory")
 	cmd.Flags().StringVar(&o.baseURL, "url", "", "Loupe base URL to sign in to (else LOUPE_URL env, else "+DefaultBaseURL+")")
+	cmd.Flags().BoolVar(&o.allowHTTP, "allow-http", false, "allow plain http:// to a host that is not this machine, when the network is trusted (or set "+config.AllowHTTPEnv+"=1)")
 	cmd.MarkFlagsMutuallyExclusive("name", "project")
 	cmd.MarkFlagsMutuallyExclusive("mcp", "no-mcp")
 	cmd.MarkFlagsMutuallyExclusive("mcp-json", "no-mcp")
@@ -353,7 +355,10 @@ func initSignIn(cmd *cobra.Command, o initOptions) (config.Config, error) {
 		// The machine holds one login, so a request for another instance
 		// stops rather than replace the login a running bridge uses.
 		if o.baseURL != "" || os.Getenv("LOUPE_URL") != "" {
-			want := resolveBaseURL(o.baseURL, os.Getenv("LOUPE_URL"))
+			want, err := resolveBaseURL(o.baseURL, os.Getenv("LOUPE_URL"), o.allowHTTP || cfg.AllowsHTTP())
+			if err != nil {
+				return config.Config{}, err
+			}
 			if !strings.EqualFold(want, strings.TrimRight(cfg.BaseURL, "/")) {
 				return config.Config{}, fmt.Errorf("you are signed in to %s, not %s: run `loupe login --url %s` to switch, then run `loupe init` again", cfg.BaseURL, want, want)
 			}
@@ -366,7 +371,12 @@ func initSignIn(cmd *cobra.Command, o initOptions) (config.Config, error) {
 		return config.Config{}, err
 	}
 
-	if err := deviceLogin(cmd, resolveBaseURL(o.baseURL, os.Getenv("LOUPE_URL"))); err != nil {
+	allow := o.allowHTTP || config.AllowHTTPFromEnv()
+	resolved, err := resolveBaseURL(o.baseURL, os.Getenv("LOUPE_URL"), allow)
+	if err != nil {
+		return config.Config{}, err
+	}
+	if err := deviceLogin(cmd, resolved, allow); err != nil {
 		return config.Config{}, err
 	}
 	step(out, "Sign in", "done", "you are signed in")

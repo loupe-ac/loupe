@@ -48,6 +48,7 @@ final class ForgeRepositoryExporterTest extends KernelTestCase
         $acceptedAt = new \DateTimeImmutable('2026-09-20 10:11:12');
         $repository = new ForgeRepository($mine, 'github', 'export-1', 'Acme/Widgets', ForgeRepositorySource::Installation, '77', $createdAt);
         $repository->lastAcceptedAt = $acceptedAt;
+        $repository->claimantAccountId = '583231';
         $this->em->persist($repository);
         $this->em->persist(new ForgeRepository($theirs, 'github', 'export-2', 'acme/gadgets', ForgeRepositorySource::Hook));
         $this->em->flush();
@@ -62,6 +63,7 @@ final class ForgeRepositoryExporterTest extends KernelTestCase
             'path' => 'Acme/Widgets',
             'source' => 'installation',
             'sourceRef' => '77',
+            'claimantAccountId' => '583231',
             'lastAcceptedAt' => $acceptedAt->format(\DateTimeInterface::ATOM),
             'createdAt' => $createdAt->format(\DateTimeInterface::ATOM),
         ]], $rows);

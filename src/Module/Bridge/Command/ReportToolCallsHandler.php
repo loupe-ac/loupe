@@ -5,15 +5,14 @@ declare(strict_types=1);
 namespace App\Module\Bridge\Command;
 
 use App\Module\Bridge\Event\WorkerRunToolCallsRecorded;
+use App\Module\Bridge\EventListener\WorkerRunFactListener;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkerRunToolCallRepository;
 use App\Module\Bridge\Service\BucketTimeComputer;
 use App\Module\Bridge\Service\ToolCallCollectionSettings;
-use App\Module\Bridge\Service\WorkerRunFactWriter;
 use App\Module\Bridge\ValueObject\WorkerRunToolCallReport;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
-use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
@@ -29,7 +28,7 @@ final readonly class ReportToolCallsHandler
         private ProjectRepository $projects,
         private WorkerRunRepository $workerRuns,
         private WorkerRunToolCallRepository $workerRunToolCalls,
-        private WorkerRunFactWriter $factWriter,
+        private WorkerRunFactListener $factListener,
         private BucketTimeComputer $bucketTimes,
         private ToolCallCollectionSettings $collectionSettings,
         private EntityManagerInterface $em,
@@ -42,8 +41,7 @@ final readonly class ReportToolCallsHandler
     {
         $projectId = null;
         /** @var ReportToolCallsResult $result */
-        $result = $this->em->wrapInTransaction(function () use ($command, &$projectId): ReportToolCallsResult {
-            // The same lock a state report takes, so the two never write one run at once.
+        $result = $this->factListener->deferredTransaction($this->em, function () use ($command, &$projectId): ReportToolCallsResult {
             $project = $this->lockedProject($command);
             if (null === $project) {
                 return new ReportToolCallsResult(projectFound: false, runFound: false, stored: 0);
@@ -66,7 +64,7 @@ final readonly class ReportToolCallsHandler
                 $this->em->flush();
             }
             $runId = $run->id ?? throw new \LogicException('A found run has an id.');
-            $this->factWriter->upsert([$runId]);
+            $this->factListener->addRun($run);
             $this->bucketTimes->recompute($project, [$runId]);
 
             $this->logger->info('bridge.tool_calls_reported', [
@@ -94,7 +92,7 @@ final readonly class ReportToolCallsHandler
             return null;
         }
 
-        $this->em->lock($project, LockMode::PESSIMISTIC_WRITE);
+        $this->projects->lockForReport($project);
 
         return $this->projects->findOneByIdOrSlugForOwner($command->handle, $command->owner);
     }

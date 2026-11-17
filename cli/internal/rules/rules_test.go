@@ -72,6 +72,13 @@ func entry(t *testing.T, s *Set, kind string) WorkEntry {
 	return w
 }
 
+func TestParseReadsPassEnv(t *testing.T) {
+	s := parse(t, "passEnv: [FOO, GIT_CONFIG_*]\n"+oneRule)
+	if got := s.PassEnv(); !slices.Equal(got, []string{"FOO", "GIT_CONFIG_*"}) {
+		t.Fatalf("PassEnv = %v", got)
+	}
+}
+
 func TestParseFillsDefaults(t *testing.T) {
 	text, dir := file(t, oneRule)
 	s, err := Parse([]byte(text), Defaults{PermissionMode: "acceptEdits", Model: "sonnet"})
@@ -371,6 +378,8 @@ func TestParseRefusesAnInvalidAccount(t *testing.T) {
 		"a spaced mode":             {account("    permissionMode: 'accept edits'\n"), `line 4: accounts.claude.permissionMode "accept edits" holds whitespace`},
 		"an unknown account field":  {account("    bogus: x\n"), "field bogus not found"},
 		"a relative global envFile": {"envFile: g.env\n" + oneRule, "line 1: envFile g.env is not an absolute path"},
+		"a bad passEnv name":        {"passEnv: [\"BAD NAME\"]\n" + oneRule, `line 1: passEnv: "BAD NAME" is not a variable name`},
+		"a passEnv on an account":   {account("    passEnv: [FOO]\n"), "field passEnv not found"},
 		"no defaults.account":       {claudeAccount + oneWork, "line 1: defaults.account is required, and names one of accounts: claude"},
 		"an empty accounts block":   {"accounts: {}\n" + oneWork, "defaults.account is required, and names one of accounts: none"},
 		"an unknown default":        {claudeAccount + "defaults:\n  account: other\n" + oneWork, `line 5: defaults.account "other" is not in accounts, which declares claude`},
