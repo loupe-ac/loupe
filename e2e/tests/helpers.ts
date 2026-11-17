@@ -356,8 +356,25 @@ export async function submitRedirectingForm(
 }
 
 /**
+ * Opens the emailed verification link, presses Confirm, and waits until the
+ * POST and its redirect target have loaded. Turbo submits the form as XHR, so
+ * a bare click returns early and a following goto would abort the POST.
+ */
+export async function confirmEmailLink(
+    page: Page,
+    link: string,
+): Promise<void> {
+    await page.goto(link);
+    await submitRedirectingForm(
+        page,
+        page.getByRole('button', { name: 'Confirm email address' }),
+        '/register/verify',
+    );
+}
+
+/**
  * Fill the registration form, poll Mailpit for the verification link, and
- * navigate to it. Returns with the browser on the first-run wizard's welcome
+ * follow it and press Confirm. Returns with the browser on the first-run wizard's welcome
  * step — a brand-new account owns no project and hasn't completed (or
  * skipped) the wizard yet, so LandingController lands it there.
  */
@@ -402,7 +419,7 @@ export async function registerFreshUser(
         received.body,
         /https?:\/\/[^\s"<]+\/register\/verify[^\s"<]*/,
     );
-    await page.goto(link);
+    await confirmEmailLink(page, link);
     await expect(page).toHaveURL('/welcome');
 }
 

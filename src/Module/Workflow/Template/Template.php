@@ -12,6 +12,7 @@ use App\Module\Workflow\Contract\TemplateMetric;
 use App\Module\Workflow\Contract\TemplateOutcome;
 use App\Module\Workflow\Contract\TemplateSetting;
 use App\Module\Workflow\Contract\TemplateValueKey;
+use App\Module\Workflow\Expression\Expression;
 
 final readonly class Template
 {
@@ -194,6 +195,23 @@ final readonly class Template
             static fn (Rule $rule): bool => (null === $rule->slot || $rule->slot === $slot)
                 && array_all($rule->then, static fn (ActionCall $call): bool => null === $call->from || $call->from === $slot),
         ));
+    }
+
+    /** Whether a rule, a marker or an action condition of the template reads the facts class. */
+    public function readsFacts(string $factsClass): bool
+    {
+        $expressions = [];
+        foreach ($this->rules as $rule) {
+            $expressions[] = $rule->when;
+            foreach ($rule->then as $call) {
+                array_push($expressions, ...array_filter([$call->until, $call->refill, $call->cancelWhen]));
+            }
+        }
+        foreach ($this->markers as $marker) {
+            $expressions[] = $marker->when;
+        }
+
+        return array_any($expressions, static fn (Expression $expression): bool => \in_array($factsClass, $expression->reads(), true));
     }
 
     /** @return list<string> the document tags that the rules of the slot read, each once */

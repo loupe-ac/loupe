@@ -456,7 +456,7 @@ final class IssueGitTokenApiTest extends WebTestCase
         $api = new GitHubAppApi($http, $configuration, $clock);
         static::getContainer()->set(GitHubAppApi::class, $api);
         // A private cache per test: the shared cache.app is cleared by tests that run in other ParaTest workers.
-        $cache = new ArrayAdapter();
+        $cache = new ArrayAdapter(clock: $clock);
         $encryptor = static::getContainer()->get(Encryptor::class);
         self::assertInstanceOf(Encryptor::class, $encryptor);
         static::getContainer()->set(GitHubAppInstallationList::class, new GitHubAppInstallationList($api, $cache));
