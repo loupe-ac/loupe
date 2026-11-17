@@ -24,4 +24,10 @@ final readonly class CardOpenInboxItemReader implements CardOpenInboxItems
     {
         return $this->inbox->isEnabled() ? $this->inboxItems->findOldestOpenNumberPerCard($project) : [];
     }
+
+    #[\Override]
+    public function forCards(Project $project, array $cardIds): array
+    {
+        return $this->inbox->isEnabled() ? $this->inboxItems->findOldestOpenNumberPerCard($project, $cardIds) : [];
+    }
 }
