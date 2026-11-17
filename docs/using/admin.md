@@ -247,8 +247,10 @@ A person's waitlist entry is deleted with their account. It appears in their
 
 `/admin/beta-invites` makes single-use links for beta testers. Type an optional
 note that says who the link is for, then select **Create link**. The page shows
-the link. Copy it and send it to the tester. Each unused link in the list has a
-**Copy** button, so you can copy it again later.
+the link once. Copy it and send it to the tester. The app stores only a hash of
+the link, so the page cannot show it again. To send a tester a new link, select
+**Reissue** on the unused row. That revokes the old link, keeps its note, and
+shows the new link once.
 
 The link opens `/beta/<token>`. It lets one person sign up when the
 registration cap is full, with the form, GitHub or Google. A signed-out visitor

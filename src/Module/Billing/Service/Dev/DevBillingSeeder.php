@@ -141,7 +141,7 @@ final readonly class DevBillingSeeder implements DevSeederInterface
         }
 
         [$invite] = BetaInvite::issue(null, $note);
-        $invite->token = hash('sha256', 'dev-seed-beta-invite-'.$key);
+        $invite->tokenHash = BetaInvite::hashOf(hash('sha256', 'dev-seed-beta-invite-'.$key));
         $invite->createdAt = $createdAt;
         if ($redeemedBy instanceof User) {
             $invite->redeemedBy = $redeemedBy;

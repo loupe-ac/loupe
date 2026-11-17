@@ -4564,7 +4564,7 @@
             </trans-unit>
             <trans-unit id="billing.admin.beta_invite.issued.help">
                 <source>billing.admin.beta_invite.issued.help</source>
-                <target>Send this link to the tester. The list below keeps a copy button until the link is used or revoked.</target>
+                <target>Send this link to the tester. The page shows it only once. To send a new link, select Reissue on the row, which stops this one.</target>
             </trans-unit>
             <trans-unit id="billing.admin.beta_invite.issued.copy">
                 <source>billing.admin.beta_invite.issued.copy</source>
@@ -4633,6 +4633,14 @@
             <trans-unit id="billing.admin.beta_invite.revoke.button">
                 <source>billing.admin.beta_invite.revoke.button</source>
                 <target>Revoke</target>
+            </trans-unit>
+            <trans-unit id="billing.admin.beta_invite.reissue.button">
+                <source>billing.admin.beta_invite.reissue.button</source>
+                <target>Reissue</target>
+            </trans-unit>
+            <trans-unit id="billing.admin.beta_invite.flash.reissued">
+                <source>billing.admin.beta_invite.flash.reissued</source>
+                <target>The old link is revoked. The new link is shown once.</target>
             </trans-unit>
             <trans-unit id="billing.admin.beta_invite.flash.revoked">
                 <source>billing.admin.beta_invite.flash.revoked</source>
