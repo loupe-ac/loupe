@@ -6,10 +6,13 @@ namespace App\Tests\Module\Bridge\Command;
 
 use App\Module\Bridge\Command\ReportToolCallsCommand;
 use App\Module\Bridge\Command\ReportToolCallsHandler;
+use App\Module\Bridge\Messenger\WriteWorkerRunFacts;
+use App\Module\Bridge\ValueObject\WorkerRunTiming;
 use App\Module\Bridge\ValueObject\WorkerRunToolCallKind;
 use App\Module\Bridge\ValueObject\WorkerRunToolCallReport;
 use App\Module\Insights\Messenger\RefreshProjectInsights;
 use App\Tests\Module\Bridge\BridgeScenario;
+use App\Tests\Support\RunsFactJobs;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 use Symfony\Component\Uid\Uuid;
@@ -82,13 +85,47 @@ final class ReportToolCallsHandlerTest extends KernelTestCase
         $handler(new ReportToolCallsCommand($owner, (string) $project->id, $runKey, [$this->call(1, 0, 1000)], null));
 
         $kinds = [];
+        $writes = 0;
         foreach ($transport->getSent() as $envelope) {
             $message = $envelope->getMessage();
+            if ($message instanceof WriteWorkerRunFacts) {
+                ++$writes;
+
+                continue;
+            }
             self::assertInstanceOf(RefreshProjectInsights::class, $message);
             $kinds[] = $message->kind;
         }
         sort($kinds);
         self::assertSame(['bucket-times', 'runs'], $kinds);
+        self::assertSame(1, $writes);
+    }
+
+    public function test_a_report_with_timing_queues_one_write_of_the_fact_row(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $owner = $this->user($em, 'report-timing-'.uniqid().'@example.com');
+        $project = $this->project($em, $owner, 'Report timing');
+        $runKey = Uuid::v4();
+        $run = $this->seedRun($em, $project, runKey: $runKey);
+        $transport = self::getContainer()->get('messenger.transport.insights');
+        self::assertInstanceOf(InMemoryTransport::class, $transport);
+        $transport->reset();
+
+        $handler = self::getContainer()->get(ReportToolCallsHandler::class);
+        self::assertInstanceOf(ReportToolCallsHandler::class, $handler);
+        $handler(new ReportToolCallsCommand($owner, (string) $project->id, $runKey, [$this->call(1, 0, 1000)], new WorkerRunTiming(1000, 50)));
+
+        $writes = array_values(array_filter(
+            array_map(static fn ($envelope): object => $envelope->getMessage(), $transport->getSent()),
+            static fn (object $message): bool => $message instanceof WriteWorkerRunFacts,
+        ));
+        self::assertCount(1, $writes);
+        self::assertSame([(string) $run->id], $writes[0]->runIds);
+        self::assertSame(1, \count(RunsFactJobs::run(self::getContainer())));
+        $fact = $em->getConnection()->fetchAssociative('SELECT tool_time_ms, idle_gap_ms FROM bridge_worker_run_facts WHERE run_id = ?', [(string) $run->id]);
+        self::assertSame(['tool_time_ms' => 1000, 'idle_gap_ms' => 50], $fact);
     }
 
     private function call(int $seq, int $offsetMs, int $durationMs, bool $inSubagent = false): WorkerRunToolCallReport

@@ -35,6 +35,7 @@ final readonly class DeleteBucketRuleHandler
         $bucket = $command->rule->bucket;
 
         $deleted = $this->em->wrapInTransaction(function () use ($project, $ruleId): bool {
+            // Keep FOR UPDATE: a bridge report waits for no weaker lock.
             $this->em->lock($project, LockMode::PESSIMISTIC_WRITE);
 
             foreach ($this->insightsBucketRules->findOrderedFresh($project) as $rule) {
