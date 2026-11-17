@@ -113,6 +113,11 @@ framework:
             policy: fixed_window
             limit: 5
             interval: '1 hour'
+        # Token attempts on the install wizard unlock form.
+        install_unlock:
+            policy: fixed_window
+            limit: 5
+            interval: '15 minutes'
 
 # The e2e suite runs against the dev app from a single IP; production limits
 # would throttle the suite itself. Keep dev effectively unlimited.
@@ -151,6 +156,10 @@ when@dev:
                 policy: fixed_window
                 limit: 1000
                 interval: '1 hour'
+            install_unlock:
+                policy: fixed_window
+                limit: 1000
+                interval: '15 minutes'
 
 when@test:
     framework:
@@ -192,3 +201,7 @@ when@test:
                 policy: fixed_window
                 limit: 1000
                 interval: '1 hour'
+            install_unlock:
+                policy: fixed_window
+                limit: 1000
+                interval: '15 minutes'
