@@ -22,14 +22,17 @@ use App\Module\Workflow\Command\WorkflowSlotView;
 use App\Module\Workflow\Entity\WorkflowBinding;
 use App\Module\Workflow\Repository\WorkflowBindingRepository;
 use App\Module\Workflow\Repository\WorkflowSlotLinkRepository;
+use App\Module\Workflow\Service\SweepRowMemo;
 use App\Module\Workflow\Template\AppRules;
 use App\Module\Workflow\Template\ProjectTemplateCopy;
 use App\Module\Workflow\Template\ShippedTemplates;
 use App\Module\Workflow\Template\TemplateParser;
 use App\Module\Workflow\Template\TemplateVersion;
+use App\Observability\HandledMessage;
 use App\Tests\Module\Workflow\Template\AppRulesTest;
 use App\Tests\Module\Workflow\WorkflowProjects;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 final class ShowWorkflowSettingsHandlerTest extends KernelTestCase
@@ -181,7 +184,7 @@ final class ShowWorkflowSettingsHandlerTest extends KernelTestCase
         $handler = new ShowWorkflowSettingsHandler(
             $bindings,
             $this->service(WorkflowSlotLinkRepository::class),
-            new ProjectTemplateCopy($bindings, $parser, new AppRules($parser, AppRulesTest::FIXTURE)),
+            new ProjectTemplateCopy($bindings, $parser, new AppRules($parser, AppRulesTest::FIXTURE), new SweepRowMemo(new HandledMessage(), new MockClock())),
             $this->service(Actions::class),
             $this->service(TranslatorInterface::class),
         );
