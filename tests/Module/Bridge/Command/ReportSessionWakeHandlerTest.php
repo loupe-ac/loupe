@@ -6,6 +6,7 @@ namespace App\Tests\Module\Bridge\Command;
 
 use App\Module\Bridge\Command\ReportSessionWakeCommand;
 use App\Module\Bridge\Command\ReportSessionWakeHandler;
+use App\Module\Bridge\Messenger\WriteWorkerRunFacts;
 use App\Module\Bridge\ValueObject\WorkerRunWakeReport;
 use App\Module\Bridge\ValueObject\WorkerRunWakeTrigger;
 use App\Module\Insights\Messenger\RefreshProjectInsights;
@@ -24,9 +25,11 @@ final class ReportSessionWakeHandlerTest extends KernelTestCase
         $result = $this->handler()(new ReportSessionWakeCommand($owner, (string) $project->id, $sessionId, [new WorkerRunWakeReport(WorkerRunWakeTrigger::Person)]));
 
         self::assertSame(1, $result->filled);
-        $sent = $transport->getSent();
-        self::assertCount(1, $sent);
-        $message = $sent[0]->getMessage();
+        $messages = array_map(static fn ($envelope): object => $envelope->getMessage(), $transport->getSent());
+        self::assertCount(1, array_filter($messages, static fn (object $message): bool => $message instanceof WriteWorkerRunFacts));
+        $refreshes = array_values(array_filter($messages, static fn (object $message): bool => $message instanceof RefreshProjectInsights));
+        self::assertCount(1, $refreshes);
+        $message = $refreshes[0];
         self::assertInstanceOf(RefreshProjectInsights::class, $message);
         self::assertSame('runs', $message->kind);
         self::assertSame((string) $project->id, $message->projectId);

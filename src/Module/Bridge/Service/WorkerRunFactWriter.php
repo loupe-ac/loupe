@@ -213,6 +213,7 @@ final readonly class WorkerRunFactWriter
             wake_first_input_tokens = EXCLUDED.wake_first_input_tokens,
             wake_first_cache_read_tokens = EXCLUDED.wake_first_cache_read_tokens,
             wake_first_cache_write_tokens = EXCLUDED.wake_first_cache_write_tokens
+        WHERE (bridge_worker_run_facts.*) IS DISTINCT FROM (EXCLUDED.*)
         SQL;
 
     public function __construct(
@@ -220,11 +221,15 @@ final readonly class WorkerRunFactWriter
     ) {
     }
 
-    /** @param list<Uuid> $runIds */
-    public function upsert(array $runIds): void
+    /**
+     * @param list<Uuid> $runIds
+     *
+     * @return int how many rows it inserted or changed
+     */
+    public function upsert(array $runIds): int
     {
         if ([] === $runIds) {
-            return;
+            return 0;
         }
 
         $params = ['ids' => array_map(static fn (Uuid $id): string => (string) $id, $runIds)];
@@ -232,9 +237,10 @@ final readonly class WorkerRunFactWriter
 
         // The lock waits for a writer that holds a run, and the upsert after it
         // reads that writer's commit, so an older read never overwrites a newer row.
-        $this->connection->transactional(function () use ($params, $types): void {
+        return $this->connection->transactional(function () use ($params, $types): int {
             $this->connection->executeQuery('SELECT id FROM bridge_worker_runs WHERE id IN (:ids) ORDER BY id FOR UPDATE', $params, $types);
-            $this->connection->executeStatement(self::UPSERT_SQL, $params, $types);
+
+            return (int) $this->connection->executeStatement(self::UPSERT_SQL, $params, $types);
         });
     }
 }
