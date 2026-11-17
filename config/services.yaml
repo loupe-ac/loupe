@@ -193,6 +193,11 @@ services:
 # (e.g. an MCP tool) keeping them reachable.
 when@test:
     services:
+        # A plain array pool, which the kernel resets between requests only when
+        # tagged. The shared pool would keep a fixed payload from one run to the next.
+        cache.github_delivery:
+            class: Symfony\Component\Cache\Adapter\ArrayAdapter
+
         App\Tests\Support\HideDebugErrorPage:
             autoconfigure: true
 
