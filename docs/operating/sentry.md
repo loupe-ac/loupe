@@ -223,8 +223,10 @@ A full sweep runs in three cases:
 A check of a full sweep that finds a change in a card with no mark logs the error
 `workflow.change_missed`. The error carries the card id, the changed rules, the
 rules that fired, the rules that opened a work request, and whether the markers
-changed. A change that the clock explains, such as a time that came before the
-check, raises no error. With a usable `SENTRY_DSN`, the error reaches Sentry.
+changed. It also names the changed rules and the markers whose stored time came
+before the check, because a clock can explain such a change. A time alone does not
+hide the change. A writer that marks the card after the check clears its mark
+explains the change, so it raises no error. With a usable `SENTRY_DSN`, the error reaches Sentry.
 
 The sweep every ten minutes also sends two gauges. With no usable `SENTRY_DSN`,
 it sends nothing.

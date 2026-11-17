@@ -40,6 +40,7 @@ use App\Module\Workflow\Contract\WorkState;
 use App\Module\Workflow\Contract\WorkView;
 use App\Module\Workflow\Entity\WorkflowRuleState;
 use App\Module\Workflow\Event\CardPaused;
+use App\Module\Workflow\Repository\WorkflowCardChangeRepository;
 use App\Module\Workflow\Repository\WorkflowPendingBaselineRepository;
 use App\Module\Workflow\Repository\WorkflowRuleStateRepository;
 use App\Module\Workflow\Service\ActionContexts;
@@ -109,6 +110,7 @@ final readonly class Engine
         private LoggerInterface $logger,
         private HandledMessage $handled,
         private ClockInterface $clock,
+        private WorkflowCardChangeRepository $workflowCardChanges,
     ) {
         /** @var \ArrayObject<string, bool> $running */
         $running = new \ArrayObject();
@@ -142,7 +144,7 @@ final readonly class Engine
 
     private function evaluateOnce(Uuid $cardId, \DateTimeImmutable $now, bool $reportMiss): void
     {
-        $run = $this->em->wrapInTransaction(fn (): ?Evaluation => $this->evaluateLocked($cardId, $now));
+        $run = $this->em->wrapInTransaction(fn (): ?Evaluation => $this->evaluateLocked($cardId, $now, $reportMiss));
         if (null === $run) {
             return;
         }
@@ -174,23 +176,23 @@ final readonly class Engine
 
     /**
      * A check that a full sweep queued for a card with no mark found a change, so the marks missed it.
-     * A time that came before the pass explains the change of its own rule, or of the markers, so only that change is
-     * left out. Every other change still raises the error.
+     * A time that came before the pass can explain a change, but it does not prove it, so the log carries those times
+     * beside the change. A writer that marked the card after the check cleared it explains the change fully.
      */
     private function reportMiss(Evaluation $run): void
     {
-        $rules = array_diff_key($run->changedRules, $run->dueRules);
-        $markers = $run->markersChanged && !$run->markersDue && [] === $run->dueRules;
-        if ([] === $rules && !$markers) {
+        if ($run->markedAfterClear || ([] === $run->changedRules && !$run->markersChanged)) {
             return;
         }
 
         $this->logger->error('workflow.change_missed', [
             'cardId' => $run->card->id->toRfc4122(),
-            'rules' => array_keys($rules),
+            'rules' => array_keys($run->changedRules),
+            'dueRules' => array_keys(array_intersect_key($run->dueRules, $run->changedRules)),
             'fired' => array_map(static fn (array $fired): string => $fired['rule'], $run->fired),
             'opened' => $run->opened,
-            'markersChanged' => $markers,
+            'markersChanged' => $run->markersChanged,
+            'markersDue' => $run->markersDue,
         ]);
     }
 
@@ -213,7 +215,7 @@ final readonly class Engine
         }
     }
 
-    private function evaluateLocked(Uuid $cardId, \DateTimeImmutable $now): ?Evaluation
+    private function evaluateLocked(Uuid $cardId, \DateTimeImmutable $now, bool $reportMiss): ?Evaluation
     {
         // Advisory, because an outbox insert takes a key-share lock on the project row,
         // and a FOR UPDATE on that row would deadlock against a claim or a settle.
@@ -243,12 +245,14 @@ final readonly class Engine
         }
 
         $run = new Evaluation($card, $project, $template, $this->facts($card, $now), $automated ? $this->workflowRuleStates->findForCard($cardId) : [], $now);
+        // Before the pass writes anything, so a mark here came from a writer that committed after the check cleared it.
+        $run->markedAfterClear = $reportMiss && $this->workflowCardChanges->isMarked($cardId);
+        $run->markersDue = null !== $run->card->markersDueAt && $run->card->markersDueAt <= $run->now;
         if (!$automated) {
             $this->markers->run($run);
 
             return $run;
         }
-        $run->markersDue = null !== $run->card->markersDueAt && $run->card->markersDueAt <= $run->now;
         foreach ($run->states as $state) {
             if (null !== $state->dueAt && $state->dueAt <= $run->now) {
                 $run->dueRules[$state->ruleId] = true;
