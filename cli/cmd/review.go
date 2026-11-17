@@ -178,11 +178,15 @@ func newReviewSignInCmd() *cobra.Command {
 			return err
 		}
 		if os.Getenv("LOUPE_URL") == "" {
-			if cfg, err := config.Load(); err == nil {
+			cfg, err := config.Load()
+			switch {
+			case err == nil:
 				allowHTTP = cfg.AllowsHTTP()
 				if baseURL, err = resolveBaseURL(cfg.BaseURL, "", allowHTTP); err != nil {
 					return err
 				}
+			case !errors.Is(err, config.ErrNotLoggedIn):
+				return err
 			}
 		}
 

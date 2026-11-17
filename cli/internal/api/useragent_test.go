@@ -64,24 +64,42 @@ func TestUserAgentRefusesPlainHTTPToAnotherHostUnlessAllowed(t *testing.T) {
 	}
 }
 
-// A server on https that redirects to plain HTTP on another host must not get
-// the second request, unless the person opted in.
-func TestUserAgentStopsARedirectFromHTTPSToPlainHTTP(t *testing.T) {
-	plain := false
-	target := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { plain = true }))
-	defer target.Close()
-	secure := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "http://loupe.lan.invalid:1/", http.StatusFound)
-	}))
-	defer secure.Close()
+// redirectingTransport answers https with a redirect to plain HTTP on the same
+// host, and records each plain-HTTP request it receives.
+type redirectingTransport struct{ plainRequests int }
 
-	tr := secure.Client().Transport
-	hc := &http.Client{Transport: UserAgent{Value: "ua", Base: tr}}
-	if resp, err := hc.Get(secure.URL); err == nil {
-		_ = resp.Body.Close()
-		t.Fatal("the redirect to plain HTTP on another host went through")
+func (r *redirectingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if req.URL.Scheme == "https" {
+		return &http.Response{
+			StatusCode: http.StatusFound,
+			Header:     http.Header{"Location": []string{"http://loupe.lan/next"}},
+			Body:       http.NoBody,
+			Request:    req,
+		}, nil
 	}
-	if plain {
-		t.Fatal("the plain server got a request")
+	r.plainRequests++
+
+	return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody, Request: req}, nil
+}
+
+// A redirect from https to plain HTTP on another host must not send the second
+// request, unless the person opted in.
+func TestUserAgentStopsARedirectFromHTTPSToPlainHTTP(t *testing.T) {
+	for _, c := range []struct {
+		allow bool
+		plain int
+	}{{false, 0}, {true, 1}} {
+		base := &redirectingTransport{}
+		hc := &http.Client{Transport: UserAgent{Value: "ua", Base: base, AllowHTTP: c.allow}}
+		resp, err := hc.Get("https://loupe.lan/start")
+		if err == nil {
+			_ = resp.Body.Close()
+		}
+		if (err == nil) != c.allow {
+			t.Errorf("allow=%v: err = %v", c.allow, err)
+		}
+		if base.plainRequests != c.plain {
+			t.Errorf("allow=%v: %d plain requests, want %d", c.allow, base.plainRequests, c.plain)
+		}
 	}
 }

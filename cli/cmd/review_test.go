@@ -501,3 +501,54 @@ func TestReviewHasEverySubcommandTheMacPanelRuns(t *testing.T) {
 		}
 	}
 }
+
+func TestReviewSignInRefusesAStoredPlainHTTPLoginInsteadOfFallingBack(t *testing.T) {
+	useLoginConfigHome(t)
+	t.Setenv(config.AllowHTTPEnv, "")
+	ss := newSignInServer(t, signInTokens)
+	routeLAN(t, ss.Server)
+	t.Setenv("LOUPE_URL", "")
+	if err := config.Save(testLogin("http://loupe.lan")); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := runReview(t, "", "sign-in")
+	if err == nil || !strings.Contains(err.Error(), "unencrypted") {
+		t.Fatalf("want the plain-HTTP refusal, got %v", err)
+	}
+	if pending, _ := config.LoadPendingSignIn(); pending != nil {
+		t.Fatalf("a refused sign-in left a pending one: %+v", pending)
+	}
+}
+
+func TestReviewSignInThenStatusKeepsThePlainHTTPOptIn(t *testing.T) {
+	useLoginConfigHome(t)
+	advance := useReviewClock(t)
+	ss := newSignInServer(t, signInTokens)
+	routeLAN(t, ss.Server)
+	t.Setenv("LOUPE_URL", "http://loupe.lan")
+	t.Setenv(config.AllowHTTPEnv, "")
+
+	if _, err := runReview(t, "", "sign-in"); err == nil || !strings.Contains(err.Error(), "unencrypted") {
+		t.Fatalf("sign-in without the opt-in: want a refusal, got %v", err)
+	}
+
+	t.Setenv(config.AllowHTTPEnv, "1")
+	if _, err := runReview(t, "", "sign-in"); err != nil {
+		t.Fatal(err)
+	}
+	if pending, err := config.LoadPendingSignIn(); err != nil || pending == nil || !pending.AllowHTTP {
+		t.Fatalf("pending sign-in = %+v, %v", pending, err)
+	}
+
+	// status runs in a later process, with no opt-in in its environment.
+	t.Setenv(config.AllowHTTPEnv, "")
+	t.Setenv("LOUPE_URL", "")
+	advance(2 * time.Second)
+	if got, err := runReview(t, "", "status"); err != nil || got != `{"state":"ok"}` {
+		t.Fatalf("status = %q, %v", got, err)
+	}
+	if stored, err := config.Load(); err != nil || !stored.AllowHTTP || stored.BaseURL != "http://loupe.lan" {
+		t.Fatalf("stored login = %+v, %v", stored, err)
+	}
+}
