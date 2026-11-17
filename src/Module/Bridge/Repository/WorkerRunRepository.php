@@ -1185,21 +1185,19 @@ class WorkerRunRepository extends ServiceEntityRepository
      * A run belongs to a person when the work request that started it has a person rule id. The run reads that id from
      * its request, and from its own copy when the request is gone. A run with neither belongs to a rule.
      *
-     * @param bool $ruleOwnedOnly leave out the runs that a person started
-     *
-     * @return array<string, \DateTimeImmutable> each work kind of the card's open worker runs, sorted, mapped to the start of its oldest run
+     * @return array{all: array<string, \DateTimeImmutable>, ruleOwned: array<string, \DateTimeImmutable>} each work kind of the card's open worker runs, sorted, mapped to the start of its oldest run; ruleOwned leaves out the runs that a person started
      */
-    public function findOpenWorkSinceOfCard(Uuid $cardId, bool $ruleOwnedOnly = false): array
+    public function findOpenWorkSinceOfCard(Uuid $cardId): array
     {
-        $origin = $ruleOwnedOnly
-            ? 'AND (COALESCE(w.rule_id, r.rule_id) IS NULL OR COALESCE(w.rule_id, r.rule_id) NOT LIKE :person)'
-            : '';
-        /** @var list<array{work_kind: string, since: string}> $rows */
+        /** @var list<array{work_kind: string, since: string, rule_since: ?string}> $rows */
         $rows = $this->getEntityManager()->getConnection()->executeQuery(
-            'SELECT r.work_kind, MIN(COALESCE(r.started_at, r.received_at)) AS since
+            'SELECT r.work_kind, MIN(COALESCE(r.started_at, r.received_at)) AS since,
+                MIN(COALESCE(r.started_at, r.received_at)) FILTER (
+                    WHERE COALESCE(w.rule_id, r.rule_id) IS NULL OR COALESCE(w.rule_id, r.rule_id) NOT LIKE :person
+                ) AS rule_since
              FROM bridge_worker_runs r
              LEFT JOIN work_requests w ON w.id = r.work_request_id
-             WHERE r.subject_type = :subject AND r.subject_id = :card AND r.kind = :kind AND r.work_kind IS NOT NULL AND r.state IN (:open) '.$origin.'
+             WHERE r.subject_type = :subject AND r.subject_id = :card AND r.kind = :kind AND r.work_kind IS NOT NULL AND r.state IN (:open)
              GROUP BY r.work_kind
              ORDER BY r.work_kind',
             [
@@ -1207,17 +1205,21 @@ class WorkerRunRepository extends ServiceEntityRepository
                 'card' => $cardId->toRfc4122(),
                 'kind' => WorkerRunKind::Worker->value,
                 'open' => array_map(static fn (WorkerRunState $state): string => $state->value, WorkerRunState::openStates()),
-                ...($ruleOwnedOnly ? ['person' => PersonWork::RULE_PREFIX.'%'] : []),
+                'person' => PersonWork::RULE_PREFIX.'%',
             ],
             ['open' => ArrayParameterType::STRING],
         )->fetchAllAssociative();
 
-        $since = [];
+        $all = [];
+        $ruleOwned = [];
         foreach ($rows as $row) {
-            $since[$row['work_kind']] = new \DateTimeImmutable($row['since']);
+            $all[$row['work_kind']] = new \DateTimeImmutable($row['since']);
+            if (null !== $row['rule_since']) {
+                $ruleOwned[$row['work_kind']] = new \DateTimeImmutable($row['rule_since']);
+            }
         }
 
-        return $since;
+        return ['all' => $all, 'ruleOwned' => $ruleOwned];
     }
 
     /**
