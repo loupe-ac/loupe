@@ -17,6 +17,13 @@
     <p class="auth-subheading">{{ 'account.login.subheading'|trans }}</p>
 </div>
 
+{% for message in app.flashes('success') %}
+    <div class="auth-notice" role="status">
+        <twig:ux:icon name="lucide:check" class="lp-icon lp-icon--sm mt-px" aria-hidden="true" />
+        {{ message }}
+    </div>
+{% endfor %}
+
 {% set social_error = app.request.query.get('social_error') %}
 {% if social_error %}
     <div class="auth-error" role="alert">
