@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\OAuth\Repository;
 
+use App\Module\Account\Entity\User;
 use App\Module\OAuth\Entity\WorkerRunCredential;
 use App\Module\Project\Entity\Project;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
@@ -54,6 +55,12 @@ class WorkerRunCredentialRepository extends ServiceEntityRepository
 
             return $revoked;
         });
+    }
+
+    /** @return list<WorkerRunCredential> */
+    public function findByUser(User $user): array
+    {
+        return $this->findBy(['user' => $user], ['issuedAt' => 'ASC']);
     }
 
     public function deleteExpiredBeyondRetention(): int
