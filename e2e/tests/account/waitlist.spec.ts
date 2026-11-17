@@ -26,6 +26,7 @@ import { expect, type Page } from '@playwright/test';
 import { ADMIN, setRegistrationCap } from '../admin-helpers';
 import { createTest } from '../fixtures';
 import {
+    confirmEmailLink,
     extractLink,
     getEmailWithSubject,
     submitRedirectingForm,
@@ -230,7 +231,7 @@ test.describe.serial('registration cap and waitlist', () => {
             verification.body,
             /https?:\/\/[^\s"<]+\/register\/verify[^\s"<]*/,
         );
-        await guest.goto(verifyUrl);
+        await confirmEmailLink(guest, verifyUrl);
         await expect(guest).toHaveURL('/welcome');
         await guest.getByRole('button', { name: 'Skip setup' }).click();
         await expect(guest).toHaveURL('/projects');
