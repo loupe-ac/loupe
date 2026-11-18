@@ -132,7 +132,7 @@ final class SweepWorkflowCardsTaskTest extends KernelTestCase
         $this->task(new RecordingLogger())();
         $first = $this->sentMessages();
         $this->transport()->reset();
-        $this->task(new RecordingLogger())();
+        $this->task(new RecordingLogger(), changeDriven: true)();
         $second = $this->sentMessages();
 
         self::assertNotSame([], $first);
@@ -151,9 +151,22 @@ final class SweepWorkflowCardsTaskTest extends KernelTestCase
         $this->card($bound, 'next');
         $this->transport()->reset();
 
-        $this->task(new RecordingLogger())();
+        $this->task(new RecordingLogger(), changeDriven: true)();
 
         self::assertSame([false], array_values(array_unique(array_map(static fn (EvaluateCard $message): bool => $message->fullSweep, $this->sentMessages()))));
+    }
+
+    public function test_with_the_flag_off_the_sweep_checks_every_card_and_reports_a_missed_change(): void
+    {
+        self::bootKernel();
+        $bound = $this->workflowProject('sweep-flag-off');
+        $this->bindLifecycle($bound);
+        $this->card($bound, 'next');
+        $this->transport()->reset();
+
+        $this->task(new RecordingLogger())();
+
+        self::assertSame([true], array_values(array_unique(array_map(static fn (EvaluateCard $message): bool => $message->fullSweep, $this->sentMessages()))));
     }
 
     public function test_with_the_flag_on_the_sweep_queues_only_the_marked_open_bound_cards(): void

@@ -19,7 +19,7 @@ use Symfony\Component\Messenger\Transport\TransportInterface;
 
 /**
  * The backstop for a card change that no event reported. Answers how many evaluations it queued, and queues none while the previous sweep still waits.
- * With the change-driven flag on, it queues only the marked cards and the cards of the providers that read an outside answer. Off, and in the deploy pass, it queues every open bound card.
+ * With the change-driven flag on, it queues only the marked cards and the cards of the providers that read an outside answer. Off, and in the deploy pass, it queues every open bound card and reports each change that the marks missed.
  * The first sweep under a new build is the deploy pass: its checks report each change that the marks missed.
  */
 final readonly class SweepWorkflowCardsHandler
@@ -47,8 +47,9 @@ final readonly class SweepWorkflowCardsHandler
 
         $version = $this->build->version;
         $deployPass = null !== $version && $this->record->build() !== $version;
-        $cardIds = $this->settings->changeDrivenSweep() && !$deployPass ? $this->markedCardIds() : $this->workflowBindings->findOpenBoundCardIds();
-        $this->trigger->inBackground($cardIds, self::class, null, $deployPass);
+        $marked = $this->settings->changeDrivenSweep() && !$deployPass;
+        $cardIds = $marked ? $this->markedCardIds() : $this->workflowBindings->findOpenBoundCardIds();
+        $this->trigger->inBackground($cardIds, self::class, null, !$marked);
         if ($deployPass) {
             $this->record->recordBuild($version);
             $this->record->recordFull(\DateTimeImmutable::createFromInterface($this->clock->now()));
