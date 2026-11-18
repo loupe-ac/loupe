@@ -37,7 +37,8 @@ use Symfony\UX\Turbo\TurboBundle;
  * refused drop answers 422 with no body, and the drag puts the card back.
  * A drop refused because the card is managed carries a question in a header
  * for a person who may hold the card, and the drag sends it again with
- * `unmanage` when the person agrees.
+ * `unmanage` when the person agrees. The full card page sends `origin=card`
+ * and gets its status field back instead, with the refusal under the select.
  */
 #[IsGranted(CardVoter::WRITE, subject: 'card')]
 #[Route(
@@ -103,6 +104,22 @@ final class MoveCardController extends AppController
                 $error = $this->translator->trans(CardManaged::MESSAGE);
                 $managed = $mayManage;
             }
+        }
+
+        if ($stream && MoveCardRequest::ORIGIN_CARD_PAGE === $data->origin) {
+            // The card page has no board to place the card on and no offer dialog,
+            // so it answers with its own status field and the person pauses the card there.
+            if ($managed) {
+                $error = $this->translator->trans('board.card.flash.managed_card_page', [
+                    '%action%' => $this->translator->trans('board.card.runs.pause'),
+                ]);
+            }
+
+            return new Response(
+                $this->renderView('@Board/_card_move_field.stream.html.twig', ['card' => $card, 'error' => $error]),
+                null === $error ? Response::HTTP_OK : Response::HTTP_UNPROCESSABLE_ENTITY,
+                ['Content-Type' => TurboBundle::STREAM_MEDIA_TYPE],
+            );
         }
 
         if (null !== $error && $stream) {

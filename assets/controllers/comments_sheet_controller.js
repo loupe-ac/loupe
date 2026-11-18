@@ -1,5 +1,7 @@
 import { Controller } from '@hotwired/stimulus';
 
+/* stimulusFetch: 'lazy' */
+
 /**
  * The Open and Resolved tabs of the Comments sheet. The choice lives in a
  * `data-status` attribute on a box that holds the tabs and the list, and CSS

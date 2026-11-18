@@ -42,7 +42,7 @@
             <span class="lp-card-number">#{{ card.number }}</span>
             {% include '@Board/_card_type_tag.html.twig' with {card: card} only %}
             {% include '@Board/_card_source_tag.html.twig' with {card: card, class: 'lp-card-drawer__source'} only %}
-            {% include '@Board/_column_tag.html.twig' with {column: card.column} only %}
+            <span id="card-column-{{ card.id }}">{% include '@Board/_column_tag.html.twig' with {column: card.column} only %}</span>
         </div>
         <div class="lp-card-drawer__header-actions">
             <twig:Ds:Button variant="ghost" href="{{ path('app_board_card_edit', {projectId: card.project.id, cardId: card.id}) }}"><twig:ux:icon name="lucide:pencil" class="lp-icon lp-icon--md" />{{ 'board.card.edit.action'|trans }}</twig:Ds:Button>
@@ -193,15 +193,7 @@
                 <div class="lp-card-field lp-card-field--wide">
                     <dt>{{ 'board.card.overview.status'|trans }}</dt>
                     <dd>
-                        {% set moveForm = card_move_form(card) %}
-                        {# Turbo is off: the move answers with a redirect to the board. #}
-                        <form method="post" data-turbo="false" action="{{ path('app_board_card_move', {projectId: card.project.id, cardId: card.id}) }}" class="lp-card-move__form" data-controller="submit-on-change">
-                            {{ form_widget(moveForm._token) }}
-                            {{ form_label(moveForm.column, null, {label_attr: {class: 'sr-only'}}) }}
-                            {{ form_widget(moveForm.column, {attr: {class: ds_input_class('select') ~ ' lp-card-move__select', 'data-action': 'change->submit-on-change#submit'}}) }}
-                            {{ form_widget(moveForm.position, {attr: {hidden: 'hidden'}}) }}
-                            <noscript><twig:Ds:Button type="submit">{{ 'board.card.move.submit'|trans }}</twig:Ds:Button></noscript>
-                        </form>
+                        {% include '@Board/_card_move_field.html.twig' with {card: card, error: null} only %}
                     </dd>
                 </div>
                 <div class="lp-card-field lp-card-field--prose" data-card-human-review>
@@ -213,8 +205,8 @@
                 <div class="lp-card-field"><dt>{{ 'board.card.overview.reporter'|trans }}</dt><dd>{{ ('board.card.reporter.' ~ card.reporter.value)|trans }}</dd></div>
                 <div class="lp-card-field"><dt>{{ 'board.card.overview.source'|trans }}</dt><dd>{{ ('board.card.source.' ~ card.source.kind.value)|trans }}</dd></div>
                 <div class="lp-card-field"><dt>{{ 'board.card.overview.created'|trans }}</dt><dd><twig:Ds:RelativeTime :datetime="card.createdAt" mode="date" /></dd></div>
-                <div class="lp-card-field"><dt>{{ 'board.card.overview.updated'|trans }}</dt><dd><twig:Ds:RelativeTime :datetime="card.updatedAt" /></dd></div>
-                {% if card.completedAt %}<div class="lp-card-field"><dt>{{ 'board.card.overview.completed'|trans }}</dt><dd><twig:Ds:RelativeTime :datetime="card.completedAt" mode="date" /></dd></div>{% endif %}
+                <div class="lp-card-field"><dt>{{ 'board.card.overview.updated'|trans }}</dt><dd id="card-updated-{{ card.id }}"><twig:Ds:RelativeTime :datetime="card.updatedAt" /></dd></div>
+                {% include '@Board/_card_completed_field.html.twig' with {card: card} only %}
             </dl>
         </section>
 

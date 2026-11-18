@@ -69,6 +69,8 @@ RUN apk add --no-cache postgresql-libs libzip libxslt icu-libs icu-data-full bas
  && find /usr/share/fonts/dejavu -type f ! -name 'DejaVuSans.ttf' ! -name 'DejaVuSans-Bold.ttf' -delete \
  && apk add --no-cache --virtual .build-deps $PHPIZE_DEPS postgresql-dev libzip-dev libxslt-dev icu-dev \
  && docker-php-ext-install bcmath pdo_pgsql zip intl xsl \
+ && pecl install apcu \
+ && docker-php-ext-enable apcu \
  && curl -fsSL -o /tmp/excimer.tgz https://github.com/wikimedia/php-excimer/archive/refs/tags/1.2.6.tar.gz \
  && echo "0f4cb07ed735cb8d517d837ade3dde43de7967ea5e02fee194a1deaef8f3850e  /tmp/excimer.tgz" | sha256sum -c - \
  && mkdir /tmp/excimer && tar xzf /tmp/excimer.tgz -C /tmp/excimer --strip-components=1 \
@@ -185,9 +187,10 @@ RUN set -eux; \
 # Only app.built.css is needed past build time. The runtime stage copies this
 # stage's final tree rather than its layers, so this removal is real wherever it
 # sits.
-RUN bin/console tailwind:build \
+RUN bin/console tailwind:build --minify \
 	&& find var/tailwind -mindepth 1 -maxdepth 1 ! -name 'app.built.css' -exec rm -rf {} +
-RUN bin/console asset-map:compile
+RUN bin/console asset-map:compile \
+	&& test -n "$(find public/assets -name '*.gz' -print -quit)"
 RUN bin/console cache:warmup --env=prod
 # Creates every attribute of every routed controller, as a request would. A
 # class that the vendor tree lacks fails here and not on the first request.

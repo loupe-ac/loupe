@@ -16,7 +16,8 @@ use Symfony\Component\HttpFoundation\Session\Storage\Handler\PdoSessionHandler;
  * opens one connection. That connection differs from DATABASE_URL in three
  * ways that each fail quietly if you undo them.
  *
- * The database name comes from Doctrine, not the URL: `dbname_suffix` appends
+ * The database name comes from Doctrine's connection parameters, not the URL
+ * (and not Connection::getDatabase(), which runs a query): `dbname_suffix` appends
  * WORKTREE_DB_SUFFIX and _test<TEST_TOKEN>, so the raw URL names the main `app`
  * database — where `sessions` also exists, so a worktree shares main's logins
  * rather than erroring.
@@ -110,7 +111,8 @@ final readonly class PdoSessionHandlerFactory
             $dsn .= 'port='.$parts['port'].';';
         }
 
-        $dsn .= 'dbname='.($this->connection->getDatabase() ?? '').';';
+        $database = $this->connection->getParams()['dbname'] ?? '';
+        $dsn .= 'dbname='.(is_string($database) ? $database : '').';';
 
         parse_str($parts['query'] ?? '', $query);
 

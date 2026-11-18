@@ -1,5 +1,7 @@
 import { Controller } from '@hotwired/stimulus';
 
+/* stimulusFetch: 'lazy' */
+
 const STORAGE_KEY = 'loupe.review.panels';
 const PANEL_ORDER = ['decisions', 'comments', 'outline'];
 const DEFAULT_PANELS = ['decisions'];
