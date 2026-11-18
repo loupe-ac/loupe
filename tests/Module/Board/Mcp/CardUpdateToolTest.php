@@ -444,6 +444,21 @@ final class CardUpdateToolTest extends KernelTestCase
         self::assertFalse(($this->tool)($created['cardId'], requiresHumanReview: false)['requiresHumanReview']);
     }
 
+    public function test_a_run_credential_whose_run_is_not_reported_cannot_turn_the_switch_off(): void
+    {
+        $created = $this->card('card-update-unreported-lowers');
+        ($this->tool)($created['cardId'], requiresHumanReview: true);
+        $project = ($this->em->find(Card::class, $created['cardId']) ?? throw new \LogicException('The card exists.'))->project;
+        $this->callAsWorkerRun(Uuid::v4(), Uuid::v4(), Uuid::v4(), $project->id);
+
+        try {
+            ($this->tool)($created['cardId'], requiresHumanReview: false);
+            self::fail('A worker lowered the switch before its run was reported.');
+        } catch (ToolCallException $e) {
+            self::assertSame(CardUpdateTool::WORKER_LOWER_REFUSAL, $e->getMessage());
+        }
+    }
+
     public function test_a_session_header_alone_does_not_make_a_worker_so_it_may_turn_the_switch_off(): void
     {
         $created = $this->card('card-update-session-lowers');

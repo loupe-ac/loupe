@@ -14,6 +14,7 @@ use App\Module\Board\Command\UpdateCardCommand;
 use App\Module\Board\Command\UpdateCardHandler;
 use App\Module\Board\Service\CardRefResolver;
 use App\Module\Board\Service\ChildDesignChoices;
+use App\Module\Bridge\Service\CallerRun;
 use App\Module\Workflow\Contract\Actor;
 use App\Security\McpBoundProjectVoter;
 use Mcp\Capability\Attribute\McpTool;
@@ -42,7 +43,7 @@ final readonly class CardUpdateTool
         private CardPayload $payload,
         private BoardToolErrorMessages $errorMessages,
         private AgentRunCause $runCause,
-        private AgentRunSource $runSource,
+        private CallerRun $callerRun,
     ) {
     }
 
@@ -87,7 +88,7 @@ final readonly class CardUpdateTool
                 array_filter(['beforeCard' => $beforeCard, 'afterCard' => $afterCard], static fn (int|string|null $reference): bool => null !== $reference),
             ));
             $column = $this->subjects->optionalColumn($card->project, $status);
-            $workerSession = null !== $this->runSource->forProject($card->project);
+            $workerSession = null !== $this->callerRun->workerRunKey();
             if (false === $requiresHumanReview && $card->requiresHumanReview && $workerSession) {
                 throw new ToolCallException(self::WORKER_LOWER_REFUSAL);
             }
