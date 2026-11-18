@@ -3036,7 +3036,9 @@ type. A good launch opens an interactive run in the state `running`, with the
 work kind and the bridge id. The report can also carry `harness`, `account`,
 `model` and `harnessSessionId`, with the rules of the
 [run state report](../reference/worker-runs.md#reporting-a-run-state). A retry
-of the launch report fills these fields on the run it finds.
+of the launch report fills these fields on the run it finds. The server answers 422 with
+`subject_not_found` when the project in the path holds no such card, and 422 with
+`work_request_not_found` when `workRequestId` names no work request of that card in the project.
 The session's `/loupe-lifecycle:product-design` skill calls `card_run_open` with the same
 session id, and takes over that run. So the
 [Runs tab](../using/worker-runs.md#interactive-sessions) of the Activity page

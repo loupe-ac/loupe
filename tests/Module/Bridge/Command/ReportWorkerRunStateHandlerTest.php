@@ -12,8 +12,10 @@ use App\Module\Bridge\Command\ReportWorkerRunStateHandler;
 use App\Module\Bridge\Command\ReportWorkerRunStateResult;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunStateChange;
+use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Event\BilledCostAwaited;
 use App\Module\Bridge\Event\WorkerRunChanged;
+use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkerRunStateChangeRepository;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
@@ -47,11 +49,13 @@ final class ReportWorkerRunStateHandlerTest extends KernelTestCase
 {
     use BridgeScenario;
 
+    private string $cardId = '';
+
     public function test_a_new_state_announces_the_card_after_the_commit(): void
     {
         self::bootKernel();
         [$owner, $project] = $this->scenario('handler-announce');
-        $cardId = Uuid::v7();
+        $cardId = Uuid::fromString($this->cardId);
         $changes = DispatchedEvents::of(self::getContainer(), WorkerRunChanged::class);
         $depth = $this->em()->getConnection()->getTransactionNestingLevel();
 
@@ -173,7 +177,7 @@ final class ReportWorkerRunStateHandlerTest extends KernelTestCase
         self::bootKernel();
         [$owner, $project] = $this->scenario('handler-create');
         $runKey = Uuid::v4();
-        $cardId = Uuid::v7();
+        $cardId = Uuid::fromString($this->cardId);
 
         $result = $this->report($owner, $project, $runKey, WorkerRunState::Queued, cardId: $cardId, cardNumber: 12, workKind: 'review');
 
@@ -195,8 +199,10 @@ final class ReportWorkerRunStateHandlerTest extends KernelTestCase
         $second = $this->project($this->em(), $owner, 'Second Handler Project');
         $runKey = Uuid::v4();
 
+        $secondCardId = $this->seedCard($this->em(), $second)->id;
+
         $first = $this->report($owner, $project, $runKey, WorkerRunState::Queued)->run;
-        $other = $this->report($owner, $second, $runKey, WorkerRunState::Queued)->run;
+        $other = $this->report($owner, $second, $runKey, WorkerRunState::Queued, cardId: $secondCardId)->run;
 
         self::assertNotNull($first);
         self::assertNotNull($other);
@@ -361,7 +367,7 @@ final class ReportWorkerRunStateHandlerTest extends KernelTestCase
             'runKey' => $runKey->toRfc4122(),
             'sessionId' => self::SESSION,
             'subjectType' => 'card',
-            'subjectId' => '0199a0e2-b1f3-7a44-9c11-2d3e4f506172',
+            'subjectId' => $this->cardId,
             'cardNumber' => 1,
             'workRequestId' => null,
             'workKind' => 'plan',
@@ -977,7 +983,7 @@ final class ReportWorkerRunStateHandlerTest extends KernelTestCase
     {
         self::bootKernel();
         [$owner, $project] = $this->scenario('handler-work-store');
-        $workRequestId = Uuid::v7();
+        $workRequestId = $this->requestOfCard($project)->id ?? throw new \LogicException('A stored request has an id.');
 
         $run = $this->report($owner, $project, Uuid::v4(), WorkerRunState::Queued, workKind: 'implement', workRequestId: $workRequestId, ruleId: 'implement-on-entry')->run;
 
@@ -995,7 +1001,7 @@ final class ReportWorkerRunStateHandlerTest extends KernelTestCase
         self::bootKernel();
         [$owner, $project] = $this->scenario('handler-work-keep');
         $runKey = Uuid::v4();
-        $workRequestId = Uuid::v7();
+        $workRequestId = $this->requestOfCard($project)->id ?? throw new \LogicException('A stored request has an id.');
         $this->report($owner, $project, $runKey, WorkerRunState::Queued, workKind: 'implement', workRequestId: $workRequestId, ruleId: 'implement-on-entry');
 
         $run = $this->report($owner, $project, $runKey, WorkerRunState::Running, workKind: 'fix', workRequestId: Uuid::v7(), ruleId: 'fix-on-red')->run;
@@ -1010,7 +1016,7 @@ final class ReportWorkerRunStateHandlerTest extends KernelTestCase
     {
         self::bootKernel();
         [$owner, $project] = $this->scenario('handler-role-copy');
-        $request = $this->seedWorkRequest($this->em(), $project, kind: 'my-review', role: 'code-review');
+        $request = $this->seedWorkRequest($this->em(), $project, Uuid::fromString($this->cardId), kind: 'my-review', role: 'code-review');
 
         $run = $this->report($owner, $project, Uuid::v4(), WorkerRunState::Queued, workKind: 'my-review', workRequestId: $request->id)->run;
 
@@ -1018,18 +1024,16 @@ final class ReportWorkerRunStateHandlerTest extends KernelTestCase
         self::assertSame('code-review', $run->role);
     }
 
-    public function test_a_run_of_a_request_with_no_role_or_no_stored_request_has_no_role(): void
+    public function test_a_run_of_a_request_with_no_role_or_no_work_request_has_no_role(): void
     {
         self::bootKernel();
         [$owner, $project] = $this->scenario('handler-role-none');
-        $request = $this->seedWorkRequest($this->em(), $project, kind: 'implement');
+        $request = $this->requestOfCard($project);
 
         $withoutRole = $this->report($owner, $project, Uuid::v4(), WorkerRunState::Queued, workKind: 'implement', workRequestId: $request->id)->run;
-        $withoutRequest = $this->report($owner, $project, Uuid::v4(), WorkerRunState::Queued, workKind: 'implement', workRequestId: Uuid::v7())->run;
         $withNoId = $this->report($owner, $project, Uuid::v4(), WorkerRunState::Queued, workKind: null)->run;
 
         self::assertNull($withoutRole?->role);
-        self::assertNull($withoutRequest?->role);
         self::assertNull($withNoId?->role);
     }
 
@@ -1139,13 +1143,35 @@ final class ReportWorkerRunStateHandlerTest extends KernelTestCase
         self::assertSame(120_000, $reads[0]->last(DelayStamp::class)?->getDelay());
     }
 
+    private function requestOfCard(Project $project): WorkRequest
+    {
+        return $this->seedWorkRequest($this->em(), $project, Uuid::fromString($this->cardId), kind: 'implement');
+    }
+
+    public function test_a_report_that_names_a_work_request_of_another_project_is_refused_and_stores_nothing(): void
+    {
+        self::bootKernel();
+        [, $theirs] = $this->scenario('handler-request-theirs');
+        [$owner, $project] = $this->scenario('handler-request-foreign');
+        $foreign = $this->seedWorkRequest($this->em(), $theirs, kind: 'implement');
+
+        $result = $this->report($owner, $project, Uuid::v4(), WorkerRunState::Queued, workRequestId: $foreign->id);
+
+        self::assertNull($result->run);
+        self::assertSame(ReportWorkerRunStateResult::WORK_REQUEST_NOT_FOUND, $result->error);
+        self::assertSame(0, self::getContainer()->get(WorkerRunRepository::class)?->count([]));
+    }
+
     /** @return array{User, Project} */
     private function scenario(string $name): array
     {
         $em = $this->em();
         $owner = $this->user($em, $name.'@example.com');
 
-        return [$owner, $this->project($em, $owner, 'Project '.substr(md5($name), 0, 8))];
+        $project = $this->project($em, $owner, 'Project '.substr(md5($name), 0, 8));
+        $this->cardId = (string) $this->seedCard($em, $project)->id;
+
+        return [$owner, $project];
     }
 
     /**
@@ -1201,7 +1227,7 @@ final class ReportWorkerRunStateHandlerTest extends KernelTestCase
             bridgeId: $bridgeId ?? Uuid::fromString(self::BRIDGE),
             state: $state,
             at: new \DateTimeImmutable('2026-09-23 10:0'.$state->rank().':00'),
-            subject: WorkSubject::card($cardId ?? Uuid::fromString('0199a0e2-b1f3-7a44-9c11-2d3e4f506172')),
+            subject: WorkSubject::card($cardId ?? Uuid::fromString($this->cardId)),
             cardNumber: $cardNumber,
             workRequestId: $workRequestId,
             workKind: $workKind,

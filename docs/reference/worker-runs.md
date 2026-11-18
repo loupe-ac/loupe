@@ -348,7 +348,14 @@ exception. It writes a new history row, and the server answers 201.
 | 404 | `route_not_found` or `http_404` | agent push is switched off on the instance |
 | 422 | `invalid_run_id` | `runId` is not a uuid |
 | 422 | `validation_failed` | the body is invalid, and each entry of the `errors` list names its field in `field` |
+| 422 | `unknown_subject_type` | no module registers `subjectType` |
+| 422 | `subject_not_found` | the project in the path holds no subject with that `subjectType` and `subjectId`. A subject of another project and a missing subject give the same code |
+| 422 | `work_request_not_found` | the project in the path holds no work request with that `workRequestId` for this subject |
 | 429 | `rate_limited` | the token went over the rate limit. See [Rate limit](#rate-limit) |
+
+The server checks the subject and the work request only when the report creates the run. A later
+report of a stored run is never refused for them, so a run keeps its history after its card is
+deleted. A refused report stores nothing. The bridge logs it and does not retry it.
 
 `id` is the server's own id for the run, which the Worker runs page shows as
 the attempt ID. It is not the `runId`.

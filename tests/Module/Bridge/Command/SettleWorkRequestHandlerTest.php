@@ -32,6 +32,7 @@ use App\Outbox\OutboxWriter;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Module\Bridge\WorkSubject\RecordingWorkSubjectHandler;
 use App\Tests\Support\DispatchedEvents;
+use App\Tests\Support\NoCardTitles;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
@@ -368,7 +369,7 @@ final class SettleWorkRequestHandlerTest extends KernelTestCase
             new MockClock(self::NOW),
             $this->service(Auditor::class),
             $this->service(WorkRequestAnnouncer::class),
-            new WorkSubjectHandlers(null === $subjects ? [] : [$subjects]),
+            new WorkSubjectHandlers(null === $subjects ? [] : [$subjects], new NoCardTitles()),
             $this->service(BridgeRepository::class),
             $this->service(BridgeWorkMatchRepository::class),
             $this->service(AccountReadingRecorder::class),
