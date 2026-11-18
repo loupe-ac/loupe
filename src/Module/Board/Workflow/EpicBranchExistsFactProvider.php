@@ -10,8 +10,9 @@ use App\Module\Forge\Service\ForgeBranchPresence;
 use App\Module\Project\Workshop\WorkshopConnectionsProviderInterface;
 use App\Module\Workflow\Contract\CardSnapshot;
 use App\Module\Workflow\Contract\EpicBranches;
+use App\Module\Workflow\Contract\OutsideFacts;
 
-final readonly class EpicBranchExistsFactProvider extends BoardFactProvider
+final readonly class EpicBranchExistsFactProvider extends BoardFactProvider implements OutsideFacts
 {
     public function __construct(
         private CardRepository $cards,
@@ -46,6 +47,13 @@ final readonly class EpicBranchExistsFactProvider extends BoardFactProvider
             'workflow_bindings',
             'workflow_setting_overrides',
         ];
+    }
+
+    /** The branch lives on the forge, and a push there reaches no table. The sweep checks each open child, because the epic branch setting is not in SQL. */
+    #[\Override]
+    public function alwaysSweptCardsSql(): string
+    {
+        return 'SELECT c.id FROM board_cards c JOIN board_columns col ON col.id = c.column_id WHERE c.parent_card_id IS NOT NULL AND col.terminal = false';
     }
 
     #[\Override]

@@ -6,16 +6,22 @@ namespace App\Tests\Module\Workflow\Scheduler;
 
 use App\Module\Bridge\Entity\CardHold;
 use App\Module\Workflow\Command\SweepWorkflowCardsHandler;
+use App\Module\Workflow\Install\WorkflowInstallFlags;
 use App\Module\Workflow\Messenger\EvaluateCard;
 use App\Module\Workflow\Repository\WorkflowBindingRepository;
+use App\Module\Workflow\Repository\WorkflowCardChangeRepository;
 use App\Module\Workflow\Scheduler\SweepWorkflowCardsTask;
 use App\Module\Workflow\Service\EvaluationTrigger;
+use App\Module\Workflow\Service\FactProviders;
 use App\Module\Workflow\Service\WorkflowSweepMetrics;
 use App\Module\Workflow\Service\WorkflowSweepRecord;
+use App\Module\Workflow\Service\WorkflowSweepSettings;
 use App\Service\BuildIdentity;
 use App\Tests\Module\Workflow\Action\ActionScenario;
+use App\Tests\Support\FeatureFlags;
 use App\Tests\Support\RecordingLogger;
 use App\Tests\Support\ScheduledTasks;
+use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Messenger\Envelope;
@@ -150,6 +156,123 @@ final class SweepWorkflowCardsTaskTest extends KernelTestCase
         self::assertSame([false], array_values(array_unique(array_map(static fn (EvaluateCard $message): bool => $message->fullSweep, $this->sentMessages()))));
     }
 
+    public function test_with_the_flag_on_the_sweep_queues_only_the_marked_open_bound_cards(): void
+    {
+        self::bootKernel();
+        $bound = $this->workflowProject('sweep-marked');
+        $this->bindLifecycle($bound);
+        $marked = $this->card($bound, 'next');
+        $quiet = $this->card($bound, 'next');
+        $finished = $this->card($bound, 'done');
+        $unbound = $this->card($this->workflowProject('sweep-marked-unbound'), 'next');
+        $this->clearMarks();
+        $this->mark($marked, $finished, $unbound);
+        $this->transport()->reset();
+
+        $this->task(new RecordingLogger(), changeDriven: true)();
+
+        self::assertSame([(string) $marked->id], $this->sent());
+        self::assertNotContains((string) $quiet->id, $this->sent());
+        $stale = $this->service(WorkflowCardChangeRepository::class);
+        self::assertFalse($stale->isMarked($finished->id ?? throw new \LogicException('Flushed.')));
+        self::assertFalse($stale->isMarked($unbound->id ?? throw new \LogicException('Flushed.')));
+        self::assertTrue($stale->isMarked($marked->id ?? throw new \LogicException('Flushed.')));
+    }
+
+    public function test_with_the_flag_on_a_project_mark_marks_each_open_card_of_the_project_and_goes(): void
+    {
+        self::bootKernel();
+        $bound = $this->workflowProject('sweep-project-mark');
+        $this->bindLifecycle($bound);
+        $one = $this->card($bound, 'next');
+        $two = $this->card($bound, 'backlog');
+        $finished = $this->card($bound, 'done');
+        $otherProject = $this->workflowProject('sweep-project-other');
+        $this->bindLifecycle($otherProject);
+        $other = $this->card($otherProject, 'next');
+        $this->clearMarks();
+        $this->connection()->executeStatement('INSERT INTO workflow_project_changes (project_id, changed_at) VALUES (?, now())', [(string) $bound->id]);
+        $this->transport()->reset();
+
+        $this->task(new RecordingLogger(), changeDriven: true)();
+
+        $sent = $this->sent();
+        sort($sent);
+        $expected = [(string) $one->id, (string) $two->id];
+        sort($expected);
+        self::assertSame($expected, $sent);
+        self::assertNotContains((string) $finished->id, $sent);
+        self::assertNotContains((string) $other->id, $sent);
+        self::assertSame(0, (int) $this->connection()->fetchOne('SELECT count(*) FROM workflow_project_changes'));
+    }
+
+    public function test_with_the_flag_on_the_open_children_of_an_epic_are_always_queued(): void
+    {
+        self::bootKernel();
+        $bound = $this->workflowProject('sweep-outside');
+        $this->bindLifecycle($bound);
+        $epic = $this->card($bound, 'next');
+        $child = $this->card($bound, 'next');
+        $child->parent = $epic;
+        $this->em()->flush();
+        $quiet = $this->card($bound, 'next');
+        $this->clearMarks();
+        $this->transport()->reset();
+
+        $this->task(new RecordingLogger(), changeDriven: true)();
+
+        self::assertSame([(string) $child->id], $this->sent());
+        self::assertNotContains((string) $quiet->id, $this->sent());
+    }
+
+    public function test_with_the_flag_on_the_deploy_pass_still_queues_every_open_card(): void
+    {
+        self::bootKernel();
+        $this->service(WorkflowSweepRecord::class)->recordBuild('old-build');
+        $this->buildVersion('new-build');
+        $bound = $this->workflowProject('sweep-deploy-marked');
+        $this->bindLifecycle($bound);
+        $quiet = $this->card($bound, 'next');
+        $this->clearMarks();
+        $this->transport()->reset();
+
+        $this->task(new RecordingLogger(), changeDriven: true)();
+
+        self::assertContains((string) $quiet->id, $this->sent());
+    }
+
+    public function test_with_the_flag_off_the_sweep_queues_every_open_card_whatever_the_marks(): void
+    {
+        self::bootKernel();
+        $bound = $this->workflowProject('sweep-flag-off');
+        $this->bindLifecycle($bound);
+        $quiet = $this->card($bound, 'next');
+        $this->clearMarks();
+        $this->transport()->reset();
+
+        $this->task(new RecordingLogger(), changeDriven: false)();
+
+        self::assertContains((string) $quiet->id, $this->sent());
+    }
+
+    private function clearMarks(): void
+    {
+        $this->connection()->executeStatement('DELETE FROM workflow_card_changes');
+        $this->connection()->executeStatement('DELETE FROM workflow_project_changes');
+    }
+
+    private function mark(\App\Module\Board\Entity\Card ...$cards): void
+    {
+        foreach ($cards as $card) {
+            $this->connection()->executeStatement('INSERT INTO workflow_card_changes (card_id, changed_at) VALUES (?, now())', [(string) $card->id]);
+        }
+    }
+
+    private function connection(): Connection
+    {
+        return $this->service(Connection::class);
+    }
+
     private function buildVersion(string $version): void
     {
         $this->projectDir = sys_get_temp_dir().'/loupe-build-'.bin2hex(random_bytes(4));
@@ -163,7 +286,7 @@ final class SweepWorkflowCardsTaskTest extends KernelTestCase
         return array_values(array_filter(array_map(static fn ($envelope): object => $envelope->getMessage(), $this->transport()->getSent()), static fn (object $message): bool => $message instanceof EvaluateCard));
     }
 
-    private function task(RecordingLogger $logger, ?int $waiting = null): SweepWorkflowCardsTask
+    private function task(RecordingLogger $logger, ?int $waiting = null, bool $changeDriven = false): SweepWorkflowCardsTask
     {
         $transport = null === $waiting ? $this->transport() : new readonly class($waiting) implements TransportInterface, MessageCountAwareInterface {
             public function __construct(
@@ -198,6 +321,9 @@ final class SweepWorkflowCardsTaskTest extends KernelTestCase
         return new SweepWorkflowCardsTask(
             new SweepWorkflowCardsHandler(
                 $this->service(WorkflowBindingRepository::class),
+                $this->service(WorkflowCardChangeRepository::class),
+                $this->service(FactProviders::class),
+                new WorkflowSweepSettings(FeatureFlags::service([WorkflowInstallFlags::FLAG_CHANGE_DRIVEN_SWEEP => $changeDriven])),
                 $this->service(EvaluationTrigger::class),
                 $this->service(WorkflowSweepRecord::class),
                 new BuildIdentity($this->projectDir ?? '/nonexistent'),
