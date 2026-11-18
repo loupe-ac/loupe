@@ -39,10 +39,8 @@ final class DevAnalysesSeederTest extends KernelTestCase
         self::bootKernel();
     }
 
-    public function test_it_seeds_the_cost_time_and_experiment_analyses_with_rules_and_bucket_times(): void
+    private function it_seeds_the_cost_time_and_experiment_analyses_with_rules_and_bucket_times(Project $project): void
     {
-        $project = $this->seeded();
-
         $analyses = $this->service(AnalysisRepository::class)->findByProject($project);
         // The four named analyses and the 50 older reports that put rows on page 2 of the list.
         self::assertCount(54, $analyses);
@@ -66,20 +64,11 @@ final class DevAnalysesSeederTest extends KernelTestCase
         self::assertSame(['git', 'other', 'search', 'subagent'], $names);
     }
 
-    public function test_a_second_run_adds_nothing(): void
+    public function test_the_seed_writes_the_analyses_with_fixed_ids_once(): void
     {
         $project = $this->seeded();
 
-        $this->service(DevAnalysesSeeder::class)->seed(SeedContextFactory::create(self::getContainer()));
-
-        $this->em()->clear();
-        self::assertCount(54, $this->service(AnalysisRepository::class)->findByProject($project));
-        self::assertCount(3, $this->service(InsightsBucketRuleRepository::class)->findOrdered($project));
-    }
-
-    public function test_the_analyses_and_their_reports_and_runs_have_fixed_ids(): void
-    {
-        $this->seeded();
+        $this->it_seeds_the_cost_time_and_experiment_analyses_with_rules_and_bucket_times($project);
 
         $analyses = $this->service(AnalysisRepository::class);
         foreach (['cost-report', 'cost-waiting', 'time-report', 'experiment-'.self::EXPERIMENT] as $slug) {
@@ -87,6 +76,12 @@ final class DevAnalysesSeederTest extends KernelTestCase
         }
         self::assertNotNull($this->service(WorkerRunRepository::class)->find(DevSeedId::of('insights/run/time-report')));
         self::assertSame(DevSeedId::of('review/document/time-report')->toRfc4122(), $analyses->find(DevSeedId::of('insights/analysis/time-report'))?->documentId?->toRfc4122());
+
+        $this->service(DevAnalysesSeeder::class)->seed(SeedContextFactory::create(self::getContainer()));
+
+        $this->em()->clear();
+        self::assertCount(54, $this->service(AnalysisRepository::class)->findByProject($project));
+        self::assertCount(3, $this->service(InsightsBucketRuleRepository::class)->findOrdered($project));
     }
 
     #[TestWith(['cost-report', 2])]

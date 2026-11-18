@@ -7,12 +7,29 @@ namespace App\Tests\DevSeed;
 use App\DevSeed\DevSeedId;
 use App\DevSeed\SeedContext;
 use App\Module\Account\Entity\User;
+use App\Module\Account\Entity\WaitlistBlockPattern;
+use App\Module\Account\Entity\WaitlistEntry;
+use App\Module\Account\Repository\WaitlistEntryRepository;
+use App\Module\Account\Service\Dev\DevWaitlistSeeder;
 use App\Module\Admin\Service\Dev\DevFeatureFlagSeeder;
 use App\Module\Artifact\Entity\Artifact;
+use App\Module\Billing\Repository\BetaInviteRepository;
 use App\Module\Billing\Repository\BillingProfileRepository;
 use App\Module\Board\Entity\Card;
+use App\Module\Board\Entity\CardEventKind;
+use App\Module\Board\Entity\CardValue;
+use App\Module\Board\Repository\CardEventRepository;
+use App\Module\Board\Repository\CardValueRepository;
+use App\Module\Board\Service\CardValueReader;
+use App\Module\Board\Service\Dev\DevBoardSeeder;
+use App\Module\Board\Service\Dev\DevInternalValueSeeder;
+use App\Module\Board\Service\Dev\DevMergeQuestionMarkerSeeder;
+use App\Module\Board\Service\Dev\DevSessionStartSeeder;
+use App\Module\Board\Service\StoredCardMarkers;
+use App\Module\Board\View\CardValueView;
 use App\Module\Bridge\Entity\ExperimentDefinition;
 use App\Module\Bridge\Service\Dev\DevBridgeSeeder;
+use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Service\Dev\DevAgentRunSeeder;
 use App\Module\Inbox\Service\Dev\DevExperimentSeeder;
@@ -26,24 +43,53 @@ use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Project\Service\Dev\DevProjectSeeder;
 use App\Module\Project\Workshop\WorkshopConnection;
 use App\Module\Project\Workshop\WorkshopConnectionsProviderInterface;
+use App\Module\Review\Command\ListDocumentsHandler;
+use App\Module\Review\Entity\Comment;
+use App\Module\Review\Entity\CommentStatus;
 use App\Module\Review\Entity\Document;
+use App\Module\Review\Entity\DocumentVersion;
+use App\Module\Review\Entity\Verdict;
+use App\Module\Review\Repository\CommentRepository;
+use App\Module\Review\Repository\DocumentRepository;
+use App\Module\Review\Repository\ReviewRepository;
 use App\Module\Review\Service\Dev\DevDocumentSeeder;
 use App\Module\SiteReview\Entity\SiteReviewComment;
 use App\Module\SiteReview\Service\Dev\DevSiteFeedbackSeeder;
+use App\Module\Workflow\Contract\Actor;
+use App\Module\Workflow\Contract\MarkerLink;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
 
 final class DevSeedFirstRunTest extends DevSeedTestCase
 {
-    public function test_a_second_run_at_the_same_time_writes_no_row_and_a_later_day_only_adds_time_series(): void
+    public function test_the_seed_writes_once_shows_every_page_state_and_a_later_day_only_adds_time_series(): void
     {
-        $this->seed(self::DAY);
+        $first = $this->seed(self::DAY);
         $afterFirst = $this->rowCounts();
         self::assertGreaterThan(0, $afterFirst['bridge_worker_runs']);
 
-        $this->seed(self::DAY);
+        $second = $this->seed(self::DAY);
         self::assertSame($afterFirst, $this->rowCounts(), 'The second run wrote or removed a row.');
+
+        $this->checkAll([
+            'command output' => fn () => $this->the_command_prints_the_dev_project($first, $second),
+            'beta invite' => $this->a_seeded_beta_invite_is_found_by_its_deterministic_token(...),
+            'preview pages' => $this->the_pages_a_preview_names_exist_with_their_fixed_ids(...),
+            'comment panel' => $this->the_comment_panel_and_the_experiment_table_each_have_a_seeded_state_and_an_empty_twin(...),
+            'connect page' => $this->the_connect_page_has_a_quiet_machine_and_an_owner_with_no_machine_as_its_empty_twin(...),
+            'runs and billing' => $this->the_runs_bridges_billing_and_notifications_of_the_pages_exist(...),
+            'page flags' => $this->the_page_flags_are_on_and_tagged_and_dev_project_is_the_newest(...),
+            'edge projects' => $this->the_edge_projects_show_no_runs_the_graph_cap_and_a_broken_graph(...),
+            'internal value' => $this->the_seed_writes_an_internal_value_on_one_card_and_none_on_its_twins_once(...),
+            'merge question marker' => $this->the_seed_writes_one_card_with_the_merge_question_marker_that_the_minute_task_leaves_alone(...),
+            'waitlist' => $this->the_seed_writes_visible_and_hidden_entries_and_their_patterns_once(...),
+            'api key records' => $this->the_seed_writes_each_record_of_an_api_key_and_its_twin_once(...),
+            'document live' => $this->the_seed_writes_the_states_of_the_document_live_previews_once(...),
+            'session start cards' => $this->the_seed_writes_the_two_session_start_cards_once(...),
+            'session start documents' => $this->the_documents_belong_to_the_lifecycle_project(...),
+        ]);
 
         $this->seed('2026-11-04 12:00:00');
         $changed = array_keys(array_diff_assoc($this->rowCounts(), $afterFirst));
@@ -54,10 +100,8 @@ final class DevSeedFirstRunTest extends DevSeedTestCase
         }
     }
 
-    public function test_the_pages_a_preview_names_exist_with_their_fixed_ids(): void
+    private function the_pages_a_preview_names_exist_with_their_fixed_ids(): void
     {
-        $this->seed(self::DAY);
-
         $em = $this->em();
         $project = $em->find(Project::class, DevProjectSeeder::devProjectId());
         self::assertInstanceOf(Project::class, $project);
@@ -72,10 +116,8 @@ final class DevSeedFirstRunTest extends DevSeedTestCase
         self::assertInstanceOf(Card::class, $em->find(Card::class, DevSeedId::of('board/card/demo-runs-'.substr($title, -10))));
     }
 
-    public function test_the_comment_panel_and_the_experiment_table_each_have_a_seeded_state_and_an_empty_twin(): void
+    private function the_comment_panel_and_the_experiment_table_each_have_a_seeded_state_and_an_empty_twin(): void
     {
-        $this->seed(self::DAY);
-
         $connection = $this->em()->getConnection();
         $comments = static fn (string $slug): int => (int) $connection->fetchOne(
             'SELECT COUNT(*) FROM comments c JOIN document_versions v ON v.id = c.version_id WHERE v.document_id = ?',
@@ -93,10 +135,8 @@ final class DevSeedFirstRunTest extends DevSeedTestCase
         self::assertSame(0, $experiment('bridge_worker_runs'));
     }
 
-    public function test_the_connect_page_has_a_quiet_machine_and_an_owner_with_no_machine_as_its_empty_twin(): void
+    private function the_connect_page_has_a_quiet_machine_and_an_owner_with_no_machine_as_its_empty_twin(): void
     {
-        $this->seed(self::DAY);
-
         $connections = self::getContainer()->get(WorkshopConnectionsProviderInterface::class);
         $projects = self::getContainer()->get(ProjectRepository::class);
         $quiet = static fn (Uuid $projectId): int => \count(array_filter(
@@ -143,10 +183,8 @@ final class DevSeedFirstRunTest extends DevSeedTestCase
         }
     }
 
-    public function test_the_runs_bridges_billing_and_notifications_of_the_pages_exist(): void
+    private function the_runs_bridges_billing_and_notifications_of_the_pages_exist(): void
     {
-        $this->seed(self::DAY);
-
         $connection = self::getContainer()->get(Connection::class);
         self::assertGreaterThanOrEqual(2, (int) $connection->fetchOne('SELECT COUNT(*) FROM bridges'));
         self::assertGreaterThanOrEqual(2, (int) $connection->fetchOne("SELECT COUNT(DISTINCT account) FROM bridge_account_readings WHERE bridge_id = '".DevBridgeSeeder::MAIN_BRIDGE."'"));
@@ -168,10 +206,8 @@ final class DevSeedFirstRunTest extends DevSeedTestCase
         self::assertTrue($this->flag('billing.enabled')?->value);
     }
 
-    public function test_the_page_flags_are_on_and_tagged_and_dev_project_is_the_newest(): void
+    private function the_page_flags_are_on_and_tagged_and_dev_project_is_the_newest(): void
     {
-        $this->seed(self::DAY);
-
         foreach (DevFeatureFlagSeeder::FLAGS as $name) {
             $flag = $this->flag($name) ?? throw new \LogicException($name.' is missing.');
             self::assertTrue($flag->value, $name);
@@ -185,9 +221,8 @@ final class DevSeedFirstRunTest extends DevSeedTestCase
         self::assertSame('Dev Project', $projects[0]->name);
     }
 
-    public function test_the_edge_projects_show_no_runs_the_graph_cap_and_a_broken_graph(): void
+    private function the_edge_projects_show_no_runs_the_graph_cap_and_a_broken_graph(): void
     {
-        $this->seed(self::DAY);
         $em = $this->em();
         $em->clear();
         $connection = $em->getConnection();
@@ -210,5 +245,216 @@ final class DevSeedFirstRunTest extends DevSeedTestCase
         $owner = $this->users()->findOneByEmail(SeedContext::DEV_EMAIL) ?? throw new \LogicException('The dev user is missing.');
         $names = array_map(static fn (Project $project): string => $project->name, $this->projects()->findNewestByOwner($owner, 100));
         self::assertSame(['Dev Project', DevEdgeProjectSeeder::NO_RUNS_NAME, DevEdgeProjectSeeder::AT_CAP_NAME, DevEdgeProjectSeeder::BROKEN_GRAPH_NAME], \array_slice($names, 0, 4));
+    }
+
+    private function the_command_prints_the_dev_project(string $first, string $second): void
+    {
+        $expected = 'SITE_REVIEW_WIDGET_PROJECT='.DevSeedId::of('project/project/dev-project');
+        self::assertStringContainsString($expected, $first);
+        self::assertStringContainsString($expected, $second);
+        foreach (['accounts', 'feature-flags', 'projects'] as $key) {
+            self::assertStringContainsString($key, $first);
+        }
+        self::assertNotNull($this->projects()->find(DevSeedId::of('project/project/dev-project')));
+        self::assertTrue($this->flag('inbox.enabled')?->value);
+    }
+
+    private function a_seeded_beta_invite_is_found_by_its_deterministic_token(): void
+    {
+        $invite = self::getContainer()->get(BetaInviteRepository::class)->findOneByToken(hash('sha256', 'dev-seed-beta-invite-open'));
+
+        self::assertNotNull($invite);
+        self::assertTrue($invite->isUsable());
+    }
+
+    private function the_seed_writes_an_internal_value_on_one_card_and_none_on_its_twins_once(): void
+    {
+        $em = $this->em();
+        $em->clear();
+        $reader = self::getContainer()->get(CardValueReader::class);
+
+        $on = $this->internalViews($em, $reader, DevInternalValueSeeder::cardId('on'));
+        self::assertCount(1, $on);
+        self::assertTrue($on[0]->value);
+        self::assertSame(Actor::System, $on[0]->writerKind);
+        self::assertCount(1, self::getContainer()->get(CardEventRepository::class)->findBy(['card' => DevInternalValueSeeder::cardId('on'), 'kind' => CardEventKind::ValueChanged]));
+
+        $unset = $this->internalViews($em, $reader, DevInternalValueSeeder::cardId('unset'));
+        self::assertCount(1, $unset);
+        self::assertNull($unset[0]->value);
+        self::assertNull($unset[0]->writerKind);
+
+        self::assertSame([], $this->internalViews($em, $reader, DevBoardSeeder::cardId('lifecycle-values')));
+    }
+
+    /** @return list<CardValueView> */
+    private function internalViews(EntityManagerInterface $em, CardValueReader $reader, Uuid $id): array
+    {
+        $card = $em->find(Card::class, $id) ?? throw new \LogicException('The card is missing.');
+
+        return array_values(array_filter($reader->forCard($card), static fn (CardValueView $view): bool => $view->isInternal() && DevInternalValueSeeder::VALUE_KEY === $view->key));
+    }
+
+    private function the_seed_writes_one_card_with_the_merge_question_marker_that_the_minute_task_leaves_alone(): void
+    {
+        $em = $this->em();
+        $em->clear();
+
+        $card = $em->find(Card::class, DevMergeQuestionMarkerSeeder::cardId()) ?? throw new \LogicException('The card is missing.');
+        self::assertSame('implementation', $card->column->slug);
+        self::assertSame([], $card->inboxMarkers);
+        self::assertNull($card->markersDueAt);
+
+        $marker = StoredCardMarkers::of($card)->primary();
+        self::assertNotNull($marker);
+        self::assertSame('waits-for-merge-approval-answer', $marker->key);
+        self::assertSame(MarkerLink::Inbox, $marker->link);
+    }
+
+    private function the_seed_writes_visible_and_hidden_entries_and_their_patterns_once(): void
+    {
+        $em = $this->em();
+        $em->clear();
+        $entries = self::getContainer()->get(WaitlistEntryRepository::class);
+
+        foreach (['ada', 'grace', 'linus'] as $key) {
+            self::assertInstanceOf(WaitlistEntry::class, $entries->findOneVisible(DevWaitlistSeeder::entryId($key)), $key);
+        }
+        foreach (['blocked-domain', 'blocked-prefix'] as $key) {
+            self::assertInstanceOf(WaitlistEntry::class, $entries->find(DevWaitlistSeeder::entryId($key)), $key);
+            self::assertNull($entries->findOneVisible(DevWaitlistSeeder::entryId($key)), $key);
+        }
+        foreach (['mailinator', 'spam-gmail'] as $key) {
+            self::assertInstanceOf(WaitlistBlockPattern::class, $em->find(WaitlistBlockPattern::class, DevWaitlistSeeder::patternId($key)), $key);
+        }
+        self::assertCount(1, $entries->findBy(['email' => 'ada@waitlist.example']));
+        self::assertGreaterThanOrEqual(2, $entries->countHidden());
+    }
+
+    private function the_seed_writes_each_record_of_an_api_key_and_its_twin_once(): void
+    {
+        $em = $this->em();
+        $em->clear();
+
+        $keyCard = self::getContainer()->get(CardEventRepository::class)->findBy(['card' => DevBoardSeeder::cardId('api-key-history')]);
+        self::assertCount(1, $keyCard);
+        self::assertSame(Actor::ApiKey, $keyCard[0]->actorKind);
+        self::assertSame('CI', $keyCard[0]->apiKeyName);
+        self::assertEquals(DevBoardSeeder::apiKeyId(), $keyCard[0]->apiKeyId);
+
+        $personCard = self::getContainer()->get(CardEventRepository::class)->findBy(['card' => DevBoardSeeder::cardId('person-history')]);
+        self::assertCount(1, $personCard);
+        self::assertSame(Actor::Human, $personCard[0]->actorKind);
+        self::assertNull($personCard[0]->apiKeyId);
+
+        $keyedReviews = ['key-verdict' => true, 'key-comment' => false, 'person-twin' => false];
+        foreach ($keyedReviews as $slug => $byKey) {
+            $reviews = self::getContainer()->get(ReviewRepository::class)->findBy(['version' => $this->versionOf($em, $slug)]);
+            self::assertCount(1, $reviews, $slug);
+            self::assertSame($byKey, null !== $reviews[0]->apiKeyId, $slug);
+        }
+
+        $keyedComments = ['key-verdict' => false, 'key-comment' => true, 'person-twin' => false];
+        foreach ($keyedComments as $slug => $byKey) {
+            $comments = self::getContainer()->get(CommentRepository::class)->findBy(['version' => $this->versionOf($em, $slug)]);
+            self::assertCount(1, $comments, $slug);
+            self::assertSame($byKey, null !== $comments[0]->apiKeyId, $slug);
+        }
+
+        $keyedNotices = ['api-key-notice' => InboxAskOrigin::ApiKey, 'api-key-notice-twin' => InboxAskOrigin::Loupe];
+        foreach ($keyedNotices as $slug => $origin) {
+            $notice = $em->find(InboxItem::class, DevSeedId::of('inbox/item/'.$slug));
+            self::assertInstanceOf(InboxItem::class, $notice, $slug);
+            self::assertSame($origin, $notice->origin, $slug);
+            self::assertSame(InboxAskOrigin::ApiKey === $origin, null !== $notice->apiKeyName, $slug);
+        }
+    }
+
+    private function versionOf(EntityManagerInterface $em, string $slug): DocumentVersion
+    {
+        return ($em->find(Document::class, DevDocumentSeeder::documentId($slug)) ?? throw new \LogicException('The document '.$slug.' is missing.'))->currentVersion();
+    }
+
+    private function the_seed_writes_the_states_of_the_document_live_previews_once(): void
+    {
+        $em = $this->em();
+        $em->clear();
+
+        $archived = $em->find(Document::class, DevDocumentSeeder::documentId('live-archived'));
+        self::assertInstanceOf(Document::class, $archived);
+        self::assertNotNull($archived->archivedAt);
+
+        $thread = $em->find(Document::class, DevDocumentSeeder::documentId('live-thread'));
+        self::assertInstanceOf(Document::class, $thread);
+        $comments = self::getContainer()->get(CommentRepository::class)->findBy(['version' => $thread->currentVersion()]);
+        self::assertCount(2, $comments);
+        $roots = array_values(array_filter($comments, static fn (Comment $comment): bool => !$comment->parent instanceof Comment));
+        self::assertCount(1, $roots);
+        self::assertSame(CommentStatus::Addressed, $roots[0]->status);
+
+        $lifecycle = $em->find(Project::class, DevProjectSeeder::lifecycleProjectId()) ?? throw new \LogicException('The lifecycle project is missing.');
+        $total = \count(self::getContainer()->get(DocumentRepository::class)->findPaginatedByProject($lifecycle, 2, ListDocumentsHandler::PER_PAGE));
+        self::assertGreaterThan(ListDocumentsHandler::PER_PAGE, $total);
+    }
+
+    private function the_seed_writes_the_two_session_start_cards_once(): void
+    {
+        $em = $this->em();
+        $em->clear();
+
+        foreach (['ask', 'approved'] as $state) {
+            $card = $em->find(Card::class, DevSessionStartSeeder::cardId($state)) ?? throw new \LogicException('The card is missing.');
+            self::assertSame('tech-design', $card->column->slug);
+            self::assertCount(1, $card->documents);
+
+            $switch = self::getContainer()->get(CardValueRepository::class)->findOneBy(['card' => $card, 'key' => DevSessionStartSeeder::SWITCH_KEY]);
+            self::assertInstanceOf(CardValue::class, $switch);
+            self::assertTrue($switch->value);
+
+            $link = $card->documents->first();
+            self::assertNotFalse($link);
+            $reviews = self::getContainer()->get(ReviewRepository::class)->findBy(['version' => $link->document->currentVersion()]);
+            self::assertCount(1, $reviews);
+            self::assertSame(Verdict::Approved, $reviews[0]->verdict);
+            self::assertSame(User::WORKFLOW_ID, (string) $reviews[0]->reviewer->id);
+        }
+
+        $ask = $em->find(Card::class, DevSessionStartSeeder::cardId('ask')) ?? throw new \LogicException('The card is missing.');
+        self::assertNotInstanceOf(CardValue::class, self::getContainer()->get(CardValueRepository::class)->findOneBy(['card' => $ask, 'key' => DevSessionStartSeeder::APPROVED_KEY]));
+
+        $approved = $em->find(Card::class, DevSessionStartSeeder::cardId('approved')) ?? throw new \LogicException('The card is missing.');
+        $value = self::getContainer()->get(CardValueRepository::class)->findOneBy(['card' => $approved, 'key' => DevSessionStartSeeder::APPROVED_KEY]);
+        self::assertInstanceOf(CardValue::class, $value);
+        self::assertTrue($value->value);
+        self::assertSame(Actor::System, $value->writerKind);
+    }
+
+    private function the_documents_belong_to_the_lifecycle_project(): void
+    {
+        $em = $this->em();
+        $em->clear();
+
+        foreach (array_keys(DevDocumentSeeder::SESSION_START_SLUGS) as $slug) {
+            $document = $em->find(Document::class, DevDocumentSeeder::documentId($slug));
+            self::assertNotNull($document);
+            self::assertSame(['product-design'], array_map(static fn ($tag): string => $tag->name, $document->tags->toArray()));
+        }
+    }
+
+    /** @param array<string, \Closure(): void> $checks */
+    private function checkAll(array $checks): void
+    {
+        $failures = [];
+        foreach ($checks as $name => $check) {
+            try {
+                $check();
+            } catch (\Throwable $e) {
+                $failures[] = \sprintf('%s: %s: %s (%s:%d)', $name, $e::class, $e->getMessage(), basename($e->getFile()), $e->getLine());
+            }
+        }
+
+        if ([] !== $failures) {
+            self::fail(\sprintf("%d of %d checks failed:\n%s", \count($failures), \count($checks), implode("\n", $failures)));
+        }
     }
 }

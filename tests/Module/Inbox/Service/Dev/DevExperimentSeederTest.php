@@ -41,10 +41,8 @@ final class DevExperimentSeederTest extends KernelTestCase
         self::bootKernel();
     }
 
-    public function test_a_finished_card_completes_after_its_last_run_and_an_open_card_does_not(): void
+    private function a_finished_card_completes_after_its_last_run_and_an_open_card_does_not(Project $project): void
     {
-        $project = $this->seeded();
-
         $cards = $this->service(CardRepository::class)->findBy(['project' => $project->id]);
         $runsOf = $this->service(WorkerRunRepository::class);
         $finished = [];
@@ -82,10 +80,8 @@ final class DevExperimentSeederTest extends KernelTestCase
         }
     }
 
-    public function test_an_experiment_with_metrics_gives_each_merged_card_a_pull_request_that_opened_and_merged(): void
+    private function an_experiment_with_metrics_gives_each_merged_card_a_pull_request_that_opened_and_merged(Project $project): void
     {
-        $project = $this->seeded();
-
         $definition = $this->service(ExperimentDefinitionRepository::class)->findOneBy(['project' => $project->id, 'experiment' => 'implement-template-metrics']);
         self::assertSame(['cost', 'merge-rate', 'hours-to-merge'], $definition?->metrics);
 
@@ -98,20 +94,16 @@ final class DevExperimentSeederTest extends KernelTestCase
         }
     }
 
-    public function test_the_records_a_page_names_have_fixed_ids(): void
+    private function the_records_a_page_names_have_fixed_ids(Project $project): void
     {
-        $this->seeded();
-
         self::assertNotNull($this->service(ExperimentDefinitionRepository::class)->find(DevSeedId::of('bridge/experiment/implement')));
         $card = $this->service(CardRepository::class)->find(DevSeedId::of('board/card/implement/export-the-board-as-csv'));
         self::assertSame('Export the board as CSV', $card?->title);
         self::assertNotNull($this->service(WorkerRunRepository::class)->find(DevSeedId::of('bridge/run/implement/export-the-board-as-csv/0')));
     }
 
-    public function test_the_baseline_experiment_is_shared_with_a_fixed_code_and_no_note(): void
+    private function the_baseline_experiment_is_shared_with_a_fixed_code_and_no_note(Project $project): void
     {
-        $project = $this->seeded();
-
         $link = $this->service(PublicLinkRepository::class)->findForExperiment($project, DevExperimentSeeder::BASELINE_EXPERIMENT);
         self::assertNotNull($link);
         self::assertSame(DevExperimentSeeder::SHARED_BASELINE_EXPERIMENT_CODE, $link->code);
@@ -119,10 +111,8 @@ final class DevExperimentSeederTest extends KernelTestCase
         self::assertMatchesRegularExpression('/^'.PublicLinkCode::PATTERN.'$/', $link->code);
     }
 
-    public function test_the_six_variants_experiment_is_shared_with_no_note_and_enough_cards_in_each_variant(): void
+    private function the_six_variants_experiment_is_shared_with_no_note_and_enough_cards_in_each_variant(Project $project): void
     {
-        $project = $this->seeded();
-
         $link = $this->service(PublicLinkRepository::class)->findForExperiment($project, DevExperimentSeeder::SIX_VARIANTS_EXPERIMENT);
         self::assertNotNull($link);
         self::assertSame(DevExperimentSeeder::SHARED_SIX_VARIANTS_EXPERIMENT_CODE, $link->code);
@@ -141,10 +131,8 @@ final class DevExperimentSeederTest extends KernelTestCase
         }
     }
 
-    public function test_the_six_variants_experiment_with_no_baseline_is_shared_and_has_no_comparison_rows(): void
+    private function the_six_variants_experiment_with_no_baseline_is_shared_and_has_no_comparison_rows(Project $project): void
     {
-        $project = $this->seeded();
-
         $link = $this->service(PublicLinkRepository::class)->findForExperiment($project, DevExperimentSeeder::SIX_NO_BASELINE_EXPERIMENT);
         self::assertNotNull($link);
         self::assertSame(DevExperimentSeeder::SHARED_SIX_NO_BASELINE_EXPERIMENT_CODE, $link->code);
@@ -160,10 +148,8 @@ final class DevExperimentSeederTest extends KernelTestCase
         self::assertNull(ExperimentResultRows::of($result->headline, sorted: true));
     }
 
-    public function test_the_implement_experiment_is_shared_with_a_note_and_a_fixed_code(): void
+    private function the_implement_experiment_is_shared_with_a_note_and_a_fixed_code(Project $project): void
     {
-        $project = $this->seeded();
-
         $link = $this->service(PublicLinkRepository::class)->findForExperiment($project, DevExperimentSeeder::EXPERIMENT);
         self::assertNotNull($link);
         self::assertSame(PublicLinkKind::Experiment, $link->kind);
@@ -172,39 +158,46 @@ final class DevExperimentSeederTest extends KernelTestCase
         self::assertSame(DevExperimentSeeder::SHARED_EXPERIMENT_NOTE, $link->note);
         self::assertTrue(DevSeedId::of('insights/public-link/experiment/implement')->equals($link->id));
         self::assertMatchesRegularExpression('/^'.PublicLinkCode::PATTERN.'$/', $link->code);
-
-        $this->service(DevExperimentSeeder::class)->seed(SeedContextFactory::create(self::getContainer()));
-        $this->em()->clear();
-        self::assertSame(4, $this->service(PublicLinkRepository::class)->count(['project' => $project, 'kind' => PublicLinkKind::Experiment]));
     }
 
-    public function test_one_pinned_experiment_is_archived_once(): void
+    private function one_pinned_experiment_is_archived_once(Project $project): void
     {
-        $project = $this->seeded();
-
         $archives = $this->service(ExperimentArchiveRepository::class);
         self::assertNotNull($archives->findOneByName($project, DevExperimentSeeder::ARCHIVED_EXPERIMENT));
         self::assertNull($archives->findOneByName($project, DevExperimentSeeder::EXPERIMENT));
         self::assertNotNull($this->service(ExperimentPinRepository::class)->findOneBy(['project' => $project, 'experiment' => DevExperimentSeeder::ARCHIVED_EXPERIMENT]));
-
-        $this->service(DevExperimentSeeder::class)->seed(SeedContextFactory::create(self::getContainer()));
-        $this->em()->clear();
-        self::assertSame(1, $this->service(ExperimentArchiveRepository::class)->count(['project' => $project, 'experiment' => DevExperimentSeeder::ARCHIVED_EXPERIMENT]));
     }
 
-    public function test_a_second_run_writes_no_row(): void
+    public function test_a_seeded_project_shows_every_page_state_and_a_second_run_writes_no_row(): void
     {
         $project = $this->seeded();
-        $cards = $this->service(CardRepository::class)->count(['project' => $project]);
-        $runs = $this->service(WorkerRunRepository::class)->count(['project' => $project]);
-        $definitions = $this->service(ExperimentDefinitionRepository::class)->count(['project' => $project]);
+
+        $this->a_finished_card_completes_after_its_last_run_and_an_open_card_does_not($project);
+        $this->an_experiment_with_metrics_gives_each_merged_card_a_pull_request_that_opened_and_merged($project);
+        $this->the_records_a_page_names_have_fixed_ids($project);
+        $this->the_baseline_experiment_is_shared_with_a_fixed_code_and_no_note($project);
+        $this->the_six_variants_experiment_is_shared_with_no_note_and_enough_cards_in_each_variant($project);
+        $this->the_six_variants_experiment_with_no_baseline_is_shared_and_has_no_comparison_rows($project);
+        $this->the_implement_experiment_is_shared_with_a_note_and_a_fixed_code($project);
+        $this->one_pinned_experiment_is_archived_once($project);
+
+        $counts = $this->counts($project) + [
+            'definitions' => $this->service(ExperimentDefinitionRepository::class)->count(['project' => $project]),
+            'links' => $this->service(PublicLinkRepository::class)->count(['project' => $project, 'kind' => PublicLinkKind::Experiment]),
+            'archives' => $this->service(ExperimentArchiveRepository::class)->count(['project' => $project, 'experiment' => DevExperimentSeeder::ARCHIVED_EXPERIMENT]),
+        ];
+        self::assertSame(4, $counts['links']);
+        self::assertSame(1, $counts['archives']);
 
         $this->service(DevExperimentSeeder::class)->seed(SeedContextFactory::create(self::getContainer()));
-
         $this->em()->clear();
-        self::assertSame($cards, $this->service(CardRepository::class)->count(['project' => $project]));
-        self::assertSame($runs, $this->service(WorkerRunRepository::class)->count(['project' => $project]));
-        self::assertSame($definitions, $this->service(ExperimentDefinitionRepository::class)->count(['project' => $project]));
+
+        $after = $this->counts($project) + [
+            'definitions' => $this->service(ExperimentDefinitionRepository::class)->count(['project' => $project]),
+            'links' => $this->service(PublicLinkRepository::class)->count(['project' => $project, 'kind' => PublicLinkKind::Experiment]),
+            'archives' => $this->service(ExperimentArchiveRepository::class)->count(['project' => $project, 'experiment' => DevExperimentSeeder::ARCHIVED_EXPERIMENT]),
+        ];
+        self::assertSame($counts, $after);
     }
 
     public function test_a_deleted_card_comes_back_with_its_merge_event_and_pull_request_and_its_rows_take_its_new_number(): void
