@@ -22,11 +22,25 @@ use Symfony\Component\Yaml\Yaml;
  */
 final class GeneratedSpecTest extends KernelTestCase
 {
+    // The dump reads no database, so one build per area serves every test.
+    /** @var array<string, string> */
+    private static array $specs = [];
+
+    /** @var array<string, int> */
+    private static array $builds = [];
+
     /** @return iterable<string, array{string}> */
     public static function areas(): iterable
     {
         yield 'public' => ['public'];
         yield 'private' => ['private'];
+    }
+
+    #[DataProvider('areas')]
+    public function test_a_second_dump_of_an_area_reuses_the_first_build(string $area): void
+    {
+        self::assertSame($this->dump($area), $this->dump($area));
+        self::assertSame(1, self::$builds[$area]);
     }
 
     #[DataProvider('areas')]
@@ -397,6 +411,10 @@ final class GeneratedSpecTest extends KernelTestCase
 
     private function dump(string $area): string
     {
+        if (isset(self::$specs[$area])) {
+            return self::$specs[$area];
+        }
+
         $kernel = self::bootKernel();
         $application = new Application($kernel);
         $application->setAutoExit(false);
@@ -404,8 +422,9 @@ final class GeneratedSpecTest extends KernelTestCase
         $tester->run(['command' => 'nelmio:apidoc:dump', '--area' => $area, '--format' => 'json']);
 
         self::assertSame(0, $tester->getStatusCode(), $tester->getDisplay());
+        self::$builds[$area] = (self::$builds[$area] ?? 0) + 1;
 
-        return $tester->getDisplay();
+        return self::$specs[$area] = $tester->getDisplay();
     }
 
     private static function file(string $name): string
