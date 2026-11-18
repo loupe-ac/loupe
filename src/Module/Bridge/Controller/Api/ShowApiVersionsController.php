@@ -40,6 +40,7 @@ final class ShowApiVersionsController extends AppController
                 ApiPaths::SERVED_VERSIONS,
             ),
             'cliRange' => CliCompatibility::RANGE,
+            'revokedReleaseKeys' => CliCompatibility::REVOKED_RELEASE_KEYS,
         ]);
     }
 }

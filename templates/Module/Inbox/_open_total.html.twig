@@ -1,4 +1,4 @@
-{# The open total over all projects, in a frame the live-pill controller reloads. The tab-count controller reads it. #}
+{# The open total over all projects, in a frame that the live-pill controller or the sidebar-counts stream replaces. The tab-count controller reads it. #}
 <turbo-frame id="inbox-open-total" data-live-pill-target="frame">
     {% if total > 0 %}<span data-inbox-open-total>{{ total }}</span>{% endif %}
 </turbo-frame>

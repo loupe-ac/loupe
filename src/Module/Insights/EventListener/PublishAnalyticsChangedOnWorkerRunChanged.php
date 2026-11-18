@@ -29,6 +29,7 @@ final readonly class PublishAnalyticsChangedOnWorkerRunChanged
             }
         }
 
+        ksort($experiments, \SORT_STRING);
         foreach (array_keys($experiments) as $experiment) {
             $this->publisher->changed($event->projectId, AnalyticsArea::EXPERIMENTS, (string) $experiment);
         }

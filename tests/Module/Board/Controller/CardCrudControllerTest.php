@@ -394,9 +394,10 @@ final class CardCrudControllerTest extends WebTestCase
         self::assertNull($crawler->filter('.lp-card-drawer__header-actions a')->first()->attr('data-turbo-frame'));
 
         $name = 'move_card_'.$cardId;
-        // Turbo is off on this form. Its answer is a redirect to the board
-        // rather than a stream, because this page holds no board to replace.
-        self::assertCount(1, $crawler->filter('form[data-turbo="false"] select[name="'.$name.'[column]"]'));
+        // Turbo asks for a stream and the field replaces itself in place. A
+        // plain submit, with no script, still redirects to the board.
+        self::assertCount(1, $crawler->filter('#card-move-'.$cardId.' form:not([data-turbo="false"]) select[name="'.$name.'[column]"]'));
+        self::assertCount(1, $crawler->filter('#card-move-'.$cardId.' input[type="hidden"][name="'.$name.'[origin]"][value="card"]'));
 
         $client->submitForm('Move card', [
             $name.'[column]' => (string) $this->column($project, 'in-progress')->id,

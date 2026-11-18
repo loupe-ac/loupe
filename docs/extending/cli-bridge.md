@@ -1472,6 +1472,97 @@ mode into `run.json`, so the new image answers for an adopted run. A worker
 must run `loupe credential` each time it needs a token, and must never store
 the token.
 
+## Run credential
+
+Each worker gets its own run credential from Loupe. Loupe reads from the
+credential that a call comes from a worker, and which run makes it. The
+`X-Loupe-Session` header can no longer make a worker pass as the owner or as
+another run.
+
+Before each launch, which means a start, a resume and a wake, the bridge asks
+Loupe for a run token for that run. The bridge signs in with your login to ask.
+The token reaches one project and carries no refresh token. It lives for 24
+hours at the longest. Loupe revokes it when the bridge reports that the run
+closed. The report goes through the bridge's report queue, so the revoke can
+come late. When Loupe is unreachable, the bridge keeps the report and sends it
+at a later connect, for 7 days at most. When the queue loses the report, the
+token stays valid until it expires. In that window, a copy of the token that a
+worker leaked can act as that worker in that one project.
+
+The bridge puts three variables in the environment of the worker, and each
+replaces an inherited value of the same name:
+
+| Variable | Value |
+|---|---|
+| `LOUPE_RUN_TOKEN` | The run token |
+| `LOUPE_URL` | The Loupe address of the bridge's own login |
+| `LOUPE_PROJECT` | The id of the project of the run |
+
+The `before` and `refresh` commands of a work entry never get these variables.
+They run with the environment and the login of the bridge. A bridge that a worker starts never
+inherits `LOUPE_RUN_TOKEN`. The Codex harness gets the three
+variables through the environment of its MCP server, never as an argument, so a
+process list does not show the token.
+
+A failed mint fails the launch, and the run goes through the normal launch
+failure path. A server with no mint route (HTTP 404) is an older server. The
+launch goes on with no token, and that server still reads the session header
+as a run identity, so a review run of that worker can succeed. A server with
+the mint route no longer reads the session header, so it needs the token.
+
+### What the token reaches
+
+The token reaches the MCP endpoint of one project and three public routes:
+
+1. `loupe artifact create` and `loupe artifact version create`, which post to the
+   artifact routes.
+2. `GET` on one card by number, which `loupe artifact create --card <number>`
+   uses to find the card.
+
+The token has no `public` scope, so the public routes of inbox actions,
+verdicts and decisions refuse it. Loupe refuses a tool that only the owner can
+call, such as an answer to an inbox item, a verdict on a document or an answer
+to a decision, for any call that holds a run credential. The token cannot mint
+another token. `loupe preview-token mint` and `loupe preview-token revoke`
+therefore get HTTP 403 inside a worker. A project that mints a preview token
+must do it in the `before` command of its work entry, which runs with the login
+of the bridge.
+
+A new `loupe` command that a skill adds for workers also gets HTTP 403 until
+its route gets a grant for the run token.
+
+### The CLI inside a worker
+
+With `LOUPE_RUN_TOKEN` set, `loupe mcp`, the public commands and
+`loupe preview-token` use the token and read no file of the login folder. They
+take the address from `LOUPE_URL`. When `LOUPE_URL` is missing, they exit 4 and
+name the variable, and never send the token to `https://app.loupe.ac`.
+`loupe mcp` takes its project from `--project`, then `LOUPE_PROJECT`. The token
+never refreshes, so a command never falls back to your login. A launch that runs
+past 24 hours gets HTTP 401 until its next resume.
+
+The other commands, such as `loupe hooks`, `loupe review` and `loupe status`,
+still read the stored login.
+
+### What it does not protect
+
+A worker runs as your OS user. Your `loupe login` is a file that this user can
+read. A worker that reads the file on purpose, for example when it follows
+injected instructions, can call Loupe as you. It can then record a verdict,
+answer a decision, run an inbox action, or file a review under another run. The
+run credential does not stop this.
+
+When you want a hard boundary, run the workers as a separate OS user that
+cannot read your login folder.
+
+### Bridges that are not updated
+
+A bridge with a CLI from before the run credential never asks for a token.
+Loupe does not read the session header as a run identity, so a worker of such a
+bridge has no run identity. Its review runs fail with the message that no review
+run is open, until you update the CLI of that bridge. Update the CLI of each
+bridge when you deploy this release.
+
 ## Experiments
 
 An experiment splits the cards of one or more kinds of work between models or
@@ -1763,7 +1854,9 @@ conditions:
   `cli/vX.Y.Z`. The bridge skips every other tag, such as a plain `vX.Y.Z`.
 - The version is inside the range.
 - The version is not on the skip list.
-- The release has the archive for this OS and CPU, and `checksums.txt`.
+- The release has the archive for this OS and CPU, `checksums.txt`, and the
+  signature `checksums.txt.sig`. A release with no signature is no candidate.
+  Releases from before signing began have none.
 
 The bridge installs that release when the running version is lower, or when the
 running version is below the range. A bridge above the range installs nothing,
@@ -1771,7 +1864,10 @@ because a lower version does not fit a newer server. When the running version is
 outside the range and no release fits, the bridge logs `update_unavailable`
 once and [drains](#draining).
 
-The bridge downloads the archive and `checksums.txt`, and compares the SHA-256
+Before it downloads an archive, the bridge reads `checksums.txt` and
+`checksums.txt.sig` of the candidate, and checks the signature against the keys
+built into the CLI. See [Release signatures](#release-signatures). It then
+downloads the archive, and compares the SHA-256
 of the archive with its line in `checksums.txt`. A mismatch logs
 `update_rejected`, and the bridge installs nothing. A match logs
 `update_verified`, and the bridge writes the binary to
@@ -1805,6 +1901,35 @@ file to `defaultOff`. When the file takes no new last line, the bridge logs
 file to `autoUpdatePending` and keeps updates on. Each later start of that rule
 file, a handover or a plain restart, keeps updates on and tries again.
 
+### Release signatures
+
+Each release carries `checksums.txt.sig`, an SSH signature of `checksums.txt`
+made with a release key. The CLI embeds the public keys that it trusts, the
+active key and an offline backup key. The signature namespace is
+`loupe-release`.
+
+The check walks the candidates from the highest version down. For each one it
+reads `checksums.txt` and its signature. When the signature is not valid for a
+trusted key, the bridge logs `update_signature_rejected` with the version and
+the reason, once for each version and process. It then tries the next lower
+candidate. It installs the first release that verifies. So one bad release does
+not block the updates below it. When no candidate verifies, the bridge installs
+nothing and keeps its running version.
+
+The server can also name release keys that the bridge must not trust. It sends
+their fingerprints as `revokedReleaseKeys` beside `cliRange`, in the heartbeat
+answer, in `GET /api/v1/bridge/events` and in `GET /api/versions`. The bridge
+adds each one to `update.json` and never removes one. It refuses a signature
+from a listed key, deletes a staged binary that such a key signed, and skips a
+stored skill version that such a key signed. [Signing releases](../operating/release-signing.md)
+covers the key rotation and the reinstall after a leak.
+
+The skill package refresh makes the same check. A package version with a bad
+signature is held back, and the refresh goes on to the next lower version. The
+store keeps every version it holds, so a worker starts with the last good one.
+The refresh writes the fingerprint of the key that verified a version into a
+`.signer` file in the folder of that version.
+
 ### Skill package updates
 
 The skill packages have their own release tags, `skills/<package>/vX.Y.Z`, and
@@ -1818,11 +1943,13 @@ skill list of a project names. For each package, it picks the highest release
 that meets these conditions:
 
 - The release is not a draft or a prerelease.
-- The release has the archive `<package>_<version>.tar.gz` and `checksums.txt`.
+- The release has the archive `<package>_<version>.tar.gz`, `checksums.txt` and
+  `checksums.txt.sig`.
 - The store does not hold the version, and no higher version.
 
-The bridge downloads the archive and compares its SHA-256 with `checksums.txt`.
-It refuses an archive that holds an absolute path, a `..` path, a link that
+The bridge checks the signature of `checksums.txt`, as
+[Release signatures](#release-signatures) says. It downloads the archive and
+compares its SHA-256 with `checksums.txt`. It refuses an archive that holds an absolute path, a `..` path, a link that
 leaves the package, a hard link, or more than 5000 entries or 50 MB. It
 unpacks the archive in a temporary folder next to its place in the store, and
 then renames the folder. So the store never holds a half-written version.
@@ -2003,6 +2130,7 @@ runs a Homebrew binary also refuses the request of an older CLI. See
 | `update_download` | The bridge downloads a release |
 | `update_verified` | The archive matches `checksums.txt` |
 | `update_rejected` | The archive does not match, or holds no binary |
+| `update_signature_rejected` | The signature of `checksums.txt` is missing or not valid for a trusted key. The event carries the version and the reason |
 | `update_deferred` | The handover waits for the next check |
 | `update_handover` | The bridge runs the new binary |
 | `update_applied` | The new version is healthy |
@@ -2749,6 +2877,11 @@ saved cursor can start from it, and replay nothing older.
 reads it when no bridge runs. A running bridge reads the same range from the
 heartbeat reply.
 
+`revokedReleaseKeys` lists the fingerprints of release keys that the bridge must
+not trust, in the form `ssh-keygen -l` prints, such as `SHA256:...`. The list is
+empty unless the operator revoked a key. See
+[Release signatures](#release-signatures).
+
 `flags` holds the feature flags a bridge reads. The server lists a flag here
 only when its code names the flag, so no other flag reaches a token holder. A
 value is a boolean or an integer, as the flag's type says. Today the map holds
@@ -2994,7 +3127,9 @@ type. A good launch opens an interactive run in the state `running`, with the
 work kind and the bridge id. The report can also carry `harness`, `account`,
 `model` and `harnessSessionId`, with the rules of the
 [run state report](../reference/worker-runs.md#reporting-a-run-state). A retry
-of the launch report fills these fields on the run it finds.
+of the launch report fills these fields on the run it finds. The server answers 422 with
+`subject_not_found` when the project in the path holds no such card, and 422 with
+`work_request_not_found` when `workRequestId` names no work request of that card in the project.
 The session's `/loupe-lifecycle:product-design` skill calls `card_run_open` with the same
 session id, and takes over that run. So the
 [Runs tab](../using/worker-runs.md#interactive-sessions) of the Activity page

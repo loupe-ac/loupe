@@ -10,6 +10,7 @@ use App\DevSeed\DevSeedId;
 use App\DevSeed\DevSeedIds;
 use App\DevSeed\SeedContext;
 use App\Module\Account\Repository\UserRepository;
+use App\Module\Billing\Repository\BetaInviteRepository;
 use App\Module\Project\Repository\ProjectRepository;
 use Psr\Clock\ClockInterface;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
@@ -33,6 +34,16 @@ final class SeedDevDataCommandTest extends KernelTestCase
         }
         self::assertNotNull(self::getContainer()->get(ProjectRepository::class)->find(DevSeedId::of('project/project/dev-project')));
         self::assertTrue(self::getContainer()->get(FeatureFlagRepository::class)->findOneBy(['name' => 'inbox.enabled'])?->value);
+    }
+
+    public function test_a_seeded_beta_invite_is_found_by_its_deterministic_token(): void
+    {
+        $this->runSeeder([]);
+
+        $invite = self::getContainer()->get(BetaInviteRepository::class)->findOneByToken(hash('sha256', 'dev-seed-beta-invite-open'));
+
+        self::assertNotNull($invite);
+        self::assertTrue($invite->isUsable());
     }
 
     public function test_it_fails_when_a_seeder_leaves_a_queued_id_behind(): void

@@ -10,6 +10,7 @@ enum ApiScope: string
     case SiteReview = 'site-review';
     case Agent = 'agent';
     case Public = 'public';
+    case WorkerRun = 'worker-run';
 
     public function role(): string
     {
@@ -18,6 +19,7 @@ enum ApiScope: string
             self::Mcp => 'ROLE_API_MCP',
             self::SiteReview => 'ROLE_API_SITE_REVIEW',
             self::Agent => 'ROLE_API_AGENT',
+            self::WorkerRun => 'ROLE_API_WORKER_RUN',
         };
     }
 }

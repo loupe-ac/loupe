@@ -657,7 +657,7 @@ paths:
         '415':
           $ref: '#/components/responses/E415UnsupportedMediaType'
         '422':
-          $ref: '#/components/responses/E422InvalidSessionIdValidationFailed'
+          $ref: '#/components/responses/E422InvalidSessionIdValidationFailedSubjectRefused'
         '429':
           $ref: '#/components/responses/E429RateLimited'
   /api/v1/bridge/projects/{handle}/preview-tokens:
@@ -799,6 +799,46 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RunId'
+        '400':
+          $ref: '#/components/responses/E400InvalidJson'
+        '401':
+          $ref: '#/components/responses/E401Unauthorized'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403InsufficientScope'
+        '404':
+          $ref: '#/components/responses/E404ProjectNotFoundRouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '415':
+          $ref: '#/components/responses/E415UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/E422InvalidRunIdValidationFailedSubjectRefused'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
+  /api/v1/bridge/projects/{handle}/worker-runs/{runId}/credential:
+    post:
+      operationId: issueWorkerRunCredential
+      summary: Issue the credential of a worker launch
+      tags:
+      - Worker runs
+      parameters:
+      - $ref: '#/components/parameters/Handle'
+      - $ref: '#/components/parameters/RunId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkerRunCredentialIssue'
+      responses:
+        '201':
+          description: The token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssuedToken'
         '400':
           $ref: '#/components/responses/E400InvalidJson'
         '401':
@@ -1869,6 +1909,7 @@ components:
       - projects
       - flags
       - cliRange
+      - revokedReleaseKeys
       - head
       properties:
         hubUrl:
@@ -1907,6 +1948,12 @@ components:
         cliRange:
           type: string
           example: ^2.0
+        revokedReleaseKeys:
+          type: array
+          description: Fingerprints of release keys that the bridge must not trust, as `ssh-keygen -l` prints them.
+          items:
+            type: string
+            example: SHA256:mPVVTkHngFt3LMCmwB7Nw6BtoS371HG9RRKbhn6T4jM
         head:
           type: integer
           description: The highest outbox sequence of the owner.
@@ -2486,6 +2533,7 @@ components:
       type: object
       required:
       - cliRange
+      - revokedReleaseKeys
       - paused
       - commands
       - workRequests
@@ -2495,6 +2543,12 @@ components:
         cliRange:
           type: string
           example: ^2.0
+        revokedReleaseKeys:
+          type: array
+          description: Fingerprints of release keys that the bridge must not trust, as `ssh-keygen -l` prints them.
+          items:
+            type: string
+            example: SHA256:mPVVTkHngFt3LMCmwB7Nw6BtoS371HG9RRKbhn6T4jM
         paused:
           type: boolean
           description: True when the server asks the bridge to take no new work.
@@ -3347,6 +3401,18 @@ components:
           type: string
           format: uuid
           nullable: true
+    WorkerRunCredentialIssue:
+      type: object
+      required:
+      - bridgeId
+      - sessionId
+      properties:
+        bridgeId:
+          type: string
+          format: uuid
+        sessionId:
+          type: string
+          format: uuid
     IssuedToken:
       type: object
       required:
@@ -4380,6 +4446,27 @@ components:
         title: Invalid run id
         status: 422
         code: invalid_run_id
+    UnknownSubjectType:
+      summary: unknown_subject_type
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#unknown_subject_type
+        title: Unknown subject type
+        status: 422
+        code: unknown_subject_type
+    SubjectNotFound:
+      summary: subject_not_found
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#subject_not_found
+        title: Subject not found
+        status: 422
+        code: subject_not_found
+    WorkRequestNotHeld:
+      summary: work_request_not_found
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#work_request_not_found
+        title: Work request not found
+        status: 422
+        code: work_request_not_found
     RunNotFound:
       summary: run_not_found
       value:
@@ -4949,6 +5036,44 @@ components:
               $ref: '#/components/examples/ProcessCountMismatch'
             ambiguous_start_order:
               $ref: '#/components/examples/AmbiguousStartOrder'
+    E422InvalidRunIdValidationFailedSubjectRefused:
+      description: 'Refused: `invalid_run_id`, `validation_failed`, `unknown_subject_type`, `subject_not_found`, `work_request_not_found`.'
+      content:
+        application/problem+json:
+          schema:
+            anyOf:
+            - $ref: '#/components/schemas/Problem'
+            - $ref: '#/components/schemas/ValidationProblem'
+          examples:
+            invalid_run_id:
+              $ref: '#/components/examples/InvalidRunId'
+            validation_failed:
+              $ref: '#/components/examples/ValidationFailed'
+            unknown_subject_type:
+              $ref: '#/components/examples/UnknownSubjectType'
+            subject_not_found:
+              $ref: '#/components/examples/SubjectNotFound'
+            work_request_not_found:
+              $ref: '#/components/examples/WorkRequestNotHeld'
+    E422InvalidSessionIdValidationFailedSubjectRefused:
+      description: 'Refused: `invalid_session_id`, `validation_failed`, `unknown_subject_type`, `subject_not_found`, `work_request_not_found`.'
+      content:
+        application/problem+json:
+          schema:
+            anyOf:
+            - $ref: '#/components/schemas/Problem'
+            - $ref: '#/components/schemas/ValidationProblem'
+          examples:
+            invalid_session_id:
+              $ref: '#/components/examples/InvalidSessionId'
+            validation_failed:
+              $ref: '#/components/examples/ValidationFailed'
+            unknown_subject_type:
+              $ref: '#/components/examples/UnknownSubjectType'
+            subject_not_found:
+              $ref: '#/components/examples/SubjectNotFound'
+            work_request_not_found:
+              $ref: '#/components/examples/WorkRequestNotHeld'
     E422InvalidSessionIdInvalidRunIdValidationFailed:
       description: 'Refused: `invalid_session_id`, `invalid_run_id`, `validation_failed`.'
       content:

@@ -108,6 +108,14 @@ framework:
         agent_preview_tokens:
             <<: *agent_per_token
 
+        # Bounds the run credentials a bridge asks for. A launch asks once, and a
+        # retry after a failed launch asks again, so the key is the launch and
+        # the limit only stops a loop on one. Keyed per run, bridge and session.
+        agent_worker_run_credentials:
+            policy: 'sliding_window'
+            limit: 10
+            interval: '1 minute'
+
         # Bounds the push tokens a bridge asks for. A bridge asks about once an
         # hour for each project, and again after a restart.
         agent_git_token:
@@ -398,6 +406,10 @@ when@test:
                 limit: 100000
                 interval: '1 minute'
             agent_git_token:
+                policy: 'sliding_window'
+                limit: 100000
+                interval: '1 minute'
+            agent_worker_run_credentials:
                 policy: 'sliding_window'
                 limit: 100000
                 interval: '1 minute'

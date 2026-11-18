@@ -29,6 +29,7 @@ use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Engine\Engine;
 use App\Outbox\OutboxWriter;
 use App\Tests\Module\Workflow\Action\ActionScenario;
+use App\Tests\Support\NoCardTitles;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -191,7 +192,7 @@ final class NoWorkFinishFlowTest extends KernelTestCase
             new MockClock($at),
             $this->service(Auditor::class),
             $this->service(WorkRequestAnnouncer::class),
-            new WorkSubjectHandlers([]),
+            new WorkSubjectHandlers([], new NoCardTitles()),
             $this->service(BridgeRepository::class),
             $this->service(BridgeWorkMatchRepository::class),
             $this->service(AccountReadingRecorder::class),

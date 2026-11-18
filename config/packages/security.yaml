@@ -108,6 +108,7 @@ security:
         - { path: '^/api/v1/bridge/interactive-sessions/[^/]+/close$', roles: ROLE_API_AGENT }
         - { path: '^/api/v1/bridge/interactive-sessions/[^/]+/card-run$', roles: ROLE_API_AGENT }
         - { path: '^/api/v1/bridge/projects/[^/]+/worker-runs/[^/]+$', roles: ROLE_API_AGENT }
+        - { path: '^/api/v1/bridge/projects/[^/]+/worker-runs/[^/]+/credential$', roles: ROLE_API_AGENT }
         - { path: '^/api/v1/bridge/projects/[^/]+/worker-runs/sessions/[^/]+/usage$', roles: ROLE_API_AGENT }
         - { path: '^/api/v1/bridge/projects/[^/]+/worker-runs/[^/]+/tool-calls$', roles: ROLE_API_AGENT }
         - { path: '^/api/v1/bridge/projects/[^/]+/worker-runs/sessions/[^/]+/wake$', roles: ROLE_API_AGENT }
@@ -128,6 +129,13 @@ security:
         # budget of the client address, as ApplyApiBudgetOnRequest says.
         - { path: '^/api/versions$', roles: PUBLIC_ACCESS }
         - { path: '^/api/v1/openapi\.json$', roles: PUBLIC_ACCESS }
+        # The public routes that a `loupe` command inside a worker calls. A run token
+        # carries worker-run and no public scope, so each rule admits either, for one
+        # method. An expression does it, because `roles` takes one entry. They sit
+        # above the public rules, because the first match wins.
+        - { path: '^/api/v1/projects/[^/]+/artifacts$', methods: [POST], allow_if: "'ROLE_API_PUBLIC' in role_names or 'ROLE_API_WORKER_RUN' in role_names" }
+        - { path: '^/api/v1/projects/[^/]+/artifacts/[^/]+/versions$', methods: [POST], allow_if: "'ROLE_API_PUBLIC' in role_names or 'ROLE_API_WORKER_RUN' in role_names" }
+        - { path: '^/api/v1/projects/[^/]+/cards/[1-9][0-9]{0,8}$', methods: [GET], allow_if: "'ROLE_API_PUBLIC' in role_names or 'ROLE_API_WORKER_RUN' in role_names" }
         # The public API. A route of it names the public scope, which an API key and a
         # CLI sign-in carry. One rule per route shape, so a later route inherits no grant.
         - { path: '^/api/v1/projects(/[^/]+)?$', roles: ROLE_API_PUBLIC }

@@ -1,6 +1,8 @@
 import { Controller } from '@hotwired/stimulus';
 import { scrollerFor, smoothScrollTo } from '../lib/smooth_scroll.js';
 
+/* stimulusFetch: 'lazy' */
+
 const ACTIVATION_OFFSET = 72;
 const ARRIVED_CLASS = 'lp-arrived';
 const FLASH_MS = 2600;

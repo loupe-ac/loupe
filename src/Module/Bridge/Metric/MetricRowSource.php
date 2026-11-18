@@ -439,7 +439,9 @@ final readonly class MetricRowSource
             return;
         }
         if (null !== $facts->runsFrom && (null === $from || $from < $facts->runsFrom)) {
-            $facts->closedRuns = [...$this->workerRunFacts->findClosedSince($facts->project, $from, false, $facts->runsFrom), ...$facts->closedRuns];
+            $runs = [...$this->workerRunFacts->findClosedSince($facts->project, $from, false, $facts->runsFrom), ...$facts->closedRuns];
+            usort($runs, static fn (WorkerRunFact $a, WorkerRunFact $b): int => strcmp($a->runId->toRfc4122(), $b->runId->toRfc4122()));
+            $facts->closedRuns = $runs;
             $facts->runsFrom = $from;
         }
     }

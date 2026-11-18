@@ -77,6 +77,7 @@ final class ShowEventsControllerTest extends WebTestCase
 
         self::assertSame([$topicOf($user)], $this->decodeJwtClaims((string) $data['jwt'])['mercure']['subscribe'] ?? null);
         self::assertSame(CliCompatibility::RANGE, $data['cliRange']);
+        self::assertSame(CliCompatibility::REVOKED_RELEASE_KEYS, $data['revokedReleaseKeys']);
 
         // The other user's own call names their topic only, never the first user's.
         $foreignData = $this->events($client, $foreignRaw);

@@ -2,6 +2,8 @@ import { Controller } from '@hotwired/stimulus';
 import { formDraft } from '../lib/form_drafts.js';
 import { smoothScrollTo } from '../lib/smooth_scroll.js';
 
+/* stimulusFetch: 'lazy' */
+
 const STREAM_TYPE = 'text/vnd.turbo-stream.html';
 const APPROVED = 'approved';
 const CHANGES_REQUESTED = 'changes-requested';

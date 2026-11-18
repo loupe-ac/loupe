@@ -16,23 +16,29 @@ use App\Module\Artifact\Repository\ArtifactRepository;
 use App\Module\Artifact\Service\ArtifactCardLinksInterface;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Repository\WorkerRunRepository;
+use App\Module\Bridge\Service\CallerRun;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Tests\Module\Artifact\ArtifactScenario;
+use App\Tests\Module\Bridge\Support\CallsAsWorkerRun;
 use App\Tests\Support\FeatureFlags;
 use App\Tests\Support\RecordingAuditor;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestWith;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Uid\Uuid;
 
 final class StoreArtifactVersionHandlerTest extends KernelTestCase
 {
     use ArtifactScenario;
+    use CallsAsWorkerRun;
 
     private RecordingAuditor $audit;
 
@@ -134,10 +140,47 @@ final class StoreArtifactVersionHandlerTest extends KernelTestCase
         $project = $this->setUpProject('store-worker@example.com');
         $session = Uuid::v4();
         $this->workerRun($project, $session);
+        $this->sendHeader($session);
 
         $this->assertRefused($project, ['session' => 'artifact.error.worker_refused'], name: 'Widget tokens', sessionId: (string) $session);
 
         self::assertSame(0, $this->artifactRepository()->count([]));
+    }
+
+    public function test_a_run_credential_with_no_header_is_not_refused(): void
+    {
+        $project = $this->setUpProject('store-credential@example.com');
+        $this->callAsWorkerRun(Uuid::v4(), Uuid::v4(), Uuid::v4());
+
+        $this->store($project, name: 'Widget tokens');
+
+        self::assertSame(1, $this->artifactRepository()->count([]));
+    }
+
+    public function test_a_run_credential_is_refused_when_the_caller_is_the_bridge_route(): void
+    {
+        $project = $this->setUpProject('store-credential-bridge@example.com');
+        $this->callAsWorkerRun(Uuid::v4(), Uuid::v4(), Uuid::v4());
+
+        try {
+            $this->store($project, name: 'Widget tokens', refuseRunCredential: true);
+            self::fail('Expected a refusal.');
+        } catch (DomainErrors $error) {
+            self::assertSame(['session' => 'artifact.error.worker_refused'], $error->errors);
+        }
+
+        self::assertSame(0, $this->artifactRepository()->count([]));
+    }
+
+    public function test_the_session_label_alone_does_not_refuse_when_the_call_carries_no_header_and_no_credential(): void
+    {
+        $project = $this->setUpProject('store-label@example.com');
+        $session = Uuid::v4();
+        $this->workerRun($project, $session);
+
+        $version = $this->store($project, name: 'Widget tokens', sessionId: (string) $session);
+
+        self::assertSame((string) $session, $version->storedBySession);
     }
 
     public function test_the_session_of_a_worker_run_in_another_project_does_not_refuse(): void
@@ -146,6 +189,7 @@ final class StoreArtifactVersionHandlerTest extends KernelTestCase
         $other = $this->project($this->em(), 'store-other-b@example.com', 'Other');
         $session = Uuid::v4();
         $this->workerRun($other, $session);
+        $this->sendHeader($session);
 
         $version = $this->store($project, name: 'Widget tokens', sessionId: (string) $session);
 
@@ -157,6 +201,7 @@ final class StoreArtifactVersionHandlerTest extends KernelTestCase
         $project = $this->setUpProject('store-interactive@example.com');
         $session = Uuid::v4();
         $this->workerRun($project, $session, WorkerRunKind::Interactive);
+        $this->sendHeader($session);
 
         $version = $this->store($project, name: 'Widget tokens', sessionId: (string) $session);
 
@@ -319,6 +364,7 @@ final class StoreArtifactVersionHandlerTest extends KernelTestCase
         ?array $files = null,
         array $flags = [],
         ?string $notes = null,
+        bool $refuseRunCredential = false,
     ): ArtifactVersion {
         return $this->handler($flags)(new StoreArtifactVersionCommand(
             $project->owner,
@@ -329,6 +375,7 @@ final class StoreArtifactVersionHandlerTest extends KernelTestCase
             $sessionId,
             $files ?? [new ArtifactFileInput('index.html', 'hello', 'text/html')],
             notes: $notes,
+            refuseRunCredential: $refuseRunCredential,
         ));
     }
 
@@ -367,7 +414,11 @@ final class StoreArtifactVersionHandlerTest extends KernelTestCase
             self::getContainer()->get(ProjectRepository::class),
             self::getContainer()->get(ArtifactRepository::class),
             self::getContainer()->get(ArtifactBlobRepository::class),
-            self::getContainer()->get(WorkerRunRepository::class),
+            new CallerRun(
+                self::getContainer()->get(TokenStorageInterface::class),
+                self::getContainer()->get(RequestStack::class),
+                self::getContainer()->get(WorkerRunRepository::class),
+            ),
             FeatureFlags::service($flags),
             self::getContainer()->get(ArtifactCardLinksInterface::class),
             $this->em(),
@@ -405,6 +456,15 @@ final class StoreArtifactVersionHandlerTest extends KernelTestCase
             kind: $kind,
         ));
         $em->flush();
+    }
+
+    private function sendHeader(Uuid $session): void
+    {
+        $request = Request::create('/api/artifacts', Request::METHOD_POST);
+        $request->headers->set(CallerRun::SESSION_HEADER, (string) $session);
+        $requests = self::getContainer()->get(RequestStack::class);
+        self::assertInstanceOf(RequestStack::class, $requests);
+        $requests->push($request);
     }
 
     private function artifactRepository(): ArtifactRepository

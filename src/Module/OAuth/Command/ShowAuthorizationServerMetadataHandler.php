@@ -32,7 +32,7 @@ final readonly class ShowAuthorizationServerMetadataHandler
             'authorization_endpoint' => $issuer.$this->urls->generate('oauth2_authorize'),
             'token_endpoint' => $issuer.$this->urls->generate('oauth2_token'),
             'device_authorization_endpoint' => $issuer.$this->urls->generate('oauth2_device_authorization'),
-            'scopes_supported' => array_map(static fn (ApiScope $scope): string => $scope->value, ApiScope::cases()),
+            'scopes_supported' => array_map(static fn (ApiScope $scope): string => $scope->value, array_values(array_filter(ApiScope::cases(), static fn (ApiScope $scope): bool => ApiScope::WorkerRun !== $scope))),
             'response_types_supported' => ['code'],
             'grant_types_supported' => ['authorization_code', 'refresh_token', UserCode::DEVICE_GRANT],
             'code_challenge_methods_supported' => ['S256'],

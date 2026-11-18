@@ -6,17 +6,20 @@ namespace App\Tests\Module\Review\Mcp;
 
 use App\Exception\DomainErrors;
 use App\Module\Account\Entity\User;
-use App\Module\Board\Mcp\AgentRunCause;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkRequest;
+use App\Module\Bridge\Service\CallerRun;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
+use App\Module\OAuth\Scope\ApiScope;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Command\ReviseDocumentCommand;
 use App\Module\Review\Command\ReviseDocumentHandler;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Mcp\DocumentReviseTool;
+use App\Security\AuthenticatedCredential;
+use App\Tests\Module\Bridge\Support\CallsAsWorkerRun;
 use App\Tests\Support\McpRefusalMessages;
 use App\Tests\Support\McpTokenScenario;
 use Doctrine\ORM\EntityManagerInterface;
@@ -29,6 +32,7 @@ use Symfony\Component\Uid\Uuid;
 
 final class DocumentReviseToolTest extends KernelTestCase
 {
+    use CallsAsWorkerRun;
     use McpTokenScenario;
 
     private EntityManagerInterface $em;
@@ -162,18 +166,30 @@ final class DocumentReviseToolTest extends KernelTestCase
         self::assertCount(2, $document->versions);
     }
 
+    #[DataProvider('withdrawnStates')]
+    public function test_a_header_alone_does_not_withdraw_a_revision(WorkRequestState $state): void
+    {
+        $document = $this->documentInNewProject($this->user('revise-header-'.$state->value.'@example.com'), 'Draft');
+        $this->actAsMcpTokenBoundTo($document->project);
+        $this->workerSession($document, $state, credential: false);
+
+        ($this->tool)((string) $document->id, '# Revised', 'A header names no run.');
+
+        self::assertCount(2, $document->versions);
+    }
+
     public function test_it_takes_a_revision_from_a_session_with_no_worker_run(): void
     {
         $document = $this->documentInNewProject($this->user('revise-no-run@example.com'), 'Draft');
         $this->actAsMcpTokenBoundTo($document->project);
-        $this->sendSession(Uuid::v4());
+        $this->sendHeader(Uuid::v4());
 
         ($this->tool)((string) $document->id, '# Revised', 'The owner revised it.');
 
         self::assertCount(2, $document->versions);
     }
 
-    private function workerSession(Document $document, WorkRequestState $state): void
+    private function workerSession(Document $document, WorkRequestState $state, bool $credential = true): WorkerRun
     {
         $session = Uuid::v4();
         $subject = Uuid::v7();
@@ -181,7 +197,7 @@ final class DocumentReviseToolTest extends KernelTestCase
         $request->state = $state;
         $this->em->persist($request);
         $this->em->flush();
-        $this->em->persist(new WorkerRun(
+        $run = new WorkerRun(
             project: $document->project,
             bridgeId: Uuid::v4(),
             subjectType: WorkSubject::CARD,
@@ -189,17 +205,31 @@ final class DocumentReviseToolTest extends KernelTestCase
             cardNumber: 1,
             workKind: 'tech-design-revise',
             state: WorkerRunState::Running,
+            runKey: Uuid::v4(),
             sessionId: $session,
             workRequestId: $request->id,
-        ));
+        );
+        $this->em->persist($run);
         $this->em->flush();
-        $this->sendSession($session);
+        if ($credential) {
+            $this->callWithCredential(new AuthenticatedCredential(
+                id: 'worker-run-'.$run->runKey?->toRfc4122(),
+                roles: [ApiScope::Mcp->role(), ApiScope::WorkerRun->role()],
+                projectId: $document->project->id,
+                workerBridgeId: $run->bridgeId,
+                workerRunKey: $run->runKey,
+                workerSessionId: $session,
+            ));
+        }
+        $this->sendHeader($session);
+
+        return $run;
     }
 
-    private function sendSession(Uuid $session): void
+    private function sendHeader(Uuid $session): void
     {
         $request = Request::create('/mcp', Request::METHOD_POST);
-        $request->headers->set(AgentRunCause::SESSION_HEADER, (string) $session);
+        $request->headers->set(CallerRun::SESSION_HEADER, (string) $session);
         $requests = self::getContainer()->get(RequestStack::class);
         self::assertInstanceOf(RequestStack::class, $requests);
         $requests->push($request);

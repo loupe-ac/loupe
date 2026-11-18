@@ -13,9 +13,11 @@ use App\Module\AgentReview\Entity\DocumentReviewAnswer;
 use App\Module\AgentReview\Mcp\DocumentReviewAnswerTool;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardDocument;
+use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
+use App\Tests\Module\AgentReview\CallsAsSessionRun;
 use App\Tests\Module\AgentReview\DocumentReviewScenario;
 use App\Tests\Support\McpTokenScenario;
 use Doctrine\ORM\EntityManagerInterface;
@@ -26,6 +28,7 @@ use Symfony\Component\Uid\Uuid;
 
 final class DocumentReviewAnswerToolTest extends KernelTestCase
 {
+    use CallsAsSessionRun;
     use DocumentReviewScenario;
     use McpTokenScenario;
 
@@ -59,7 +62,7 @@ final class DocumentReviewAnswerToolTest extends KernelTestCase
     public function test_the_role_of_the_run_decides_and_its_kind_does_not(): void
     {
         $this->workRun($this->project, $this->card, $this->sessionId, 'custom-revise', role: 'design-revise');
-        $this->sendSession($this->sessionId);
+        $this->callAsSessionRun($this->sessionId);
 
         $result = $this->answer([['index' => 0, 'answer' => 'fixed'], ['index' => 1, 'answer' => 'fixed']]);
 
@@ -69,7 +72,7 @@ final class DocumentReviewAnswerToolTest extends KernelTestCase
     public function test_a_revise_run_with_no_role_is_refused(): void
     {
         $this->workRun($this->project, $this->card, $this->sessionId, 'tech-design-revise');
-        $this->sendSession($this->sessionId);
+        $this->callAsSessionRun($this->sessionId);
 
         $this->assertRefused('takes answers only from a running design fix worker', fn () => $this->answer([]));
     }
@@ -77,7 +80,7 @@ final class DocumentReviewAnswerToolTest extends KernelTestCase
     public function test_it_stores_one_answer_for_each_finding(): void
     {
         $this->workRun($this->project, $this->card, $this->sessionId, 'tech-design-revise', role: 'design-revise');
-        $this->sendSession($this->sessionId);
+        $this->callAsSessionRun($this->sessionId);
 
         $result = $this->answer([
             ['index' => 1, 'answer' => 'not-changed', 'reason' => 'The query already filters by project.'],
@@ -106,7 +109,7 @@ final class DocumentReviewAnswerToolTest extends KernelTestCase
     public function test_it_refuses_answers_from_a_run_whose_work_was_withdrawn(WorkRequestState $state): void
     {
         $this->workRun($this->project, $this->card, $this->sessionId, 'tech-design-revise', requestState: $state, role: 'design-revise');
-        $this->sendSession($this->sessionId);
+        $this->callAsSessionRun($this->sessionId);
 
         $this->assertRefused('This work was withdrawn.', fn () => $this->answer([['index' => 0, 'answer' => 'fixed'], ['index' => 1, 'answer' => 'fixed']]));
         self::assertFalse($this->review->isAnswered());
@@ -115,7 +118,7 @@ final class DocumentReviewAnswerToolTest extends KernelTestCase
     public function test_it_takes_answers_from_a_run_whose_work_is_live(): void
     {
         $this->workRun($this->project, $this->card, $this->sessionId, 'tech-design-revise', requestState: WorkRequestState::Claimed, role: 'design-revise');
-        $this->sendSession($this->sessionId);
+        $this->callAsSessionRun($this->sessionId);
 
         self::assertSame(2, $this->answer([['index' => 0, 'answer' => 'fixed'], ['index' => 1, 'answer' => 'fixed']])['answered']);
     }
@@ -123,7 +126,7 @@ final class DocumentReviewAnswerToolTest extends KernelTestCase
     public function test_a_product_design_fix_worker_may_answer(): void
     {
         $this->workRun($this->project, $this->card, $this->sessionId, 'product-design-revise', role: 'design-revise');
-        $this->sendSession($this->sessionId);
+        $this->callAsSessionRun($this->sessionId);
 
         self::assertSame(2, $this->answer([['index' => 0, 'answer' => 'to-owner'], ['index' => 1, 'answer' => 'fixed']])['answered']);
     }
@@ -131,7 +134,7 @@ final class DocumentReviewAnswerToolTest extends KernelTestCase
     public function test_it_answers_the_latest_review_only(): void
     {
         $this->workRun($this->project, $this->card, $this->sessionId, 'tech-design-revise', role: 'design-revise');
-        $this->sendSession($this->sessionId);
+        $this->callAsSessionRun($this->sessionId);
         $newer = $this->documentReview($this->project, $this->card, $this->document, 1, 2);
 
         $result = $this->answer([['index' => 0, 'answer' => 'fixed']]);
@@ -147,7 +150,7 @@ final class DocumentReviewAnswerToolTest extends KernelTestCase
         $this->em->flush();
         $foreign = $this->documentReview($this->project, $other, $this->document, 1, 2);
         $this->workRun($this->project, $this->card, $this->sessionId, 'tech-design-revise', role: 'design-revise');
-        $this->sendSession($this->sessionId);
+        $this->callAsSessionRun($this->sessionId);
 
         $result = $this->answer([['index' => 0, 'answer' => 'fixed'], ['index' => 1, 'answer' => 'fixed']]);
 
@@ -164,7 +167,7 @@ final class DocumentReviewAnswerToolTest extends KernelTestCase
         $this->em->flush();
         $this->documentReview($this->project, $other, $shared);
         $this->workRun($this->project, $this->card, $this->sessionId, 'tech-design-revise', role: 'design-revise');
-        $this->sendSession($this->sessionId);
+        $this->callAsSessionRun($this->sessionId);
 
         $this->assertRefused('has no agent review of this card to answer', fn () => ($this->tool)((string) $this->card->id, (string) $shared->id, []));
     }
@@ -172,7 +175,7 @@ final class DocumentReviewAnswerToolTest extends KernelTestCase
     public function test_it_refuses_a_second_answer(): void
     {
         $this->workRun($this->project, $this->card, $this->sessionId, 'tech-design-revise', role: 'design-revise');
-        $this->sendSession($this->sessionId);
+        $this->callAsSessionRun($this->sessionId);
         $this->answer([['index' => 0, 'answer' => 'fixed'], ['index' => 1, 'answer' => 'fixed']]);
 
         $this->assertRefused('already has its answers', fn () => $this->answer([['index' => 0, 'answer' => 'fixed'], ['index' => 1, 'answer' => 'fixed']]));
@@ -183,14 +186,60 @@ final class DocumentReviewAnswerToolTest extends KernelTestCase
         $this->workRun($this->project, $this->card, $this->sessionId, 'design-review', role: 'design-review');
         $this->assertRefused('takes answers only from a running design fix worker', fn () => $this->answer([]));
 
-        $this->sendSession($this->sessionId);
+        $this->callAsSessionRun($this->sessionId);
         $this->assertRefused('takes answers only from a running design fix worker', fn () => $this->answer([]));
+    }
+
+    public function test_a_header_alone_answers_nothing(): void
+    {
+        $this->workRun($this->project, $this->card, $this->sessionId, 'tech-design-revise', role: 'design-revise');
+        $this->sendHeader($this->sessionId);
+
+        $this->assertRefused('takes answers only from a running design fix worker', fn () => $this->answer([['index' => 0, 'answer' => 'fixed'], ['index' => 1, 'answer' => 'fixed']]));
+        self::assertFalse($this->review->isAnswered());
+    }
+
+    public function test_the_credential_of_one_run_cannot_answer_under_another_run_of_the_same_session(): void
+    {
+        $closed = $this->workRun($this->project, $this->card, $this->sessionId, 'tech-design-revise', WorkerRunState::Succeeded, role: 'design-revise');
+        $open = $this->workRun($this->project, $this->card, $this->sessionId, 'tech-design-revise', role: 'design-revise');
+        $answers = [['index' => 0, 'answer' => 'fixed'], ['index' => 1, 'answer' => 'fixed']];
+        $this->callAsRun($closed);
+
+        $this->assertRefused('takes answers only from a running design fix worker', fn () => $this->answer($answers));
+        self::assertFalse($this->review->isAnswered());
+
+        $this->callAsRun($open);
+
+        self::assertSame(2, $this->answer($answers)['answered']);
+    }
+
+    public function test_the_credential_of_a_run_of_another_card_cannot_answer_for_this_card(): void
+    {
+        $other = $this->card($this->project, 2);
+        $this->em->flush();
+        $elsewhere = $this->workRun($this->project, $other, $this->sessionId, 'tech-design-revise', role: 'design-revise');
+        $this->workRun($this->project, $this->card, $this->sessionId, 'tech-design-revise', role: 'design-revise');
+        $this->callAsRun($elsewhere);
+
+        $this->assertRefused('takes answers only from a running design fix worker', fn () => $this->answer([['index' => 0, 'answer' => 'fixed'], ['index' => 1, 'answer' => 'fixed']]));
+        self::assertFalse($this->review->isAnswered());
+    }
+
+    public function test_the_credential_wins_over_a_header_that_names_a_review_session(): void
+    {
+        $own = $this->workRun($this->project, $this->card, $this->sessionId, 'tech-design-revise', role: 'design-revise');
+        $reviewer = Uuid::v4();
+        $this->workRun($this->project, $this->card, $reviewer, 'design-review', role: 'design-review');
+        $this->callAsRun($own, $reviewer);
+
+        self::assertSame(2, $this->answer([['index' => 0, 'answer' => 'fixed'], ['index' => 1, 'answer' => 'fixed']])['answered']);
     }
 
     public function test_it_refuses_incomplete_and_inconsistent_answers(): void
     {
         $this->workRun($this->project, $this->card, $this->sessionId, 'tech-design-revise', role: 'design-revise');
-        $this->sendSession($this->sessionId);
+        $this->callAsSessionRun($this->sessionId);
 
         $this->assertRefused('Answer every finding', fn () => $this->answer([['index' => 0, 'answer' => 'fixed']]));
         $this->assertRefused('names a finding that the latest review does not have', fn () => $this->answer([['index' => 0, 'answer' => 'fixed'], ['index' => 2, 'answer' => 'fixed']]));
@@ -208,7 +257,7 @@ final class DocumentReviewAnswerToolTest extends KernelTestCase
     public function test_a_finding_that_needs_a_person_takes_only_to_owner(): void
     {
         $this->workRun($this->project, $this->card, $this->sessionId, 'tech-design-revise', role: 'design-revise');
-        $this->sendSession($this->sessionId);
+        $this->callAsSessionRun($this->sessionId);
         $document = $this->linkedDocument($this->card);
         $review = new DocumentAgentReview($this->project, $this->card, $document, 1, 'Passed.', AgentReviewConclusion::Success, [
             new AgentReviewFinding(null, null, null, AgentReviewSeverity::Important, 'Ask', 'Body', AgentReviewCategory::Spec, true),
@@ -227,7 +276,7 @@ final class DocumentReviewAnswerToolTest extends KernelTestCase
     public function test_it_refuses_a_document_with_no_review_and_one_the_card_does_not_link(): void
     {
         $this->workRun($this->project, $this->card, $this->sessionId, 'tech-design-revise', role: 'design-revise');
-        $this->sendSession($this->sessionId);
+        $this->callAsSessionRun($this->sessionId);
         $bare = $this->linkedDocument($this->card);
         $other = $this->card($this->project, 2);
         $this->em->flush();
@@ -240,7 +289,7 @@ final class DocumentReviewAnswerToolTest extends KernelTestCase
     public function test_a_review_with_no_findings_takes_an_empty_answer(): void
     {
         $this->workRun($this->project, $this->card, $this->sessionId, 'tech-design-revise', role: 'design-revise');
-        $this->sendSession($this->sessionId);
+        $this->callAsSessionRun($this->sessionId);
         $clean = $this->linkedDocument($this->card);
         $review = $this->documentReview($this->project, $this->card, $clean, 0);
 

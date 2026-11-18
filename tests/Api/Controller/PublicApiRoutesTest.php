@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Api\Controller;
 
 use App\Api\RateLimit\ApiBudget;
+use App\Module\Bridge\Service\CliCompatibility;
 use Opis\JsonSchema\Validator;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
@@ -22,6 +23,7 @@ final class PublicApiRoutesTest extends WebTestCase
         $body = json_decode((string) $client->getResponse()->getContent(), false, flags: \JSON_THROW_ON_ERROR);
         self::assertSame('v1', $body->versions[0]->version);
         self::assertSame('beta', $body->versions[0]->status);
+        self::assertSame(CliCompatibility::REVOKED_RELEASE_KEYS, $body->revokedReleaseKeys);
         $this->assertMatchesSchema('ApiVersions', $body);
     }
 

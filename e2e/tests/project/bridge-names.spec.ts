@@ -1,5 +1,10 @@
 import { expect } from '@playwright/test';
-import { agentAccessToken, createTest, suppressWidget } from '../fixtures';
+import {
+    agentAccessToken,
+    createTest,
+    mcpCards,
+    suppressWidget,
+} from '../fixtures';
 
 const test = createTest({
     email: `e2e-bridge-names-${Date.now()}@example.com`,
@@ -16,6 +21,7 @@ test('a bridge shows its name, and a second claim of the name shows a clash', as
     expect(seed.status()).toBe(201);
     const { projectId } = await seed.json();
     const token = await agentAccessToken(page);
+    const card = await (await mcpCards(page, projectId))('Bridge names card');
     const headers = { Authorization: `Bearer ${token}` };
     const heartbeat = async (bridgeId: string, name?: string) => {
         const response = await page.request.put(
@@ -41,8 +47,8 @@ test('a bridge shows its name, and a second claim of the name shows a clash', as
                     at: '2026-10-02T10:00:00+00:00',
                     workKind: 'implement',
                     subjectType: 'card',
-                    subjectId: crypto.randomUUID(),
-                    cardNumber: 7,
+                    subjectId: card.id,
+                    cardNumber: card.number,
                     state: 'queued',
                 },
             },
@@ -58,27 +64,27 @@ test('a bridge shows its name, and a second claim of the name shows a clash', as
     await heartbeat(unnamed);
 
     await page.goto(`/projects/${projectId}/agents`);
-    const card = (bridgeId: string) =>
+    const agentCard = (bridgeId: string) =>
         page.locator(`[data-agent-connection-id="${bridgeId}"]`);
-    await expect(card(holder).locator('.lp-agent-card__name')).toHaveText(
+    await expect(agentCard(holder).locator('.lp-agent-card__name')).toHaveText(
         'homelab',
     );
-    await expect(card(holder).locator('[data-agent-name-clash]')).toHaveCount(
-        0,
-    );
-    await expect(card(claimer).locator('.lp-agent-card__name')).toHaveText(
+    await expect(
+        agentCard(holder).locator('[data-agent-name-clash]'),
+    ).toHaveCount(0);
+    await expect(agentCard(claimer).locator('.lp-agent-card__name')).toHaveText(
         claimer.slice(-12),
     );
-    const clash = card(claimer).locator('[data-agent-name-clash]');
+    const clash = agentCard(claimer).locator('[data-agent-name-clash]');
     await expect(clash).toBeVisible();
     await expect(clash).toContainText('Name already in use');
     await expect(clash).toContainText('homelab');
-    await expect(card(unnamed).locator('.lp-agent-card__name')).toHaveText(
+    await expect(agentCard(unnamed).locator('.lp-agent-card__name')).toHaveText(
         unnamed.slice(-12),
     );
-    await expect(card(unnamed).locator('[data-agent-name-clash]')).toHaveCount(
-        0,
-    );
+    await expect(
+        agentCard(unnamed).locator('[data-agent-name-clash]'),
+    ).toHaveCount(0);
 
     await report(holder);
     await report(unnamed);

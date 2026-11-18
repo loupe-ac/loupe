@@ -2,7 +2,11 @@
 # customer site, so its size is paid by their visitors. The readable source stays
 # in the repo and is what dev serves; only the image carries the compressed file,
 # written to the same URL so embeds already on customer pages keep working.
-FROM node:22-alpine AS widget
+# The node tag floats with each Node patch and each Alpine bump, so the digest
+# keeps the widget file and the docs pages the same for the same commit. Both
+# node stages use one digest. To move it:
+#   docker buildx imagetools inspect node:22-alpine --format '{{.Manifest.Digest}}'
+FROM node:22-alpine@sha256:1314fb30ec37592d5845e5a160d522c0e680972aa534549940b8d73bde88481a AS widget
 WORKDIR /build
 COPY package.json package-lock.json ./
 RUN npm ci --ignore-scripts=false --no-audit --no-fund
@@ -50,8 +54,9 @@ WORKDIR /var/www/html
 # OPcache is already built into php:8.5-fpm-alpine — it just needs tuning (opcache.ini).
 #
 # su-exec is how a worker container drops to www-data *after* the entrypoint has
-# run as root (it needs to write .env.local.php, which the project directory only
-# lets root create). It matters when web and worker share an export volume: the
+# run as root (it needs to write .env.local.php, which the project directory
+# only lets root create, because the runtime stage closes the folder). It
+# matters when web and worker share an export volume: the
 # local Flysystem adapter writes archives 0600, so an archive written by a root
 # worker is unreadable to the web container's www-data php-fpm workers. su-exec
 # replaces itself with the command rather than forking, so the consumer keeps
@@ -64,6 +69,8 @@ RUN apk add --no-cache postgresql-libs libzip libxslt icu-libs icu-data-full bas
  && find /usr/share/fonts/dejavu -type f ! -name 'DejaVuSans.ttf' ! -name 'DejaVuSans-Bold.ttf' -delete \
  && apk add --no-cache --virtual .build-deps $PHPIZE_DEPS postgresql-dev libzip-dev libxslt-dev icu-dev \
  && docker-php-ext-install bcmath pdo_pgsql zip intl xsl \
+ && pecl install apcu \
+ && docker-php-ext-enable apcu \
  && curl -fsSL -o /tmp/excimer.tgz https://github.com/wikimedia/php-excimer/archive/refs/tags/1.2.6.tar.gz \
  && echo "0f4cb07ed735cb8d517d837ade3dde43de7967ea5e02fee194a1deaef8f3850e  /tmp/excimer.tgz" | sha256sum -c - \
  && mkdir /tmp/excimer && tar xzf /tmp/excimer.tgz -C /tmp/excimer --strip-components=1 \
@@ -96,7 +103,7 @@ RUN php bin/changelog.php --keep
 # content is ../docs and the fonts are ../assets/fonts, relative to website/.
 # sharp ships prebuilt binaries as optional packages, so its install script is not
 # needed and --ignore-scripts keeps every dependency script out of the build.
-FROM node:22-alpine AS docs
+FROM node:22-alpine@sha256:1314fb30ec37592d5845e5a160d522c0e680972aa534549940b8d73bde88481a AS docs
 WORKDIR /repo/website
 COPY website/package.json website/package-lock.json ./
 RUN npm ci --ignore-scripts --no-audit --no-fund
@@ -180,9 +187,10 @@ RUN set -eux; \
 # Only app.built.css is needed past build time. The runtime stage copies this
 # stage's final tree rather than its layers, so this removal is real wherever it
 # sits.
-RUN bin/console tailwind:build \
+RUN bin/console tailwind:build --minify \
 	&& find var/tailwind -mindepth 1 -maxdepth 1 ! -name 'app.built.css' -exec rm -rf {} +
-RUN bin/console asset-map:compile
+RUN bin/console asset-map:compile \
+	&& test -n "$(find public/assets -name '*.gz' -print -quit)"
 RUN bin/console cache:warmup --env=prod
 # Creates every attribute of every routed controller, as a request would. A
 # class that the vendor tree lacks fails here and not on the first request.
@@ -225,6 +233,10 @@ RUN fc-cache -f
 # A list is the failure this boundary invites: miss `var/cache` or the compiled
 # assets and the image builds, starts, and fails on its first request.
 COPY --from=build /var/www/html /var/www/html
+# The PHP base creates the folder as www-data with mode 1777. The owner of a
+# folder can rename any entry in it, so a request with code execution could swap
+# vendor/ or src/ for its own copy. Root owns the folder, and var/ stays www-data.
+RUN chown root:root /var/www/html && chmod 755 /var/www/html
 
 # The built docs stay outside the web root. At start the entrypoint copies them
 # to /var/www/docs with the site bar and footer of the running instance, and
@@ -243,7 +255,7 @@ ARG APP_SOURCE_URL=https://github.com/loupe-ac/loupe
 LABEL org.opencontainers.image.source=$APP_SOURCE_URL
 LABEL org.opencontainers.image.licenses=AGPL-3.0-or-later
 
-EXPOSE 80
+EXPOSE 80 8080
 
 ENTRYPOINT ["docker/prod/entrypoint.sh"]
 CMD ["/usr/bin/supervisord","-c","/etc/supervisord.conf"]

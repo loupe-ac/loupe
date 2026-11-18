@@ -618,6 +618,7 @@ final class IssueGitTokenApiTest extends WebTestCase
         $clock = new MockClock('2026-10-18 13:00:00');
         $api = new GitHubAppApi($http, $configuration, $clock);
         static::getContainer()->set(GitHubAppApi::class, $api);
+        // A private cache per test: the shared cache.app is cleared by tests that run in other ParaTest workers.
         $cache = new ArrayAdapter(clock: $clock);
         $encryptor = static::getContainer()->get(Encryptor::class);
         self::assertInstanceOf(Encryptor::class, $encryptor);

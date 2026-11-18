@@ -1,5 +1,7 @@
 import { Controller } from '@hotwired/stimulus';
 
+/* stimulusFetch: 'lazy' */
+
 /**
  * The rename form of a Dashboard tile. The form replaces the name until the
  * person saves or cancels. The tile carries `data-renaming` while it is open,

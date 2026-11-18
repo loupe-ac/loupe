@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Bridge\EventListener;
 
+use App\Module\Bridge\Service\CallerRun;
 use App\Module\Bridge\Service\InteractiveRuns;
 use App\Module\Project\Security\AuthenticatedProjectResolver;
 use Psr\Clock\ClockInterface;
@@ -14,20 +15,18 @@ use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Counts an MCP request that names its session as a sign of life of the open
+ * Counts an MCP request that names its session, by its run credential or its header, as a sign of life of the open
  * interactive runs of that session. The stamp is written after the response,
  * so it never slows the call. It reaches only the project the MCP credential
  * is bound to, so a forged header changes no run of another project.
  */
 final readonly class StampInteractiveActivity
 {
-    /** The header the `loupe mcp` proxy sends on every request. */
-    public const string SESSION_HEADER = 'X-Loupe-Session';
-
     private const string ATTRIBUTE = '_interactive_activity';
 
     public function __construct(
         private AuthenticatedProjectResolver $projects,
+        private CallerRun $callerRun,
         private InteractiveRuns $interactiveRuns,
         private ClockInterface $clock,
     ) {
@@ -42,14 +41,18 @@ final readonly class StampInteractiveActivity
             return;
         }
 
-        $header = $request->headers->get(self::SESSION_HEADER);
-        if (null === $header || !Uuid::isValid($header)) {
-            return;
+        $session = $this->callerRun->workerSession();
+        if (null === $session) {
+            $header = $request->headers->get(CallerRun::SESSION_HEADER);
+            if (null === $header || !Uuid::isValid($header)) {
+                return;
+            }
+            $session = Uuid::fromString($header);
         }
 
         $project = $this->projects->resolveMcpProject();
         if (null !== $project) {
-            $request->attributes->set(self::ATTRIBUTE, [$project, Uuid::fromString($header)]);
+            $request->attributes->set(self::ATTRIBUTE, [$project, $session]);
         }
     }
 

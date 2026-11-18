@@ -36,6 +36,7 @@ use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Install\InboxInstallFlags;
 use App\Module\Inbox\Service\CardWaitReconciler;
 use App\Module\Inbox\Service\InboxChangedPublisher;
+use App\Module\Inbox\Service\InboxCountsSignal;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Project\Service\ProjectsChangedPublisher;
@@ -312,7 +313,7 @@ final class InboxChangedPublisherTest extends KernelTestCase
             },
         );
 
-        new InboxChangedPublisher($this->topics(), $this->service(ProjectTopicBuilder::class), $live, new ProjectsChangedPublisher($this->topics(), $this->service(ProjectRepository::class), $live))->changed($this->project);
+        new InboxChangedPublisher($this->topics(), $this->service(ProjectTopicBuilder::class), $live, new ProjectsChangedPublisher($this->topics(), $this->service(ProjectRepository::class), $live), $this->service(InboxCountsSignal::class))->changed($this->project);
         $live->publish();
 
         self::assertFalse($hubBuilt);
@@ -335,7 +336,7 @@ final class InboxChangedPublisherTest extends KernelTestCase
             ),
         );
 
-        new InboxChangedPublisher($this->topics(), $this->service(ProjectTopicBuilder::class), $live, new ProjectsChangedPublisher($this->topics(), $this->service(ProjectRepository::class), $live))->changed($this->project);
+        new InboxChangedPublisher($this->topics(), $this->service(ProjectTopicBuilder::class), $live, new ProjectsChangedPublisher($this->topics(), $this->service(ProjectRepository::class), $live), $this->service(InboxCountsSignal::class))->changed($this->project);
         $live->publish();
 
         $ownerId = $this->project->owner->id ?? throw new \LogicException('The owner has no id.');

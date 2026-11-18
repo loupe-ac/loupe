@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Bridge\Controller;
 
+use App\Module\Account\Entity\User;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Service\InteractiveRuns;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
@@ -27,11 +29,22 @@ use Symfony\Component\Uid\Uuid;
 
 final class InteractiveLaunchApiTest extends WebTestCase
 {
-    use BridgeScenario;
+    use BridgeScenario {
+        project as private projectOnly;
+    }
+
+    private string $cardId = '';
+
+    /** The project holds a card, which the default payload names. */
+    private function project(EntityManagerInterface $em, User $owner, string $name): Project
+    {
+        $project = $this->projectOnly($em, $owner, $name);
+        $this->cardId = (string) $this->seedCard($em, $project)->id;
+
+        return $project;
+    }
 
     private const string BRIDGE_ID = '0199a0e2-9d4c-7c5e-9f2a-3b1c6d7e8f90';
-
-    private const string CARD_ID = '0199a0e2-b1f3-7a44-9c11-2d3e4f506172';
 
     public function test_a_launch_that_runs_opens_an_interactive_run_of_the_bridge(): void
     {
@@ -51,7 +64,7 @@ final class InteractiveLaunchApiTest extends WebTestCase
         self::assertSame(WorkerRunState::Running, $run->state);
         self::assertSame($sessionId, (string) $run->sessionId);
         self::assertSame(self::BRIDGE_ID, (string) $run->bridgeId);
-        self::assertSame(self::CARD_ID, (string) $run->subjectId);
+        self::assertSame($this->cardId, (string) $run->subjectId);
         self::assertSame(7, $run->cardNumber);
         self::assertSame('Pair on design', $run->workKind);
         self::assertNull($run->workRequestId);
@@ -66,7 +79,7 @@ final class InteractiveLaunchApiTest extends WebTestCase
         $owner = $this->user($em, 'launch-work-request@example.com');
         $project = $this->project($em, $owner, 'Launch Work Request');
         $raw = $this->agentToken($client, $owner);
-        $workRequestId = (string) Uuid::v7();
+        $workRequestId = (string) $this->seedWorkRequest($em, $project, Uuid::fromString($this->cardId))->id;
 
         $this->put($client, $this->path($project->id, (string) Uuid::v4()), $raw, $this->payload(['workKind' => 'design', 'workRequestId' => $workRequestId, 'ruleId' => 'design-on-entry']));
 
@@ -153,7 +166,7 @@ final class InteractiveLaunchApiTest extends WebTestCase
         $first = $this->idOf($client);
         $interactiveRuns = static::getContainer()->get(InteractiveRuns::class);
         self::assertInstanceOf(InteractiveRuns::class, $interactiveRuns);
-        $interactiveRuns->closeOnMove($this->em()->find(Project::class, $project->id) ?? throw new \LogicException('The project exists.'), [Uuid::fromString(self::CARD_ID)]);
+        $interactiveRuns->closeOnMove($this->em()->find(Project::class, $project->id) ?? throw new \LogicException('The project exists.'), [Uuid::fromString($this->cardId)]);
 
         $this->put($client, $path, $raw, $this->payload());
 
@@ -183,7 +196,7 @@ final class InteractiveLaunchApiTest extends WebTestCase
         $sessionId = Uuid::v4();
         $interactiveRuns = static::getContainer()->get(InteractiveRuns::class);
         self::assertInstanceOf(InteractiveRuns::class, $interactiveRuns);
-        $open = $interactiveRuns->open($project, Uuid::fromString(self::CARD_ID), 1, $sessionId, 'card_run_open');
+        $open = $interactiveRuns->open($project, Uuid::fromString($this->cardId), 1, $sessionId, 'card_run_open');
 
         $this->put($client, $this->path($project->id, (string) $sessionId), $raw, $this->payload(['harness' => 'claude-code']));
 
@@ -297,8 +310,47 @@ final class InteractiveLaunchApiTest extends WebTestCase
 
         $this->put($client, $this->path($project->id, (string) Uuid::v4()), $raw, $this->initPayload($other));
 
-        self::assertResponseStatusCodeSame(404);
+        self::assertResponseStatusCodeSame(422);
         self::assertSame('subject_not_found', $this->problemCode($client));
+        self::assertSame([], $this->allRuns());
+    }
+
+    public function test_a_card_of_another_project_is_refused(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'launch-card-other@example.com');
+        $other = $this->user($em, 'launch-card-stranger@example.com');
+        $this->project($em, $other, 'Launch Card Theirs');
+        $foreignCardId = $this->cardId;
+        $project = $this->project($em, $owner, 'Launch Card Mine');
+        $raw = $this->agentToken($client, $owner);
+
+        $this->put($client, $this->path($project->id, (string) Uuid::v4()), $raw, $this->payload(['subjectId' => $foreignCardId]));
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame('subject_not_found', $this->problemCode($client));
+        self::assertSame([], $this->allRuns());
+    }
+
+    public function test_a_work_request_of_another_project_or_another_subject_is_refused(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'launch-request-other@example.com');
+        $stranger = $this->user($em, 'launch-request-stranger@example.com');
+        $theirs = $this->project($em, $stranger, 'Launch Request Theirs');
+        $foreign = $this->seedWorkRequest($em, $theirs, Uuid::fromString($this->cardId));
+        $project = $this->project($em, $owner, 'Launch Request Mine');
+        $sibling = $this->seedWorkRequest($em, $project, $this->seedCard($em, $project, 2)->id);
+        $raw = $this->agentToken($client, $owner);
+
+        foreach ([$foreign->id, $sibling->id, Uuid::v7()] as $id) {
+            $this->put($client, $this->path($project->id, (string) Uuid::v4()), $raw, $this->payload(['workRequestId' => (string) $id, 'workKind' => 'design']));
+
+            self::assertResponseStatusCodeSame(422);
+            self::assertSame('work_request_not_found', $this->problemCode($client));
+        }
         self::assertSame([], $this->allRuns());
     }
 
@@ -370,6 +422,26 @@ final class InteractiveLaunchApiTest extends WebTestCase
 
         $this->put($client, $path, $raw, $this->initPayload($project, ['awaitingInstall' => false]));
         self::assertFalse($waits->isWaiting($sessionId, (string) $project->id));
+    }
+
+    public function test_a_launch_in_one_project_cannot_touch_the_wait_mark_of_another(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'launch-wait-theirs@example.com');
+        $project = $this->project($em, $owner, 'Launch Wait Theirs');
+        $stranger = $this->user($em, 'launch-wait-mine@example.com');
+        $mine = $this->project($em, $stranger, 'Launch Wait Mine');
+        $sessionId = (string) Uuid::v4();
+        $waits = static::getContainer()->get(InitInstallWaits::class);
+        self::assertInstanceOf(InitInstallWaits::class, $waits);
+
+        $this->put($client, $this->path($project->id, $sessionId), $this->agentToken($client, $owner), $this->initPayload($project, ['awaitingInstall' => true]));
+        self::assertTrue($waits->isWaiting($sessionId, (string) $project->id));
+
+        $this->put($client, $this->path($mine->id, $sessionId), $this->agentToken($client, $stranger), $this->initPayload($mine, ['awaitingInstall' => false]));
+
+        self::assertTrue($waits->isWaiting($sessionId, (string) $project->id));
     }
 
     public function test_the_wait_mark_is_written_also_when_the_run_is_closed(): void
@@ -511,7 +583,7 @@ final class InteractiveLaunchApiTest extends WebTestCase
         $item = $this->item($em, $project);
         $raw = $this->agentToken($client, $owner);
         $path = $this->path($project->id, (string) Uuid::v4());
-        $payload = $this->itemPayload($item, ['workKind' => 'session', 'workRequestId' => (string) Uuid::v7(), 'ruleId' => 'inbox:start-session']);
+        $payload = $this->itemPayload($item, ['workKind' => 'session', 'workRequestId' => (string) $this->seedWorkRequest($em, $project, subject: new WorkSubject('inbox-item', $item->id ?? throw new \LogicException('A stored item has an id.')))->id, 'ruleId' => 'inbox:start-session']);
 
         $this->put($client, $path, $raw, $payload);
 
@@ -576,7 +648,7 @@ final class InteractiveLaunchApiTest extends WebTestCase
         foreach ([$elsewhere->id, Uuid::v7()] as $id) {
             $this->put($client, $this->path($project->id, (string) Uuid::v4()), $raw, $this->itemPayload($elsewhere, ['subjectId' => (string) $id]));
 
-            self::assertResponseStatusCodeSame(404);
+            self::assertResponseStatusCodeSame(422);
             self::assertSame('subject_not_found', $this->problemCode($client));
         }
         self::assertSame([], $this->allRuns());
@@ -639,7 +711,7 @@ final class InteractiveLaunchApiTest extends WebTestCase
         return array_merge([
             'bridgeId' => self::BRIDGE_ID,
             'subjectType' => 'card',
-            'subjectId' => self::CARD_ID,
+            'subjectId' => $this->cardId,
             'cardNumber' => 1,
             'workKind' => 'design',
             'state' => 'running',

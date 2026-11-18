@@ -43,9 +43,8 @@ class BetaInvite
     public ?\DateTimeImmutable $welcomeEmailDueAt = null;
 
     private function __construct(
-        /** Kept raw so the admin list can copy the link again. */
         #[ORM\Column(length: 64, unique: true)]
-        public string $token,
+        public string $tokenHash,
 
         #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
         #[ORM\ManyToOne(targetEntity: User::class)]
@@ -66,12 +65,17 @@ class BetaInvite
     {
         $token = bin2hex(random_bytes(32));
 
-        return [new self($token, $createdBy, $note), $token];
+        return [new self(self::hashOf($token), $createdBy, $note), $token];
+    }
+
+    public static function hashOf(string $token): string
+    {
+        return hash('sha256', $token);
     }
 
     public function matches(string $token): bool
     {
-        return hash_equals($this->token, $token);
+        return hash_equals($this->tokenHash, self::hashOf($token));
     }
 
     public function isRedeemed(): bool

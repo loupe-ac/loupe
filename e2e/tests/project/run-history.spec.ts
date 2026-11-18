@@ -1,5 +1,10 @@
 import { expect } from '@playwright/test';
-import { agentAccessToken, createTest, suppressWidget } from '../fixtures';
+import {
+    agentAccessToken,
+    createTest,
+    mcpCards,
+    suppressWidget,
+} from '../fixtures';
 
 const test = createTest({
     email: `e2e-run-history-${crypto.randomUUID()}@example.com`,
@@ -24,10 +29,11 @@ test('a resume that gave up shows its place in the series and the run it resumes
     const { projectId } = await seed.json();
     const token = await agentAccessToken(page);
     const bridgeId = crypto.randomUUID();
+    const created = await (await mcpCards(page, projectId))('Run series card');
     const card = {
         subjectType: 'card',
-        subjectId: crypto.randomUUID(),
-        cardNumber: 7,
+        subjectId: created.id,
+        cardNumber: created.number,
     };
     const report = async (runId: string, data: Record<string, unknown>) => {
         const response = await page.request.put(
@@ -143,16 +149,18 @@ test('completed reports retain outcomes and escaped output at enlarged text size
             outcome: 'Never started',
         },
     ];
+    const createCard = await mcpCards(page, projectId);
     const ids: string[] = [];
     for (const [index, report] of reports.entries()) {
         const runId = crypto.randomUUID();
+        const card = await createCard(`Run card ${index + 1}`);
         const run = {
             bridgeId: crypto.randomUUID(),
             workKind: 'implement',
             sessionId: crypto.randomUUID(),
             subjectType: 'card',
-            subjectId: crypto.randomUUID(),
-            cardNumber: index + 1,
+            subjectId: card.id,
+            cardNumber: card.number,
             startedAt: '2026-09-17T12:00:00+00:00',
         };
         const put = (data: Record<string, unknown>) =>

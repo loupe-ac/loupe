@@ -20,7 +20,7 @@ use Symfony\Component\Uid\Uuid;
  * project created after the grant is included and a deleted one disappears. A
  * grant carries one binding or the other, never both.
  *
- * The mcp and site-review scopes need a binding. The agent and public scopes
+ * The mcp, site-review and worker-run scopes need a binding. The agent and public scopes
  * take none.
  */
 final readonly class GrantedScope
@@ -128,6 +128,10 @@ final readonly class GrantedScope
             return null;
         }
         if (self::anyNeedsProject($base) !== (null !== $projectId || $allProjects)) {
+            return null;
+        }
+        // A run token names the one project of its launch.
+        if ($allProjects && \in_array(ApiScope::WorkerRun, $base, true)) {
             return null;
         }
 

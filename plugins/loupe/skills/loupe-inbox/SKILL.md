@@ -40,6 +40,10 @@ Link items with `cardIds` and `documentIds`. Pass the ids that `card_list` and `
 
 Write `card:<number>` for a card of this project and `pr:owner/repo#<number>` for a pull request in `context` and in each `body`. Loupe shows each token as a link with a title tooltip. Prose such as "card 1116" also links, but a token is exact. Prose such as "PR 1295" links only when the project watches exactly one repository, so write the `pr:` token. A token inside code, a link or square brackets stays as written. A `title` and an option show a token as plain text. Name the card in words there, and put the token in the `body` of the item.
 
+## Link a page with a Markdown link
+
+Write a document, a page or any other URL in `context` and in each `body` as a Markdown link with a short label, such as `[the tech design](https://…/documents/<id>/review)`. Use the full URL, with the host of the instance. A bare path such as `/projects/…/review` is not clickable, and a bare URL is noise.
+
 ## Suggest the next action
 
 Do this for every to-do and every question. The owner then has one click for the likely next step.

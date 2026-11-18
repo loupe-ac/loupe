@@ -11,6 +11,7 @@ use App\Module\Account\Entity\User;
 use App\Module\Account\Repository\UserRepository;
 use App\Module\OAuth\Entity\ApiKey;
 use App\Module\OAuth\Repository\PreviewTokenRepository;
+use App\Module\OAuth\Repository\WorkerRunCredentialRepository;
 use App\Module\OAuth\Scope\ApiScope;
 use App\Module\OAuth\Scope\GrantedScope;
 use App\Module\OAuth\Service\McpResource;
@@ -68,6 +69,7 @@ final class OAuthAccessTokenAuthenticator extends AbstractAuthenticator implemen
         private readonly AccessTokenManagerInterface $accessTokens,
         private readonly McpResource $mcpResource,
         private readonly PreviewTokenRepository $previewTokens,
+        private readonly WorkerRunCredentialRepository $workerRunCredentials,
         private readonly LoggerInterface $logger,
         private readonly Auditor $auditor,
         private readonly AccountChangedPublisher $accountChanged,
@@ -128,6 +130,15 @@ final class OAuthAccessTokenAuthenticator extends AbstractAuthenticator implemen
             }
         }
 
+        // Only a run token has a record. One that lost it names no run, so it authenticates nothing.
+        $workerRun = null;
+        if ($granted->allows(ApiScope::WorkerRun)) {
+            $workerRun = \is_string($tokenId) ? $this->workerRunCredentials->find($tokenId) : null;
+            if (null === $workerRun) {
+                throw new AuthenticationException('The OAuth grant no longer applies.');
+            }
+        }
+
         if (WidgetClient::ID === $clientId && \is_string($tokenId)) {
             if ($this->previewTokens->recordUse($tokenId) && null !== $user->id) {
                 $this->accountChanged->changed($user->id, AccountArea::APPS);
@@ -141,6 +152,9 @@ final class OAuthAccessTokenAuthenticator extends AbstractAuthenticator implemen
             $granted->projectId,
             $granted->allProjects,
             \is_string($tokenId) ? $tokenId : null,
+            $workerRun?->bridgeId,
+            $workerRun?->runKey,
+            $workerRun?->sessionId,
         ));
 
         return $passport;

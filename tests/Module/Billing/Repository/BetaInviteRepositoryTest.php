@@ -13,6 +13,25 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 final class BetaInviteRepositoryTest extends KernelTestCase
 {
+    public function test_find_one_by_token_finds_a_row_by_its_raw_token_and_stores_no_raw_token(): void
+    {
+        self::bootKernel();
+        $em = self::getContainer()->get(EntityManagerInterface::class);
+        [$invite, $token] = BetaInvite::issue(null, 'lookup');
+        $em->persist($invite);
+        $em->flush();
+        $em->clear();
+
+        $found = self::getContainer()->get(BetaInviteRepository::class)->findOneByToken($token);
+
+        self::assertSame($invite->id?->toRfc4122(), $found?->id?->toRfc4122());
+        self::assertNull(self::getContainer()->get(BetaInviteRepository::class)->findOneByToken(BetaInvite::hashOf($token)));
+        self::assertSame(
+            BetaInvite::hashOf($token),
+            $em->getConnection()->fetchOne('SELECT token_hash FROM beta_invites WHERE id = :id', ['id' => (string) $invite->id]),
+        );
+    }
+
     public function test_find_one_redeemed_by_returns_the_first_redemption(): void
     {
         self::bootKernel();

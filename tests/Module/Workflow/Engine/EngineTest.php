@@ -143,6 +143,7 @@ use App\Tests\Module\Workflow\Fact\UnprovidedFactsReady;
 use App\Tests\Module\Workflow\FakeWorkHolds;
 use App\Tests\Module\Workflow\Template\AppRulesTest;
 use App\Tests\Support\EpicBranchesExist;
+use App\Tests\Support\NoCardTitles;
 use App\Tests\Support\RecordingLogger;
 use Doctrine\ORM\Event\PreUpdateEventArgs;
 use Doctrine\ORM\Events;
@@ -5289,7 +5290,7 @@ final class EngineTest extends KernelTestCase
         $settling = new SettlingWorkRequestRepository($doctrine, new PassMemo());
         $settling->settle = $this->settleJoinedWork;
         $opener = new WorkRequestOpener(
-            new OpenWorkRequestHandler($settling, $this->service(OutboxWriter::class), $this->em(), new MockClock('2026-10-02 12:00:00'), $this->service(Auditor::class), $this->service(WorkRequestAnnouncer::class), $this->service(WorkerRunRepository::class), new WorkSubjectHandlers([]), $this->service(WorkHolds::class)),
+            new OpenWorkRequestHandler($settling, $this->service(OutboxWriter::class), $this->em(), new MockClock('2026-10-02 12:00:00'), $this->service(Auditor::class), $this->service(WorkRequestAnnouncer::class), $this->service(WorkerRunRepository::class), new WorkSubjectHandlers([], new NoCardTitles()), $this->service(WorkHolds::class)),
             $this->service(CardRepository::class),
             new WorkRequestContexts($this->service(CardPullRequests::class), $this->service(CardPullRequestRepository::class), $this->service(EpicBranches::class)),
             $this->service(RetryNotes::class),
@@ -5335,7 +5336,7 @@ final class EngineTest extends KernelTestCase
             new BridgeWorkLedger(
                 $workRequests,
                 $this->service(WorkerRunRepository::class),
-                new WithdrawWorkRequestHandler($workRequests, $this->service(OutboxWriter::class), $this->em(), $clock, $auditor, $this->service(WorkRequestAnnouncer::class), new WorkSubjectHandlers([]), $this->service(WorkHolds::class)),
+                new WithdrawWorkRequestHandler($workRequests, $this->service(OutboxWriter::class), $this->em(), $clock, $auditor, $this->service(WorkRequestAnnouncer::class), new WorkSubjectHandlers([], new NoCardTitles()), $this->service(WorkHolds::class)),
                 $this->service(CardHolds::class),
                 $this->service(ProjectRepository::class),
                 $this->service(WorkTakers::class),

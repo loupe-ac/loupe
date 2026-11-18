@@ -113,3 +113,11 @@ description: "What to verify after a deploy, and what each check can and cannot 
    higher count means a release added a source, so the numbers here are owed an
    update. `tests/Module/Workflow/Service/FactSourceTablesTest.php` fails when a
    table that a workflow fact reads has no trigger.
+
+8. If a bridge runs against this instance, update its CLI. A bridge on a CLI
+   from before the run credential has no run identity, so its review runs fail
+   until it updates. Then check which OS user runs the workers. A worker runs as
+   the user of the bridge and can read that user's `loupe login` file. The run
+   credential does not stop a worker that reads the file on purpose. For a hard
+   boundary, run the workers as a separate OS user that cannot read the login
+   folder. [The bridge page](../extending/cli-bridge.md) has the details.

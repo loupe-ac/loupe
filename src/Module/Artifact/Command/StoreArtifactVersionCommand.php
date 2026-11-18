@@ -25,6 +25,8 @@ final readonly class StoreArtifactVersionCommand
         public ?string $card = null,
         /** What changed in this version. Blank stores none. */
         public ?string $notes = null,
+        /** True on the bridge route, which refuses a caller that holds a run credential as well as one that sends a worker header. */
+        public bool $refuseRunCredential = false,
     ) {
     }
 }

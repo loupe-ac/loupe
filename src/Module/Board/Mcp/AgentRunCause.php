@@ -5,32 +5,21 @@ declare(strict_types=1);
 namespace App\Module\Board\Mcp;
 
 use App\Module\Board\Entity\Card;
-use App\Module\Bridge\Repository\WorkerRunRepository;
+use App\Module\Bridge\Service\CallerRun;
 use App\Module\Workflow\Contract\CardEventCause;
-use Symfony\Component\HttpFoundation\RequestStack;
-use Symfony\Component\Uid\Uuid;
 
-/** The worker run behind an agent's MCP call, read from the session header that the `loupe` CLI sends. */
+/** The worker run behind an agent's MCP call, read from the run credential of the call. */
 final readonly class AgentRunCause
 {
-    public const string SESSION_HEADER = 'X-Loupe-Session';
-
     public function __construct(
-        private RequestStack $requests,
-        private WorkerRunRepository $workerRuns,
+        private CallerRun $callerRun,
     ) {
     }
 
-    /** Null when the call names no session, or a session with no run in the project of the card. */
+    /** Null when the call holds no run credential, or its run is not reported in the project of the card. */
     public function forCard(Card $card): ?CardEventCause
     {
-        $session = $this->requests->getCurrentRequest()?->headers->get(self::SESSION_HEADER);
-        if (null === $session || !Uuid::isValid($session)) {
-            return null;
-        }
-
-        $cardId = $card->id ?? throw new \LogicException('A persisted card has an id.');
-        $run = $this->workerRuns->findLikeliestOfSession($card->project, Uuid::fromString($session), $cardId);
+        $run = $this->callerRun->workerRun($card->project);
         if (null === $run) {
             return null;
         }
