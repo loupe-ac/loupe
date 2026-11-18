@@ -30,10 +30,17 @@ class WorkflowCardChangeRepository extends ServiceEntityRepository
         );
     }
 
-    /** @return int the cards that hold a mark */
+    /** @return int the open bound cards that hold a card mark or sit in a project that holds a project mark, so before the sweep expands the project marks */
     public function countMarked(): int
     {
-        return (int) $this->getEntityManager()->getConnection()->fetchOne('SELECT count(*) FROM workflow_card_changes');
+        return (int) $this->getEntityManager()->getConnection()->fetchOne(
+            'SELECT count(*) FROM board_cards c
+             JOIN board_columns col ON col.id = c.column_id
+             JOIN workflow_bindings b ON b.project_id = c.project_id
+             WHERE col.terminal = false
+               AND (c.id IN (SELECT card_id FROM workflow_card_changes)
+                    OR c.project_id IN (SELECT project_id FROM workflow_project_changes))',
+        );
     }
 
     public function isMarked(Uuid $cardId): bool

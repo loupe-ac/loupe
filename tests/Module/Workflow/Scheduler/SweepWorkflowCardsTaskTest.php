@@ -219,6 +219,24 @@ final class SweepWorkflowCardsTaskTest extends KernelTestCase
         self::assertSame(0, (int) $this->connection()->fetchOne('SELECT count(*) FROM workflow_project_changes'));
     }
 
+    public function test_the_marked_count_before_the_sweep_includes_the_cards_of_a_project_mark_once(): void
+    {
+        self::bootKernel();
+        $bound = $this->workflowProject('sweep-count-project');
+        $this->bindLifecycle($bound);
+        $one = $this->card($bound, 'next');
+        $this->card($bound, 'backlog');
+        $this->card($bound, 'done');
+        $otherProject = $this->workflowProject('sweep-count-other');
+        $this->bindLifecycle($otherProject);
+        $other = $this->card($otherProject, 'next');
+        $this->clearMarks();
+        $this->mark($one, $other);
+        $this->connection()->executeStatement('INSERT INTO workflow_project_changes (project_id, changed_at) VALUES (?, now())', [(string) $bound->id]);
+
+        self::assertSame(3, $this->service(WorkflowCardChangeRepository::class)->countMarked());
+    }
+
     public function test_with_the_flag_on_the_open_children_of_an_epic_are_always_queued(): void
     {
         self::bootKernel();
