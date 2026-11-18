@@ -1,6 +1,8 @@
 import { Controller } from '@hotwired/stimulus';
 import { track } from '../lib/analytics.js';
 
+/* stimulusFetch: 'lazy' */
+
 /**
  * Sits on the confirmation the server renders after an accepted waitlist
  * submit, and sends the join event once.

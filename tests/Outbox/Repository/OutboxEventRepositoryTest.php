@@ -271,6 +271,29 @@ final class OutboxEventRepositoryTest extends KernelTestCase
         );
     }
 
+    public function test_the_highest_sequence_for_an_owner_spans_their_projects_and_skips_others(): void
+    {
+        $first = $this->project('seq-a@example.com');
+        $owner = $first->owner;
+        $second = new Project($owner, 'outbox-second-'.bin2hex(random_bytes(4)));
+        $this->em->persist($second);
+        $this->event($first);
+        $mine = $this->event($second);
+        $this->em->flush();
+        $other = $this->project('seq-b@example.com');
+        $this->event($other);
+        $this->em->flush();
+
+        self::assertSame((int) $mine->sequence, $this->outboxEvents->highestSequenceForOwner($owner));
+    }
+
+    public function test_the_highest_sequence_is_zero_for_an_owner_with_no_rows(): void
+    {
+        $project = $this->project('seq-c@example.com');
+
+        self::assertSame(0, $this->outboxEvents->highestSequenceForOwner($project->owner));
+    }
+
     private function activity(Project $project, string $type, string $payload = '{}', string $createdAt = 'now'): OutboxEvent
     {
         $event = new OutboxEvent($project, $type, 'https://app/topic', $payload, new \DateTimeImmutable($createdAt));

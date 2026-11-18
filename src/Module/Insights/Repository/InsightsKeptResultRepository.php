@@ -7,6 +7,7 @@ namespace App\Module\Insights\Repository;
 use App\Module\Insights\Entity\InsightsKeptResult;
 use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\View\KeptResultRow;
+use App\Module\Insights\View\KeptResultStamp;
 use App\Module\Project\Entity\Project;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\ArrayParameterType;
@@ -63,6 +64,48 @@ class InsightsKeptResultRepository extends ServiceEntityRepository
         return false === $row ? null : $this->row($row);
     }
 
+    /**
+     * Like findForGraphs(), for a caller that reads only the hash and the time. The payload stays in the database.
+     *
+     * @param list<InsightsSavedGraph> $graphs
+     *
+     * @return array<string, KeptResultStamp> the stamps by graph id, for the graphs that have a row
+     */
+    public function findStampsForGraphs(array $graphs): array
+    {
+        if ([] === $graphs) {
+            return [];
+        }
+
+        $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
+            'SELECT saved_graph_id, settings_hash, computed_at FROM insights_kept_results WHERE saved_graph_id IN (:ids)',
+            ['ids' => array_map(static fn (InsightsSavedGraph $graph): string => (string) $graph->id, $graphs)],
+            ['ids' => ArrayParameterType::STRING],
+        );
+
+        $found = [];
+        foreach ($rows as $row) {
+            $found[(string) $row['saved_graph_id']] = $this->stamp($row);
+        }
+
+        return $found;
+    }
+
+    public function findStampForGraph(InsightsSavedGraph $graph): ?KeptResultStamp
+    {
+        return $this->findStampsForGraphs([$graph])[(string) $graph->id] ?? null;
+    }
+
+    public function findStampForExperiment(Project $project, string $experiment): ?KeptResultStamp
+    {
+        $row = $this->getEntityManager()->getConnection()->fetchAssociative(
+            'SELECT settings_hash, computed_at FROM insights_kept_results WHERE project_id = :project AND experiment = :experiment',
+            ['project' => $project->requireId()->toRfc4122(), 'experiment' => $experiment],
+        );
+
+        return false === $row ? null : $this->stamp($row);
+    }
+
     /** Replaces the row of a graph. The caller holds the compute lock of the graph, so the result is the newest one. */
     public function keepGraph(InsightsSavedGraph $graph, string $settingsHash, \DateTimeImmutable $computedAt, string $payload): void
     {
@@ -104,5 +147,11 @@ class InsightsKeptResultRepository extends ServiceEntityRepository
     private function row(array $row): KeptResultRow
     {
         return new KeptResultRow((string) $row['settings_hash'], new \DateTimeImmutable((string) $row['computed_at'], new \DateTimeZone('UTC')), (string) $row['payload']);
+    }
+
+    /** @param array<string, mixed> $row */
+    private function stamp(array $row): KeptResultStamp
+    {
+        return new KeptResultStamp((string) $row['settings_hash'], new \DateTimeImmutable((string) $row['computed_at'], new \DateTimeZone('UTC')));
     }
 }

@@ -92,7 +92,7 @@ final readonly class RefreshProjectInsightsHandler
     {
         $kept = [];
         $graphs = $this->insightsSavedGraphs->findActive($project);
-        $rows = InsightsDataKind::Sweep === $kind ? $this->insightsKeptResults->findForGraphs($graphs) : [];
+        $rows = InsightsDataKind::Sweep === $kind ? $this->insightsKeptResults->findStampsForGraphs($graphs) : [];
         $stale = $this->clock->now()->modify('-'.$this->settings->sweepIntervalMinutes().' minutes');
         $wanted = [];
         foreach ($graphs as $graph) {
@@ -160,7 +160,7 @@ final readonly class RefreshProjectInsightsHandler
         return array_values(array_filter(
             array_map(strval(...), $names),
             fn (string $name): bool => isset($links[$name]) && $links[$name]->enabled
-                && (InsightsDataKind::Sweep !== $kind || ($this->insightsKeptResults->findForExperiment($project, $name)->computedAt ?? new \DateTimeImmutable('@0')) < $stale),
+                && (InsightsDataKind::Sweep !== $kind || ($this->insightsKeptResults->findStampForExperiment($project, $name)->computedAt ?? new \DateTimeImmutable('@0')) < $stale),
         ));
     }
 }

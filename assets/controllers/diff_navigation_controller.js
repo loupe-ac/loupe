@@ -1,6 +1,8 @@
 import { Controller } from '@hotwired/stimulus';
 import { smoothScrollTo } from '../lib/smooth_scroll.js';
 
+/* stimulusFetch: 'lazy' */
+
 /**
  * Jumps a reviewer between the changed hunks of a version diff, by button or by
  * `j` / `k`. The shortcuts are document-level so they work wherever the reader

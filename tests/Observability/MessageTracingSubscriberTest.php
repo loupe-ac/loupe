@@ -22,6 +22,7 @@ use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Event\WorkerMessageFailedEvent;
 use Symfony\Component\Messenger\Event\WorkerMessageHandledEvent;
 use Symfony\Component\Messenger\Event\WorkerMessageReceivedEvent;
+use Symfony\Component\Scheduler\Messenger\ServiceCallMessage;
 use Ubermuda\FeatureFlagsBundle\FeatureFlagService;
 use Ubermuda\FeatureFlagsBundle\Reader\InMemoryFeatureFlagReader;
 
@@ -129,19 +130,21 @@ final class MessageTracingSubscriberTest extends TestCase
         self::assertNull($this->hub->getSpan());
     }
 
-    public function test_a_scheduler_message_starts_no_transaction(): void
+    public function test_a_scheduled_task_gets_a_transaction_named_after_its_service(): void
     {
-        $scheduled = new Envelope(new \stdClass());
+        $scheduled = new Envelope(new ServiceCallMessage(\App\Observability\Scheduler\ReportQueueDepthTask::class));
         $this->subscriber->onReceived(new WorkerMessageReceivedEvent($scheduled, 'scheduler_default'));
 
-        self::assertNull($this->hub->getSpan());
-        $this->subscriber->onHandled(new WorkerMessageHandledEvent($scheduled, 'scheduler_default'));
-        self::assertCount(0, $this->sent);
+        $span = $this->hub->getSpan();
+        self::assertInstanceOf(Transaction::class, $span);
+        self::assertSame('App\\Observability\\Scheduler\\ReportQueueDepthTask::__invoke', $span->getName());
+        self::assertSame(['messenger.receiver_name' => 'scheduler_default'], $span->getTags());
 
-        $queued = new Envelope(new \stdClass());
-        $this->subscriber->onReceived(new WorkerMessageReceivedEvent($queued, 'jobs'));
-        $this->subscriber->onHandled(new WorkerMessageHandledEvent($queued, 'jobs'));
-        self::assertCount(1, $this->sent);
+        $this->subscriber->onHandled(new WorkerMessageHandledEvent($scheduled, 'scheduler_default'));
+        self::assertSame(
+            'App\\Observability\\Scheduler\\ReportQueueDepthTask::__invoke',
+            $this->onlySent()->getTransaction(),
+        );
     }
 
     public function test_a_handled_event_for_another_message_finishes_nothing(): void

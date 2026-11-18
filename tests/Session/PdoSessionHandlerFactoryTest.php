@@ -81,8 +81,9 @@ final class PdoSessionHandlerFactoryTest extends TestCase
 
     private function factory(string $database, string $databaseUrl, string $sapi = 'cli'): PdoSessionHandlerFactory
     {
-        $connection = $this->createStub(Connection::class);
-        $connection->method('getDatabase')->willReturn($database);
+        $connection = $this->createMock(Connection::class);
+        $connection->method('getParams')->willReturn(['dbname' => $database]);
+        $connection->expects(self::never())->method('getDatabase');
 
         return new PdoSessionHandlerFactory($connection, $databaseUrl, new RequestStack(), new RequestTimeline($this->createStub(HubInterface::class)), $sapi);
     }

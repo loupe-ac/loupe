@@ -54,6 +54,7 @@ final class MoveCardFormType extends AbstractType
             ->add('parent', HiddenType::class, ['required' => false])
             ->add('beforeCardId', HiddenType::class, ['required' => false])
             ->add('afterCardId', HiddenType::class, ['required' => false])
+            ->add('origin', HiddenType::class, ['required' => false])
             ->add('unmanage', CheckboxType::class, ['required' => false, 'label' => false]);
     }
 

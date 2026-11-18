@@ -2,6 +2,7 @@ import { Controller } from '@hotwired/stimulus';
 import { renderStreamMessage } from '@hotwired/turbo';
 import { on } from '../lib/live.js';
 import {
+    /* stimulusFetch: 'lazy' */
     LiveFetcher,
     liveRequest,
     onLostAccess,

@@ -1,5 +1,7 @@
 import { Controller } from '@hotwired/stimulus';
 
+/* stimulusFetch: 'lazy' */
+
 /** A press must travel this far before it counts as a drag. */
 export const DRAG_THRESHOLD = 5;
 
