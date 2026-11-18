@@ -226,10 +226,13 @@ rules that fired, the rules that opened a work request, whether the markers
 changed, and the keys of the board and inbox markers that changed. It also names
 the changed rules and the markers whose stored time came before the check, because a clock can explain such a change. A time alone does not
 hide the change. When a writer marked the card after the check cleared its mark, that write can
-explain the change, because the check reads the mark after the card facts and the rule states,
-and the reads share no snapshot. The check then logs the info event
-`workflow.change_after_late_mark` with the same fields, and sends no error, so no
-alert fires. With a usable `SENTRY_DSN`, the error reaches Sentry.
+explain the change. The check reads the facts, the rule states and the mark under one
+repeatable-read snapshot, so it sees a late mark only when the writer committed before
+the snapshot began. A writer that commits during the check makes the check fail with a
+serialization failure, and the handler queues the check again on `card_sweep` and logs
+the info event `workflow.sweep_check_requeued`. When the check finds a change after a
+late mark, it logs the info event `workflow.change_after_late_mark` with the same
+fields, and sends no error, so no alert fires. With a usable `SENTRY_DSN`, the error reaches Sentry.
 
 The sweep every ten minutes also sends two gauges. With no usable `SENTRY_DSN`,
 it sends nothing.

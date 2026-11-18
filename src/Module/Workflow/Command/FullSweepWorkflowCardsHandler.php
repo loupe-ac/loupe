@@ -15,7 +15,8 @@ use Symfony\Component\Messenger\Transport\TransportInterface;
 
 /**
  * Queues a check of every open card, and reports each change that the marks missed.
- * It starts only when the last full sweep is older than the flag interval, and it waits while the previous sweep still waits.
+ * A scheduled sweep starts only when the last full sweep is older than the flag interval, and it waits while the previous sweep still waits.
+ * A forced sweep skips both rules and always queues its checks.
  * Answers how many checks it queued.
  */
 final readonly class FullSweepWorkflowCardsHandler
@@ -38,7 +39,7 @@ final readonly class FullSweepWorkflowCardsHandler
         if (!$command->force && !$this->due($now)) {
             return 0;
         }
-        if ($this->lowPriorityTransport instanceof MessageCountAwareInterface && $this->lowPriorityTransport->getMessageCount() > 0) {
+        if (!$command->force && $this->lowPriorityTransport instanceof MessageCountAwareInterface && $this->lowPriorityTransport->getMessageCount() > 0) {
             return 0;
         }
 

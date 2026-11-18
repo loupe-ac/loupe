@@ -69,6 +69,16 @@ final class FullSweepWorkflowCardsHandlerTest extends KernelTestCase
         self::assertSame(1, $this->handler()(new FullSweepWorkflowCardsCommand(force: true)));
     }
 
+    public function test_a_forced_sweep_queues_its_checks_while_the_queue_holds_messages(): void
+    {
+        $this->setUpProject();
+        $this->handler()(new FullSweepWorkflowCardsCommand(force: true));
+        self::assertCount(1, $this->sent());
+
+        self::assertSame(1, $this->handler()(new FullSweepWorkflowCardsCommand(force: true)));
+        self::assertCount(2, $this->sent());
+    }
+
     private function setUpProject(): void
     {
         self::bootKernel();
