@@ -12,6 +12,7 @@ use App\Module\Account\Entity\User;
 use App\Module\Artifact\Command\ArtifactFileInput;
 use App\Module\Artifact\Command\StoreArtifactVersionCommand;
 use App\Module\Artifact\Command\StoreArtifactVersionHandler;
+use App\Module\Bridge\Service\CallerRun;
 use App\Security\CredentialRateLimitKey;
 use OpenApi\Attributes as OA;
 use Symfony\Component\ExpressionLanguage\Expression;
@@ -60,7 +61,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 )]
 final class StoreArtifactVersionController extends AppController
 {
-    public const string SESSION_HEADER = 'X-Loupe-Session';
+    public const string SESSION_HEADER = CallerRun::SESSION_HEADER;
 
     public function __construct(
         private readonly StoreArtifactVersionHandler $storeVersion,
@@ -110,6 +111,7 @@ final class StoreArtifactVersionController extends AppController
                 files: $inputs,
                 card: $payload->card,
                 notes: $payload->notes,
+                refuseRunCredential: true,
             ));
         } catch (DomainErrors $error) {
             if (isset($error->errors['project'])) {

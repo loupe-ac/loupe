@@ -5,29 +5,21 @@ declare(strict_types=1);
 namespace App\Module\Board\Mcp;
 
 use App\Module\Board\Entity\CardSource;
-use App\Module\Bridge\Repository\WorkerRunRepository;
+use App\Module\Bridge\Service\CallerRun;
 use App\Module\Project\Entity\Project;
-use Symfony\Component\HttpFoundation\RequestStack;
-use Symfony\Component\Uid\Uuid;
 
-/** The worker run that created a card through the MCP, read from the session header that the `loupe` CLI sends. */
+/** The worker run that created a card through the MCP, read from the run credential of the call. */
 final readonly class AgentRunSource
 {
     public function __construct(
-        private RequestStack $requests,
-        private WorkerRunRepository $workerRuns,
+        private CallerRun $callerRun,
     ) {
     }
 
-    /** Null when the call names no session, or a session with no worker run in the project. */
+    /** Null when the call holds no run credential, or its run is not reported in the project. */
     public function forProject(Project $project): ?CardSource
     {
-        $session = $this->requests->getCurrentRequest()?->headers->get(AgentRunCause::SESSION_HEADER);
-        if (null === $session || !Uuid::isValid($session)) {
-            return null;
-        }
-
-        $run = $this->workerRuns->findWorkerOfSession($project, Uuid::fromString($session));
+        $run = $this->callerRun->workerRun($project);
         if (null === $run) {
             return null;
         }

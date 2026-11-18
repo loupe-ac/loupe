@@ -56,6 +56,20 @@ final class GrantedScopeTest extends TestCase
         self::assertTrue($granted->allProjects);
     }
 
+    public function test_the_worker_run_scope_needs_a_project_and_maps_to_its_role(): void
+    {
+        $granted = GrantedScope::fromScopes(['mcp', 'worker-run', 'project:'.self::PROJECT]);
+
+        self::assertNotNull($granted);
+        self::assertTrue($granted->allows(ApiScope::WorkerRun));
+        self::assertFalse($granted->allows(ApiScope::Public));
+        self::assertFalse($granted->allows(ApiScope::Agent));
+        self::assertSame(['ROLE_API_MCP', 'ROLE_API_WORKER_RUN'], $granted->roles());
+        self::assertNull(GrantedScope::fromScopes(['mcp', 'worker-run']));
+        self::assertNull(GrantedScope::fromScopes(['worker-run']));
+        self::assertNull(GrantedScope::fromScopes(['mcp', 'worker-run', 'projects']));
+    }
+
     public function test_the_projects_binding_covers_every_project_of_the_owner(): void
     {
         $granted = GrantedScope::fromScopes(['mcp', 'projects']);

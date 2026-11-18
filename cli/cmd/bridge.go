@@ -578,6 +578,9 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 			return err
 		}
 	}
+	if r.issueRunCredential == nil {
+		r.issueRunCredential = apiClient(cfg).IssueRunCredential
+	}
 	if r.workAPI == nil {
 		r.workAPI = apiClient(cfg)
 	}

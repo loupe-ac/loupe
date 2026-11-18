@@ -10,7 +10,6 @@ use App\Module\AgentReview\Entity\AgentReviewSeverity;
 use App\Module\AgentReview\Entity\DocumentAgentReview;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardDocument;
-use App\Module\Board\Mcp\AgentRunCause;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\ValueObject\WorkerRunState;
@@ -19,8 +18,6 @@ use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\DocumentStatus;
-use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Uid\Uuid;
 
 /** Persists and flushes, so a test reads the rows at once. Needs $this->em. */
@@ -42,6 +39,9 @@ trait DocumentReviewScenario
         return $document;
     }
 
+    /** @var array<string, WorkerRun> the newest run that workRun() made for each session */
+    private array $runsBySession = [];
+
     private function workRun(Project $project, Card $card, Uuid $sessionId, string $workKind, WorkerRunState $state = WorkerRunState::Running, ?WorkRequestState $requestState = null, ?string $role = null): WorkerRun
     {
         $requestId = Uuid::v7();
@@ -61,12 +61,14 @@ trait DocumentReviewScenario
             cardNumber: 1,
             workKind: $workKind,
             state: $state,
+            runKey: Uuid::v4(),
             sessionId: $sessionId,
             workRequestId: $requestId,
             role: $role,
         );
         $this->em->persist($run);
         $this->em->flush();
+        $this->runsBySession[(string) $sessionId] = $run;
 
         return $run;
     }
@@ -89,16 +91,5 @@ trait DocumentReviewScenario
         $this->em->flush();
 
         return $review;
-    }
-
-    private function sendSession(?Uuid $session): void
-    {
-        $request = Request::create('/mcp', Request::METHOD_POST);
-        if (null !== $session) {
-            $request->headers->set(AgentRunCause::SESSION_HEADER, (string) $session);
-        }
-        $requests = self::getContainer()->get(RequestStack::class);
-        self::assertInstanceOf(RequestStack::class, $requests);
-        $requests->push($request);
     }
 }

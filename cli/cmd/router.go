@@ -175,6 +175,9 @@ type router struct {
 	// reportRunUsage sends the usage of one run of a session. A nil one
 	// refuses each usage request.
 	reportRunUsage func(ctx context.Context, handle, sessionID, runID string, usage api.Usage) error
+	// issueRunCredential asks Loupe for the run token of one launch. A nil
+	// one, as in most tests, launches with no token.
+	issueRunCredential func(ctx context.Context, projectID, runKey, bridgeID, sessionID string) (string, error)
 	// startDir is the folder a session started in, and "" when this machine
 	// holds no transcript of it. A nil one asks the harness of the run.
 	startDir func(sessionID string) (string, error)
@@ -1179,6 +1182,12 @@ func (r *router) runAgent(p pending, began time.Time, beforeDir string) {
 		return
 	}
 	spec.env = env
+	if err := r.giveRunCredential(&spec, p); err != nil {
+		failed := workerResult{err: err, dir: beforeDir}
+		r.settle(p, endedRun{res: failed, began: began, elapsed: time.Since(began)})
+
+		return
+	}
 	res := r.worker.run(r.workerContext(), spec, onStart)
 	// A claude that never started made no run directory, so the files of the
 	// before command are what remains.
@@ -2058,4 +2067,25 @@ func headlineOf(h *rules.Headline) *api.ExperimentHeadline {
 	}
 
 	return out
+}
+
+// giveRunCredential mints the run token of this launch, for a start, a resume
+// and a wake alike. A server with no mint route launches the worker with no
+// token. Any other failure fails the launch.
+func (r *router) giveRunCredential(spec *workerSpec, p pending) error {
+	if r.issueRunCredential == nil || r.bridgeID == "" {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(r.workerContext(), cmp.Or(r.checkTimeout, readTimeout))
+	defer cancel()
+	token, err := r.issueRunCredential(ctx, p.event.ProjectID, p.runID, r.bridgeID, spec.sessionID)
+	if errors.Is(err, api.ErrRunCredentialUnsupported) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("get the run credential: %w", err)
+	}
+	spec.runToken, spec.runURL, spec.runProject = token, r.baseURL, p.event.ProjectID
+
+	return nil
 }

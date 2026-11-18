@@ -817,6 +817,46 @@ paths:
           $ref: '#/components/responses/E422InvalidRunIdValidationFailedSubjectRefused'
         '429':
           $ref: '#/components/responses/E429RateLimited'
+  /api/v1/bridge/projects/{handle}/worker-runs/{runId}/credential:
+    post:
+      operationId: issueWorkerRunCredential
+      summary: Issue the credential of a worker launch
+      tags:
+      - Worker runs
+      parameters:
+      - $ref: '#/components/parameters/Handle'
+      - $ref: '#/components/parameters/RunId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkerRunCredentialIssue'
+      responses:
+        '201':
+          description: The token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssuedToken'
+        '400':
+          $ref: '#/components/responses/E400InvalidJson'
+        '401':
+          $ref: '#/components/responses/E401Unauthorized'
+        '402':
+          $ref: '#/components/responses/E402SubscriptionRequired'
+        '403':
+          $ref: '#/components/responses/E403InsufficientScope'
+        '404':
+          $ref: '#/components/responses/E404ProjectNotFoundRouteNotFound'
+        '405':
+          $ref: '#/components/responses/E405MethodNotAllowed'
+        '415':
+          $ref: '#/components/responses/E415UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/E422InvalidRunIdValidationFailed'
+        '429':
+          $ref: '#/components/responses/E429RateLimited'
   /api/v1/bridge/projects/{handle}/worker-runs/{runId}/output:
     put:
       operationId: appendWorkerRunOutput
@@ -3361,6 +3401,18 @@ components:
           type: string
           format: uuid
           nullable: true
+    WorkerRunCredentialIssue:
+      type: object
+      required:
+      - bridgeId
+      - sessionId
+      properties:
+        bridgeId:
+          type: string
+          format: uuid
+        sessionId:
+          type: string
+          format: uuid
     IssuedToken:
       type: object
       required:

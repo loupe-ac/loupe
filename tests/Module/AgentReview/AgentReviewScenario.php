@@ -10,14 +10,54 @@ use App\Module\AgentReview\Entity\AgentReviewFinding;
 use App\Module\AgentReview\Entity\AgentReviewSeverity;
 use App\Module\AgentReview\Service\AgentReviewCheckPublisher;
 use App\Module\Board\Entity\Card;
+use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\Service\CallerRun;
+use App\Module\Bridge\ValueObject\WorkerRunKey;
 use App\Module\Forge\Entity\ForgePullRequest;
+use App\Module\OAuth\Scope\ApiScope;
 use App\Module\Project\Entity\Project;
+use App\Security\AuthenticatedCredential;
 use App\Tests\Module\Board\Mcp\BoardToolScenario;
+use App\Tests\Module\Bridge\Support\CallsAsWorkerRun;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\Uid\Uuid;
 
 /** Persists and does not flush, except makeProject(), so a test decides when the rows commit. */
 trait AgentReviewScenario
 {
     use BoardToolScenario;
+    use CallsAsWorkerRun;
+
+    /** Calls with the run credential of $run, bound to its project. The header names $headerSession when given. */
+    private function callAsRun(WorkerRun $run, ?Uuid $headerSession = null): WorkerRunKey
+    {
+        $bridgeId = $run->bridgeId ?? throw new \LogicException('A test run has a bridge.');
+        $runKey = $run->runKey ?? throw new \LogicException('A test run has a run key.');
+        $this->callWithCredential(new AuthenticatedCredential(
+            id: 'worker-run-'.$runKey->toRfc4122(),
+            roles: [ApiScope::Mcp->role(), ApiScope::WorkerRun->role()],
+            projectId: $run->project->id,
+            workerBridgeId: $bridgeId,
+            workerRunKey: $runKey,
+            workerSessionId: $run->sessionId,
+        ));
+        $this->sendHeader($headerSession ?? $run->sessionId);
+
+        return new WorkerRunKey($bridgeId, $runKey);
+    }
+
+    /** Pushes a request that carries the session header only. A header names no run. */
+    private function sendHeader(?Uuid $session): void
+    {
+        $request = Request::create('/mcp', Request::METHOD_POST);
+        if (null !== $session) {
+            $request->headers->set(CallerRun::SESSION_HEADER, (string) $session);
+        }
+        $requests = self::getContainer()->get(RequestStack::class);
+        self::assertInstanceOf(RequestStack::class, $requests);
+        $requests->push($request);
+    }
 
     private function card(Project $project, int $number = 1): Card
     {

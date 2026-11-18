@@ -212,6 +212,16 @@ final class OAuthAuthorizationFlowTest extends WebTestCase
         self::assertSame(0, $this->countRows('oauth2_authorization_code'));
     }
 
+    public function test_no_client_can_ask_for_the_worker_run_scope(): void
+    {
+        $this->browser->loginUser($this->user);
+        $this->browser->request(Request::METHOD_GET, $this->scenario->authorizeUrl('mcp worker-run'));
+
+        $query = OAuthScenario::redirectQuery(OAuthScenario::clientLocation($this->browser));
+        self::assertSame('invalid_scope', $query['error']);
+        self::assertSame(0, $this->countRows('oauth2_authorization_code'));
+    }
+
     public function test_a_client_cannot_request_a_project_scope_directly(): void
     {
         $this->browser->loginUser($this->user);

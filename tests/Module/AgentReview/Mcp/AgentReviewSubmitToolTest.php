@@ -15,12 +15,12 @@ use App\Module\AgentReview\Service\AgentReviewOverrideHistory;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Board\Entity\Forge;
-use App\Module\Board\Mcp\AgentRunCause;
 use App\Module\Board\Repository\CardPullRequestRepository;
 use App\Module\Board\Service\CardPullRequests;
 use App\Module\Board\Service\PullRequestUrlResolver;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Repository\WorkerRunRepository;
+use App\Module\Bridge\ValueObject\WorkerRunKey;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Forge\Entity\ForgePullRequest;
@@ -40,8 +40,6 @@ use Doctrine\ORM\EntityManagerInterface;
 use Mcp\Exception\ToolCallException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
-use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Uid\Uuid;
 use Ubermuda\AuditBundle\Auditor;
 
@@ -60,6 +58,7 @@ final class AgentReviewSubmitToolTest extends KernelTestCase
     private Card $card;
     private ForgePullRequest $pullRequest;
     private Uuid $sessionId;
+    private ?WorkerRun $lastRun = null;
 
     protected function setUp(): void
     {
@@ -83,7 +82,7 @@ final class AgentReviewSubmitToolTest extends KernelTestCase
     public function test_it_stores_a_failing_review_for_an_important_finding(): void
     {
         $run = $this->reviewRun();
-        $this->sendSession($this->sessionId);
+        $this->callAsSessionRun($this->sessionId);
 
         $result = $this->submit([$this->finding('important'), $this->finding('nit')]);
 
@@ -102,7 +101,7 @@ final class AgentReviewSubmitToolTest extends KernelTestCase
     public function test_the_role_of_the_run_decides_and_its_kind_does_not(): void
     {
         $this->reviewRun(workKind: 'my-own-review');
-        $this->sendSession($this->sessionId);
+        $this->callAsSessionRun($this->sessionId);
 
         self::assertSame('success', $this->submit([])['conclusion']);
     }
@@ -110,7 +109,7 @@ final class AgentReviewSubmitToolTest extends KernelTestCase
     public function test_a_run_of_the_review_kind_with_no_role_is_refused(): void
     {
         $this->reviewRun(role: null);
-        $this->sendSession($this->sessionId);
+        $this->callAsSessionRun($this->sessionId);
 
         $this->assertRefused(self::NO_RUN, fn () => $this->submit([]));
     }
@@ -141,7 +140,7 @@ final class AgentReviewSubmitToolTest extends KernelTestCase
         };
         $handler = $this->handler($evaluations);
 
-        $handler(new SubmitAgentReviewCommand($this->card, $this->sessionId, self::URL, str_repeat('a', 40), 'Nothing found.', []));
+        $handler(new SubmitAgentReviewCommand($this->card, $this->runKey(), self::URL, str_repeat('a', 40), 'Nothing found.', []));
 
         $evaluated = array_map(static fn (string|Uuid $id): string => (string) $id, $evaluations->cardIds);
         self::assertContains((string) $this->card->id, $evaluated);
@@ -157,7 +156,7 @@ final class AgentReviewSubmitToolTest extends KernelTestCase
         $this->em->flush();
         $reader = new FakePullRequestChangeFingerprintReader([new PullRequestChangeFingerprint('change-2', 'lines-2')], 'github');
 
-        $review = $this->handler(fingerprints: $reader)(new SubmitAgentReviewCommand($this->card, $this->sessionId, self::URL, str_repeat('a', 40), 'Nothing found.', []));
+        $review = $this->handler(fingerprints: $reader)(new SubmitAgentReviewCommand($this->card, $this->runKey(), self::URL, str_repeat('a', 40), 'Nothing found.', []));
 
         self::assertSame(['change-1', 'lines-1'], [$review->changeFingerprint, $review->linesFingerprint]);
         self::assertSame([], $reader->heads);
@@ -171,7 +170,7 @@ final class AgentReviewSubmitToolTest extends KernelTestCase
         $this->em->flush();
         $reader = new FakePullRequestChangeFingerprintReader([new PullRequestChangeFingerprint('change-2', 'lines-2')], 'github');
 
-        $review = $this->handler(fingerprints: $reader)(new SubmitAgentReviewCommand($this->card, $this->sessionId, self::URL, str_repeat('b', 40), 'Nothing found.', []));
+        $review = $this->handler(fingerprints: $reader)(new SubmitAgentReviewCommand($this->card, $this->runKey(), self::URL, str_repeat('b', 40), 'Nothing found.', []));
 
         self::assertSame(['change-2', 'lines-2'], [$review->changeFingerprint, $review->linesFingerprint]);
         self::assertSame([str_repeat('b', 40)], $reader->heads);
@@ -182,8 +181,8 @@ final class AgentReviewSubmitToolTest extends KernelTestCase
         $this->reviewRun();
         $this->em->flush();
 
-        $review = $this->handler()(new SubmitAgentReviewCommand($this->card, $this->sessionId, self::URL, str_repeat('b', 40), 'Nothing found.', []));
-        $failed = $this->handler(fingerprints: new FakePullRequestChangeFingerprintReader([null], 'github'))(new SubmitAgentReviewCommand($this->card, $this->sessionId, self::URL, str_repeat('b', 40), 'Nothing found.', []));
+        $review = $this->handler()(new SubmitAgentReviewCommand($this->card, $this->runKey(), self::URL, str_repeat('b', 40), 'Nothing found.', []));
+        $failed = $this->handler(fingerprints: new FakePullRequestChangeFingerprintReader([null], 'github'))(new SubmitAgentReviewCommand($this->card, $this->runKey(), self::URL, str_repeat('b', 40), 'Nothing found.', []));
 
         self::assertSame([null, null, null, null], [$review->changeFingerprint, $review->linesFingerprint, $failed->changeFingerprint, $failed->linesFingerprint]);
     }
@@ -191,7 +190,7 @@ final class AgentReviewSubmitToolTest extends KernelTestCase
     public function test_a_spec_finding_with_no_path_is_stored_and_fails_the_review(): void
     {
         $this->reviewRun();
-        $this->sendSession($this->sessionId);
+        $this->callAsSessionRun($this->sessionId);
 
         $result = $this->submit([['severity' => 'important', 'category' => 'spec', 'title' => 'Requirement not built', 'body' => 'The import has no size limit.']]);
 
@@ -204,7 +203,7 @@ final class AgentReviewSubmitToolTest extends KernelTestCase
     public function test_a_spec_finding_can_need_a_person(): void
     {
         $this->reviewRun();
-        $this->sendSession($this->sessionId);
+        $this->callAsSessionRun($this->sessionId);
 
         $result = $this->submit([['severity' => 'important', 'category' => 'spec', 'needsPerson' => true, 'title' => 'Unclear design', 'body' => 'The design contradicts itself.']]);
 
@@ -214,7 +213,7 @@ final class AgentReviewSubmitToolTest extends KernelTestCase
     public function test_a_finding_needs_no_person_when_the_marker_is_left_out(): void
     {
         $this->reviewRun();
-        $this->sendSession($this->sessionId);
+        $this->callAsSessionRun($this->sessionId);
 
         $result = $this->submit([['severity' => 'important', 'category' => 'spec', 'title' => 'Requirement not built', 'body' => 'No size limit.']]);
 
@@ -224,7 +223,7 @@ final class AgentReviewSubmitToolTest extends KernelTestCase
     public function test_nits_alone_pass_under_the_default_severities(): void
     {
         $this->reviewRun();
-        $this->sendSession($this->sessionId);
+        $this->callAsSessionRun($this->sessionId);
 
         self::assertSame('success', $this->submit([$this->finding('nit'), $this->finding('pre-existing')])['conclusion']);
     }
@@ -237,7 +236,7 @@ final class AgentReviewSubmitToolTest extends KernelTestCase
         $binding->definition = [...$binding->definition, 'agentReviewFailingSeverities' => ['important', 'nit']];
         $this->em->flush();
         $this->reviewRun();
-        $this->sendSession($this->sessionId);
+        $this->callAsSessionRun($this->sessionId);
 
         self::assertSame('failure', $this->submit([$this->finding('nit')])['conclusion']);
     }
@@ -245,7 +244,7 @@ final class AgentReviewSubmitToolTest extends KernelTestCase
     public function test_a_review_of_an_older_commit_is_stored_and_not_current(): void
     {
         $this->reviewRun();
-        $this->sendSession($this->sessionId);
+        $this->callAsSessionRun($this->sessionId);
 
         $result = $this->submit([], str_repeat('c', 40));
 
@@ -253,10 +252,80 @@ final class AgentReviewSubmitToolTest extends KernelTestCase
         self::assertSame(str_repeat('c', 40), $this->stored($result['reviewId'])->headSha);
     }
 
+    public function test_a_header_alone_files_no_review(): void
+    {
+        $this->reviewRun();
+        $this->actAsMcpTokenBoundTo($this->project);
+        $this->sendHeader($this->sessionId);
+
+        $this->assertRefused(self::NO_RUN, fn () => $this->submit([]));
+        $this->assertNoReview();
+    }
+
+    public function test_a_credential_without_a_run_and_a_header_files_no_review(): void
+    {
+        $this->reviewRun();
+        $this->sendHeader($this->sessionId);
+
+        $this->assertRefused(self::NO_RUN, fn () => $this->submit([]));
+        $this->assertNoReview();
+    }
+
+    public function test_the_credential_of_one_run_cannot_file_under_another_run_of_the_same_card_and_session(): void
+    {
+        $this->reviewRun(state: WorkerRunState::Succeeded);
+        $closed = $this->lastRun ?? throw new \LogicException('A run was made.');
+        $open = $this->reviewRun();
+        $this->callAsRun($closed);
+
+        $this->assertRefused(self::NO_RUN, fn () => $this->submit([]));
+        $this->assertNoReview();
+
+        $this->callAsRun($open);
+        $result = $this->submit([]);
+
+        self::assertTrue($open->id?->equals($this->stored($result['reviewId'])->workerRunId));
+    }
+
+    public function test_the_credential_of_a_run_of_another_card_cannot_file_under_a_run_of_this_card_of_the_same_session(): void
+    {
+        $this->reviewRun(cardId: Uuid::v7());
+        $elsewhere = $this->lastRun ?? throw new \LogicException('A run was made.');
+        $this->reviewRun();
+        $this->callAsRun($elsewhere);
+
+        $this->assertRefused(self::NO_RUN, fn () => $this->submit([]));
+        $this->assertNoReview();
+    }
+
+    public function test_a_resumed_run_of_the_same_session_files_only_under_its_own_run(): void
+    {
+        $first = $this->reviewRun(state: WorkerRunState::Succeeded);
+        $resumed = $this->reviewRun();
+        $this->callAsRun($resumed);
+
+        $result = $this->submit([]);
+
+        $review = $this->stored($result['reviewId']);
+        self::assertTrue($resumed->id?->equals($review->workerRunId));
+        self::assertFalse($first->id?->equals($review->workerRunId));
+    }
+
+    public function test_the_credential_wins_over_a_header_that_names_another_session(): void
+    {
+        $own = $this->reviewRun();
+        $this->reviewRun(sessionId: $other = Uuid::v4());
+        $this->callAsRun($own, $other);
+
+        $result = $this->submit([]);
+
+        self::assertTrue($own->id?->equals($this->stored($result['reviewId'])->workerRunId));
+    }
+
     public function test_a_call_with_no_session_is_refused(): void
     {
         $this->reviewRun();
-        $this->sendSession(null);
+        $this->callAsSessionRun(null);
 
         $this->assertRefused(self::NO_RUN, fn () => $this->submit([]));
     }
@@ -264,7 +333,7 @@ final class AgentReviewSubmitToolTest extends KernelTestCase
     public function test_a_run_of_another_card_is_refused(): void
     {
         $this->reviewRun(cardId: Uuid::v7());
-        $this->sendSession($this->sessionId);
+        $this->callAsSessionRun($this->sessionId);
 
         $this->assertRefused(self::NO_RUN, fn () => $this->submit([]));
     }
@@ -272,7 +341,7 @@ final class AgentReviewSubmitToolTest extends KernelTestCase
     public function test_a_run_of_other_work_is_refused(): void
     {
         $this->reviewRun(workKind: 'implement', role: null);
-        $this->sendSession($this->sessionId);
+        $this->callAsSessionRun($this->sessionId);
 
         $this->assertRefused(self::NO_RUN, fn () => $this->submit([]));
     }
@@ -280,7 +349,7 @@ final class AgentReviewSubmitToolTest extends KernelTestCase
     public function test_a_closed_run_is_refused(): void
     {
         $this->reviewRun(state: WorkerRunState::Succeeded);
-        $this->sendSession($this->sessionId);
+        $this->callAsSessionRun($this->sessionId);
 
         $this->assertRefused(self::NO_RUN, fn () => $this->submit([]));
     }
@@ -288,7 +357,7 @@ final class AgentReviewSubmitToolTest extends KernelTestCase
     public function test_a_pull_request_the_card_does_not_link_is_refused(): void
     {
         $this->reviewRun();
-        $this->sendSession($this->sessionId);
+        $this->callAsSessionRun($this->sessionId);
 
         $this->assertRefused('pullRequestUrl must name a pull request that the card links.', fn () => ($this->tool)((string) $this->card->id, 'https://github.com/acme/widgets/pull/8', str_repeat('a', 40), 'Fine.', []));
     }
@@ -297,7 +366,7 @@ final class AgentReviewSubmitToolTest extends KernelTestCase
     {
         $this->em->persist(new CardPullRequest($this->card, 'https://github.com/acme/widgets/pull/9', Forge::GitHub, 'acme/widgets', 9));
         $this->reviewRun();
-        $this->sendSession($this->sessionId);
+        $this->callAsSessionRun($this->sessionId);
 
         $this->assertRefused('Loupe has not read this pull request', fn () => ($this->tool)((string) $this->card->id, 'https://github.com/acme/widgets/pull/9', str_repeat('a', 40), 'Fine.', []));
     }
@@ -305,7 +374,7 @@ final class AgentReviewSubmitToolTest extends KernelTestCase
     public function test_a_short_sha_is_refused(): void
     {
         $this->reviewRun();
-        $this->sendSession($this->sessionId);
+        $this->callAsSessionRun($this->sessionId);
 
         $this->assertRefused('headSha must be the full commit SHA', fn () => $this->submit([], 'abc1234'));
     }
@@ -332,7 +401,7 @@ final class AgentReviewSubmitToolTest extends KernelTestCase
     public function test_a_bad_finding_is_refused(array $override, string $message): void
     {
         $this->reviewRun();
-        $this->sendSession($this->sessionId);
+        $this->callAsSessionRun($this->sessionId);
 
         $this->assertRefused($message, fn () => $this->submit([[...$this->finding('nit'), ...$override]]));
     }
@@ -340,7 +409,7 @@ final class AgentReviewSubmitToolTest extends KernelTestCase
     public function test_too_many_findings_are_refused(): void
     {
         $this->reviewRun();
-        $this->sendSession($this->sessionId);
+        $this->callAsSessionRun($this->sessionId);
 
         $this->assertRefused('at most 200 findings', fn () => $this->submit(array_fill(0, AgentReviewSubmitTool::MAX_FINDINGS + 1, $this->finding('nit'))));
         $reviews = self::getContainer()->get(AgentReviewRepository::class);
@@ -364,7 +433,7 @@ final class AgentReviewSubmitToolTest extends KernelTestCase
         return ['path' => 'src/Foo.php', 'startLine' => 3, 'endLine' => 5, 'severity' => $severity, 'title' => 'Null read', 'body' => 'The value can be null here.'];
     }
 
-    private function reviewRun(?Uuid $cardId = null, string $workKind = 'review', WorkerRunState $state = WorkerRunState::Running, ?string $role = 'code-review'): WorkerRun
+    private function reviewRun(?Uuid $cardId = null, string $workKind = 'review', WorkerRunState $state = WorkerRunState::Running, ?string $role = 'code-review', ?Uuid $sessionId = null): WorkerRun
     {
         $run = new WorkerRun(
             project: $this->project,
@@ -374,12 +443,14 @@ final class AgentReviewSubmitToolTest extends KernelTestCase
             cardNumber: 1,
             workKind: $workKind,
             state: $state,
-            sessionId: $this->sessionId,
+            runKey: Uuid::v4(),
+            sessionId: $sessionId ?? $this->sessionId,
             workRequestId: Uuid::v7(),
             role: $role,
         );
         $this->em->persist($run);
         $this->em->flush();
+        $this->lastRun = $run;
 
         return $run;
     }
@@ -403,15 +474,29 @@ final class AgentReviewSubmitToolTest extends KernelTestCase
         );
     }
 
-    private function sendSession(?Uuid $session): void
+    private function callAsSessionRun(?Uuid $session): void
     {
-        $request = Request::create('/mcp', Request::METHOD_POST);
-        if (null !== $session) {
-            $request->headers->set(AgentRunCause::SESSION_HEADER, (string) $session);
+        if (null === $session) {
+            $this->actAsMcpTokenBoundTo($this->project);
+            $this->sendHeader(null);
+
+            return;
         }
-        $requests = self::getContainer()->get(RequestStack::class);
-        self::assertInstanceOf(RequestStack::class, $requests);
-        $requests->push($request);
+        $this->callAsRun($this->lastRun ?? throw new \LogicException('No run was made.'), $session);
+    }
+
+    private function runKey(): ?WorkerRunKey
+    {
+        $run = $this->lastRun;
+
+        return null === $run ? null : new WorkerRunKey($run->bridgeId ?? throw new \LogicException('A test run has a bridge.'), $run->runKey ?? throw new \LogicException('A test run has a run key.'));
+    }
+
+    private function assertNoReview(): void
+    {
+        $reviews = self::getContainer()->get(AgentReviewRepository::class);
+        self::assertInstanceOf(AgentReviewRepository::class, $reviews);
+        self::assertSame(0, $reviews->count(['card' => $this->card]));
     }
 
     private function stored(string $reviewId): AgentReview

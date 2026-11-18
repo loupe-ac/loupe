@@ -27,9 +27,21 @@ type publicSession struct {
 
 // publicClient builds the client of a public command. A key in LOUPE_API_KEY
 // wins, goes to LOUPE_URL else the hosted instance, and touches no config file.
-// With no key, the stored login serves. Only the public commands call this, so
+// A run token of a bridge worker comes first, goes to LOUPE_URL alone, and
+// touches no config file either. With no key, the stored login serves. Only the public commands call this, so
 // the bridge and `loupe init` keep the login.
 func publicClient(_ *cobra.Command) (*publicSession, error) {
+	run, err := runCredentialFromEnv()
+	if err != nil {
+		return nil, err
+	}
+	if run != nil {
+		allowHTTP := config.AllowHTTPFromEnv()
+		hc := &http.Client{Timeout: publicWait, Transport: withUserAgent(nil, allowHTTP)}
+
+		return &publicSession{client: api.NewWithSource(run.baseURL, run.token, hc)}, nil
+	}
+
 	if key := strings.TrimSpace(os.Getenv(apiKeyEnv)); key != "" {
 		allowHTTP := config.AllowHTTPFromEnv()
 		baseURL, err := resolveBaseURL("", os.Getenv("LOUPE_URL"), allowHTTP)

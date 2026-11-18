@@ -6,16 +6,17 @@ namespace App\Tests\Module\Board\Mcp;
 
 use App\Module\Board\Entity\BoardColumn;
 use App\Module\Board\Entity\Card;
-use App\Module\Board\Mcp\AgentRunCause;
 use App\Module\Board\Mcp\CardCreateTool;
 use App\Module\Board\Mcp\CardPayload;
 use App\Module\Board\Mcp\CardUpdateTool;
 use App\Module\Board\Repository\CardLinkRepository;
 use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\Service\CallerRun;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Workflow\Contract\Actor;
 use App\Tests\Module\Board\CardMovedOutbox;
+use App\Tests\Module\Bridge\Support\CallsAsWorkerRun;
 use App\Tests\Support\McpTokenScenario;
 use Doctrine\ORM\EntityManagerInterface;
 use Mcp\Exception\ToolCallException;
@@ -31,6 +32,7 @@ use Symfony\Component\Uid\Uuid;
 final class CardUpdateToolTest extends KernelTestCase
 {
     use BoardToolScenario;
+    use CallsAsWorkerRun;
     use McpTokenScenario;
 
     private const string PULL_REQUEST = 'https://github.com/loupe-ac/loupe/pull/362';
@@ -139,13 +141,41 @@ final class CardUpdateToolTest extends KernelTestCase
         self::assertSame(Actor::Agent->value, $payload['actor'] ?? null);
     }
 
-    public function test_a_move_with_the_session_header_names_the_worker_run(): void
+    public function test_a_move_with_a_run_credential_names_the_worker_run(): void
     {
         $project = $this->makeProject('card-update-run-cause');
         $this->actAsMcpTokenBoundTo($project);
         $created = ($this->createTool)('Ship it', 'Body', 'feature');
+        $bridgeId = Uuid::v4();
+        $runKey = Uuid::v4();
         $sessionId = Uuid::v4();
         $run = new WorkerRun(
+            project: $project,
+            bridgeId: $bridgeId,
+            subjectType: WorkSubject::CARD,
+            subjectId: Uuid::fromString($created['cardId']),
+            cardNumber: $created['number'],
+            workKind: 'implement',
+            state: WorkerRunState::Running,
+            runKey: $runKey,
+            sessionId: $sessionId,
+        );
+        $this->em->persist($run);
+        $this->em->flush();
+        $this->callAsWorkerRun($bridgeId, $runKey, $sessionId, $project->id);
+
+        ($this->tool)($created['cardId'], status: 'next');
+
+        self::assertEquals(['type' => 'run', 'run' => (string) $run->id, 'kind' => 'implement'], $this->moveCause($created['cardId']));
+    }
+
+    public function test_a_move_with_a_session_header_alone_names_no_cause(): void
+    {
+        $project = $this->makeProject('card-update-header-cause');
+        $this->actAsMcpTokenBoundTo($project);
+        $created = ($this->createTool)('Ship it', 'Body', 'feature');
+        $sessionId = Uuid::v4();
+        $this->em->persist(new WorkerRun(
             project: $project,
             bridgeId: Uuid::v4(),
             subjectType: WorkSubject::CARD,
@@ -153,15 +183,15 @@ final class CardUpdateToolTest extends KernelTestCase
             cardNumber: $created['number'],
             workKind: 'implement',
             state: WorkerRunState::Running,
+            runKey: Uuid::v4(),
             sessionId: $sessionId,
-        );
-        $this->em->persist($run);
+        ));
         $this->em->flush();
         $this->pushMcpRequest((string) $sessionId);
 
         ($this->tool)($created['cardId'], status: 'next');
 
-        self::assertEquals(['type' => 'run', 'run' => (string) $run->id, 'kind' => 'implement'], $this->moveCause($created['cardId']));
+        self::assertNull($this->moveCause($created['cardId']));
     }
 
     public function test_a_move_without_the_session_header_names_no_cause(): void
@@ -414,13 +444,47 @@ final class CardUpdateToolTest extends KernelTestCase
         self::assertFalse(($this->tool)($created['cardId'], requiresHumanReview: false)['requiresHumanReview']);
     }
 
-    public function test_a_session_with_no_worker_run_may_turn_the_switch_off(): void
+    public function test_a_run_credential_whose_run_is_not_reported_cannot_turn_the_switch_off(): void
+    {
+        $created = $this->card('card-update-unreported-lowers');
+        ($this->tool)($created['cardId'], requiresHumanReview: true);
+        $project = ($this->em->find(Card::class, $created['cardId']) ?? throw new \LogicException('The card exists.'))->project;
+        $this->callAsWorkerRun(Uuid::v4(), Uuid::v4(), Uuid::v4(), $project->id);
+
+        try {
+            ($this->tool)($created['cardId'], requiresHumanReview: false);
+            self::fail('A worker lowered the switch before its run was reported.');
+        } catch (ToolCallException $e) {
+            self::assertSame(CardUpdateTool::WORKER_LOWER_REFUSAL, $e->getMessage());
+        }
+    }
+
+    public function test_a_session_header_that_names_a_worker_cannot_turn_the_switch_off(): void
     {
         $created = $this->card('card-update-session-lowers');
         ($this->tool)($created['cardId'], requiresHumanReview: true);
-        $this->pushMcpRequest((string) Uuid::v4());
+        $sessionId = Uuid::v4();
+        $project = ($this->em->find(Card::class, $created['cardId']) ?? throw new \LogicException('The card exists.'))->project;
+        $this->em->persist(new WorkerRun(
+            project: $project,
+            bridgeId: Uuid::v4(),
+            subjectType: WorkSubject::CARD,
+            subjectId: Uuid::fromString($created['cardId']),
+            cardNumber: $created['number'],
+            workKind: 'implement',
+            state: WorkerRunState::Running,
+            runKey: Uuid::v4(),
+            sessionId: $sessionId,
+        ));
+        $this->em->flush();
+        $this->pushMcpRequest((string) $sessionId);
 
-        self::assertFalse(($this->tool)($created['cardId'], requiresHumanReview: false)['requiresHumanReview']);
+        try {
+            ($this->tool)($created['cardId'], requiresHumanReview: false);
+            self::fail('A header based worker lowered the switch.');
+        } catch (ToolCallException $e) {
+            self::assertSame(CardUpdateTool::WORKER_LOWER_REFUSAL, $e->getMessage());
+        }
     }
 
     /** @return iterable<string, array{string}> */
@@ -508,27 +572,30 @@ final class CardUpdateToolTest extends KernelTestCase
     /** @param CardSummary $card */
     private function workerSession(array $card): void
     {
+        $bridgeId = Uuid::v4();
+        $runKey = Uuid::v4();
         $sessionId = Uuid::v4();
         $project = ($this->em->find(Card::class, $card['cardId']) ?? throw new \LogicException('The card exists.'))->project;
         $this->em->persist(new WorkerRun(
             project: $project,
-            bridgeId: Uuid::v4(),
+            bridgeId: $bridgeId,
             subjectType: WorkSubject::CARD,
             subjectId: Uuid::fromString($card['cardId']),
             cardNumber: $card['number'],
             workKind: 'implement',
             state: WorkerRunState::Running,
+            runKey: $runKey,
             sessionId: $sessionId,
         ));
         $this->em->flush();
-        $this->pushMcpRequest((string) $sessionId);
+        $this->callAsWorkerRun($bridgeId, $runKey, $sessionId, $project->id);
     }
 
     private function pushMcpRequest(?string $session): void
     {
         $request = Request::create('/mcp', Request::METHOD_POST);
         if (null !== $session) {
-            $request->headers->set(AgentRunCause::SESSION_HEADER, $session);
+            $request->headers->set(CallerRun::SESSION_HEADER, $session);
         }
 
         $requests = self::getContainer()->get(RequestStack::class);

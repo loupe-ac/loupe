@@ -1915,6 +1915,154 @@
                 }
             }
         },
+        "/api/v1/bridge/projects/{handle}/worker-runs/{runId}/credential": {
+            "post": {
+                "tags": [
+                    "Worker runs"
+                ],
+                "summary": "Issue the credential of a worker launch",
+                "operationId": "issueWorkerRunCredential",
+                "parameters": [
+                    {
+                        "name": "handle",
+                        "in": "path",
+                        "description": "A project id or a project slug.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "[^/]+"
+                        }
+                    },
+                    {
+                        "name": "runId",
+                        "in": "path",
+                        "description": "The key the bridge gave the run. A value that is not a uuid answers 422 `invalid_run_id`.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "[^/]+"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/IssueWorkerRunCredentialRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "The token.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/IssuedToken"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Refused: `invalid_json`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Refused: `invalid_credentials`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Refused: `subscription_required`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Refused: `credential_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Refused: `project_not_found`, `route_not_found`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "405": {
+                        "description": "Refused: `method_not_allowed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "415": {
+                        "description": "Refused: `unsupported_media_type`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Refused: `invalid_run_id`, `validation_failed`.",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Refused: `rate_limited`.",
+                        "headers": {
+                            "Retry-After": {
+                                "$ref": "#/components/headers/Retry-After"
+                            }
+                        },
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problem"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/bridge/card-holds": {
             "get": {
                 "tags": [
@@ -15047,6 +15195,25 @@
                         "description": "True when the work of the session ended well. Any other value answers 422 `invalid_finished`.",
                         "type": "boolean",
                         "default": false
+                    }
+                },
+                "type": "object"
+            },
+            "IssueWorkerRunCredentialRequest": {
+                "properties": {
+                    "bridgeId": {
+                        "description": "The id of the bridge that launches the worker.",
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "sessionId": {
+                        "description": "The id of the session the worker runs in.",
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true,
+                        "default": null
                     }
                 },
                 "type": "object"

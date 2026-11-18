@@ -225,6 +225,58 @@ final class ApiAccessControlTest extends KernelTestCase
         }
     }
 
+    /** The run token holds the worker-run and mcp scopes and no public scope, so a grant must name worker-run itself. */
+    public function test_the_worker_run_scope_reaches_the_artifact_uploads_and_the_card_read_and_no_other_route(): void
+    {
+        $run = ['ROLE_USER', 'ROLE_API_MCP', 'ROLE_API_WORKER_RUN'];
+        $artifact = '0198a3c4-0000-7000-8000-000000000001';
+
+        self::assertTrue($this->decide('/api/v1/projects/my-project/artifacts', $run, Request::METHOD_POST));
+        self::assertTrue($this->decide('/api/v1/projects/my-project/artifacts/'.$artifact.'/versions', $run, Request::METHOD_POST));
+        self::assertTrue($this->decide('/api/v1/projects/my-project/cards/12', $run, Request::METHOD_GET));
+
+        foreach ([
+            [Request::METHOD_GET, '/api/v1/projects'],
+            [Request::METHOD_GET, '/api/v1/projects/my-project'],
+            [Request::METHOD_GET, '/api/v1/projects/my-project/artifacts'],
+            [Request::METHOD_GET, '/api/v1/projects/my-project/artifacts/'.$artifact],
+            [Request::METHOD_PATCH, '/api/v1/projects/my-project/artifacts/'.$artifact],
+            [Request::METHOD_GET, '/api/v1/projects/my-project/artifacts/'.$artifact.'/files/index.html'],
+            [Request::METHOD_PUT, '/api/v1/projects/my-project/artifacts'],
+            [Request::METHOD_DELETE, '/api/v1/projects/my-project/artifacts/'.$artifact.'/versions'],
+            [Request::METHOD_GET, '/api/v1/projects/my-project/cards'],
+            [Request::METHOD_POST, '/api/v1/projects/my-project/cards'],
+            [Request::METHOD_POST, '/api/v1/projects/my-project/cards/12'],
+            [Request::METHOD_PATCH, '/api/v1/projects/my-project/cards/12'],
+            [Request::METHOD_GET, '/api/v1/projects/my-project/cards/12/events'],
+            [Request::METHOD_GET, '/api/v1/projects/my-project/cards/0'],
+            [Request::METHOD_GET, '/api/v1/projects/my-project/cards/1234567890'],
+            [Request::METHOD_GET, '/api/v1/projects/my-project/documents'],
+            [Request::METHOD_POST, '/api/v1/projects/my-project/documents/'.$artifact.'/verdicts'],
+            [Request::METHOD_GET, '/api/v1/projects/my-project/inbox/items'],
+            [Request::METHOD_POST, '/api/v1/projects/my-project/inbox/items/'.$artifact.'/actions'],
+            [Request::METHOD_POST, '/api/v1/bridge/projects/my-project/preview-tokens'],
+            [Request::METHOD_DELETE, '/api/v1/bridge/projects/my-project/preview-tokens/pr-12'],
+            [Request::METHOD_POST, '/api/v1/bridge/projects/my-project/worker-runs/'.$artifact.'/credential'],
+            [Request::METHOD_GET, '/api/v1/bridge/projects'],
+            [Request::METHOD_GET, '/api/v1/live-review-widget/review'],
+        ] as [$method, $path]) {
+            self::assertFalse($this->decide($path, $run, $method), $method.' '.$path);
+        }
+    }
+
+    public function test_the_public_scope_keeps_every_route_the_worker_run_grant_names(): void
+    {
+        $public = ['ROLE_USER', 'ROLE_API_PUBLIC'];
+        $artifact = '0198a3c4-0000-7000-8000-000000000001';
+
+        self::assertTrue($this->decide('/api/v1/projects/my-project/artifacts', $public, Request::METHOD_POST));
+        self::assertTrue($this->decide('/api/v1/projects/my-project/artifacts', $public, Request::METHOD_GET));
+        self::assertTrue($this->decide('/api/v1/projects/my-project/artifacts/'.$artifact.'/versions', $public, Request::METHOD_POST));
+        self::assertTrue($this->decide('/api/v1/projects/my-project/cards/12', $public, Request::METHOD_GET));
+        self::assertTrue($this->decide('/api/v1/projects/my-project/cards/12', $public, Request::METHOD_PATCH));
+    }
+
     public function test_the_site_review_scope_reaches_the_private_widget_prefix_and_no_other_scope_does(): void
     {
         self::assertTrue($this->decide('/api/v1/live-review-widget/review', ['ROLE_USER', 'ROLE_API_SITE_REVIEW']));
@@ -268,6 +320,7 @@ final class ApiAccessControlTest extends KernelTestCase
             '/api/v1/bridge/interactive-sessions/{sessionId}/card-run',
             '/api/v1/bridge/projects/{handle}/worker-runs/{runId}',
             '/api/v1/bridge/projects/{handle}/worker-runs/sessions/{sessionId}/usage',
+            '/api/v1/bridge/projects/{handle}/worker-runs/{runId}/credential',
             '/api/v1/bridge/projects/{handle}/worker-runs/{runId}/tool-calls',
             '/api/v1/bridge/projects/{handle}/worker-runs/sessions/{sessionId}/wake',
             '/api/v1/bridge/projects/{handle}/worker-runs/{runId}/output',
@@ -431,7 +484,7 @@ final class ApiAccessControlTest extends KernelTestCase
      *
      * @param list<string> $roles
      */
-    private function decide(string $path, array $roles): bool
+    private function decide(string $path, array $roles, string $method = Request::METHOD_GET): bool
     {
         // security.access_map has no interface alias in the container, so it is
         // fetched by service id; the decision manager does, and is fetched by
@@ -441,7 +494,7 @@ final class ApiAccessControlTest extends KernelTestCase
         self::assertInstanceOf(AccessMapInterface::class, $accessMap);
         $decisionManager = $container->get(AccessDecisionManagerInterface::class);
 
-        $request = Request::create('https://loupe.test'.$path);
+        $request = Request::create('https://loupe.test'.$path, $method);
         [$attributes] = $accessMap->getPatterns($request);
         self::assertNotNull($attributes, sprintf('No access_control rule matches %s.', $path));
 
