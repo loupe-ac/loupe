@@ -459,7 +459,7 @@ final class CardUpdateToolTest extends KernelTestCase
         }
     }
 
-    public function test_a_session_header_alone_does_not_make_a_worker_so_it_may_turn_the_switch_off(): void
+    public function test_a_session_header_that_names_a_worker_cannot_turn_the_switch_off(): void
     {
         $created = $this->card('card-update-session-lowers');
         ($this->tool)($created['cardId'], requiresHumanReview: true);
@@ -479,7 +479,12 @@ final class CardUpdateToolTest extends KernelTestCase
         $this->em->flush();
         $this->pushMcpRequest((string) $sessionId);
 
-        self::assertFalse(($this->tool)($created['cardId'], requiresHumanReview: false)['requiresHumanReview']);
+        try {
+            ($this->tool)($created['cardId'], requiresHumanReview: false);
+            self::fail('A header based worker lowered the switch.');
+        } catch (ToolCallException $e) {
+            self::assertSame(CardUpdateTool::WORKER_LOWER_REFUSAL, $e->getMessage());
+        }
     }
 
     /** @return iterable<string, array{string}> */

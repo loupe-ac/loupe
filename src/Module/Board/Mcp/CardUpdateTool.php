@@ -88,7 +88,7 @@ final readonly class CardUpdateTool
                 array_filter(['beforeCard' => $beforeCard, 'afterCard' => $afterCard], static fn (int|string|null $reference): bool => null !== $reference),
             ));
             $column = $this->subjects->optionalColumn($card->project, $status);
-            $workerSession = null !== $this->callerRun->workerRunKey();
+            $workerSession = $this->callerRun->isWorker($card->project);
             if (false === $requiresHumanReview && $card->requiresHumanReview && $workerSession) {
                 throw new ToolCallException(self::WORKER_LOWER_REFUSAL);
             }
