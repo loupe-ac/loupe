@@ -24,13 +24,13 @@ final readonly class InitInstallWaits
     public function mark(string $sessionId, string $projectId): void
     {
         $this->cache->save(
-            $this->cache->getItem(self::key($sessionId))->set($projectId)->expiresAfter(self::LIFETIME_SECONDS),
+            $this->cache->getItem(self::key($sessionId, $projectId))->set($projectId)->expiresAfter(self::LIFETIME_SECONDS),
         );
     }
 
-    public function clear(string $sessionId): void
+    public function clear(string $sessionId, string $projectId): void
     {
-        $this->cache->deleteItem(self::key($sessionId));
+        $this->cache->deleteItem(self::key($sessionId, $projectId));
     }
 
     public function isWaiting(?string $sessionId, string $projectId): bool
@@ -39,13 +39,13 @@ final readonly class InitInstallWaits
             return false;
         }
 
-        $item = $this->cache->getItem(self::key($sessionId));
+        $item = $this->cache->getItem(self::key($sessionId, $projectId));
 
         return $item->isHit() && $item->get() === $projectId;
     }
 
-    public static function key(string $sessionId): string
+    public static function key(string $sessionId, string $projectId): string
     {
-        return 'init_wait.'.strtolower($sessionId);
+        return 'init_wait.'.strtolower($projectId).'.'.strtolower($sessionId);
     }
 }

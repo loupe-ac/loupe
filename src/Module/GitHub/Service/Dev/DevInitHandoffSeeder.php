@@ -42,9 +42,10 @@ final readonly class DevInitHandoffSeeder implements DevSeederInterface
     #[\Override]
     public function seed(SeedContext $context): void
     {
+        $projectId = (string) DevProjectSeeder::lifecycleProjectId();
         $this->cache->save(
-            $this->cache->getItem(InitInstallWaits::key(self::SESSION_ID))
-                ->set((string) DevProjectSeeder::lifecycleProjectId())
+            $this->cache->getItem(InitInstallWaits::key(self::SESSION_ID, $projectId))
+                ->set($projectId)
                 ->expiresAfter(null),
         );
     }

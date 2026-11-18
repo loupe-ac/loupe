@@ -43,7 +43,7 @@ use Ubermuda\FeatureFlagsBundle\FeatureFlagService;
     new OA\Response(response: 404, description: 'Refused: `project_not_found`, `route_not_found`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
     new OA\Response(response: 405, description: 'Refused: `method_not_allowed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
     new OA\Response(response: 415, description: 'Refused: `unsupported_media_type`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
-    new OA\Response(response: 422, description: 'Refused: `invalid_session_id`, `validation_failed`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
+    new OA\Response(response: 422, description: 'Refused: `invalid_session_id`, `validation_failed`, `unknown_subject_type`, `subject_not_found`, `work_request_not_found`.', content: new OA\MediaType(mediaType: 'application/problem+json', schema: new OA\Schema(ref: '#/components/schemas/Problem'))),
     new RateLimitedResponse(),
 ])]
 #[Route(
@@ -97,7 +97,7 @@ final class ReportInteractiveLaunchController extends AppController
         ));
 
         if (null === $result->run) {
-            throw ApiProblemException::refused(ReportInteractiveLaunchResult::UNKNOWN_SUBJECT_TYPE === $result->error ? JsonResponse::HTTP_UNPROCESSABLE_ENTITY : JsonResponse::HTTP_NOT_FOUND, $result->error, 'The interactive launch was refused.');
+            throw ApiProblemException::refused(ReportInteractiveLaunchResult::PROJECT_NOT_FOUND === $result->error ? JsonResponse::HTTP_NOT_FOUND : JsonResponse::HTTP_UNPROCESSABLE_ENTITY, $result->error, 'The interactive launch was refused.');
         }
 
         return $this->json(

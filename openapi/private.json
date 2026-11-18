@@ -2552,7 +2552,7 @@
                         }
                     },
                     "422": {
-                        "description": "Refused: `invalid_session_id`, `validation_failed`.",
+                        "description": "Refused: `invalid_session_id`, `validation_failed`, `unknown_subject_type`, `subject_not_found`, `work_request_not_found`.",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -3167,7 +3167,7 @@
                         }
                     },
                     "422": {
-                        "description": "Refused: `invalid_run_id`, `validation_failed`.",
+                        "description": "Refused: `invalid_run_id`, `validation_failed`, `unknown_subject_type`, `subject_not_found`, `work_request_not_found`.",
                         "content": {
                             "application/problem+json": {
                                 "schema": {

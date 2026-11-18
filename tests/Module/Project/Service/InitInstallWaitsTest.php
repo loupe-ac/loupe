@@ -33,7 +33,7 @@ final class InitInstallWaitsTest extends TestCase
         $project = (string) Uuid::v4();
         $waits->mark($session, $project);
 
-        $waits->clear($session);
+        $waits->clear($session, $project);
 
         self::assertFalse($waits->isWaiting($session, $project));
     }

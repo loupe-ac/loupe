@@ -27,7 +27,7 @@ final readonly class ClearInitInstallWaitOnWorkerRunChanged
     {
         foreach ($this->workerRuns->findByIds($event->runIds) as $run) {
             if (InitRuns::WORK_KIND === $run->workKind && WorkSubject::PROJECT === $run->subjectType && !$run->state->isOpen() && null !== $run->sessionId) {
-                $this->installWaits->clear($run->sessionId->toRfc4122());
+                $this->installWaits->clear($run->sessionId->toRfc4122(), $run->project->requireId()->toRfc4122());
             }
         }
     }

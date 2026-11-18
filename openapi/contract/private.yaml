@@ -657,7 +657,7 @@ paths:
         '415':
           $ref: '#/components/responses/E415UnsupportedMediaType'
         '422':
-          $ref: '#/components/responses/E422InvalidSessionIdValidationFailed'
+          $ref: '#/components/responses/E422InvalidSessionIdValidationFailedSubjectRefused'
         '429':
           $ref: '#/components/responses/E429RateLimited'
   /api/v1/bridge/projects/{handle}/preview-tokens:
@@ -814,7 +814,7 @@ paths:
         '415':
           $ref: '#/components/responses/E415UnsupportedMediaType'
         '422':
-          $ref: '#/components/responses/E422InvalidRunIdValidationFailed'
+          $ref: '#/components/responses/E422InvalidRunIdValidationFailedSubjectRefused'
         '429':
           $ref: '#/components/responses/E429RateLimited'
   /api/v1/bridge/projects/{handle}/worker-runs/{runId}/credential:
@@ -4446,6 +4446,27 @@ components:
         title: Invalid run id
         status: 422
         code: invalid_run_id
+    UnknownSubjectType:
+      summary: unknown_subject_type
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#unknown_subject_type
+        title: Unknown subject type
+        status: 422
+        code: unknown_subject_type
+    SubjectNotFound:
+      summary: subject_not_found
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#subject_not_found
+        title: Subject not found
+        status: 422
+        code: subject_not_found
+    WorkRequestNotHeld:
+      summary: work_request_not_found
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#work_request_not_found
+        title: Work request not found
+        status: 422
+        code: work_request_not_found
     RunNotFound:
       summary: run_not_found
       value:
@@ -5015,6 +5036,44 @@ components:
               $ref: '#/components/examples/ProcessCountMismatch'
             ambiguous_start_order:
               $ref: '#/components/examples/AmbiguousStartOrder'
+    E422InvalidRunIdValidationFailedSubjectRefused:
+      description: 'Refused: `invalid_run_id`, `validation_failed`, `unknown_subject_type`, `subject_not_found`, `work_request_not_found`.'
+      content:
+        application/problem+json:
+          schema:
+            anyOf:
+            - $ref: '#/components/schemas/Problem'
+            - $ref: '#/components/schemas/ValidationProblem'
+          examples:
+            invalid_run_id:
+              $ref: '#/components/examples/InvalidRunId'
+            validation_failed:
+              $ref: '#/components/examples/ValidationFailed'
+            unknown_subject_type:
+              $ref: '#/components/examples/UnknownSubjectType'
+            subject_not_found:
+              $ref: '#/components/examples/SubjectNotFound'
+            work_request_not_found:
+              $ref: '#/components/examples/WorkRequestNotHeld'
+    E422InvalidSessionIdValidationFailedSubjectRefused:
+      description: 'Refused: `invalid_session_id`, `validation_failed`, `unknown_subject_type`, `subject_not_found`, `work_request_not_found`.'
+      content:
+        application/problem+json:
+          schema:
+            anyOf:
+            - $ref: '#/components/schemas/Problem'
+            - $ref: '#/components/schemas/ValidationProblem'
+          examples:
+            invalid_session_id:
+              $ref: '#/components/examples/InvalidSessionId'
+            validation_failed:
+              $ref: '#/components/examples/ValidationFailed'
+            unknown_subject_type:
+              $ref: '#/components/examples/UnknownSubjectType'
+            subject_not_found:
+              $ref: '#/components/examples/SubjectNotFound'
+            work_request_not_found:
+              $ref: '#/components/examples/WorkRequestNotHeld'
     E422InvalidSessionIdInvalidRunIdValidationFailed:
       description: 'Refused: `invalid_session_id`, `invalid_run_id`, `validation_failed`.'
       content:

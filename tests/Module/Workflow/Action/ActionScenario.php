@@ -48,6 +48,7 @@ use App\Outbox\OutboxWriter;
 use App\Tests\Module\Workflow\Template\AppRulesTest;
 use App\Tests\Module\Workflow\Template\TemplateParserTest;
 use App\Tests\Module\Workflow\WorkflowProjects;
+use App\Tests\Support\NoCardTitles;
 use Symfony\Component\Clock\MockClock;
 use Ubermuda\AuditBundle\Auditor;
 
@@ -86,7 +87,7 @@ trait ActionScenario
             $this->service(Auditor::class),
             $this->service(WorkRequestAnnouncer::class),
             $this->service(WorkerRunRepository::class),
-            new WorkSubjectHandlers([]),
+            new WorkSubjectHandlers([], new NoCardTitles()),
             $this->service(WorkHolds::class),
         );
     }

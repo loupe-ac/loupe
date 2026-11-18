@@ -13,6 +13,8 @@ final readonly class ReportInteractiveLaunchResult
     public const string UNKNOWN_SUBJECT_TYPE = 'unknown_subject_type';
     public const string SUBJECT_NOT_FOUND = 'subject_not_found';
 
+    public const string WORK_REQUEST_NOT_FOUND = 'work_request_not_found';
+
     public function __construct(
         public ?WorkerRun $run,
         public bool $created,
