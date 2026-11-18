@@ -17,13 +17,23 @@ class WorkflowCardChangeRepository extends ServiceEntityRepository
         parent::__construct($registry, WorkflowCardChange::class);
     }
 
-    /** One statement, so it joins a caller's transaction. */
-    public function clear(Uuid $cardId): void
+    /**
+     * One statement, so it joins a caller's transaction.
+     *
+     * @return bool whether the card held a mark
+     */
+    public function clear(Uuid $cardId): bool
     {
-        $this->getEntityManager()->getConnection()->executeStatement(
+        return 0 < $this->getEntityManager()->getConnection()->executeStatement(
             'DELETE FROM workflow_card_changes WHERE card_id = :card',
             ['card' => $cardId->toRfc4122()],
         );
+    }
+
+    /** @return int the cards that hold a mark */
+    public function countMarked(): int
+    {
+        return (int) $this->getEntityManager()->getConnection()->fetchOne('SELECT count(*) FROM workflow_card_changes');
     }
 
     public function isMarked(Uuid $cardId): bool

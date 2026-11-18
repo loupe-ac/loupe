@@ -20,6 +20,7 @@ use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Event\PostLoadEventArgs;
 use Doctrine\ORM\Events;
+use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\EventDispatcher\EventDispatcher;
@@ -132,6 +133,8 @@ final class MergeQueuedEvaluationsTest extends KernelTestCase
             $this->service(WorkflowQueuedEvaluationRepository::class),
             $this->service(WorkflowCardChangeRepository::class),
             new EventDispatcher(),
+            $this->service(MessageBusInterface::class),
+            new NullLogger(),
         );
     }
 

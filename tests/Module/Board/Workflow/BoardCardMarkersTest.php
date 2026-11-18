@@ -121,6 +121,26 @@ final class BoardCardMarkersTest extends KernelTestCase
         self::assertNull($card->markersDueAt);
     }
 
+    public function test_a_write_names_the_keys_of_the_markers_that_differ(): void
+    {
+        $card = $this->storedCard();
+        $at = new \DateTimeImmutable('2026-10-01 11:00:00');
+        $stay = new StoredMarker('stays', MarkerKind::Chip, 'marker.stays', null, [], $at);
+        $paused = new StoredMarker('paused', MarkerKind::Stuck, 'marker.paused', null, [], $at);
+        $inboxOnly = new StoredMarker('waits', MarkerKind::NeedsYou, 'marker.waits', null, [], $at, null, new MarkerSubject(MarkerSubjectType::Card, ['card' => '0198f6f0-0000-7000-8000-000000000001']));
+        $store = $this->store();
+        $projectId = $card->project->id ?? throw new \LogicException('A flushed project has an id.');
+        $cardId = $card->id ?? throw new \LogicException('A flushed card has an id.');
+
+        $first = $store->write($projectId, $cardId, [$stay, $paused], [$inboxOnly], null);
+        self::assertSame([], $store->write($projectId, $cardId, [$stay, $paused], [$inboxOnly], null)->keys);
+        $second = $store->write($projectId, $cardId, [$stay], [], null);
+
+        self::assertEqualsCanonicalizing(['stays', 'paused', 'waits'], $first->keys);
+        self::assertEqualsCanonicalizing(['paused', 'waits'], $second->keys);
+        self::assertTrue($second->changed);
+    }
+
     public function test_a_changed_set_tells_the_board_again(): void
     {
         $card = $this->storedCard();

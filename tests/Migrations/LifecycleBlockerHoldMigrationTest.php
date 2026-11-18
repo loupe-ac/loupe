@@ -30,6 +30,7 @@ use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\EventDispatcher\EventDispatcher;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 require_once __DIR__.'/../../migrations/Version20261101015534.php';
 
@@ -128,7 +129,7 @@ final class LifecycleBlockerHoldMigrationTest extends KernelTestCase
     /** Reads the card again, because the engine stores what it writes. */
     private function evaluate(Card $card): Card
     {
-        $handler = new EvaluateCardHandler(new EvaluateWorkflowCardHandler($this->service(Engine::class), new MockClock('2026-10-02 12:00:00')), $this->service(WorkflowQueuedEvaluationRepository::class), $this->service(WorkflowCardChangeRepository::class), new EventDispatcher());
+        $handler = new EvaluateCardHandler(new EvaluateWorkflowCardHandler($this->service(Engine::class), new MockClock('2026-10-02 12:00:00')), $this->service(WorkflowQueuedEvaluationRepository::class), $this->service(WorkflowCardChangeRepository::class), new EventDispatcher(), $this->service(MessageBusInterface::class), new NullLogger());
         $handler(new EvaluateCard((string) $card->id));
         $this->em()->flush();
         $this->em()->clear();

@@ -47,7 +47,9 @@ final readonly class MarkerPass
             $dueAt = $this->due($run, $dueAt);
         }
 
-        $this->store->write($run->card->projectId, $run->card->id, $markers, $inbox, $dueAt);
+        $write = $this->store->write($run->card->projectId, $run->card->id, $markers, $inbox, $dueAt);
+        $run->markersChanged = $write->changed;
+        $run->markerKeys = $write->keys;
     }
 
     /**

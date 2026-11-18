@@ -19,6 +19,8 @@ final readonly class CardSnapshot
         public ?int $parentNumber,
         public ?ColumnRef $parentColumn,
         public bool $arrivedInSession = false,
+        /** When a timed condition of the markers changes next, as stored before the pass. */
+        public ?\DateTimeImmutable $markersDueAt = null,
     ) {
     }
 }

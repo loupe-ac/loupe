@@ -36,8 +36,24 @@ class WorkflowRuleStateRepository extends ServiceEntityRepository
     {
         $this->getEntityManager()->getConnection()->executeStatement(
             'SELECT pg_advisory_xact_lock(hashtext(?))',
-            ['workflow_card:'.$cardId->toRfc4122()],
+            [self::cardLockKey($cardId)],
         );
+    }
+
+    /** The lock of lockCard() until unlockCardSession(). A session that holds it also gets the transaction lock at once. */
+    public function lockCardSession(Uuid $cardId): void
+    {
+        $this->getEntityManager()->getConnection()->executeStatement('SELECT pg_advisory_lock(hashtext(?))', [self::cardLockKey($cardId)]);
+    }
+
+    public function unlockCardSession(Uuid $cardId): void
+    {
+        $this->getEntityManager()->getConnection()->executeStatement('SELECT pg_advisory_unlock(hashtext(?))', [self::cardLockKey($cardId)]);
+    }
+
+    private static function cardLockKey(Uuid $cardId): string
+    {
+        return 'workflow_card:'.$cardId->toRfc4122();
     }
 
     /**

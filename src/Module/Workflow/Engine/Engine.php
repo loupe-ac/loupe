@@ -40,6 +40,7 @@ use App\Module\Workflow\Contract\WorkState;
 use App\Module\Workflow\Contract\WorkView;
 use App\Module\Workflow\Entity\WorkflowRuleState;
 use App\Module\Workflow\Event\CardPaused;
+use App\Module\Workflow\Repository\WorkflowCardChangeRepository;
 use App\Module\Workflow\Repository\WorkflowPendingBaselineRepository;
 use App\Module\Workflow\Repository\WorkflowRuleStateRepository;
 use App\Module\Workflow\Service\ActionContexts;
@@ -51,6 +52,7 @@ use App\Module\Workflow\Template\TemplateMissing;
 use App\Module\Workflow\Template\TemplateSource;
 use App\Module\Workflow\Template\WorkFailurePolicy;
 use App\Observability\HandledMessage;
+use Doctrine\DBAL\TransactionIsolationLevel;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
@@ -109,6 +111,7 @@ final readonly class Engine
         private LoggerInterface $logger,
         private HandledMessage $handled,
         private ClockInterface $clock,
+        private WorkflowCardChangeRepository $workflowCardChanges,
     ) {
         /** @var \ArrayObject<string, bool> $running */
         $running = new \ArrayObject();
@@ -119,7 +122,7 @@ final readonly class Engine
      * A sync transport runs an evaluation that an action starts inside the pass of the same card, where it reads none
      * of the rows the pass has not flushed. That call only asks for one more pass, which runs after this one commits.
      */
-    public function evaluate(Uuid $cardId, \DateTimeImmutable $now): void
+    public function evaluate(Uuid $cardId, \DateTimeImmutable $now, bool $reportMiss = false): void
     {
         $key = $cardId->toRfc4122();
         if ($this->running->offsetExists($key)) {
@@ -130,7 +133,7 @@ final readonly class Engine
 
         $this->running[$key] = false;
         try {
-            $this->evaluateOnce($cardId, $now);
+            $this->evaluateOnce($cardId, $now, $reportMiss);
             $again = $this->running[$key];
         } finally {
             unset($this->running[$key]);
@@ -140,11 +143,16 @@ final readonly class Engine
         }
     }
 
-    private function evaluateOnce(Uuid $cardId, \DateTimeImmutable $now): void
+    private function evaluateOnce(Uuid $cardId, \DateTimeImmutable $now, bool $reportMiss): void
     {
-        $run = $this->em->wrapInTransaction(fn (): ?Evaluation => $this->evaluateLocked($cardId, $now));
+        $run = $reportMiss
+            ? $this->sweepCheck($cardId, $now)
+            : $this->em->wrapInTransaction(fn (): ?Evaluation => $this->evaluateLocked($cardId, $now, false));
         if (null === $run) {
             return;
+        }
+        if ($reportMiss && !$run->baselined) {
+            $this->reportMiss($run);
         }
         if ($run->holdChanged) {
             $this->events->dispatch(new BlockerHoldChanged($run->card->projectId, $cardId));
@@ -169,6 +177,60 @@ final readonly class Engine
         }
     }
 
+    /**
+     * Every read of a sweep check sees one snapshot, so the mark it reads explains each fact it reads. A writer that commits during the check
+     * makes the first write of the check that touches the same row fail with a serialization failure. The snapshot starts after the session
+     * lock, because a snapshot taken while the check waits for the card lock would not see the pass it waited for.
+     */
+    private function sweepCheck(Uuid $cardId, \DateTimeImmutable $now): ?Evaluation
+    {
+        $connection = $this->em->getConnection();
+        $this->workflowRuleStates->lockCardSession($cardId);
+        try {
+            $previous = $connection->getTransactionIsolation();
+            // It sets the next transaction, so an open transaction of a caller keeps its own level.
+            $connection->setTransactionIsolation(TransactionIsolationLevel::REPEATABLE_READ);
+            try {
+                return $this->em->wrapInTransaction(fn (): ?Evaluation => $this->evaluateLocked($cardId, $now, true));
+            } finally {
+                $connection->setTransactionIsolation($previous);
+            }
+        } finally {
+            $this->workflowRuleStates->unlockCardSession($cardId);
+        }
+    }
+
+    /**
+     * A check that a full sweep queued for a card with no mark found a change, so the marks missed it.
+     * A time that came before the pass can explain a change, but it does not prove it, so the log carries those times
+     * beside the change. A writer that marked the card after the check cleared it can explain the change it made, and
+     * the pass cannot tell that change from an earlier one, so the report drops to an info event with no alert.
+     */
+    private function reportMiss(Evaluation $run): void
+    {
+        if ([] === $run->changedRules && !$run->markersChanged) {
+            return;
+        }
+
+        $context = [
+            'cardId' => $run->card->id->toRfc4122(),
+            'rules' => array_keys($run->changedRules),
+            'dueRules' => array_keys(array_intersect_key($run->dueRules, $run->changedRules)),
+            'fired' => array_map(static fn (array $fired): string => $fired['rule'], $run->fired),
+            'opened' => $run->opened,
+            'markersChanged' => $run->markersChanged,
+            'markerKeys' => $run->markerKeys,
+            'markersDue' => $run->markersDue,
+        ];
+        if ($run->markedAfterClear) {
+            $this->logger->info('workflow.change_after_late_mark', $context);
+
+            return;
+        }
+
+        $this->logger->error('workflow.change_missed', $context);
+    }
+
     /** The delay from the card event that queued the check to each work request the pass opened. */
     private function measureRequestLatency(Evaluation $run): void
     {
@@ -188,7 +250,7 @@ final readonly class Engine
         }
     }
 
-    private function evaluateLocked(Uuid $cardId, \DateTimeImmutable $now): ?Evaluation
+    private function evaluateLocked(Uuid $cardId, \DateTimeImmutable $now, bool $reportMiss): ?Evaluation
     {
         // Advisory, because an outbox insert takes a key-share lock on the project row,
         // and a FOR UPDATE on that row would deadlock against a claim or a settle.
@@ -217,11 +279,22 @@ final readonly class Engine
             return null;
         }
 
-        $run = new Evaluation($card, $project, $template, $this->facts($card, $now), $automated ? $this->workflowRuleStates->findForCard($cardId) : [], $now);
+        $facts = $this->facts($card, $now);
+        $states = $automated ? $this->workflowRuleStates->findForCard($cardId) : [];
+        // A sweep check reads its snapshot, so this mark agrees with every fact the check reads, the rebuild of runMarkers() too.
+        $markedAfterClear = $reportMiss && $this->workflowCardChanges->isMarked($cardId);
+        $run = new Evaluation($card, $project, $template, $facts, $states, $now);
+        $run->markedAfterClear = $markedAfterClear;
+        $run->markersDue = null !== $run->card->markersDueAt && $run->card->markersDueAt <= $run->now;
         if (!$automated) {
             $this->markers->run($run);
 
             return $run;
+        }
+        foreach ($run->states as $state) {
+            if (null !== $state->dueAt && $state->dueAt <= $run->now) {
+                $run->dueRules[$state->ruleId] = true;
+            }
         }
         $this->logMissingProviders($run);
         $this->logMissingActions($run);
@@ -1120,6 +1193,7 @@ final readonly class Engine
         if (self::snapshot($state) !== $before) {
             $state->updatedAt = $run->now;
             $run->factsStale = true;
+            $run->changedRules[$state->ruleId] = true;
         }
         if ($heldBefore !== (null !== $state->heldByBlockerSince)) {
             $run->holdChanged = true;

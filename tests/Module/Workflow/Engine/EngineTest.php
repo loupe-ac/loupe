@@ -150,6 +150,7 @@ use Doctrine\Persistence\ManagerRegistry;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LogLevel;
+use Psr\Log\NullLogger;
 use Sentry\ClientBuilder;
 use Sentry\Metrics\Types\Metric;
 use Sentry\SentrySdk;
@@ -231,6 +232,131 @@ final class EngineTest extends KernelTestCase
         $state = $this->ruleState($card, 'work');
         self::assertTrue($state->truth);
         self::assertSame(1, $state->fires);
+    }
+
+    public function test_a_check_that_a_full_sweep_queued_reports_the_change_it_finds_as_a_miss(): void
+    {
+        $card = $this->boundCard([self::requestRule('work', self::ALWAYS)]);
+        $this->clearMark($card);
+
+        $this->engine()->evaluate($card->id ?? throw new \LogicException('A flushed card has an id.'), new \DateTimeImmutable(self::NOON), reportMiss: true);
+
+        $misses = $this->missRecords();
+        self::assertCount(1, $misses);
+        self::assertSame('error', $misses[0]['level']);
+        self::assertSame($card->id->toRfc4122(), $misses[0]['context']['cardId']);
+        self::assertContains('work', $misses[0]['context']['rules']);
+        self::assertSame(['work'], $misses[0]['context']['fired']);
+    }
+
+    public function test_a_check_that_a_full_sweep_queued_reports_nothing_when_it_finds_no_change(): void
+    {
+        $card = $this->boundCard([self::requestRule('work', self::ALWAYS)]);
+        $this->evaluate($card);
+        $this->logger->records = [];
+        $this->clearMark($card);
+
+        $this->engine()->evaluate($card->id ?? throw new \LogicException('A flushed card has an id.'), new \DateTimeImmutable('2026-10-02 12:05:00'), reportMiss: true);
+
+        self::assertSame([], $this->missRecords());
+    }
+
+    public function test_a_passed_due_time_still_reports_the_change_and_names_the_due_rule(): void
+    {
+        $card = $this->boundCard([self::requestRule('timed', self::ALWAYS), self::requestRule('other', self::ALWAYS)]);
+        $this->evaluate($card);
+        $timed = $this->ruleState($card, 'timed');
+        $timed->truth = false;
+        $timed->dueAt = new \DateTimeImmutable('2026-10-02 12:01:00');
+        $this->ruleState($card, 'other')->truth = false;
+        $this->em()->flush();
+        $this->logger->records = [];
+        $this->clearMark($card);
+
+        $this->engine()->evaluate($card->id ?? throw new \LogicException('A flushed card has an id.'), new \DateTimeImmutable('2026-10-02 12:05:00'), reportMiss: true);
+
+        $misses = $this->missRecords();
+        self::assertCount(1, $misses);
+        self::assertEqualsCanonicalizing(['timed', 'other'], $misses[0]['context']['rules']);
+        self::assertSame(['timed'], $misses[0]['context']['dueRules']);
+    }
+
+    public function test_a_marker_change_is_reported_when_a_rule_of_the_card_is_due(): void
+    {
+        $card = $this->boundCard([self::requestRule('timed', self::ALWAYS)]);
+        $this->evaluate($card);
+        $this->ruleState($card, 'timed')->dueAt = new \DateTimeImmutable('2026-10-02 12:01:00');
+        $card->inboxMarkers = null;
+        $this->em()->flush();
+        $this->logger->records = [];
+        $this->clearMark($card);
+
+        $this->engine()->evaluate($card->id ?? throw new \LogicException('A flushed card has an id.'), new \DateTimeImmutable('2026-10-02 12:05:00'), reportMiss: true);
+
+        $context = $this->missRecords()[0]['context'] ?? null;
+        self::assertNotNull($context);
+        self::assertTrue($context['markersChanged']);
+        self::assertIsList($context['markerKeys']);
+        self::assertFalse($context['markersDue']);
+    }
+
+    public function test_the_stored_marker_time_of_a_held_card_is_read_before_the_marker_pass(): void
+    {
+        $card = $this->boundCard([self::requestRule('work', self::ALWAYS)]);
+        $this->evaluate($card);
+        $this->hold($card);
+        $card->markersDueAt = new \DateTimeImmutable('2026-10-02 12:01:00');
+        $card->inboxMarkers = null;
+        $this->em()->flush();
+        $this->logger->records = [];
+        $this->clearMark($card);
+
+        $this->engine()->evaluate($card->id ?? throw new \LogicException('A flushed card has an id.'), new \DateTimeImmutable('2026-10-02 12:05:00'), reportMiss: true);
+
+        $context = $this->missRecords()[0]['context'] ?? null;
+        self::assertNotNull($context);
+        self::assertTrue($context['markersChanged']);
+        self::assertTrue($context['markersDue']);
+    }
+
+    public function test_a_writer_that_marked_the_card_after_the_clear_raises_no_miss_error(): void
+    {
+        $card = $this->boundCard([self::requestRule('work', self::ALWAYS)]);
+        self::assertTrue($this->service(WorkflowCardChangeRepository::class)->isMarked($card->id ?? throw new \LogicException('A flushed card has an id.')), 'Creating the card marked it.');
+
+        $this->engine()->evaluate($card->id, new \DateTimeImmutable(self::NOON), reportMiss: true);
+
+        self::assertSame([], $this->missRecords());
+        $late = array_values(array_filter($this->logger->records, static fn (array $record): bool => 'workflow.change_after_late_mark' === $record['message']));
+        self::assertCount(1, $late);
+        self::assertSame('info', $late[0]['level']);
+        self::assertContains('work', $late[0]['context']['rules']);
+    }
+
+    public function test_a_mark_that_lands_during_the_fact_read_raises_no_miss_error(): void
+    {
+        $card = $this->boundCard([self::requestRule('work', self::ALWAYS)]);
+        $cardId = $card->id ?? throw new \LogicException('A flushed card has an id.');
+        $this->clearMark($card);
+        $connection = $this->em()->getConnection();
+        $this->provider()->onBuild = static function () use ($connection, $cardId): void {
+            $connection->executeStatement('INSERT INTO workflow_card_changes (card_id, changed_at) VALUES (:card, LOCALTIMESTAMP(0)) ON CONFLICT (card_id) DO NOTHING', ['card' => $cardId->toRfc4122()]);
+        };
+
+        $this->engine()->evaluate($cardId, new \DateTimeImmutable(self::NOON), reportMiss: true);
+
+        self::assertSame([], $this->missRecords());
+        $late = array_values(array_filter($this->logger->records, static fn (array $record): bool => 'workflow.change_after_late_mark' === $record['message']));
+        self::assertCount(1, $late);
+    }
+
+    public function test_an_ordinary_check_reports_no_miss_for_the_same_change(): void
+    {
+        $card = $this->boundCard([self::requestRule('work', self::ALWAYS)]);
+
+        $this->evaluate($card);
+
+        self::assertSame([], $this->missRecords());
     }
 
     public function test_a_request_the_pass_opens_sends_the_delay_from_the_card_event(): void
@@ -4284,7 +4410,7 @@ final class EngineTest extends KernelTestCase
 
         $this->service(CardEvaluations::class)->forCards([$card->id ?? throw new \LogicException('A flushed card has an id.')], 'test');
 
-        $handler = new EvaluateCardHandler(new EvaluateWorkflowCardHandler($this->service(Engine::class), new MockClock(self::NOON)), $this->service(WorkflowQueuedEvaluationRepository::class), $this->service(WorkflowCardChangeRepository::class), new EventDispatcher());
+        $handler = new EvaluateCardHandler(new EvaluateWorkflowCardHandler($this->service(Engine::class), new MockClock(self::NOON)), $this->service(WorkflowQueuedEvaluationRepository::class), $this->service(WorkflowCardChangeRepository::class), new EventDispatcher(), $this->service(MessageBusInterface::class), new NullLogger());
         $evaluations = 0;
         foreach ($transport->getSent() as $envelope) {
             $message = $envelope->getMessage();
@@ -5089,6 +5215,12 @@ final class EngineTest extends KernelTestCase
         return ['listed-test' => ['label' => $label]];
     }
 
+    /** @return list<array{level: mixed, message: string, context: array<mixed>}> */
+    private function missRecords(): array
+    {
+        return array_values(array_filter($this->logger->records, static fn (array $record): bool => 'workflow.change_missed' === $record['message']));
+    }
+
     /** @return list<array<string, mixed>> */
     private function firedRecords(): array
     {
@@ -5222,6 +5354,7 @@ final class EngineTest extends KernelTestCase
             $this->logger,
             $this->handled,
             $clock,
+            $this->service(WorkflowCardChangeRepository::class),
         );
     }
 
@@ -5405,6 +5538,11 @@ final class EngineTest extends KernelTestCase
         $this->em()->flush();
 
         return $request;
+    }
+
+    private function clearMark(Card $card): void
+    {
+        $this->service(WorkflowCardChangeRepository::class)->clear($card->id ?? throw new \LogicException('A flushed card has an id.'));
     }
 
     private function hold(Card $card): void

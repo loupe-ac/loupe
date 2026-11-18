@@ -10,10 +10,14 @@ use App\Module\Workflow\Messenger\EvaluateCard;
 use App\Module\Workflow\Repository\WorkflowBindingRepository;
 use App\Module\Workflow\Scheduler\SweepWorkflowCardsTask;
 use App\Module\Workflow\Service\EvaluationTrigger;
+use App\Module\Workflow\Service\WorkflowSweepMetrics;
+use App\Module\Workflow\Service\WorkflowSweepRecord;
+use App\Service\BuildIdentity;
 use App\Tests\Module\Workflow\Action\ActionScenario;
 use App\Tests\Support\RecordingLogger;
 use App\Tests\Support\ScheduledTasks;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 use Symfony\Component\Messenger\Transport\Receiver\MessageCountAwareInterface;
@@ -22,6 +26,20 @@ use Symfony\Component\Messenger\Transport\TransportInterface;
 final class SweepWorkflowCardsTaskTest extends KernelTestCase
 {
     use ActionScenario;
+
+    private ?string $projectDir = null;
+
+    #[\Override]
+    protected function tearDown(): void
+    {
+        if (null !== $this->projectDir) {
+            @unlink($this->projectDir.'/var/build-version');
+            @rmdir($this->projectDir.'/var');
+            @rmdir($this->projectDir);
+            $this->projectDir = null;
+        }
+        parent::tearDown();
+    }
 
     public function test_the_task_is_registered_on_the_default_schedule_every_ten_minutes(): void
     {
@@ -95,6 +113,56 @@ final class SweepWorkflowCardsTaskTest extends KernelTestCase
         self::assertSame(0, $logger->records[0]['context']['cards']);
     }
 
+    public function test_the_first_sweep_under_a_new_build_is_the_deploy_pass_and_the_next_is_not(): void
+    {
+        self::bootKernel();
+        $this->service(WorkflowSweepRecord::class)->recordBuild('old-build');
+        $this->buildVersion('new-build');
+        $bound = $this->workflowProject('sweep-deploy');
+        $this->bindLifecycle($bound);
+        $this->card($bound, 'next');
+        $this->transport()->reset();
+
+        $this->task(new RecordingLogger())();
+        $first = $this->sentMessages();
+        $this->transport()->reset();
+        $this->task(new RecordingLogger())();
+        $second = $this->sentMessages();
+
+        self::assertNotSame([], $first);
+        self::assertContainsOnlyInstancesOf(EvaluateCard::class, $first);
+        self::assertSame([true], array_values(array_unique(array_map(static fn (EvaluateCard $message): bool => $message->fullSweep, $first))));
+        self::assertSame([false], array_values(array_unique(array_map(static fn (EvaluateCard $message): bool => $message->fullSweep, $second))));
+        self::assertSame('new-build', $this->service(WorkflowSweepRecord::class)->build());
+        self::assertNotNull($this->service(WorkflowSweepRecord::class)->lastFullAt());
+    }
+
+    public function test_a_build_with_no_version_file_never_runs_the_deploy_pass(): void
+    {
+        self::bootKernel();
+        $bound = $this->workflowProject('sweep-noversion');
+        $this->bindLifecycle($bound);
+        $this->card($bound, 'next');
+        $this->transport()->reset();
+
+        $this->task(new RecordingLogger())();
+
+        self::assertSame([false], array_values(array_unique(array_map(static fn (EvaluateCard $message): bool => $message->fullSweep, $this->sentMessages()))));
+    }
+
+    private function buildVersion(string $version): void
+    {
+        $this->projectDir = sys_get_temp_dir().'/loupe-build-'.bin2hex(random_bytes(4));
+        mkdir($this->projectDir.'/var', 0o777, true);
+        file_put_contents($this->projectDir.'/var/build-version', $version);
+    }
+
+    /** @return list<EvaluateCard> */
+    private function sentMessages(): array
+    {
+        return array_values(array_filter(array_map(static fn ($envelope): object => $envelope->getMessage(), $this->transport()->getSent()), static fn (object $message): bool => $message instanceof EvaluateCard));
+    }
+
     private function task(RecordingLogger $logger, ?int $waiting = null): SweepWorkflowCardsTask
     {
         $transport = null === $waiting ? $this->transport() : new readonly class($waiting) implements TransportInterface, MessageCountAwareInterface {
@@ -131,8 +199,12 @@ final class SweepWorkflowCardsTaskTest extends KernelTestCase
             new SweepWorkflowCardsHandler(
                 $this->service(WorkflowBindingRepository::class),
                 $this->service(EvaluationTrigger::class),
+                $this->service(WorkflowSweepRecord::class),
+                new BuildIdentity($this->projectDir ?? '/nonexistent'),
+                new MockClock('2026-11-17 04:00:00'),
                 $transport,
             ),
+            $this->service(WorkflowSweepMetrics::class),
             $logger,
         );
     }

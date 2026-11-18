@@ -24,9 +24,11 @@ use App\Module\Workflow\Repository\WorkflowCardChangeRepository;
 use App\Module\Workflow\Repository\WorkflowQueuedEvaluationRepository;
 use App\Tests\Module\Workflow\Action\ActionScenario;
 use App\Tests\Support\EpicBranchesExist;
+use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\EventDispatcher\EventDispatcher;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 /** Drives the real column handlers, then runs the evaluations they queued through the engine of a Lifecycle board. */
@@ -147,6 +149,8 @@ final class ColumnEventsReachRelatedCardsTest extends KernelTestCase
             $this->service(WorkflowQueuedEvaluationRepository::class),
             $this->service(WorkflowCardChangeRepository::class),
             new EventDispatcher(),
+            $this->service(MessageBusInterface::class),
+            new NullLogger(),
         );
         foreach ($cardIds as $cardId) {
             $handler(new EvaluateCard($cardId));

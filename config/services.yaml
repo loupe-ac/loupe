@@ -11,6 +11,8 @@ parameters:
     app.workflow.evaluate_due_schedule: '* * * * *'
     # The backstop for a card change that no event reported.
     app.workflow.sweep_schedule: '*/10 * * * *'
+    # Each hour it starts a full sweep only when the last one is older than the flag interval, because a cron line cannot read a flag.
+    app.workflow.full_sweep_schedule: '0 * * * *'
 
     # Client ids Loupe vouches for on the consent page. A full client_id URL,
     # or an origin that serves one tenant. Never a bare host: a document on a
