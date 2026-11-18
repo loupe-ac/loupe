@@ -150,6 +150,15 @@ therefore adds a browser trace and a server trace. Read the span usage in
 Sentry Stats after you turn the browser SDK on, and lower the browser rate when
 the month projects over your quota.
 
+## Web page latency monitors
+
+Create these metric monitors in Sentry once traces arrive.
+
+1. **Slow web pages.** Monitor `p75(span.duration)` of the transactions with `span.op:http.server` and `transaction:"GET app_*"`. Use a 1-hour window, and alert when it is above 1500 ms.
+2. **Slow board page.** Monitor `p95(span.duration)` of `transaction:"GET app_project_board"`. Use a 24-hour window, and alert when it is above 3000 ms. The window is long because the board page gets few sampled traces at the default rate.
+
+The browser spans, such as `navigation` and `ui.turbo.submit`, get no monitor. A small instance sends too few of them for a percentile to mean anything.
+
 ## Profiles
 
 Sentry drops a profile with fewer than 2 samples. The SDK writes the reason to
@@ -187,6 +196,7 @@ timer, such as some sandboxed kernels, gives this result.
   does a 403 access denial for a signed-in caller. The
   [API refusal metric](#api-refusal-metric) counts the refusals instead.
 - The queue metrics of [Queue metrics](#queue-metrics).
+- A cron check-in each minute from the queue metrics task. [Queue metrics](#queue-metrics) says more.
 
 Twig and cache spans are off. A render or cache span between two queries hides
 a run of repeated queries, and Sentry's N+1 query detector then misses it.
@@ -202,11 +212,15 @@ Once a minute, the worker sends two gauges for each message queue to Sentry. The
 
 A message waits when it is due and no worker holds a live claim on it. A claim stays live for one hour. This is the same rule as the worker check on `/admin/status`.
 
-Each gauge has two attributes. `queue_name` is the queue in the database: `interactive`, `jobs`, `card_eval`, `card_sweep` and `failed`. Each queue has the name of its transport. `transport` is the name of the transport in `config/packages/messenger.yaml`. An empty queue reports `0` for both gauges, so a flat line means an empty queue and a blank line means the task did not run.
+Each gauge has two attributes. `queue_name` is the queue in the database: `interactive`, `jobs`, `card_eval`, `card_sweep`, `insights` and `failed`. Each queue has the name of its transport. `transport` is the name of the transport in `config/packages/messenger.yaml`. An empty queue reports `0` for both gauges, so a flat line means an empty queue and a blank line means the task did not run.
+
+Each run of the task also sends a cron check-in with the slug `report-queue-depth`. Sentry creates the cron monitor on the first check-in, so you do not create it by hand. A metric monitor with no data does not fire, so this monitor tells you that the gauges stopped. The manual command sends no check-in.
+
+The monitor allows a margin of 5 minutes and a run time of 5 minutes, in UTC. Sentry opens an issue after 3 missed or failed check-ins in a row, and resolves it after 1 good check-in. When the worker stops, the issue opens about 8 minutes after the last good run. Three failed runs in a row open it after about 3 minutes. The margin is wide because the scheduler shares a worker with the `jobs` queue, and a long job delays the next run.
 
 Create these metric monitors in Sentry once the first points arrive. Each one uses a 5-minute window, because Sentry refuses a shorter window for a metric monitor. A monitor on `min(messenger.queue.oldest_age)` alerts only when every point of the window is above the limit, so one slow minute does not alert.
 
-1. **Stuck queue.** Create one monitor for each of `interactive`, `jobs` and `card_sweep`. Monitor `min(messenger.queue.oldest_age)` with the filter `queue_name:<queue>`. Alert when it is above 60 seconds. One monitor over several queues does not work, because its minimum is the age of the queue that moves best. The `failed` queue is left out, because its oldest age grows until somebody clears it.
+1. **Stuck queue.** Create one monitor for each of `interactive`, `jobs`, `card_sweep` and `insights`. Monitor `min(messenger.queue.oldest_age)` with the filter `queue_name:<queue>`. Alert when it is above 60 seconds. One monitor over several queues does not work, because its minimum is the age of the queue that moves best. The `failed` queue is left out, because its oldest age grows until somebody clears it.
 2. **Failed messages.** Monitor `max(messenger.queue.pending)` with the filter `queue_name:failed`. Alert when it is above 0. [Failed messages](failed-messages.md) says how to retry or remove them.
 3. **Slow card checks.** Monitor `min(messenger.queue.oldest_age)` with the filter `queue_name:card_eval`. Alert when it is above 30 seconds. This queue holds the card checks, so it gets a lower limit than the queues of monitor 1.
 
@@ -223,6 +237,12 @@ Every message that a worker takes sends two distributions, and the app sends thr
 | `workflow.request.claim_wait` | The time from the opening of a work request to its first claim by a bridge, in seconds. | `kind` |
 
 `message` is the short class name of the message. The duration of a card check is `messenger.message.duration` with `message:EvaluateCard`. `cause` is the class that queued the message, and it is missing on a message that no stamp names. `status` is `ok` or `failed`. `outcome` is `queued`, or `merged` when a check of the same card already waited. The attributes carry no card id, user, title or body.
+
+Create these metric monitors in Sentry once the first points arrive. The stuck queue monitor of [Queue metrics](#queue-metrics) finds a queue that stops. These monitors find a queue that moves, but slowly.
+
+1. **Slow queue.** Create one monitor for each of the `interactive`, `jobs`, `card_eval` and `insights` transports. Monitor `p95(messenger.message.wait)` with the filter `transport:<name>` and a 15-minute window. Alert when it is above 30 seconds for `interactive`, 600 seconds for `jobs`, 300 seconds for `card_eval` and 60 seconds for `insights`. The `card_sweep` transport is left out, because its messages wait behind the other queues by design.
+
+Set the limits from one week of your own data. The limits above are about 2 to 6 times the p95 of the week before they were set.
 
 ## API refusal metric
 
