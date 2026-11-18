@@ -27,6 +27,7 @@ final class WorkerRunCredentialRevocationTest extends WebTestCase
     private Connection $connection;
     private Uuid $bridgeId;
     private Uuid $sessionId;
+    private string $cardId;
 
     protected function setUp(): void
     {
@@ -39,6 +40,7 @@ final class WorkerRunCredentialRevocationTest extends WebTestCase
         $this->connection = $connection;
         $this->bridgeId = Uuid::v7();
         $this->sessionId = Uuid::v7();
+        $this->cardId = (string) $this->seedCard($em, $this->project)->id;
     }
 
     /** @return iterable<string, array{string}> */
@@ -143,7 +145,7 @@ final class WorkerRunCredentialRevocationTest extends WebTestCase
             'state' => $state,
             'at' => '2026-09-23T10:00:00+00:00',
             'subjectType' => 'card',
-            'subjectId' => (string) Uuid::v7(),
+            'subjectId' => $this->cardId,
             'cardNumber' => 1,
             'workKind' => 'plan',
             'sessionId' => (string) $this->sessionId,
