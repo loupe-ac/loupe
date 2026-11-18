@@ -52,12 +52,8 @@ final class DevMetricsSeederTest extends KernelTestCase
         self::bootKernel();
     }
 
-    public function test_it_seeds_runs_of_three_models_over_both_periods_and_eleven_saved_graphs(): void
+    private function it_seeds_runs_of_three_models_over_both_periods_and_eleven_saved_graphs(Project $project): void
     {
-        $project = $this->projectWithColumns('dev-metrics');
-
-        self::assertTrue($this->seed($project, self::NOW));
-
         $this->em()->clear();
         $runs = $this->demoRuns($project);
         self::assertCount(self::RUNS, $runs);
@@ -85,10 +81,8 @@ final class DevMetricsSeederTest extends KernelTestCase
         );
     }
 
-    public function test_the_wake_graph_has_a_series_for_each_gap_and_cache_cell(): void
+    private function the_wake_graph_has_a_series_for_each_gap_and_cache_cell(Project $project): void
     {
-        $project = $this->projectWithColumns('dev-metrics-wakes');
-        $this->seed($project, self::NOW);
         $this->em()->clear();
 
         $graph = $this->service(InsightsSavedGraphRepository::class)->find(DevSeedId::of('insights/graph/wakes-by-wake-gap-and-cache'));
@@ -111,12 +105,8 @@ final class DevMetricsSeederTest extends KernelTestCase
         );
     }
 
-    public function test_each_saved_graph_stores_a_unit_that_its_metric_allows(): void
+    private function each_saved_graph_stores_a_unit_that_its_metric_allows(Project $project): void
     {
-        $project = $this->projectWithColumns('dev-metrics-units');
-
-        $this->seed($project, self::NOW);
-
         $graphs = $this->service(InsightsSavedGraphRepository::class)->findActive($project);
         self::assertCount(11, $graphs);
         foreach ($graphs as $graph) {
@@ -128,19 +118,35 @@ final class DevMetricsSeederTest extends KernelTestCase
         }
     }
 
-    public function test_only_the_waiting_graph_keeps_no_result(): void
+    private function only_the_waiting_graph_keeps_no_result(Project $project): void
     {
-        $project = $this->projectWithColumns('dev-metrics-waiting');
-
-        $this->seed($project, self::NOW);
-        $this->seed($project, self::NOW);
-
         $this->em()->clear();
         $kept = $this->service(InsightsKeptResultRepository::class);
         foreach ($this->service(InsightsSavedGraphRepository::class)->findActive($project) as $graph) {
             $waiting = DevSeedId::of('insights/graph/'.DevMetricsSeeder::WAITING_GRAPH_SLUG)->equals($graph->id);
             self::assertSame($waiting, null === $kept->findForGraph($graph), $graph->name);
         }
+    }
+
+    public function test_the_seed_shows_every_page_state_and_a_second_run_on_the_same_day_adds_nothing(): void
+    {
+        $project = $this->projectWithColumns('dev-metrics');
+
+        self::assertTrue($this->seed($project, self::NOW));
+        $cardsBefore = $this->service(CardRepository::class)->count(['project' => $project]);
+
+        $this->it_seeds_runs_of_three_models_over_both_periods_and_eleven_saved_graphs($project);
+        $this->the_wake_graph_has_a_series_for_each_gap_and_cache_cell($project);
+        $this->each_saved_graph_stores_a_unit_that_its_metric_allows($project);
+        $this->one_graph_split_by_account_is_shared_with_a_fixed_code($project);
+        $this->a_broken_graph_and_an_empty_graph_are_shared_with_fixed_codes($project);
+        $this->the_formula_graph_is_shared_with_a_fixed_code($project);
+        $this->the_demo_runs_carry_two_accounts_so_the_split_has_series($project);
+        $this->the_runs_the_cards_and_the_graphs_have_fixed_ids($project);
+
+        self::assertFalse($this->seed($project, self::NOW));
+        $this->only_the_waiting_graph_keeps_no_result($project);
+        $this->a_second_run_on_the_same_day_adds_nothing($project, $cardsBefore);
     }
 
     public function test_a_reseed_makes_the_waiting_graph_wait_again_after_the_worker_kept_it(): void
@@ -181,27 +187,17 @@ final class DevMetricsSeederTest extends KernelTestCase
         self::assertFalse($this->seed($project, self::NOW));
     }
 
-    public function test_a_second_run_on_the_same_day_adds_nothing(): void
+    private function a_second_run_on_the_same_day_adds_nothing(Project $project, int $cardsBefore): void
     {
-        $project = $this->projectWithColumns('dev-metrics-twice');
-        $this->seed($project, self::NOW);
-
-        $cards = $this->service(CardRepository::class)->count(['project' => $project]);
-
-        self::assertFalse($this->seed($project, self::NOW));
-        self::assertSame($cards, $this->service(CardRepository::class)->count(['project' => $project]));
+        self::assertSame($cardsBefore, $this->service(CardRepository::class)->count(['project' => $project]));
 
         $this->em()->clear();
         self::assertCount(self::RUNS, $this->demoRuns($project));
         self::assertCount(11, $this->service(InsightsSavedGraphRepository::class)->findActive($project));
     }
 
-    public function test_one_graph_split_by_account_is_shared_with_a_fixed_code(): void
+    private function one_graph_split_by_account_is_shared_with_a_fixed_code(Project $project): void
     {
-        $project = $this->projectWithColumns('dev-metrics-share');
-
-        $this->seed($project, self::NOW);
-
         $this->em()->clear();
         $link = $this->service(PublicLinkRepository::class)->find(DevSeedId::of('insights/public-link/cost-per-run-by-account'));
         self::assertInstanceOf(PublicLink::class, $link);
@@ -214,12 +210,8 @@ final class DevMetricsSeederTest extends KernelTestCase
         self::assertSame($project->id?->toRfc4122(), $link->project->id?->toRfc4122());
     }
 
-    public function test_a_broken_graph_and_an_empty_graph_are_shared_with_fixed_codes(): void
+    private function a_broken_graph_and_an_empty_graph_are_shared_with_fixed_codes(Project $project): void
     {
-        $project = $this->projectWithColumns('dev-metrics-states');
-
-        $this->seed($project, self::NOW);
-
         $this->em()->clear();
         $links = $this->service(PublicLinkRepository::class);
         $broken = $links->find(DevSeedId::of('insights/public-link/time-in-a-removed-bucket'));
@@ -230,12 +222,8 @@ final class DevMetricsSeederTest extends KernelTestCase
         self::assertMatchesRegularExpression('/^'.PublicLinkCode::PATTERN.'$/', $empty->code);
     }
 
-    public function test_the_formula_graph_is_shared_with_a_fixed_code(): void
+    private function the_formula_graph_is_shared_with_a_fixed_code(Project $project): void
     {
-        $project = $this->projectWithColumns('dev-metrics-formula-share');
-
-        $this->seed($project, self::NOW);
-
         $this->em()->clear();
         $link = $this->service(PublicLinkRepository::class)->find(DevSeedId::of('insights/public-link/cache-reads-per-cache-write'));
         self::assertSame(DevMetricsSeeder::SHARED_FORMULA_GRAPH_CODE, $link?->code);
@@ -262,12 +250,8 @@ final class DevMetricsSeederTest extends KernelTestCase
         self::assertFalse($this->seed($project, self::NOW));
     }
 
-    public function test_the_demo_runs_carry_two_accounts_so_the_split_has_series(): void
+    private function the_demo_runs_carry_two_accounts_so_the_split_has_series(Project $project): void
     {
-        $project = $this->projectWithColumns('dev-metrics-accounts');
-
-        $this->seed($project, self::NOW);
-
         $this->em()->clear();
         $accounts = array_values(array_unique(array_map(static fn (WorkerRun $run): ?string => $run->account, $this->demoRuns($project))));
         sort($accounts);
@@ -342,11 +326,8 @@ final class DevMetricsSeederTest extends KernelTestCase
         self::assertCount(11, $this->service(InsightsSavedGraphRepository::class)->findActive($project));
     }
 
-    public function test_the_runs_the_cards_and_the_graphs_have_fixed_ids(): void
+    private function the_runs_the_cards_and_the_graphs_have_fixed_ids(Project $project): void
     {
-        $project = $this->projectWithColumns('dev-metrics-ids');
-        $this->seed($project, self::NOW);
-
         $this->em()->clear();
         $runs = $this->service(WorkerRunRepository::class);
         self::assertNotNull($runs->find(DevSeedId::of('insights/run/2026-10-30/0')));
