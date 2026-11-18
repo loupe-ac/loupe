@@ -28,6 +28,7 @@ final readonly class UnarchiveExperimentHandler
     {
         // The project lock of an archive, so an archive that commits first is read and removed.
         $removed = $this->em->wrapInTransaction(function () use ($command): bool {
+            // Keep FOR UPDATE: a bridge report waits for no weaker lock.
             $this->em->lock($command->project, LockMode::PESSIMISTIC_WRITE);
 
             $archive = $this->experimentArchives->findOneByName($command->project, $command->experiment);

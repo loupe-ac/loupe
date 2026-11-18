@@ -49,11 +49,19 @@ when@prod:
                 # listed here so the fallback is the only thing adding it.
                 # Unset, an external origin falls back to 'self' — a no-op
                 # rather than an empty token.
-                script-src: ["'self'", "%env(default:app.default_csp_origin:ANALYTICS_ORIGIN)%", "%env(default:app.default_csp_origin:SITE_REVIEW_WIDGET_BACKEND)%", "%app.mermaid_cdn_base%"]
+                script-src: ["'self'", "%env(default:app.default_csp_origin:ANALYTICS_ORIGIN)%", "%env(default:app.default_csp_origin:SITE_REVIEW_WIDGET_BACKEND)%"]
                 # Fonts are self-hosted (assets/fonts, SIL OFL) — no external
                 # font or stylesheet origins are needed.
+                # Inline styles stay: Mermaid and the site-review widget write
+                # them at runtime. img-src and font-src already stop CSS from
+                # loading anything from another origin.
                 style-src: ["'self'", "'unsafe-inline'"]
                 font-src: ["'self'"]
+                # A form may post to Loupe and to the Stripe pages that checkout
+                # and the billing portal redirect to. Browsers check each hop of
+                # a redirect, so the sign-in consent page forwards with a page
+                # of its own. Unset, the custom domain falls back to 'self'.
+                form-action: ["'self'", 'https://checkout.stripe.com', 'https://billing.stripe.com', "%env(default:app.default_csp_origin:STRIPE_CUSTOM_DOMAIN_ORIGIN)%"]
                 # No wholesale 'https:': a rendered document's remote <img>
                 # would otherwise turn the reviewer's browser into an egress channel.
                 img-src: ["'self'", 'data:']

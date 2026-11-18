@@ -1,0 +1,19 @@
+{% extends '@Account/auth_base.html.twig' %}
+
+{% block title %}{{ 'oauth.forward.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% block head_links %}
+<meta http-equiv="refresh" content="0;url={{ target }}">
+{% endblock %}
+
+{% block auth_body %}
+<div class="lp-consent" data-testid="oauth-forward">
+    <div class="auth-icon-badge">
+        <twig:ux:icon name="lucide:plug" class="lp-icon lp-icon--lg" aria-hidden="true" />
+    </div>
+    <div>
+        <h1 class="lp-consent__title">{{ 'oauth.forward.title'|trans }}</h1>
+        <p class="lp-consent__lead"><a href="{{ target }}" data-testid="oauth-forward-link">{{ 'oauth.forward.continue'|trans }}</a></p>
+    </div>
+</div>
+{% endblock %}

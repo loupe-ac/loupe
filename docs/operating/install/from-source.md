@@ -16,6 +16,7 @@ created for you, and an absent network makes `just up` fail rather than degrade.
 just up                # start nginx, php-fpm, postgres
 just composer install  # runs inside the php-fpm container
 just migrate-run       # set up the database
+bin/vendor-mermaid.sh  # Mermaid for the review page; needs Node.js and npm
 just exec bin/console app:dev:seed   # dev@loupe.test or admin@loupe.test / password
 just exec bin/console league:oauth2-server:generate-keypair --skip-if-exists   # OAuth keys in var/oauth/
 ```

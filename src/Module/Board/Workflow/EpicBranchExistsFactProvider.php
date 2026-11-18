@@ -73,11 +73,17 @@ final readonly class EpicBranchExistsFactProvider extends BoardFactProvider
         }
 
         $remotes = [];
+        $quietAt = [];
         foreach ($this->workshop->forProject($stored->project) as $connection) {
             if (!$connection->quiet && null !== $connection->repositoryPath) {
                 $remotes[] = $connection->repositoryRemoteUrl ?? '';
+                if (null !== $connection->quietAt) {
+                    $quietAt[] = $connection->quietAt;
+                }
             }
         }
+        // The answer can change when any one of these connections goes quiet, so the earliest time counts.
+        $changeAt = [] === $quietAt ? null : min($quietAt);
         if ([] === $remotes) {
             return new EpicBranchExistsFacts(false);
         }
@@ -91,7 +97,7 @@ final readonly class EpicBranchExistsFactProvider extends BoardFactProvider
             }
         }
 
-        return new EpicBranchExistsFacts($exists);
+        return new EpicBranchExistsFacts($exists, $changeAt);
     }
 
     #[\Override]

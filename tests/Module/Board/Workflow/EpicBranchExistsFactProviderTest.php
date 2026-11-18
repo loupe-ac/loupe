@@ -202,6 +202,79 @@ final class EpicBranchExistsFactProviderTest extends KernelTestCase
         self::assertCount(1, $this->asked);
     }
 
+    public function test_the_time_is_the_earliest_quiet_time_of_the_live_bridges_with_a_repository(): void
+    {
+        $child = $this->child();
+        $this->connections = [
+            $this->connection('a', quietAt: new \DateTimeImmutable('2026-11-16 12:10:01')),
+            $this->connection('b', quietAt: new \DateTimeImmutable('2026-11-16 12:05:01')),
+            $this->connection('c', quiet: true, quietAt: new \DateTimeImmutable('2026-11-16 12:01:01')),
+            new WorkshopConnection('d', '1.0.0', false, '/agents', 'd', quietAt: new \DateTimeImmutable('2026-11-16 12:00:01')),
+        ];
+        $this->branches = [self::REMOTE => ['epic/1']];
+
+        $facts = $this->provider()->build($child->snapshot());
+
+        self::assertInstanceOf(EpicBranchExistsFacts::class, $facts);
+        self::assertTrue($facts->exists);
+        self::assertEquals(new \DateTimeImmutable('2026-11-16 12:05:01'), $facts->changesAt());
+    }
+
+    public function test_the_answer_flips_at_the_returned_time_and_not_one_second_before(): void
+    {
+        $child = $this->child();
+        $this->branches = [self::REMOTE => ['epic/1']];
+        $early = new \DateTimeImmutable('2026-11-16 12:05:01');
+        $late = new \DateTimeImmutable('2026-11-16 12:10:01');
+        $at = static fn (string $time): \DateTimeImmutable => new \DateTimeImmutable($time);
+        $build = function (\DateTimeImmutable $now) use ($child, $early, $late): EpicBranchExistsFacts {
+            $this->connections = [
+                $this->connection('a', quiet: $early <= $now, quietAt: $early),
+                $this->connection('b', quiet: $late <= $now, quietAt: $late),
+            ];
+            $facts = $this->provider()->build($child->snapshot());
+            self::assertInstanceOf(EpicBranchExistsFacts::class, $facts);
+
+            return $facts;
+        };
+
+        $before = $build($at('2026-11-16 12:05:00'));
+        self::assertTrue($before->exists);
+        self::assertEquals($early, $before->changesAt());
+
+        $afterFirst = $build($early);
+        self::assertTrue($afterFirst->exists, 'the other bridge still holds the branch');
+        self::assertEquals($late, $afterFirst->changesAt());
+
+        $beforeLast = $build($at('2026-11-16 12:10:00'));
+        self::assertTrue($beforeLast->exists);
+
+        $afterLast = $build($late);
+        self::assertFalse($afterLast->exists, 'no live bridge is left');
+        self::assertNull($afterLast->changesAt());
+    }
+
+    public function test_the_time_stays_when_the_branch_is_missing_and_is_null_with_no_live_bridge(): void
+    {
+        $child = $this->child();
+        $this->connections = [$this->connection('a', quietAt: new \DateTimeImmutable('2026-11-16 12:10:01'))];
+
+        $missing = $this->provider()->build($child->snapshot());
+        self::assertInstanceOf(EpicBranchExistsFacts::class, $missing);
+        self::assertFalse($missing->exists);
+        self::assertEquals(new \DateTimeImmutable('2026-11-16 12:10:01'), $missing->changesAt());
+
+        $this->connections = [$this->connection('a', quiet: true)];
+        $none = $this->provider()->build($child->snapshot());
+        self::assertInstanceOf(EpicBranchExistsFacts::class, $none);
+        self::assertNull($none->changesAt());
+    }
+
+    public function test_the_time_is_left_out_of_the_fingerprint(): void
+    {
+        self::assertTrue($this->provider()->fingerprint(new EpicBranchExistsFacts(true, new \DateTimeImmutable('2026-11-16 12:00:00'))));
+    }
+
     public function test_a_missing_answer_reads_false_and_queues_one_check(): void
     {
         $child = $this->child();
@@ -326,9 +399,9 @@ final class EpicBranchExistsFactProviderTest extends KernelTestCase
         return $card;
     }
 
-    private function connection(string $id, string $remote = self::REMOTE, bool $quiet = false): WorkshopConnection
+    private function connection(string $id, string $remote = self::REMOTE, bool $quiet = false, ?\DateTimeImmutable $quietAt = null): WorkshopConnection
     {
-        return new WorkshopConnection($id, '1.0.0', $quiet, '/agents', $id, repositoryPath: '/work/loupe', repositoryRemoteUrl: $remote);
+        return new WorkshopConnection($id, '1.0.0', $quiet, '/agents', $id, repositoryPath: '/work/loupe', repositoryRemoteUrl: $remote, quietAt: $quietAt);
     }
 
     private function exists(Card $card): bool

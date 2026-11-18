@@ -34,8 +34,9 @@ trait MarkerScenario
      * @param list<array<string, mixed>> $markers
      * @param list<string>               $inbox   the keys of the markers that store one inbox entry per thing
      * @param array<string, mixed>       $facts   the named facts of the template
+     * @param list<array<string, mixed>> $rules
      */
-    private function markerTemplate(array $markers, array $inbox = [], array $facts = []): Template
+    private function markerTemplate(array $markers, array $inbox = [], array $facts = [], array $rules = []): Template
     {
         $parser = self::getContainer()->get(TemplateParser::class);
         self::assertInstanceOf(TemplateParser::class, $parser);
@@ -52,7 +53,7 @@ trait MarkerScenario
             'slots' => [['key' => 'one', 'label' => 'one'], ['key' => 'two', 'label' => 'two']],
             'manualMoves' => [],
             'backoffMinutes' => [10],
-            'rules' => [],
+            'rules' => $rules,
             ...([] === $facts ? [] : ['facts' => $facts]),
             'markers' => $markers,
         ]);

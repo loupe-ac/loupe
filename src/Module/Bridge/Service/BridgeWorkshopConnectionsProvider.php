@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Bridge\Service;
 
-use App\Module\Bridge\Command\ListAgentsCommand;
-use App\Module\Bridge\Command\ListAgentsHandler;
+use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Workshop\WorkshopConnection;
@@ -18,7 +17,6 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 final readonly class BridgeWorkshopConnectionsProvider implements WorkshopConnectionsProviderInterface
 {
     public function __construct(
-        private ListAgentsHandler $agents,
         private BridgeRepository $bridges,
         private BridgeLiveness $liveness,
         private UrlGeneratorInterface $urls,
@@ -28,27 +26,32 @@ final readonly class BridgeWorkshopConnectionsProvider implements WorkshopConnec
     #[\Override]
     public function forProject(Project $project): array
     {
+        $bridges = $this->bridges->findFollowingProject($project);
+        usort($bridges, static fn (Bridge $a, Bridge $b): int => $b->lastSeenAt <=> $a->lastSeenAt);
+        $statuses = $this->liveness->forOwner($project->owner, array_map(static fn (Bridge $bridge) => $bridge->id, $bridges));
         $url = $this->urls->generate('app_project_agents', ['id' => (string) $project->id]);
-        $connections = [];
-        foreach (($this->agents)(new ListAgentsCommand($project))->connections as $connection) {
-            $id = (string) $connection->bridge->id;
-            $repository = array_find($connection->bridge->repositories ?? [], static fn (array $row): bool => $row['projectId'] === (string) $project->id);
-            $identity = array_find($connection->bridge->gitIdentities ?? [], static fn (array $row): bool => $row['projectId'] === (string) $project->id);
-            $connections[] = new WorkshopConnection(
+        $projectId = (string) $project->id;
+
+        return array_map(function (Bridge $bridge) use ($statuses, $url, $projectId): WorkshopConnection {
+            $id = (string) $bridge->id;
+            $status = $statuses[$bridge->id->toRfc4122()];
+            $repository = array_find($bridge->repositories ?? [], static fn (array $row): bool => $row['projectId'] === $projectId);
+            $identity = array_find($bridge->gitIdentities ?? [], static fn (array $row): bool => $row['projectId'] === $projectId);
+
+            return new WorkshopConnection(
                 $id,
-                $connection->bridge->cliVersion,
-                $connection->status->quiet,
+                $bridge->cliVersion,
+                $status->quiet,
                 $url.'#agent-connection-'.$id,
-                $connection->bridge->label,
-                null === $identity ? null : new WorkshopGitIdentity($identity['mode'], $identity['commitName'], $identity['pushLogin'], $identity['githubUserId'], $connection->bridge->gitIdentitiesReportedAt),
+                $bridge->label,
+                null === $identity ? null : new WorkshopGitIdentity($identity['mode'], $identity['commitName'], $identity['pushLogin'], $identity['githubUserId'], $bridge->gitIdentitiesReportedAt),
                 $repository['path'] ?? null,
                 $repository['remoteUrl'] ?? null,
-                null !== $connection->bridge->gitIdentities,
-                $connection->status->loginExpired,
+                null !== $bridge->gitIdentities,
+                $status->loginExpired,
+                null === $status->lastSeenAt ? null : $this->liveness->quietAt($status->lastSeenAt),
             );
-        }
-
-        return $connections;
+        }, $bridges);
     }
 
     #[\Override]

@@ -9,6 +9,7 @@ use App\Module\Project\Entity\Project;
 use App\Outbox\AgentPush;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Support\AgentCredential;
+use App\Tests\Support\RunsFactJobs;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -503,6 +504,7 @@ final class WorkerRunToolCallsApiTest extends WebTestCase
     /** @return array<string, int|null> */
     private function facts(WorkerRun $run): array
     {
+        RunsFactJobs::run(self::getContainer());
         $row = $this->em()->getConnection()->fetchAssociative(
             'SELECT tool_time_ms, model_time_ms, tool_calls, failed_calls, longest_call_ms, idle_gap_ms, subagent_ms
             FROM bridge_worker_run_facts WHERE run_id = ?',

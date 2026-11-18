@@ -44,7 +44,7 @@ This credential cannot do this on this project.
 
 ### credential_not_owner_wide
 
-Only a credential that covers every project of the owner can create a project.
+Only a credential that covers every project of the owner can create a project or call an agent route that names no project. A credential bound to one project gets this refusal there.
 
 ## 404 Not found
 
@@ -255,6 +255,10 @@ No bridge serves this project now, or the run names no bridge.
 ### no_capable_bridge
 
 A bridge is online, but none can run discovery.
+
+### no_push_access
+
+GitHub says that the person who added the repository to the project cannot push to it now. Loupe mints no new push token for the repository.
 
 ### no_session
 

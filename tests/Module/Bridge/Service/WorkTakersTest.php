@@ -385,6 +385,96 @@ final class WorkTakersTest extends KernelTestCase
         self::assertEquals(new \DateTimeImmutable('2026-10-16 12:20:00'), $reading->quietAt);
     }
 
+    public function test_a_bridge_reads_quiet_from_its_quiet_time_and_not_one_second_before(): void
+    {
+        [$project, , $owner] = $this->scenario('quiet-time');
+        $bridge = $this->bridge($owner, $project, seenSecondsAgo: 10);
+        $liveness = self::getContainer()->get(BridgeLiveness::class);
+        self::assertInstanceOf(BridgeLiveness::class, $liveness);
+
+        $quietAt = $liveness->quietAt($bridge->lastSeenAt);
+
+        self::assertEquals($bridge->lastSeenAt->modify(\sprintf('+%d seconds', $this->window() + 1)), $quietAt);
+        self::assertTrue($bridge->lastSeenAt < $liveness->quietBefore($quietAt), 'quiet at the returned time');
+        self::assertFalse($bridge->lastSeenAt < $liveness->quietBefore($quietAt->modify('-1 second')), 'online one second before');
+    }
+
+    public function test_a_claimed_request_with_a_quiet_bridge_reads_the_same_after_its_lease_ended(): void
+    {
+        [$project, $request, $owner] = $this->scenario('claimed-quiet-past-lease', state: WorkRequestState::Claimed);
+        $bridge = $this->bridge($owner, $project, seenSecondsAgo: $this->window() + 60);
+        $request->bridgeId = $bridge->id;
+        $request->leaseUntil = new \DateTimeImmutable('2026-10-16 11:30:00');
+        $this->em()->flush();
+
+        $reading = $this->read($project, $request);
+
+        self::assertSame(WorkTakerState::Disconnected, $reading->state);
+        self::assertTrue($reading->claimed);
+        self::assertEquals(new \DateTimeImmutable('2026-10-16 11:30:00'), $reading->quietAt, 'the reaper write changes the answer, and the time stays the lease end');
+    }
+
+    public function test_a_quiet_bridge_changes_the_reading_at_the_returned_time_and_not_before(): void
+    {
+        [$project, $request, $owner] = $this->scenario('quiet-edge');
+        $this->bridge($owner, $project, seenSecondsAgo: 10);
+        $clock = $this->clock();
+
+        $reading = $this->read($project, $request);
+        $at = $reading->quietAt;
+        self::assertNotNull($at);
+        self::assertSame(WorkTakerState::Available, $reading->state);
+
+        $clock->modify($at->modify('-1 second')->format('Y-m-d H:i:s'));
+        self::assertSame(WorkTakerState::Available, $this->read($project, $request)->state);
+
+        $clock->modify($at->format('Y-m-d H:i:s'));
+        self::assertSame(WorkTakerState::None, $this->read($project, $request)->state);
+    }
+
+    public function test_an_account_reset_changes_the_reading_at_the_returned_time_and_not_before(): void
+    {
+        [$project, $request, $owner] = $this->scenario('reset-edge');
+        $bridge = $this->bridge($owner, $project, 10);
+        $this->accounts($bridge, ['work' => ['implement']]);
+        $this->reading($bridge, 'work', 'week', 100.0, '2026-10-16 12:00:30', true);
+        $clock = $this->clock();
+
+        $reading = $this->read($project, $request);
+        self::assertSame(WorkTakerState::Limited, $reading->state);
+        self::assertEquals(new \DateTimeImmutable('2026-10-16 12:00:30'), $reading->quietAt);
+
+        $clock->modify('2026-10-16 12:00:29');
+        self::assertSame(WorkTakerState::Limited, $this->read($project, $request)->state);
+
+        $clock->modify('2026-10-16 12:00:30');
+        self::assertSame(WorkTakerState::Available, $this->read($project, $request)->state);
+    }
+
+    public function test_a_network_wait_changes_the_reading_at_the_returned_time_and_not_before(): void
+    {
+        [$project, $request, $owner] = $this->scenario('network-edge', reopenedAt: '2026-10-16 11:58:00');
+        $bridge = $this->bridge($owner, $project, seenSecondsAgo: 10);
+        $request->waitCause = 'network';
+        $request->waitUntil = new \DateTimeImmutable('2026-10-16 12:03:00');
+        $this->em()->flush();
+        $clock = $this->clock();
+
+        $reading = $this->read($project, $request);
+        self::assertSame(WorkTakerState::Disconnected, $reading->state);
+        self::assertEquals(new \DateTimeImmutable('2026-10-16 12:03:00'), $reading->quietAt);
+
+        $clock->modify('2026-10-16 12:02:59');
+        $bridge->lastSeenAt = new \DateTimeImmutable('2026-10-16 12:02:50');
+        $this->em()->flush();
+        self::assertSame(WorkTakerState::Disconnected, $this->read($project, $request)->state);
+
+        $clock->modify('2026-10-16 12:03:00');
+        $bridge->lastSeenAt = new \DateTimeImmutable('2026-10-16 12:02:55');
+        $this->em()->flush();
+        self::assertSame(WorkTakerState::Available, $this->read($project, $request)->state);
+    }
+
     public function test_a_claimed_request_whose_bridge_still_sends_heartbeats_has_no_reading(): void
     {
         [$project, $request, $owner] = $this->scenario('claimed-alive', state: WorkRequestState::Claimed);
@@ -825,6 +915,14 @@ final class WorkTakersTest extends KernelTestCase
         $readings = $this->service()->forRequests($project, [$request]);
 
         return $readings[($request->id ?? throw new \LogicException('Stored.'))->toRfc4122()] ?? throw new \LogicException('No reading.');
+    }
+
+    private function clock(): MockClock
+    {
+        $clock = self::getContainer()->get('clock');
+        self::assertInstanceOf(MockClock::class, $clock);
+
+        return $clock;
     }
 
     private function window(): int

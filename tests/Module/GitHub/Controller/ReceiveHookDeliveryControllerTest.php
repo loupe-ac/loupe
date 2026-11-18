@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\GitHub\Controller;
 
 use App\Module\Forge\Entity\ForgeRepositorySource;
+use App\Module\Forge\Event\ForgeDeliveryReceived;
 use App\Module\Forge\EventListener\RateLimitForgeDeliveries;
 use App\Module\GitHub\Entity\GitHubHook;
 use App\Module\GitHub\Entity\GitHubHookHealth;
@@ -15,6 +16,7 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\RouterInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\AuditOutcome;
 
 /**
@@ -234,5 +236,82 @@ final class ReceiveHookDeliveryControllerTest extends WebTestCase
         self::assertInstanceOf(GitHubHookRepository::class, $hooks);
 
         return $hooks->findOneBy(['hookKey' => $hook->hookKey]) ?? throw new \LogicException('The hook is gone.');
+    }
+
+    public function test_a_copy_of_an_accepted_delivery_changes_nothing_and_leaves_the_hook_time_alone(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $project = $this->project('hook-replay');
+        $hook = $this->hook($project);
+        $this->linkedCard($project, 'acme/v', 12);
+        $this->trackedPullRequest($project, 'acme/v', 12, 'aaa111');
+        $path = '/webhooks/forge/github/'.$hook->hookKey;
+        $payload = $this->merged(650, 'acme/v', 12);
+
+        $this->deliver($client, $path, 'pull_request', $payload, $hook->secret);
+        $first = $this->outboxSubjects($project);
+        self::assertNotSame([], $first, 'The first delivery must reach the outbox, or the copy proves nothing.');
+        $this->em()->clear();
+        $acceptedAt = $this->em()->find(GitHubHook::class, $hook->id)?->lastAcceptedAt;
+        self::assertNotNull($acceptedAt);
+
+        $this->deliver($client, $path, 'pull_request', $payload, $hook->secret);
+
+        self::assertResponseIsSuccessful();
+        self::assertSame($first, $this->outboxSubjects($project));
+        $this->em()->clear();
+        self::assertEquals($acceptedAt, $this->em()->find(GitHubHook::class, $hook->id)?->lastAcceptedAt);
+    }
+
+    public function test_the_same_body_sent_to_two_hooks_runs_twice(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $project = $this->project('two-hooks');
+        $other = $this->project('two-hooks-other');
+        $one = $this->hook($project);
+        $two = $this->hook($other);
+        foreach ([$project, $other] as $target) {
+            $this->linkedCard($target, 'acme/w', 13);
+            $this->trackedPullRequest($target, 'acme/w', 13, 'aaa111');
+        }
+        $payload = $this->merged(651, 'acme/w', 13);
+
+        $this->deliver($client, '/webhooks/forge/github/'.$one->hookKey, 'pull_request', $payload, $one->secret);
+        $this->deliver($client, '/webhooks/forge/github/'.$two->hookKey, 'pull_request', $payload, $two->secret);
+
+        self::assertNotSame([], $this->outboxSubjects($project));
+        self::assertNotSame([], $this->outboxSubjects($other));
+    }
+
+    public function test_a_delivery_whose_handling_failed_runs_again_when_redelivered(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $project = $this->project('hook-redelivery');
+        $hook = $this->hook($project);
+        $this->linkedCard($project, 'acme/x', 14);
+        $this->trackedPullRequest($project, 'acme/x', 14, 'aaa111');
+        $path = '/webhooks/forge/github/'.$hook->hookKey;
+        $payload = $this->merged(652, 'acme/x', 14);
+        $failing = new \ArrayObject(['on' => true]);
+        $dispatcher = static::getContainer()->get('event_dispatcher');
+        self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
+        $dispatcher->addListener(ForgeDeliveryReceived::class, static function () use ($failing): void {
+            if ($failing['on']) {
+                throw new \RuntimeException('Handling failed.');
+            }
+        }, 1_000);
+
+        $this->deliver($client, $path, 'pull_request', $payload, $hook->secret);
+        self::assertResponseStatusCodeSame(Response::HTTP_INTERNAL_SERVER_ERROR);
+        self::assertSame([], $this->outboxSubjects($project));
+
+        $failing['on'] = false;
+        $this->deliver($client, $path, 'pull_request', $payload, $hook->secret);
+
+        self::assertResponseIsSuccessful();
+        self::assertNotSame([], $this->outboxSubjects($project));
     }
 }

@@ -36,10 +36,14 @@ final readonly class RepositoryChecks
         return null !== $readAt && $readAt > $now->modify(self::FRESH_FOR);
     }
 
-    /** @return bool true when it queued a check, false when a fresh read answers already */
-    public function requestPageOpenCheck(ForgeRepository $repository): bool
+    /**
+     * @param ?ForgeRepositoryCheck $check the stored check of the repository, which the caller has read already
+     *
+     * @return bool true when it queued a check, false when a fresh read answers already
+     */
+    public function requestPageOpenCheck(ForgeRepository $repository, ?ForgeRepositoryCheck $check): bool
     {
-        if ($this->isFresh($this->forgeRepositoryChecks->findOneOfRepository($repository), $this->clock->now())) {
+        if ($this->isFresh($check, $this->clock->now())) {
             return false;
         }
 
