@@ -53,7 +53,7 @@ final class CommentFactProvidersTest extends KernelTestCase
 
         $facts = $provider->build($card->snapshot());
         self::assertInstanceOf(FixRunFacts::class, $facts);
-        self::assertEquals(new \DateTimeImmutable('2026-11-16 12:30:01'), $facts->changesAt());
+        self::assertEquals(new \DateTimeImmutable('2026-11-16 12:30:01'), $facts->changesAt(new \DateTimeImmutable('2026-11-16 12:00:00')));
         self::assertContains((string) $earlier->id, $facts->uncommentedRunIds);
 
         $clock->modify('2026-11-16 12:30:00');
@@ -66,7 +66,7 @@ final class CommentFactProvidersTest extends KernelTestCase
         self::assertInstanceOf(FixRunFacts::class, $after);
         self::assertNotContains((string) $earlier->id, $after->uncommentedRunIds);
         self::assertContains((string) $later->id, $after->uncommentedRunIds);
-        self::assertEquals(new \DateTimeImmutable('2026-11-16 12:40:01'), $after->changesAt());
+        self::assertEquals(new \DateTimeImmutable('2026-11-16 12:40:01'), $after->changesAt(new \DateTimeImmutable('2026-11-16 12:00:00')));
         self::assertSame($after->uncommentedRunIds, $provider->fingerprint($after));
     }
 
@@ -80,7 +80,7 @@ final class CommentFactProvidersTest extends KernelTestCase
         $facts = $this->service(FixRunFactProvider::class)->build($card->snapshot());
 
         self::assertInstanceOf(FixRunFacts::class, $facts);
-        self::assertNull($facts->changesAt());
+        self::assertNull($facts->changesAt(new \DateTimeImmutable('2026-11-16 12:00:00')));
     }
 
     public function test_the_stale_approval_facts_map_each_pull_request_to_its_head(): void

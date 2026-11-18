@@ -71,7 +71,7 @@ final readonly class MarkerPass
         }
         foreach ($run->facts->provided as $provided) {
             if ($provided instanceof TimedFacts) {
-                $due = self::earlier($due, self::after($provided->changesAt(), $run->now));
+                $due = self::earlier($due, self::after($provided->changesAt($run->now), $run->now));
             }
         }
 

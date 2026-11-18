@@ -11,5 +11,5 @@ namespace App\Module\Workflow\Contract;
 interface TimedFacts
 {
     /** @return ?\DateTimeImmutable the first instant of the next answer, or null when time alone never changes it */
-    public function changesAt(): ?\DateTimeImmutable;
+    public function changesAt(\DateTimeImmutable $now): ?\DateTimeImmutable;
 }

@@ -16,7 +16,7 @@ final readonly class EpicBranchExistsFacts implements TimedFacts
     }
 
     #[\Override]
-    public function changesAt(): ?\DateTimeImmutable
+    public function changesAt(\DateTimeImmutable $now): ?\DateTimeImmutable
     {
         return $this->changeAt;
     }

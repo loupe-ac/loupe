@@ -388,7 +388,7 @@ final class AgentReviewFactProviderTest extends KernelTestCase
         $facts = $this->posting($card);
         $edge = new \DateTimeImmutable('2026-11-16 12:30:01');
 
-        self::assertEquals($edge, $facts->changesAt());
+        self::assertEquals($edge, $facts->changesAt(new \DateTimeImmutable('2026-11-16 12:00:00')));
         self::assertContains((string) $older->id, $facts->uncommented);
 
         $clock->modify('2026-11-16 12:30:00');
@@ -397,7 +397,7 @@ final class AgentReviewFactProviderTest extends KernelTestCase
         $clock->modify($edge->format('Y-m-d H:i:s'));
         $after = $this->posting($card);
         self::assertNotContains((string) $older->id, $after->uncommented);
-        self::assertEquals(new \DateTimeImmutable('2026-11-16 12:45:01'), $after->changesAt());
+        self::assertEquals(new \DateTimeImmutable('2026-11-16 12:45:01'), $after->changesAt(new \DateTimeImmutable('2026-11-16 12:00:00')));
     }
 
     public function test_the_comment_window_gives_no_time_when_no_review_waits_for_a_comment(): void
@@ -405,7 +405,7 @@ final class AgentReviewFactProviderTest extends KernelTestCase
         $card = $this->card($this->project);
         $this->review($card, $this->linked($card, 7));
 
-        self::assertNull($this->posting($card)->changesAt());
+        self::assertNull($this->posting($card)->changesAt(new \DateTimeImmutable('2026-11-16 12:00:00')));
     }
 
     public function test_the_time_is_left_out_of_the_fingerprint(): void
@@ -414,7 +414,7 @@ final class AgentReviewFactProviderTest extends KernelTestCase
         $review = $this->review($card, $this->linked($card, 7), new \DateTimeImmutable('-10 minutes'));
         $facts = $this->posting($card);
 
-        self::assertNotNull($facts->changesAt());
+        self::assertNotNull($facts->changesAt(new \DateTimeImmutable('2026-11-16 12:00:00')));
         self::assertSame([false, [(string) $review->id]], $this->postingProvider()->fingerprint($facts));
     }
 

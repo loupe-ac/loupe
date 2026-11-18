@@ -22,7 +22,7 @@ final readonly class AgentReviewPostingFacts implements TimedFacts
     }
 
     #[\Override]
-    public function changesAt(): ?\DateTimeImmutable
+    public function changesAt(\DateTimeImmutable $now): ?\DateTimeImmutable
     {
         return $this->changeAt;
     }

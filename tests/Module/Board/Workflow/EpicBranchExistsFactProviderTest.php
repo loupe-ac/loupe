@@ -217,7 +217,7 @@ final class EpicBranchExistsFactProviderTest extends KernelTestCase
 
         self::assertInstanceOf(EpicBranchExistsFacts::class, $facts);
         self::assertTrue($facts->exists);
-        self::assertEquals(new \DateTimeImmutable('2026-11-16 12:05:01'), $facts->changesAt());
+        self::assertEquals(new \DateTimeImmutable('2026-11-16 12:05:01'), $facts->changesAt(new \DateTimeImmutable('2026-11-16 12:00:00')));
     }
 
     public function test_the_answer_flips_at_the_returned_time_and_not_one_second_before(): void
@@ -240,18 +240,18 @@ final class EpicBranchExistsFactProviderTest extends KernelTestCase
 
         $before = $build($at('2026-11-16 12:05:00'));
         self::assertTrue($before->exists);
-        self::assertEquals($early, $before->changesAt());
+        self::assertEquals($early, $before->changesAt(new \DateTimeImmutable('2026-11-16 12:00:00')));
 
         $afterFirst = $build($early);
         self::assertTrue($afterFirst->exists, 'the other bridge still holds the branch');
-        self::assertEquals($late, $afterFirst->changesAt());
+        self::assertEquals($late, $afterFirst->changesAt(new \DateTimeImmutable('2026-11-16 12:00:00')));
 
         $beforeLast = $build($at('2026-11-16 12:10:00'));
         self::assertTrue($beforeLast->exists);
 
         $afterLast = $build($late);
         self::assertFalse($afterLast->exists, 'no live bridge is left');
-        self::assertNull($afterLast->changesAt());
+        self::assertNull($afterLast->changesAt(new \DateTimeImmutable('2026-11-16 12:00:00')));
     }
 
     public function test_the_time_stays_when_the_branch_is_missing_and_is_null_with_no_live_bridge(): void
@@ -262,12 +262,12 @@ final class EpicBranchExistsFactProviderTest extends KernelTestCase
         $missing = $this->provider()->build($child->snapshot());
         self::assertInstanceOf(EpicBranchExistsFacts::class, $missing);
         self::assertFalse($missing->exists);
-        self::assertEquals(new \DateTimeImmutable('2026-11-16 12:10:01'), $missing->changesAt());
+        self::assertEquals(new \DateTimeImmutable('2026-11-16 12:10:01'), $missing->changesAt(new \DateTimeImmutable('2026-11-16 12:00:00')));
 
         $this->connections = [$this->connection('a', quiet: true)];
         $none = $this->provider()->build($child->snapshot());
         self::assertInstanceOf(EpicBranchExistsFacts::class, $none);
-        self::assertNull($none->changesAt());
+        self::assertNull($none->changesAt(new \DateTimeImmutable('2026-11-16 12:00:00')));
     }
 
     public function test_the_time_is_left_out_of_the_fingerprint(): void
