@@ -72,6 +72,10 @@ final class TfSecretsTest extends TestCase
         self::assertStringContainsString('TF_VAR_app_secret copied', $import->getOutput());
         self::assertStringContainsString('TF_VAR_oauth_private_key copied', $import->getOutput());
         self::assertStringContainsString('DIGITALOCEAN_TOKEN unset', $import->getOutput());
+        $lines = explode("\n", trim($import->getOutput()));
+        self::assertSame('DIGITALOCEAN_TOKEN unset', $lines[0]);
+        self::assertSame('TF_VAR_app_secret copied', $lines[3]);
+        self::assertSame('TF_VAR_oauth_private_key copied', $lines[20]);
         self::assertSame('q"uote\n${tpl}', $this->stored('TF_VAR_app_secret'));
         self::assertSame("-----BEGIN KEY-----\nline \"two\" \\n\n", $this->stored('TF_VAR_oauth_private_key'));
 
@@ -112,7 +116,7 @@ final class TfSecretsTest extends TestCase
         self::assertStringContainsString('TF_VAR_app_secret differs', $verify->getOutput());
     }
 
-    public function test_import_stops_and_names_the_input_when_terraform_cannot_read_it(): void
+    public function test_import_stops_when_terraform_cannot_read_the_tfvars_file(): void
     {
         $this->tfvars('app_secret = ');
 

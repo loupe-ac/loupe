@@ -137,3 +137,26 @@ tfvars_file_b64() {
     [[ $out =~ ^\"([A-Za-z0-9+/=]*)\"$ ]] || ts_fail "terraform could not read $name."
     printf '%s' "${BASH_REMATCH[1]}"
 }
+
+# Prints "<name> <base64 or unset>" for each listed input, with one Terraform
+# start. Every name is listed, so no placeholder is needed. Terraform prints
+# warnings on standard output, so only the last line counts. Standard error is
+# dropped because a parse error quotes a line of the tfvars file.
+tfvars_file_b64_all() {
+    local parts=() n out
+    while read -r n _; do
+        parts+=("$n = nonsensitive(var.$n == null) ? \"unset\" : base64encode(nonsensitive(var.$n))")
+    done < <(list_pairs)
+    out=$(TF_INPUT=0 terraform -chdir="$TF_SECRETS_ROOT" console -no-color "-var-file=$(ts_absolute "$TF_SECRETS_TFVARS")" 2> /dev/null \
+        <<< "jsonencode({$(IFS=,; printf '%s' "${parts[*]}")})" | tail -n 1) \
+        || ts_fail "terraform could not read the inputs in secrets.list."
+    [[ $out == \"*\" ]] || ts_fail "terraform could not read the inputs in secrets.list."
+    printf '%s' "$out" | jq -r . | jq -r 'to_entries[] | "\(.key) \(.value)"'
+}
+
+# The value of one name from the output of tfvars_file_b64_all, which arrives
+# as the second argument. The answer reaches awk on standard input only.
+ts_b64_of() {
+    printf '%s\n' "$2" | awk -v n="$1" '$1 == n { print $2; found = 1; exit } END { exit !found }' \
+        || ts_fail "terraform returned no value for $1."
+}
