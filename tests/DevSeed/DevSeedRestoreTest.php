@@ -395,7 +395,7 @@ final class DevSeedRestoreTest extends DevSeedTestCase
 
         $this->seed(self::DAY);
 
-        self::assertFalse($this->flag('inbox.enabled')?->value, 'A second run switched a flag back on.');
+        self::assertFalse($this->flag('inbox.enabled')->value, 'A second run switched a flag back on.');
     }
 
     public function test_keep_flag_defaults_writes_no_flag_row_and_seeds_every_other_record(): void

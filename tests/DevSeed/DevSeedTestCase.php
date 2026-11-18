@@ -46,13 +46,15 @@ abstract class DevSeedTestCase extends KernelTestCase
     }
 
     /** @param array<string, mixed> $options */
-    protected function seed(string $now, array $options = []): void
+    protected function seed(string $now, array $options = []): string
     {
         $kernel = self::bootKernel();
         self::getContainer()->set('clock', new MockClock($now));
         $tester = new CommandTester(new Application($kernel)->find('app:dev:seed'));
         $tester->execute($options);
         $tester->assertCommandIsSuccessful();
+
+        return $tester->getDisplay();
     }
 
     /** @return array<string, int> */
