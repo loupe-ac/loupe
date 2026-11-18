@@ -217,7 +217,7 @@ final class OAuthAuthorizationFlowTest extends WebTestCase
         $this->browser->loginUser($this->user);
         $this->browser->request(Request::METHOD_GET, $this->scenario->authorizeUrl('mcp worker-run'));
 
-        $query = OAuthScenario::redirectQuery((string) $this->browser->getResponse()->headers->get('Location'));
+        $query = OAuthScenario::redirectQuery(OAuthScenario::clientLocation($this->browser));
         self::assertSame('invalid_scope', $query['error']);
         self::assertSame(0, $this->countRows('oauth2_authorization_code'));
     }
