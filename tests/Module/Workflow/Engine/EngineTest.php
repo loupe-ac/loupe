@@ -351,6 +351,19 @@ final class EngineTest extends KernelTestCase
         self::assertCount(1, $late);
     }
 
+    public function test_a_project_mark_that_committed_after_the_expansion_raises_no_miss_error(): void
+    {
+        $card = $this->boundCard([self::requestRule('work', self::ALWAYS)]);
+        $this->clearMark($card);
+        $this->em()->getConnection()->executeStatement('INSERT INTO workflow_project_changes (project_id, changed_at) VALUES (:project, LOCALTIMESTAMP(0)) ON CONFLICT (project_id) DO NOTHING', ['project' => (string) $card->project->id]);
+
+        $this->engine()->evaluate($card->id ?? throw new \LogicException('A flushed card has an id.'), new \DateTimeImmutable(self::NOON), reportMiss: true);
+
+        self::assertSame([], $this->missRecords());
+        $late = array_values(array_filter($this->logger->records, static fn (array $record): bool => 'workflow.change_after_late_mark' === $record['message']));
+        self::assertCount(1, $late);
+    }
+
     public function test_an_ordinary_check_reports_no_miss_for_the_same_change(): void
     {
         $card = $this->boundCard([self::requestRule('work', self::ALWAYS)]);
@@ -5544,6 +5557,7 @@ final class EngineTest extends KernelTestCase
     private function clearMark(Card $card): void
     {
         $this->service(WorkflowCardChangeRepository::class)->clear($card->id ?? throw new \LogicException('A flushed card has an id.'));
+        $this->em()->getConnection()->executeStatement('DELETE FROM workflow_project_changes WHERE project_id = :project', ['project' => (string) $card->project->id]);
     }
 
     private function hold(Card $card): void

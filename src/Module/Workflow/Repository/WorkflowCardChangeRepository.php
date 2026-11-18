@@ -43,10 +43,12 @@ class WorkflowCardChangeRepository extends ServiceEntityRepository
         );
     }
 
+    /** Whether the card holds a mark, or its project holds a project mark that the sweep has not expanded yet. */
     public function isMarked(Uuid $cardId): bool
     {
         return false !== $this->getEntityManager()->getConnection()->fetchOne(
-            'SELECT 1 FROM workflow_card_changes WHERE card_id = :card',
+            'SELECT 1 WHERE EXISTS (SELECT 1 FROM workflow_card_changes WHERE card_id = :card)
+                OR EXISTS (SELECT 1 FROM workflow_project_changes p JOIN board_cards c ON c.project_id = p.project_id WHERE c.id = :card)',
             ['card' => $cardId->toRfc4122()],
         );
     }
