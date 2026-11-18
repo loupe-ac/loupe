@@ -38,7 +38,7 @@ function trackActivity() {
  *
  * The element is a hidden form that carries the CSRF token.
  */
-/* stimulusFetch: 'lazy' */
+/* stimulusFetch: 'eager' */
 export default class extends Controller {
     static values = { openTagsUrl: String };
 

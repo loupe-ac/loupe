@@ -1,3 +1,4 @@
+/* stimulusFetch: 'lazy' */
 // [Claude] The dialog element is animated exclusively with WAAPI (element.animate), not CSS animations.
 // CSS animations cache per-element state and silently fail to restart after a close/reopen cycle even
 // with a reflow trick. WAAPI always creates a fresh animation object and never has this stale-state problem.

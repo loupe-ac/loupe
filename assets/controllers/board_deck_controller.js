@@ -1,3 +1,4 @@
+/* stimulusFetch: 'lazy' */
 import { Controller } from '@hotwired/stimulus';
 import { fanLayout, fanRoom } from '../lib/deck_fan.js';
 

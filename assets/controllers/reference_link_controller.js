@@ -1,3 +1,4 @@
+/* stimulusFetch: 'eager' */
 import { Controller } from '@hotwired/stimulus';
 
 const LINK = 'a[data-ref-tooltip-title], a[data-ref-tooltip-line]';

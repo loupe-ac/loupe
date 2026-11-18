@@ -7,7 +7,7 @@ const WAIT_LIMIT_MILLISECONDS = 1500;
  * Drops this browser's push subscription before the sign-out form goes. The
  * wait has a limit, so a stuck browser call cannot hold the sign-out back.
  */
-/* stimulusFetch: 'lazy' */
+/* stimulusFetch: 'eager' */
 export default class extends Controller {
     _resubmitting = false;
 
