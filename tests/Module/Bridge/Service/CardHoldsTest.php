@@ -10,6 +10,7 @@ use App\Module\Bridge\Event\CardHoldsReleased;
 use App\Module\Bridge\Repository\CardHoldRepository;
 use App\Module\Bridge\Service\CardHolds;
 use App\Module\Project\Entity\Project;
+use App\Module\Workflow\Contract\FactsPass;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Support\DispatchedEvents;
 use Doctrine\Persistence\ManagerRegistry;
@@ -148,7 +149,7 @@ final class CardHoldsTest extends KernelTestCase
         $dispatcher = self::getContainer()->get('event_dispatcher');
         self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
 
-        return new CardHolds(new CardHoldRepository($registry), $this->em(), new MockClock(new \DateTimeImmutable(self::NOW)), $dispatcher);
+        return new CardHolds(new CardHoldRepository($registry, self::getContainer()->get(FactsPass::class)), $this->em(), new MockClock(new \DateTimeImmutable(self::NOW)), $dispatcher);
     }
 
     private function reload(Project $project): Project

@@ -10,7 +10,7 @@ use App\Module\Board\Entity\Card;
 use App\Module\Board\Form\MoveCardFormType;
 use App\Module\Bridge\Service\CardHolds;
 use App\Module\Project\Entity\Project;
-use App\Module\Project\Security\ProjectVoter;
+use App\Tests\Module\Project\Security\DeniesProjectManage;
 use App\Tests\Module\Workflow\WorkflowProjects;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -18,16 +18,13 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
-use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
-use Symfony\Component\Security\Core\Authorization\AccessDecision;
-use Symfony\Component\Security\Core\Authorization\AccessDecisionManagerInterface;
-use Symfony\Component\Security\Core\Authorization\AuthorizationChecker;
-use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
 use Symfony\Component\Uid\Uuid;
 use Symfony\UX\Turbo\TurboBundle;
 
 final class MoveManagedCardControllerTest extends WebTestCase
 {
+    use DeniesProjectManage;
+
     use BoardScenario;
     use WorkflowProjects;
 
@@ -161,30 +158,6 @@ final class MoveManagedCardControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY);
         self::assertSame('next', $this->storedColumn());
         self::assertFalse($this->holds()->isHeld($this->project, $this->cardId()));
-    }
-
-    /** Card writes and project management are both the owner's today, so a checker stands in for a writer who cannot manage. */
-    private function denyManage(): void
-    {
-        $container = static::getContainer();
-        $tokens = $container->get('security.token_storage');
-        self::assertInstanceOf(TokenStorageInterface::class, $tokens);
-        $decisions = $container->get('security.access.decision_manager');
-        self::assertInstanceOf(AccessDecisionManagerInterface::class, $decisions);
-        $real = new AuthorizationChecker($tokens, $decisions);
-
-        $container->set('security.authorization_checker', new readonly class($real) implements AuthorizationCheckerInterface {
-            public function __construct(
-                private AuthorizationCheckerInterface $real,
-            ) {
-            }
-
-            #[\Override]
-            public function isGranted(mixed $attribute, mixed $subject = null, ?AccessDecision $accessDecision = null): bool
-            {
-                return ProjectVoter::MANAGE !== $attribute && $this->real->isGranted($attribute, $subject, $accessDecision);
-            }
-        });
     }
 
     private function move(bool $stream, bool $unmanage = false, ?string $parent = null): void

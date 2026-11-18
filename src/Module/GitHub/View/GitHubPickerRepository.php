@@ -11,6 +11,8 @@ final readonly class GitHubPickerRepository
     public function __construct(
         public GitHubRepositoryRef $repository,
         public GitHubPickerState $state,
+        /** Whether the signed-in GitHub user can push to it. */
+        public bool $canPush,
         /** The name of the project that holds it, set only when the owner may open that project. */
         public ?string $holderName = null,
         public bool $ticked = false,

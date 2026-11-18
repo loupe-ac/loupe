@@ -29,6 +29,7 @@ use App\Tests\Module\Bridge\BlockingRepositories;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Module\Bridge\WorkSubject\RecordingWorkSubjectHandler;
 use App\Tests\Support\DispatchedEvents;
+use App\Tests\Support\NoCardTitles;
 use App\Tests\Support\RecordingAuditor;
 use Doctrine\DBAL\DriverManager;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -447,7 +448,7 @@ final class OpenWorkRequestHandlerTest extends KernelTestCase
         $this->open($project, $cardId);
         $blind = $this->createStub(WorkRequestRepository::class);
         $blind->method('liveRuleId')->willReturn(null);
-        $handler = new OpenWorkRequestHandler($blind, $this->service(OutboxWriter::class), $this->em(), new MockClock(self::NOW), $this->service(Auditor::class), $this->service(WorkRequestAnnouncer::class), $this->service(WorkerRunRepository::class), new WorkSubjectHandlers([]), $this->service(WorkHolds::class));
+        $handler = new OpenWorkRequestHandler($blind, $this->service(OutboxWriter::class), $this->em(), new MockClock(self::NOW), $this->service(Auditor::class), $this->service(WorkRequestAnnouncer::class), $this->service(WorkerRunRepository::class), new WorkSubjectHandlers([], new NoCardTitles()), $this->service(WorkHolds::class));
 
         try {
             $handler(new OpenWorkRequestCommand($project, WorkSubject::card($cardId), 7, 'implement', null, 'implement-on-entry', new WorkRequestContext()));
@@ -603,7 +604,7 @@ final class OpenWorkRequestHandlerTest extends KernelTestCase
             $this->service(Auditor::class),
             $this->service(WorkRequestAnnouncer::class),
             $this->service(WorkerRunRepository::class),
-            new WorkSubjectHandlers([new RecordingWorkSubjectHandler(), new InboxItemWorkSubjectHandler($this->service(InboxItemRepository::class))]),
+            new WorkSubjectHandlers([new RecordingWorkSubjectHandler(), new InboxItemWorkSubjectHandler($this->service(InboxItemRepository::class))], new NoCardTitles()),
             $this->service(WorkHolds::class),
         );
     }

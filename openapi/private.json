@@ -1401,7 +1401,7 @@
                         }
                     },
                     "403": {
-                        "description": "Refused: `credential_not_allowed`.",
+                        "description": "Refused: `credential_not_allowed`, `credential_not_owner_wide`.",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -1700,7 +1700,7 @@
                         }
                     },
                     "403": {
-                        "description": "Refused: `credential_not_allowed`.",
+                        "description": "Refused: `credential_not_allowed`, `credential_not_owner_wide`.",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -1848,7 +1848,7 @@
                         }
                     },
                     "403": {
-                        "description": "Refused: `credential_not_allowed`.",
+                        "description": "Refused: `credential_not_allowed`, `credential_not_owner_wide`.",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -1954,7 +1954,7 @@
                         }
                     },
                     "403": {
-                        "description": "Refused: `credential_not_allowed`.",
+                        "description": "Refused: `credential_not_allowed`, `credential_not_owner_wide`.",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -2073,7 +2073,7 @@
                         }
                     },
                     "403": {
-                        "description": "Refused: `credential_not_allowed`.",
+                        "description": "Refused: `credential_not_allowed`, `credential_not_owner_wide`.",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -2205,7 +2205,7 @@
                         }
                     },
                     "403": {
-                        "description": "Refused: `credential_not_allowed`.",
+                        "description": "Refused: `credential_not_allowed`, `credential_not_owner_wide`.",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -2404,7 +2404,7 @@
                         }
                     },
                     "422": {
-                        "description": "Refused: `invalid_session_id`, `validation_failed`.",
+                        "description": "Refused: `invalid_session_id`, `validation_failed`, `unknown_subject_type`, `subject_not_found`, `work_request_not_found`.",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -3019,7 +3019,7 @@
                         }
                     },
                     "422": {
-                        "description": "Refused: `invalid_run_id`, `validation_failed`.",
+                        "description": "Refused: `invalid_run_id`, `validation_failed`, `unknown_subject_type`, `subject_not_found`, `work_request_not_found`.",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -3309,7 +3309,7 @@
                         }
                     },
                     "403": {
-                        "description": "Refused: `credential_not_allowed`.",
+                        "description": "Refused: `credential_not_allowed`, `credential_not_owner_wide`.",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -3603,7 +3603,7 @@
                         }
                     },
                     "409": {
-                        "description": "Refused: `app_not_configured`, `no_installation`, `installation_suspended`, `no_repository`, `missing_grant`.",
+                        "description": "Refused: `app_not_configured`, `no_installation`, `installation_suspended`, `no_repository`, `missing_grant`, `no_push_access`.",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -4279,7 +4279,7 @@
                         }
                     },
                     "403": {
-                        "description": "Refused: `credential_not_allowed`.",
+                        "description": "Refused: `credential_not_allowed`, `credential_not_owner_wide`.",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -4385,7 +4385,7 @@
                         }
                     },
                     "403": {
-                        "description": "Refused: `credential_not_allowed`.",
+                        "description": "Refused: `credential_not_allowed`, `credential_not_owner_wide`.",
                         "content": {
                             "application/problem+json": {
                                 "schema": {
@@ -12686,7 +12686,8 @@
                 "description": "The API versions of this instance.",
                 "required": [
                     "versions",
-                    "cliRange"
+                    "cliRange",
+                    "revokedReleaseKeys"
                 ],
                 "properties": {
                     "versions": {
@@ -12719,6 +12720,14 @@
                         "description": "The CLI versions this server works with, as a caret range.",
                         "type": "string",
                         "example": "^2.0"
+                    },
+                    "revokedReleaseKeys": {
+                        "description": "Fingerprints of release keys that the bridge must not trust, as `ssh-keygen -l` prints them.",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "example": "SHA256:mPVVTkHngFt3LMCmwB7Nw6BtoS371HG9RRKbhn6T4jM"
+                        }
                     }
                 },
                 "type": "object"
@@ -12750,6 +12759,7 @@
             "HeartbeatAnswer": {
                 "required": [
                     "cliRange",
+                    "revokedReleaseKeys",
                     "paused",
                     "commands",
                     "workRequests",
@@ -12761,6 +12771,14 @@
                     "cliRange": {
                         "type": "string",
                         "example": "^2.0"
+                    },
+                    "revokedReleaseKeys": {
+                        "description": "Fingerprints of release keys that the bridge must not trust, as `ssh-keygen -l` prints them.",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "example": "SHA256:mPVVTkHngFt3LMCmwB7Nw6BtoS371HG9RRKbhn6T4jM"
+                        }
                     },
                     "paused": {
                         "description": "True when the server asks the bridge to take no new work.",
@@ -13292,6 +13310,7 @@
                     "projects",
                     "flags",
                     "cliRange",
+                    "revokedReleaseKeys",
                     "head"
                 ],
                 "properties": {
@@ -13347,6 +13366,14 @@
                     "cliRange": {
                         "type": "string",
                         "example": "^2.0"
+                    },
+                    "revokedReleaseKeys": {
+                        "description": "Fingerprints of release keys that the bridge must not trust, as `ssh-keygen -l` prints them.",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "example": "SHA256:mPVVTkHngFt3LMCmwB7Nw6BtoS371HG9RRKbhn6T4jM"
+                        }
                     },
                     "head": {
                         "description": "The highest outbox sequence of the owner.",

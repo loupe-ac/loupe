@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Bridge\Command;
 
+use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\InteractiveRuns;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkSubject;
@@ -18,6 +19,7 @@ final readonly class ReportInteractiveLaunchHandler
         private InteractiveRuns $interactiveRuns,
         private WorkSubjectHandlers $subjects,
         private InitInstallWaits $installWaits,
+        private WorkRequestRepository $workRequests,
     ) {
     }
 
@@ -30,8 +32,11 @@ final readonly class ReportInteractiveLaunchHandler
         if (!$this->subjects->has($command->subject->type)) {
             return new ReportInteractiveLaunchResult(null, created: false, error: ReportInteractiveLaunchResult::UNKNOWN_SUBJECT_TYPE);
         }
-        if (!$command->subject->isCard() && !($this->subjects->for($command->subject->type)?->subjectExists($project, $command->subject->id) ?? false)) {
+        if (!$this->subjects->belongsTo($project, $command->subject)) {
             return new ReportInteractiveLaunchResult(null, created: false, error: ReportInteractiveLaunchResult::SUBJECT_NOT_FOUND);
+        }
+        if (null !== $command->workRequestId && null === $this->workRequests->findOneOfSubject($command->workRequestId, $project, $command->subject)) {
+            return new ReportInteractiveLaunchResult(null, created: false, error: ReportInteractiveLaunchResult::WORK_REQUEST_NOT_FOUND);
         }
 
         [$run, $created] = match ($command->state) {
@@ -70,9 +75,10 @@ final readonly class ReportInteractiveLaunchHandler
 
         // The mark follows the request also for a run that a stale close ended, because the wait goes on after it.
         if (WorkerRunState::Running === $command->state && null !== $command->awaitingInstall && WorkSubject::PROJECT === $command->subject->type) {
+            $projectId = $project->id?->toRfc4122() ?? throw new \LogicException('A stored project has an id.');
             $command->awaitingInstall
-                ? $this->installWaits->mark($command->sessionId->toRfc4122(), $project->id?->toRfc4122() ?? throw new \LogicException('A stored project has an id.'))
-                : $this->installWaits->clear($command->sessionId->toRfc4122());
+                ? $this->installWaits->mark($command->sessionId->toRfc4122(), $projectId)
+                : $this->installWaits->clear($command->sessionId->toRfc4122(), $projectId);
         }
 
         return new ReportInteractiveLaunchResult($run, $created);

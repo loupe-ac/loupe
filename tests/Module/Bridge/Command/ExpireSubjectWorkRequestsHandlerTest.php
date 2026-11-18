@@ -20,6 +20,7 @@ use App\Outbox\OutboxWriter;
 use App\Tests\Module\Bridge\BlockingRepositories;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Module\Bridge\WorkSubject\RecordingWorkSubjectHandler;
+use App\Tests\Support\NoCardTitles;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Uid\Uuid;
@@ -185,7 +186,7 @@ final class ExpireSubjectWorkRequestsHandlerTest extends KernelTestCase
             new MockClock(self::NOW),
             $this->service(Auditor::class),
             $this->service(WorkRequestAnnouncer::class),
-            new WorkSubjectHandlers([$subjects]),
+            new WorkSubjectHandlers([$subjects], new NoCardTitles()),
             $this->service(WorkHolds::class),
         );
     }

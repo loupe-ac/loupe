@@ -40,7 +40,8 @@ whether the Stripe client is ever instantiated, and `auth.google.enabled` /
 credentials alone are not enough.
 
 `review.mermaid.enabled` is seeded off. When it is on, the review page draws
-Mermaid diagrams, and each reader's browser loads Mermaid from jsDelivr. See
+Mermaid diagrams, and each reader's browser loads Mermaid from the Loupe
+server. See
 [Diagrams](documents.md#diagrams).
 
 The **Open Graph image** flag, `open_graph.image`, picks the preview image of a

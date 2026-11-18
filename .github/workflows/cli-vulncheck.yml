@@ -1,0 +1,37 @@
+name: CLI vulncheck
+
+# Not a pull request check. A new advisory must not block a branch that does not
+# touch cli/. The weekly run finds it, and the failure signal puts one to-do in
+# the Loupe inbox.
+on:
+  schedule:
+    - cron: '43 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  vulncheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: cli/go.mod
+          cache-dependency-path: cli/go.sum
+      - name: Run govulncheck
+        working-directory: cli
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
+  failure-signal:
+    needs: [vulncheck]
+    if: failure()
+    uses: ./.github/workflows/weekly-failure-signal.yml
+    with:
+      workflow: cli-vulncheck
+      project: ${{ vars.LOUPE_PROJECT }}
+      title: CLI vulncheck failed
+    secrets:
+      LOUPE_API_TOKEN: ${{ secrets.LOUPE_API_TOKEN }}

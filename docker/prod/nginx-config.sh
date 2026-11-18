@@ -110,6 +110,7 @@ if [ "$split" = true ]; then
 # with no file lookup, so the site guard of the app answers it.
 server {
     listen 80;
+    listen 8080;
     server_name $site_host;
     include /etc/nginx/snippets/common.conf;
 

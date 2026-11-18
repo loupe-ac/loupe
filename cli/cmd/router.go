@@ -399,15 +399,25 @@ func (p *pending) apply(m rules.Match) {
 		p.spec.refresh, p.spec.reset = m.Refresh, m.Reset
 		run, _ := p.startedOn.settings(p.set, m.Run())
 		p.spec.useSettings(run)
+		p.takePass()
 
 		return
 	}
 	p.spec = workerSpec{dir: m.Dir, effort: m.Effort, schema: m.Schema, prompt: m.Prompt, before: m.Before, command: m.Command, refresh: m.Refresh, reset: m.Reset}
 	p.spec.useRun(m)
+	p.takePass()
 	// The server asks the work to resume the session of an unfinished run,
 	// which the offer found on this machine.
 	if p.isWork() && p.event.SessionID != "" && m.Action == "" && !p.fresh {
 		p.spec.resume, p.spec.prompt, p.spec.cause = true, directive.RenderResumeUnfinished("status unfinished"), api.CauseWorkRequest
+	}
+}
+
+// takePass fixes the passEnv list of the rule set that selected the event, so
+// a reload that lands before the worker starts cannot change it.
+func (p *pending) takePass() {
+	if p.set != nil {
+		p.spec.pass, p.spec.passFixed = p.set.PassEnv(), true
 	}
 }
 
@@ -1351,9 +1361,20 @@ func (r *router) reserveProjectLocked(dir string) func() {
 }
 
 // guardFolder runs the folder guard once on the folder that res names, and
-// records a refusal as the failure of the before command.
+// records a refusal as the failure of the before command. A failed before
+// command still claims the worktree it made, so the next run of the card is
+// not refused.
 func (r *router) guardFolder(p pending, res procResult) procResult {
-	if res.guarded || res.failure() != "" || res.dir == "" || res.noFolder {
+	if res.guarded {
+		return res
+	}
+	if res.failure() != "" {
+		res.guarded = true
+		r.claimFailedFolder(p, res)
+
+		return res
+	}
+	if res.dir == "" || res.noFolder {
 		return res
 	}
 	res.guarded = true
@@ -1417,6 +1438,15 @@ func (r *router) afterBefore(p pending, began time.Time, res procResult) {
 	}
 	failed := workerResult{exitCode: code, output: failedOutput(withCommandLine(failure, argv), res.output), killed: res.killed && !res.timedOut, timedOut: res.timedOut, dir: res.runDir, before: true}
 	r.settle(p, endedRun{res: failed, began: began, elapsed: time.Since(began)})
+}
+
+// claimFailedFolder claims for the card of the run the worktree that its failed
+// before command made.
+func (r *router) claimFailedFolder(p pending, res procResult) {
+	card, _ := cardOf(p.event)
+	r.folderMu.Lock()
+	defer r.folderMu.Unlock()
+	claimMadeWorktree(r.workerContext(), p.spec.dir, res.runDir, card)
 }
 
 // refuseFolder runs the folder guard on the folder the before command printed,

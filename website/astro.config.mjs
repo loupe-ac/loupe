@@ -165,6 +165,7 @@ export default defineConfig({
             },
             { slug: 'operating/first-run' },
             { slug: 'operating/migrations' },
+            { slug: 'operating/database-connections' },
             { slug: 'operating/post-deploy-checks' },
             { slug: 'operating/sentry' },
             { slug: 'operating/artifact-content-domain' },
@@ -175,6 +176,7 @@ export default defineConfig({
             { slug: 'operating/restoring' },
             { slug: 'operating/rotating-encryption-key' },
             { slug: 'operating/rotating-secrets' },
+            { slug: 'operating/release-signing' },
           ],
         },
         {

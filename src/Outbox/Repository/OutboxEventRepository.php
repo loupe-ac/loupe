@@ -15,6 +15,7 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\ORM\Tools\Pagination\Paginator;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -88,12 +89,23 @@ class OutboxEventRepository extends ServiceEntityRepository
         ));
     }
 
+    /** One backward probe of the (project_id, sequence) index for each project of the owner. */
     public function highestSequenceForOwner(User $owner): int
     {
-        return (int) $this->ownedQueryBuilder($owner)
-            ->select('MAX(e.sequence)')
-            ->getQuery()
-            ->getSingleScalarResult();
+        $sql = <<<'SQL'
+            SELECT COALESCE(MAX(latest.sequence), 0)
+            FROM projects p
+            CROSS JOIN LATERAL (
+                SELECT MAX(e.sequence) AS sequence FROM outbox_events e WHERE e.project_id = p.id
+            ) latest
+            WHERE p.owner_id = :owner
+            SQL;
+
+        return (int) $this->getEntityManager()->getConnection()->fetchOne(
+            $sql,
+            ['owner' => $owner->id],
+            ['owner' => UuidType::NAME],
+        );
     }
 
     /** The creation time of the highest row at or below the sequence, in any project. */

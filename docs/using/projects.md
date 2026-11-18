@@ -146,19 +146,28 @@ Tick the repositories to add, then select Add N repositories. Nothing is ticked 
 The picker shows what GitHub shows your GitHub user, and that can differ from what the project holds. When the project holds an installation that your GitHub user cannot see, the picker names its account: "Installed on acme, but your GitHub user cannot see it." Only a GitHub user with access to that installation can pick its repositories.
 When GitHub shows your user no installation at all, the picker says so and offers Install on another account.
 
-A repository in the list has one of three states:
+A repository in the list has one of four states:
 
 - A free repository has a tickbox.
 - A repository of this project shows In this project, ticked and greyed.
 - A repository that another project holds is greyed and has no tickbox. Its label names that project when you can open it. Otherwise it reads Used by another project.
+- A repository that your GitHub user can only read is greyed and has no tickbox. It reads "You need write access on GitHub to add this repository".
 
-When Loupe adds the repositories, it asks GitHub again whether you still reach each one. When another project took a repository first, or someone removed it from the App on GitHub, Loupe adds the others and names the repository it could not add.
+Only a GitHub user with write or admin access to a repository can add it. Agents push to the repository as the Loupe App, so a user who can only read must not give them that access.
+
+When Loupe adds the repositories, it asks GitHub again whether you still reach each one and can push to it. When another project took a repository first, or someone removed it from the App on GitHub, Loupe adds the others and names the repository it could not add. A repository that you can only read gets its own message.
+
+Loupe records which GitHub user added each repository. Before it gives agents a new push token, Loupe asks GitHub whether that user can still push. When the user cannot, agents get no new token, and the bridge reports `no_push_access`. A token that Loupe already gave stays valid for at most one hour. To fix it, get write access back on GitHub, or open the picker as a GitHub user who has write access. Each sign-in from Add repositories records your GitHub user on the repositories of the project that you can push to.
+
+A repository that a project added before Loupe recorded the user gets its tokens with no such check, until someone with write access signs in to the picker of that project.
+
+A repository belongs to one project at a time. The picker has no way to take a repository from another project. Remove it from that project first.
 The picker lists at most 1,000 repositories of one installation. A longer list shows "Showing the first 1,000 repositories of acme". Choose selected repositories on GitHub to narrow the access, and the other repositories show up.
 
 Loupe keeps your GitHub sign-in in your session, encrypted, for 30 minutes at most. It removes the sign-in when you add repositories, when you cancel, when GitHub does not answer, and on the first request after 30 minutes. The tab then shows the Add repositories button again.
 
 If a repository is missing from the list, select Adjust access on GitHub. It opens the page of the installation on GitHub. When the operator turned on "Redirect on update" on the App, GitHub sends you back to the Repositories tab after the change. Otherwise return to the tab and select Refresh list.
-Select Install on another account to install the App on a GitHub account that has no installation yet. When GitHub sends you back and the new installation offers exactly one repository that no project holds, Loupe adds it at once and says "Connected acme/api. Add more from Repositories." With more than one, the picker opens on the Repositories tab.
+Select Install on another account to install the App on a GitHub account that has no installation yet. When GitHub sends you back and the new installation offers exactly one repository that no project holds and that you can push to, Loupe adds it at once and says "Connected acme/api. Add more from Repositories." With more than one, the picker opens on the Repositories tab.
 
 #### Install from github.com
 
@@ -166,7 +175,7 @@ You can install the Loupe App on GitHub before you open a project in Loupe. GitH
 
 After the sign-in, the page "Loupe is installed on acme" asks for a project. It lists the projects you own, each with its number of repositories, and a New project row with a name field. The field holds the name of the GitHub account, and you can change it. When you own no project, only the name field shows. You can rename the project later in Project settings.
 
-Select Continue, or Create project and continue. When the installation offers exactly one repository that no project holds, Loupe adds it at once. Otherwise the picker opens on the Repositories tab, and the account you just installed on comes first. A new project then opens the [setup page](#the-setup-page).
+Select Continue, or Create project and continue. When the installation offers exactly one repository that no project holds and that you can push to, Loupe adds it at once. Otherwise the picker opens on the Repositories tab, and the account you just installed on comes first. A new project then opens the [setup page](#the-setup-page).
 
 When the install was a request to an organization owner, Loupe shows "Your install request waits for an organization owner". The owner approves it on GitHub. Then open a project and select Add repositories.
 

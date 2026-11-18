@@ -249,7 +249,7 @@
     </twig:Ds:EmptyState>
     {% endif %}
     </turbo-frame>
-    {% include '@Bridge/_bridge_hooks.html.twig' with {project: project} only %}
+    {% include '@Bridge/_bridge_hooks.html.twig' with {bridges: connections|map(connection => connection.bridge)} only %}
     </div>
 </twig:Ds:Workspace>
 {% endblock %}

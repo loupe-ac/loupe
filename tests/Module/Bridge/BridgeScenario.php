@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Module\Bridge;
 
 use App\Module\Account\Entity\User;
+use App\Module\Board\Entity\BoardColumn;
+use App\Module\Board\Entity\Card;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\BridgeAccountReading;
 use App\Module\Bridge\Entity\BridgeCommand;
@@ -29,22 +31,22 @@ use App\Module\Bridge\ValueObject\WorkerRunToolCallReport;
 use App\Module\Bridge\ValueObject\WorkerRunUsageSource;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
+use App\Module\Inbox\Entity\InboxAskOrigin;
+use App\Module\Inbox\Entity\InboxItem;
+use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Project\Entity\Project;
-use App\Module\Project\Security\ProjectVoter;
+use App\Tests\Module\Project\Security\DeniesProjectManage;
 use App\Tests\Support\AcceptedTerms;
 use App\Tests\Support\AgentCredential;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
-use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
-use Symfony\Component\Security\Core\Authorization\AccessDecision;
-use Symfony\Component\Security\Core\Authorization\AccessDecisionManagerInterface;
-use Symfony\Component\Security\Core\Authorization\AuthorizationChecker;
-use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
 use Symfony\Component\Uid\Uuid;
 
 /** Fixtures the Bridge module's database tests share. */
 trait BridgeScenario
 {
+    use DeniesProjectManage;
+
     private function em(): EntityManagerInterface
     {
         $em = static::getContainer()->get(EntityManagerInterface::class);
@@ -72,6 +74,27 @@ trait BridgeScenario
         $em->flush();
 
         return $project;
+    }
+
+    /** A card of the project, so a run report can name a subject that the project holds. */
+    private function seedCard(EntityManagerInterface $em, Project $project, int $number = 1): Card
+    {
+        $column = new BoardColumn($project, 'Implementation '.$number, 'implementation-'.$number, $number);
+        $card = new Card($project, $column, 'Card '.$number, '', $number);
+        $em->persist($column);
+        $em->persist($card);
+        $em->flush();
+
+        return $card;
+    }
+
+    private function seedInboxItem(EntityManagerInterface $em, Project $project): InboxItem
+    {
+        $item = new InboxItem(project: $project, number: 1, kind: InboxItemKind::Notice, title: 'A notice', blocking: false, origin: InboxAskOrigin::Loupe);
+        $em->persist($item);
+        $em->flush();
+
+        return $item;
     }
 
     private function agentToken(KernelBrowser $browser, User $owner): string
@@ -398,29 +421,5 @@ trait BridgeScenario
         self::assertInstanceOf(WorkerRunSearchIndexer::class, $indexer);
 
         return $indexer;
-    }
-
-    /** View and manage are both the owner's today, so a checker stands in for a viewer who cannot manage. Call it before the first request or fixture. */
-    private function denyManage(): void
-    {
-        $container = static::getContainer();
-        $tokens = $container->get('security.token_storage');
-        self::assertInstanceOf(TokenStorageInterface::class, $tokens);
-        $decisions = $container->get('security.access.decision_manager');
-        self::assertInstanceOf(AccessDecisionManagerInterface::class, $decisions);
-        $real = new AuthorizationChecker($tokens, $decisions);
-
-        $container->set('security.authorization_checker', new readonly class($real) implements AuthorizationCheckerInterface {
-            public function __construct(
-                private AuthorizationCheckerInterface $real,
-            ) {
-            }
-
-            #[\Override]
-            public function isGranted(mixed $attribute, mixed $subject = null, ?AccessDecision $accessDecision = null): bool
-            {
-                return ProjectVoter::MANAGE !== $attribute && $this->real->isGranted($attribute, $subject, $accessDecision);
-            }
-        });
     }
 }

@@ -229,6 +229,11 @@ func (b *bridgeUpdate) handover(r *router, from string) stagedHook {
 
 			return stagedRejected
 		}
+		if update.StagedRevoked(b.dir, to) {
+			b.log.Warn("update_rolled_back", "from", from, "to", to, "reason", "its release key is revoked")
+
+			return stagedRejected
+		}
 		// A reload moves the lock, so none may run until the exec.
 		if !r.reloadMu.TryLock() {
 			b.log.Info("update_deferred", "from", from, "to", to, "reason", "a reload is running")
@@ -250,6 +255,12 @@ func (b *bridgeUpdate) handover(r *router, from string) stagedHook {
 			b.log.Info("update_deferred", "from", from, "to", to, "reason", err.Error())
 
 			return stagedDeferred
+		}
+		if update.StagedRevoked(b.dir, to) {
+			r.resume()
+			b.log.Warn("update_rolled_back", "from", from, "to", to, "reason", "its release key is revoked")
+
+			return stagedRejected
 		}
 		st.OldVersion, st.OldBinary, st.NewVersion = from, b.target, to
 		b.log.Info("update_handover", "from", from, "to", to, "file", b.file, "live", len(st.Live), "queued", len(st.Queue))
@@ -284,7 +295,7 @@ func (b *bridgeUpdate) execWith(st handoverState, binary string, announce func()
 	if announce != nil {
 		announce()
 	}
-	err := b.exec(binary, argv, os.Environ())
+	err := b.exec(binary, argv, handoverEnviron())
 	closeOnExec(lockFD, ctlFD)
 	if err == nil {
 		err = errors.New("exec returned")

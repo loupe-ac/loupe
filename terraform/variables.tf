@@ -278,7 +278,7 @@ variable "install_token" {
   type        = string
   sensitive   = true
   default     = ""
-  description = "INSTALL_TOKEN gating /install. REQUIRED in production: the wizard fails closed there, so an empty value makes /install 404 and you cannot create the first administrator. Append it once as ?token=<value>."
+  description = "INSTALL_TOKEN gating /install. REQUIRED in production: the wizard fails closed there, so an empty value makes /install 404 and you cannot create the first administrator. Paste it once into the form at /install."
 }
 
 variable "mcp_allowed_hosts" {
@@ -429,6 +429,12 @@ variable "stripe_webhook_secret" {
   sensitive   = true
   default     = ""
   description = "STRIPE_WEBHOOK_SECRET used to verify inbound webhook signatures."
+}
+
+variable "stripe_custom_domain_origin" {
+  type        = string
+  default     = ""
+  description = "STRIPE_CUSTOM_DOMAIN_ORIGIN, such as https://payments.example.com. Set it when the Stripe account uses a custom domain for checkout and the customer portal, so the form-action rule of the CSP allows it. Not secret. Empty keeps only the default Stripe hosts."
 }
 
 variable "sentry_dsn" {

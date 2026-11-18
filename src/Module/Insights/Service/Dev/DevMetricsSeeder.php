@@ -158,7 +158,7 @@ final readonly class DevMetricsSeeder
 
                 continue;
             }
-            if (!$all && null !== $this->insightsKeptResults->findForGraph($graph)) {
+            if (!$all && null !== $this->insightsKeptResults->findStampForGraph($graph)) {
                 continue;
             }
             $this->keeper->graph($graph);

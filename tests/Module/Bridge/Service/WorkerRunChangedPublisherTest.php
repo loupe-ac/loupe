@@ -33,6 +33,7 @@ use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Scheduler\TimeOutQuietWorkerRunsTask;
 use App\Module\Bridge\Service\InteractiveRuns;
+use App\Module\Bridge\Service\SidebarCountsSignal;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Bridge\ValueObject\BridgeCommandKind;
 use App\Module\Bridge\ValueObject\BridgeCommandState;
@@ -87,7 +88,7 @@ final class WorkerRunChangedPublisherTest extends KernelTestCase
 
     public function test_a_state_report_signals_the_project_and_the_card_at_terminate(): void
     {
-        $cardId = Uuid::v7();
+        $cardId = $this->newCard();
         $this->reportState(Uuid::v4(), WorkerRunState::Queued, cardId: $cardId);
 
         self::assertCount(0, $this->published);
@@ -98,7 +99,7 @@ final class WorkerRunChangedPublisherTest extends KernelTestCase
 
     public function test_a_state_report_about_no_card_signals_no_board(): void
     {
-        $result = $this->reportState(Uuid::v4(), WorkerRunState::Queued, subject: new WorkSubject('analysis', Uuid::v7()));
+        $result = $this->reportState(Uuid::v4(), WorkerRunState::Queued, subject: new WorkSubject('inbox-item', $this->seedInboxItem($this->em(), $this->project)->id ?? throw new \LogicException('A stored item has an id.')));
 
         // Guard: the report reached a run, and the run pages heard of it.
         self::assertNotNull($result->run);
@@ -109,7 +110,7 @@ final class WorkerRunChangedPublisherTest extends KernelTestCase
     public function test_a_repeated_state_report_changes_nothing_and_publishes_nothing(): void
     {
         $runKey = Uuid::v4();
-        $cardId = Uuid::v7();
+        $cardId = $this->newCard();
         $this->reportState($runKey, WorkerRunState::Queued, cardId: $cardId);
         $this->assertPublishedAtTerminate(3);
 
@@ -132,7 +133,7 @@ final class WorkerRunChangedPublisherTest extends KernelTestCase
 
     public function test_a_card_warning_change_signals_the_board_with_the_card(): void
     {
-        $cardId = Uuid::v7();
+        $cardId = $this->newCard();
 
         $this->service(WorkerRunChangedPublisher::class)->cardWarningChanged($this->project->id ?? throw new \LogicException('The project has no id.'), $cardId);
 
@@ -157,7 +158,7 @@ final class WorkerRunChangedPublisherTest extends KernelTestCase
 
     public function test_a_state_report_that_gives_up_signals_the_card_once(): void
     {
-        $cardId = Uuid::v7();
+        $cardId = $this->newCard();
         $runKey = Uuid::v4();
         $this->reportState($runKey, WorkerRunState::Running, cardId: $cardId);
         $this->assertPublishedAtTerminate(3);
@@ -173,7 +174,7 @@ final class WorkerRunChangedPublisherTest extends KernelTestCase
 
     public function test_a_blocked_state_report_signals_the_card(): void
     {
-        $cardId = Uuid::v7();
+        $cardId = $this->newCard();
 
         $this->reportState(Uuid::v4(), WorkerRunState::Blocked, cardId: $cardId);
 
@@ -183,7 +184,7 @@ final class WorkerRunChangedPublisherTest extends KernelTestCase
 
     public function test_a_success_after_a_warning_signals_the_card(): void
     {
-        $cardId = Uuid::v7();
+        $cardId = $this->newCard();
         $this->seedWarning($cardId, WorkerRunState::GaveUp);
 
         $this->reportState(Uuid::v4(), WorkerRunState::Succeeded, cardId: $cardId);
@@ -194,7 +195,7 @@ final class WorkerRunChangedPublisherTest extends KernelTestCase
 
     public function test_a_launch_failure_signals_the_card_once(): void
     {
-        $cardId = Uuid::v7();
+        $cardId = $this->newCard();
         $sessionId = Uuid::v4();
         $fail = fn (): array => $this->service(InteractiveRuns::class)->recordLaunchFailure(
             $this->project, WorkSubject::card($cardId), 3, $sessionId, 'design', Uuid::v7(), 'launcher exited 1', new \DateTimeImmutable('2026-09-23 11:59:00'),
@@ -386,7 +387,7 @@ final class WorkerRunChangedPublisherTest extends KernelTestCase
             },
         );
 
-        new WorkerRunChangedPublisher($this->service(ProjectTopicBuilder::class), $live)->runsChanged($this->project);
+        new WorkerRunChangedPublisher($this->service(ProjectTopicBuilder::class), $live, $this->service(SidebarCountsSignal::class))->runsChanged($this->project);
         $live->publish();
 
         self::assertFalse($hubBuilt);
@@ -421,7 +422,7 @@ final class WorkerRunChangedPublisherTest extends KernelTestCase
             ),
         );
 
-        $publisher = new WorkerRunChangedPublisher($this->service(ProjectTopicBuilder::class), $live);
+        $publisher = new WorkerRunChangedPublisher($this->service(ProjectTopicBuilder::class), $live, $this->service(SidebarCountsSignal::class));
 
         $publisher->runsChanged($this->project);
         $publisher->runsChanged($other);
@@ -444,11 +445,18 @@ final class WorkerRunChangedPublisherTest extends KernelTestCase
             bridgeId: Uuid::fromString('0199a0e2-b1f3-7a44-9c11-2d3e4f506180'),
             state: $state,
             at: new \DateTimeImmutable('2026-09-23 10:00:00'),
-            subject: $subject ?? WorkSubject::card($cardId ?? Uuid::v7()),
+            subject: $subject ?? WorkSubject::card($cardId ?? $this->newCard()),
             cardNumber: null === $subject ? 1 : null,
             workKind: 'plan',
             endedAt: $state->isOutcome() ? new \DateTimeImmutable('2026-09-23 10:05:00') : null,
         ));
+    }
+
+    private int $cardNumber = 0;
+
+    private function newCard(): Uuid
+    {
+        return $this->seedCard($this->em(), $this->project, ++$this->cardNumber)->id ?? throw new \LogicException('A stored card has an id.');
     }
 
     private function commandRun(): WorkerRun
@@ -545,8 +553,8 @@ final class WorkerRunChangedPublisherTest extends KernelTestCase
             'http://mercure/.well-known/mercure',
             new StaticTokenProvider('token'),
             function (Update $update): string {
-                // A project written in setup also signals the projects list, which this test does not cover.
-                if (str_contains($update->getData(), '"account.changed"')) {
+                // A project written in setup also signals the projects list, and the sidebar counts have a test of their own.
+                if (str_contains($update->getData(), '"account.changed"') || str_contains($update->getData(), SidebarCountsSignal::TYPE)) {
                     return 'id';
                 }
                 $this->published[] = $update;

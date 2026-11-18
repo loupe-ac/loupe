@@ -117,6 +117,51 @@ final class ForgeRepositoriesTest extends KernelTestCase
         self::assertEquals($installed->id, $this->repositories->installationOwnerOf('github', '1003')?->project->id);
     }
 
+    public function test_an_installation_claim_records_the_claimant_and_a_claim_with_none_keeps_it(): void
+    {
+        $project = $this->project('claimant');
+
+        $this->repositories->claim($project, 'github', '1051', 'acme/widgets', ForgeRepositorySource::Installation, '5', '777');
+        self::assertSame('777', $this->rowOf($project, '1051')?->claimantAccountId);
+
+        $this->repositories->claim($project, 'github', '1051', 'acme/widgets', ForgeRepositorySource::Installation, '5', '888');
+        self::assertSame('888', $this->rowOf($project, '1051')->claimantAccountId, 'A claim of the own row records the new claimant.');
+
+        $this->installation($project, '1051', 'acme/widgets', '5');
+        $this->hook($project, '1051', 'acme/widgets');
+        self::assertSame('888', $this->rowOf($project, '1051')?->claimantAccountId, 'A delivery names no claimant, so it keeps the recorded one.');
+    }
+
+    public function test_an_installation_claim_of_a_hook_row_records_the_claimant(): void
+    {
+        $project = $this->project('claimant-hook');
+        $this->hook($project, '1052', 'acme/widgets');
+
+        $this->repositories->claim($project, 'github', '1052', 'acme/widgets', ForgeRepositorySource::Installation, '5', '777');
+
+        self::assertSame('777', $this->rowOf($project, '1052')?->claimantAccountId);
+    }
+
+    public function test_record_claimant_writes_the_installation_rows_of_the_project_alone(): void
+    {
+        $project = $this->project('record-claimant');
+        $other = $this->project('record-claimant-other');
+        $this->installation($project, '1053', 'acme/one', '5');
+        $this->hook($project, '1054', 'acme/hooked');
+        $this->installation($project, '1055', 'acme/unnamed', '5');
+        $this->installation($other, '1056', 'acme/theirs', '5');
+        $this->hook($project, '1056', 'acme/theirs');
+
+        $this->repositories->recordClaimant($project, 'github', ['1053', '1054', '1056'], '777');
+        $this->em->clear();
+
+        self::assertSame('777', $this->rowOf($project, '1053')?->claimantAccountId);
+        self::assertNull($this->rowOf($project, '1054')?->claimantAccountId, 'A hook row holds nothing to push.');
+        self::assertNull($this->rowOf($project, '1055')?->claimantAccountId, 'A repository the call does not name keeps its value.');
+        self::assertNull($this->rowOf($project, '1056')?->claimantAccountId);
+        self::assertNull($this->rowOf($other, '1056')?->claimantAccountId, 'Another project keeps its row.');
+    }
+
     public function test_a_hook_row_does_not_block_an_installation(): void
     {
         $this->hook($this->project('hook-first'), '1015', 'acme/widgets');

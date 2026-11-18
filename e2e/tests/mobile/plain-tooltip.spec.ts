@@ -5,7 +5,12 @@
  */
 
 import { expect } from '@playwright/test';
-import { agentAccessToken, createTest, suppressWidget } from '../fixtures';
+import {
+    agentAccessToken,
+    createTest,
+    mcpCards,
+    suppressWidget,
+} from '../fixtures';
 
 const test = createTest({
     email: `e2e-plain-tooltip-${crypto.randomUUID()}@example.com`,
@@ -28,6 +33,7 @@ test('a touch screen hides the tooltip and the help icon of a chip', async ({
     expect(seed.status()).toBe(201);
     const { projectId } = await seed.json();
     const token = await agentAccessToken(page);
+    const card = await (await mcpCards(page, projectId))('Plain tooltip card');
     const runId = crypto.randomUUID();
     const response = await page.request.put(
         `/api/v1/bridge/projects/${projectId}/worker-runs/${runId}`,
@@ -38,8 +44,8 @@ test('a touch screen hides the tooltip and the help icon of a chip', async ({
                 workKind: 'implement',
                 sessionId: crypto.randomUUID(),
                 subjectType: 'card',
-                subjectId: crypto.randomUUID(),
-                cardNumber: 1,
+                subjectId: card.id,
+                cardNumber: card.number,
                 startedAt: '2026-09-17T12:00:00+00:00',
                 state: 'not-started',
                 at: '2026-09-17T12:00:21+00:00',

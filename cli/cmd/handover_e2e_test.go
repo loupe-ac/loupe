@@ -27,6 +27,7 @@ import (
 	"github.com/loupe-ac/loupe/cli/internal/api"
 	"github.com/loupe-ac/loupe/cli/internal/config"
 	"github.com/loupe-ac/loupe/cli/internal/update"
+	"github.com/loupe-ac/loupe/cli/internal/update/signtest"
 )
 
 const (
@@ -101,8 +102,14 @@ func TestMajorUpdateEndToEnd(t *testing.T) {
 	t.Run("drain and resume in a shared setup", func(t *testing.T) { testDrainAndResume(t, old, major, true) })
 }
 
+// e2eKey signs the releases of the fake GitHub. The binaries that
+// buildVersions makes trust it, because a subprocess never reads the trusted
+// keys of the test process.
+var e2eKey *signtest.Key
+
 func buildVersions(t *testing.T, older, newer string) (string, string) {
 	t.Helper()
+	e2eKey = signtest.New(t)
 	root, err := filepath.Abs("..")
 	if err != nil {
 		t.Fatal(err)
@@ -113,7 +120,7 @@ func buildVersions(t *testing.T, older, newer string) (string, string) {
 	var wg sync.WaitGroup
 	for i, v := range []string{older, newer} {
 		wg.Go(func() {
-			cmd := exec.Command("go", "build", "-o", paths[i], "-ldflags", "-X github.com/loupe-ac/loupe/cli/cmd.version="+v, ".")
+			cmd := exec.Command("go", "build", "-o", paths[i], "-ldflags", "-X github.com/loupe-ac/loupe/cli/cmd.version="+v+" -X 'github.com/loupe-ac/loupe/cli/internal/update.extraKeys="+e2eKey.Line()+"'", ".")
 			cmd.Dir = root
 			cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 			if out, err := cmd.CombinedOutput(); err != nil {
@@ -136,6 +143,7 @@ type e2eLoupe struct {
 	archiveName string
 	archive     []byte
 	checksums   []byte
+	signature   []byte
 	// gate holds the releases list back until the test opens it.
 	gate     chan struct{}
 	gateOnce sync.Once
@@ -162,6 +170,9 @@ type e2eLoupe struct {
 
 func newE2ELoupe(t *testing.T, newBinary, newVersion string) *e2eLoupe {
 	t.Helper()
+	if e2eKey == nil {
+		t.Skip("a prebuilt binary trusts no test key, so it cannot take a signed release from the fake GitHub")
+	}
 	bin, err := os.ReadFile(newBinary)
 	if err != nil {
 		t.Fatal(err)
@@ -189,6 +200,7 @@ func newE2ELoupe(t *testing.T, newBinary, newVersion string) *e2eLoupe {
 		notify:      make(chan struct{}),
 	}
 	f.checksums = fmt.Appendf(nil, "%x  %s\n", sha256.Sum256(f.archive), f.archiveName)
+	f.signature = e2eKey.Sign(f.checksums)
 
 	return f
 }
@@ -277,12 +289,14 @@ func (f *e2eLoupe) serve(w http.ResponseWriter, r *http.Request) {
 
 			return
 		}
-		fmt.Fprintf(w, `[{"tag_name":"cli/v%s","assets":[{"name":%q,"browser_download_url":%q},{"name":"checksums.txt","browser_download_url":%q}]}]`,
-			f.version, f.archiveName, base+"/github/assets/"+f.archiveName, base+"/github/assets/checksums.txt")
+		fmt.Fprintf(w, `[{"tag_name":"cli/v%s","assets":[{"name":%q,"browser_download_url":%q},{"name":"checksums.txt","browser_download_url":%q},{"name":"checksums.txt.sig","browser_download_url":%q}]}]`,
+			f.version, f.archiveName, base+"/github/assets/"+f.archiveName, base+"/github/assets/checksums.txt", base+"/github/assets/checksums.txt.sig")
 	case path == "/github/assets/"+f.archiveName:
 		w.Write(f.archive)
 	case path == "/github/assets/checksums.txt":
 		w.Write(f.checksums)
+	case path == "/github/assets/checksums.txt.sig":
+		w.Write(f.signature)
 	default:
 		f.mu.Lock()
 		f.unknown = append(f.unknown, r.Method+" "+path)
@@ -414,7 +428,7 @@ func startE2EBridge(t *testing.T, fake *e2eLoupe, old string, env ...string) *e2
 	raw, _ := json.Marshal(cfg)
 	rulesPath := filepath.Join(home, "rules.yaml")
 	// No resume, so a failed run reports at once rather than after the delay.
-	rulesBody := "autoUpdate: " + strconv.FormatBool(!fake.autoUpdateOff) + "\naccounts:\n  claude:\n    harness: claude-code\ndefaults:\n  account: claude\n  isolation: none\nprojects:\n  loupe:\n    dir: " + filepath.Join(home, "work") + "\nwork:\n" +
+	rulesBody := "autoUpdate: " + strconv.FormatBool(!fake.autoUpdateOff) + "\naccounts:\n  claude:\n    harness: claude-code\n    envFile: " + filepath.Join(home, "worker.env") + "\ndefaults:\n  account: claude\n  isolation: none\nprojects:\n  loupe:\n    dir: " + filepath.Join(home, "work") + "\nwork:\n" +
 		"  plan:\n    prompt: \"{cardNumber}\"\n"
 	b.installed = filepath.Join(home, "bin", "loupe")
 	oldBytes, err := os.ReadFile(old)
@@ -424,6 +438,7 @@ func startE2EBridge(t *testing.T, fake *e2eLoupe, old string, env ...string) *e2
 	files := map[string][]byte{
 		filepath.Join(configDir, "config.json"): raw,
 		rulesPath:                               []byte(rulesBody),
+		filepath.Join(home, "worker.env"):       []byte("LOUPE_E2E_DIR=" + b.dir + "\n"),
 		filepath.Join(b.dir, "claude"):          []byte(e2eClaude),
 		b.installed:                             oldBytes,
 	}

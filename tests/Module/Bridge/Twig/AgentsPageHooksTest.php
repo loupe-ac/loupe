@@ -63,6 +63,7 @@ final class AgentsPageHooksTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertCount(1, $crawler->filter('[data-bridge-hooks]'));
+        self::assertCount(1, $crawler->filter('[data-hooks-bridge-count="1"]'));
         self::assertCount(0, $crawler->filter('[data-hook-row]'));
         self::assertSelectorTextContains('[data-bridge-hooks] [data-hooks-none]', 'No hook is installed');
     }
@@ -81,6 +82,7 @@ final class AgentsPageHooksTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertCount(0, $crawler->filter('[data-bridge-hooks]'));
+        self::assertCount(0, $crawler->filter('[data-hooks-bridge-count]'));
         self::assertSelectorTextContains('[data-hooks-section] [data-hooks-none]', 'No hook is installed');
     }
 }

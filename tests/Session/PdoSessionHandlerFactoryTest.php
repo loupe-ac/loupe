@@ -6,10 +6,12 @@ namespace App\Tests\Session;
 
 use App\Observability\RequestTimeline;
 use App\Session\PdoSessionHandlerFactory;
+use App\Session\PersistentPdoSessionHandler;
 use Doctrine\DBAL\Connection;
 use PHPUnit\Framework\TestCase;
 use Sentry\State\HubInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\HttpFoundation\Session\Storage\Handler\PdoSessionHandler;
 
 final class PdoSessionHandlerFactoryTest extends TestCase
 {
@@ -22,7 +24,7 @@ final class PdoSessionHandlerFactoryTest extends TestCase
         // database's sessions — silently, because that table does exist there.
         $factory = $this->factory('app_wt_feature', 'postgresql://app:s3cret@database:5432/app?serverVersion=16&charset=utf8');
 
-        self::assertSame('pgsql:host=database;port=5432;dbname=app_wt_feature', $factory->sessionDsn());
+        self::assertSame('pgsql:host=database;port=5432;dbname=app_wt_feature;application_name=loupe-session', $factory->sessionDsn());
     }
 
     public function test_it_carries_sslmode_onto_the_session_connection(): void
@@ -31,14 +33,14 @@ final class PdoSessionHandlerFactoryTest extends TestCase
         // session connection, while Doctrine and the cache connect fine.
         $factory = $this->factory('app', 'postgresql://app:s3cret@db.example.com:25060/app?sslmode=require&serverVersion=16');
 
-        self::assertSame('pgsql:host=db.example.com;port=25060;dbname=app;sslmode=require', $factory->sessionDsn());
+        self::assertSame('pgsql:host=db.example.com;port=25060;dbname=app;sslmode=require;application_name=loupe-session', $factory->sessionDsn());
     }
 
     public function test_it_drops_doctrine_only_parameters_that_libpq_would_reject(): void
     {
         $factory = $this->factory('app', 'postgresql://database/app?serverVersion=16&charset=utf8');
 
-        self::assertSame('pgsql:host=database;dbname=app', $factory->sessionDsn());
+        self::assertSame('pgsql:host=database;dbname=app;application_name=loupe-session', $factory->sessionDsn());
     }
 
     public function test_it_rejects_a_url_it_cannot_read(): void
@@ -59,11 +61,30 @@ final class PdoSessionHandlerFactoryTest extends TestCase
         $factory->sessionDsn();
     }
 
-    private function factory(string $database, string $databaseUrl): PdoSessionHandlerFactory
+    public function test_it_names_the_session_connection_whatever_the_url_says(): void
     {
-        $connection = $this->createStub(Connection::class);
-        $connection->method('getDatabase')->willReturn($database);
+        $factory = $this->factory('app', 'postgresql://database/app?application_name=other');
 
-        return new PdoSessionHandlerFactory($connection, $databaseUrl, new RequestStack(), new RequestTimeline($this->createStub(HubInterface::class)));
+        self::assertSame('pgsql:host=database;dbname=app;application_name=loupe-session', $factory->sessionDsn());
+    }
+
+    public function test_it_keeps_the_connection_persistent_only_under_php_fpm(): void
+    {
+        $url = 'postgresql://app:s3cret@database:5432/app';
+
+        $fpm = $this->factory('app', $url, 'fpm-fcgi')->create(PdoSessionHandler::LOCK_NONE);
+        $cli = $this->factory('app', $url, 'cli')->create(PdoSessionHandler::LOCK_NONE);
+
+        self::assertInstanceOf(PersistentPdoSessionHandler::class, $fpm);
+        self::assertNotInstanceOf(PersistentPdoSessionHandler::class, $cli);
+    }
+
+    private function factory(string $database, string $databaseUrl, string $sapi = 'cli'): PdoSessionHandlerFactory
+    {
+        $connection = $this->createMock(Connection::class);
+        $connection->method('getParams')->willReturn(['dbname' => $database]);
+        $connection->expects(self::never())->method('getDatabase');
+
+        return new PdoSessionHandlerFactory($connection, $databaseUrl, new RequestStack(), new RequestTimeline($this->createStub(HubInterface::class)), $sapi);
     }
 }

@@ -55,7 +55,9 @@ type heartbeater struct {
 	// lane, so it must not block. update gives the update state of each
 	// heartbeat. Either may be nil.
 	onRange func(string)
-	update  func() api.HeartbeatUpdate
+	// onRevoked receives the revoked release key fingerprints of each answer.
+	onRevoked func([]string)
+	update    func() api.HeartbeatUpdate
 	// skills gives the state of each skill package for a heartbeat. It may be
 	// nil, and it may return nil.
 	skills func() []api.SkillReport
@@ -433,6 +435,9 @@ func (h *heartbeater) dispatch() {
 			h.mu.Lock()
 			h.watch = reply.WatchSessions
 			h.mu.Unlock()
+		}
+		if err == nil && h.onRevoked != nil {
+			h.onRevoked(reply.RevokedReleaseKeys)
 		}
 		if err == nil && h.onRange != nil {
 			h.onRange(reply.CLIRange)

@@ -13,6 +13,7 @@ use App\Module\Bridge\Command\TimeOutQuietWorkerRunsCommand;
 use App\Module\Bridge\Command\TimeOutQuietWorkerRunsHandler;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\EventListener\WorkerRunFactListener;
+use App\Module\Bridge\Messenger\WriteWorkerRunFacts;
 use App\Module\Bridge\ValueObject\WorkerRunModelUsage;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkerRunUsageReport;
@@ -20,10 +21,12 @@ use App\Module\Bridge\ValueObject\WorkerRunUsageSource;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Bridge\BridgeScenario;
+use App\Tests\Support\RunsFactJobs;
 use Doctrine\DBAL\Exception\DriverException;
 use Doctrine\ORM\Event\OnFlushEventArgs;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
+use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Contracts\Service\ResetInterface;
 
@@ -31,6 +34,8 @@ use Symfony\Contracts\Service\ResetInterface;
 final class WorkerRunFactListenerTest extends KernelTestCase
 {
     use BridgeScenario;
+
+    private string $cardId = '';
 
     private const string SESSION = '5f0c2b1e-8d4a-4c3b-9e2f-1a0b3c4d5e6f';
 
@@ -49,6 +54,24 @@ final class WorkerRunFactListenerTest extends KernelTestCase
         self::assertSame(300000, $fact['duration_ms']);
         self::assertSame(10, $fact['tokens_in']);
         self::assertSame('reported', $fact['usage_source']);
+    }
+
+    public function test_a_state_report_queues_one_write_for_its_run_and_writes_no_fact_inline(): void
+    {
+        [$owner, $project] = $this->scenario('facts-one-job');
+        $transport = self::getContainer()->get('messenger.transport.insights');
+        self::assertInstanceOf(InMemoryTransport::class, $transport);
+        $transport->reset();
+
+        $run = $this->report($owner, $project, Uuid::v4(), WorkerRunState::Succeeded, self::usage(WorkerRunUsageSource::Reported, '0.500000'));
+
+        $writes = array_values(array_filter(
+            array_map(static fn ($envelope): object => $envelope->getMessage(), $transport->getSent()),
+            static fn (object $message): bool => $message instanceof WriteWorkerRunFacts,
+        ));
+        self::assertCount(1, $writes);
+        self::assertSame([(string) $run->id], $writes[0]->runIds);
+        self::assertFalse($this->em()->getConnection()->fetchOne('SELECT run_id FROM bridge_worker_run_facts WHERE run_id = ?', [(string) $run->id]));
     }
 
     public function test_a_later_report_with_better_usage_changes_the_cost(): void
@@ -107,7 +130,7 @@ final class WorkerRunFactListenerTest extends KernelTestCase
     public function test_a_queued_run_gets_a_fact(): void
     {
         [$owner, $project] = $this->scenario('facts-queued');
-        $cardId = Uuid::v7();
+        $cardId = Uuid::fromString($this->cardId);
 
         $run = $this->report($owner, $project, Uuid::v4(), WorkerRunState::Queued, cardId: $cardId);
 
@@ -178,7 +201,10 @@ final class WorkerRunFactListenerTest extends KernelTestCase
         $em = $this->em();
         $owner = $this->user($em, $name.'@example.com');
 
-        return [$owner, $this->project($em, $owner, 'Project '.substr(md5($name), 0, 8))];
+        $project = $this->project($em, $owner, 'Project '.substr(md5($name), 0, 8));
+        $this->cardId = (string) $this->seedCard($em, $project)->id;
+
+        return [$owner, $project];
     }
 
     private function report(User $owner, Project $project, Uuid $runKey, WorkerRunState $state, ?WorkerRunUsageReport $usage = null, ?Uuid $cardId = null): WorkerRun
@@ -195,7 +221,7 @@ final class WorkerRunFactListenerTest extends KernelTestCase
             bridgeId: Uuid::fromString('0199a0e2-9d4c-7c5e-9f2a-3b1c6d7e8f90'),
             state: $state,
             at: new \DateTimeImmutable('2026-09-23 10:0'.$state->rank().':00'),
-            subject: WorkSubject::card($cardId ?? Uuid::fromString('0199a0e2-b1f3-7a44-9c11-2d3e4f506172')),
+            subject: WorkSubject::card($cardId ?? Uuid::fromString($this->cardId)),
             cardNumber: 1,
             workRequestId: null,
             workKind: 'plan',
@@ -240,6 +266,7 @@ final class WorkerRunFactListenerTest extends KernelTestCase
     /** @return array<string, mixed> */
     private function fact(WorkerRun $run): array
     {
+        RunsFactJobs::run(self::getContainer());
         $fact = $this->em()->getConnection()->fetchAssociative(
             'SELECT * FROM bridge_worker_run_facts WHERE run_id = ?',
             [(string) $run->id],

@@ -25,6 +25,7 @@ final readonly class WorkerRunChangedPublisher
     public function __construct(
         private ProjectTopicBuilder $topics,
         private LiveUpdatePublisher $publisher,
+        private SidebarCountsSignal $sidebarCounts,
     ) {
     }
 
@@ -33,6 +34,7 @@ final readonly class WorkerRunChangedPublisher
     {
         $projectId = $project->id ?? throw new \LogicException('Project has no id.');
         $this->publisher->queue($this->topics->forWorkerRuns($projectId), ['type' => self::TYPE]);
+        $this->sidebarCounts->mark($project);
     }
 
     /** Tells the open run pages that the output log of one run grew to $length bytes. Call it after the change commits. */

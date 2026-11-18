@@ -123,6 +123,27 @@ class CardRepository extends ServiceEntityRepository
     }
 
     /**
+     * The cards of a project, highest number first, with only the fields a
+     * picker shows. Reads no body and hydrates no entity.
+     *
+     * @return list<array{id: Uuid, number: int, title: string, terminal: bool}>
+     */
+    public function findPickerRows(Project $project): array
+    {
+        /** @var list<array{id: Uuid, number: int, title: string, terminal: bool}> $rows */
+        $rows = $this->createQueryBuilder('c')
+            ->select('c.id AS id, c.number AS number, c.title AS title, col.terminal AS terminal')
+            ->join('c.column', 'col')
+            ->andWhere('c.project = :project')
+            ->setParameter('project', $project)
+            ->orderBy('c.number', 'DESC')
+            ->getQuery()
+            ->getArrayResult();
+
+        return $rows;
+    }
+
+    /**
      * @param list<Uuid> $ids
      *
      * @return array<string, string> card id => title

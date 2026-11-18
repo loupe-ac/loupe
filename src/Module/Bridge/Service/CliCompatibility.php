@@ -11,6 +11,14 @@ final readonly class CliCompatibility
 {
     public const string RANGE = '^2.0';
 
+    /**
+     * Fingerprints of release keys that no bridge may trust, as `ssh-keygen -l` prints them, such as
+     * `SHA256:<base64 without padding>`. Each answer that carries the range also carries this list.
+     *
+     * @var list<string>
+     */
+    public const array REVOKED_RELEASE_KEYS = [];
+
     /** The install script fetches the newest release of this major, so the range must stay a caret range. */
     public static function major(string $range = self::RANGE): int
     {

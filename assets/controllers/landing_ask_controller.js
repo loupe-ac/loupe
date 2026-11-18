@@ -1,5 +1,7 @@
 import { Controller } from '@hotwired/stimulus';
 
+/* stimulusFetch: 'lazy' */
+
 /**
  * The "Use something else?" block of the home page. It starts closed, and its
  * toggle opens and closes the form. The chips are real checkboxes, so they

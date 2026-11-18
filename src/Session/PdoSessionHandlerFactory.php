@@ -16,7 +16,8 @@ use Symfony\Component\HttpFoundation\Session\Storage\Handler\PdoSessionHandler;
  * opens one connection. That connection differs from DATABASE_URL in three
  * ways that each fail quietly if you undo them.
  *
- * The database name comes from Doctrine, not the URL: `dbname_suffix` appends
+ * The database name comes from Doctrine's connection parameters, not the URL
+ * (and not Connection::getDatabase(), which runs a query): `dbname_suffix` appends
  * WORKTREE_DB_SUFFIX and _test<TEST_TOKEN>, so the raw URL names the main `app`
  * database — where `sessions` also exists, so a worktree shares main's logins
  * rather than erroring.
@@ -25,7 +26,9 @@ use Symfony\Component\HttpFoundation\Session\Storage\Handler\PdoSessionHandler;
  * pgsql, so `sslmode` never reaches the connection.
  *
  * Its own connection, not Doctrine's PDO: it takes a transactional lock while
- * reading a session, which would nest inside the request's transaction.
+ * reading a session, which would nest inside the request's transaction. Under
+ * PHP-FPM the connection is persistent. Its `application_name` differs from
+ * Doctrine's, so PHP never hands both handlers one kept connection.
  */
 final readonly class PdoSessionHandlerFactory
 {
@@ -42,9 +45,10 @@ final readonly class PdoSessionHandlerFactory
         'sslkey',
         'sslrootcert',
         'sslcrl',
-        'application_name',
         'connect_timeout',
     ];
+
+    public const string APPLICATION_NAME = 'loupe-session';
 
     public function __construct(
         private Connection $connection,
@@ -53,6 +57,7 @@ final readonly class PdoSessionHandlerFactory
         private string $databaseUrl,
         private RequestStack $requestStack,
         private RequestTimeline $timeline,
+        private string $sapi = \PHP_SAPI,
     ) {
     }
 
@@ -73,11 +78,20 @@ final readonly class PdoSessionHandlerFactory
     {
         $parts = $this->urlParts();
 
-        return new PdoSessionHandler($this->sessionDsn(), [
+        $persistent = 'fpm-fcgi' === $this->sapi;
+        $options = [
             'db_username' => rawurldecode($parts['user'] ?? ''),
             'db_password' => rawurldecode($parts['pass'] ?? ''),
             'lock_mode' => $lockMode,
-        ]);
+        ];
+
+        if (!$persistent) {
+            return new SkipLockedPdoSessionHandler($this->sessionDsn(), $options);
+        }
+
+        $options['db_connection_options'] = [\PDO::ATTR_PERSISTENT => true];
+
+        return new PersistentPdoSessionHandler($this->sessionDsn(), $options);
     }
 
     /**
@@ -97,7 +111,8 @@ final readonly class PdoSessionHandlerFactory
             $dsn .= 'port='.$parts['port'].';';
         }
 
-        $dsn .= 'dbname='.($this->connection->getDatabase() ?? '').';';
+        $database = $this->connection->getParams()['dbname'] ?? '';
+        $dsn .= 'dbname='.(is_string($database) ? $database : '').';';
 
         parse_str($parts['query'] ?? '', $query);
 
@@ -109,7 +124,7 @@ final readonly class PdoSessionHandlerFactory
             }
         }
 
-        return rtrim($dsn, ';');
+        return $dsn.'application_name='.self::APPLICATION_NAME;
     }
 
     /**

@@ -26,6 +26,8 @@ flag-gated social buttons, which is a database read on every request.
    cross-built from an Apple Silicon workstation.
 4. **A container registry you can push to.** The defaults name this project's
    own package, `ghcr.io/loupe-ac/loupe:prod`, which nobody else can write to.
+   In the package setting "Manage Actions access", give the repository no
+   write role, so that a CI run cannot overwrite the `prod` tag.
    Point the tooling at yours in both places, or the image you push is not the
    image App Platform pulls:
 

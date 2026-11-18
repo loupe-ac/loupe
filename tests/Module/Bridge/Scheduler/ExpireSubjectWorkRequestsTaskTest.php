@@ -15,6 +15,7 @@ use App\Module\Workflow\Contract\WorkHolds;
 use App\Outbox\OutboxWriter;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Module\Bridge\WorkSubject\RecordingWorkSubjectHandler;
+use App\Tests\Support\NoCardTitles;
 use App\Tests\Support\RecordingLogger;
 use App\Tests\Support\ScheduledTasks;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -82,7 +83,7 @@ final class ExpireSubjectWorkRequestsTaskTest extends KernelTestCase
             $clock,
             $this->service(Auditor::class),
             $this->service(WorkRequestAnnouncer::class),
-            new WorkSubjectHandlers([new RecordingWorkSubjectHandler()]),
+            new WorkSubjectHandlers([new RecordingWorkSubjectHandler()], new NoCardTitles()),
             $this->service(WorkHolds::class),
         );
 

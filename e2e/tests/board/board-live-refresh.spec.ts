@@ -79,9 +79,8 @@ test('a column renamed in one browser shows in another without a reload', async 
     const boardLoads = countBoardLoads(watcher, boardUrl);
     const renewed = await renewal;
     expect(renewed.status()).toBe(200);
-    // The board topic, and the run topic of the card drawer the board hosts.
+    // The shared project set carries the board topic, and the run topic of the card drawer the board hosts.
     const topics: string[] = (await renewed.json()).topics;
-    expect(topics).toHaveLength(2);
     expect(topics.some((topic) => topic.endsWith('/board'))).toBe(true);
     expect(topics.some((topic) => topic.endsWith('/worker-runs'))).toBe(true);
 

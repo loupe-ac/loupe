@@ -38,6 +38,19 @@ func TestCheckServerSendsNoTokenAndAcceptsV1(t *testing.T) {
 	}
 }
 
+func TestCheckServerReadsTheRevokedReleaseKeys(t *testing.T) {
+	client, _ := versionsServer(t, http.StatusOK, `{"versions":[{"version":"v1","status":"beta"}],"cliRange":"^2.0","revokedReleaseKeys":["SHA256:a"]}`)
+	versions, err := client.CheckServer(context.Background())
+	if err != nil || len(versions.RevokedReleaseKeys) != 1 || versions.RevokedReleaseKeys[0] != "SHA256:a" {
+		t.Fatalf("revoked = %v, err = %v", versions.RevokedReleaseKeys, err)
+	}
+	old, _ := versionsServer(t, http.StatusOK, `{"versions":[{"version":"v1","status":"beta"}],"cliRange":"^2.0"}`)
+	versions, err = old.CheckServer(context.Background())
+	if err != nil || len(versions.RevokedReleaseKeys) != 0 {
+		t.Fatalf("an older server: revoked = %v, err = %v", versions.RevokedReleaseKeys, err)
+	}
+}
+
 func TestCheckServerRefusesWhatItCannotUse(t *testing.T) {
 	cases := map[string]struct {
 		status int

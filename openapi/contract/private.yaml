@@ -63,7 +63,7 @@ paths:
         '402':
           $ref: '#/components/responses/E402SubscriptionRequired'
         '403':
-          $ref: '#/components/responses/E403InsufficientScope'
+          $ref: '#/components/responses/E403InsufficientScopeNotOwnerWide'
         '404':
           $ref: '#/components/responses/E404CommandNotFoundRouteNotFound'
         '405':
@@ -102,7 +102,7 @@ paths:
         '402':
           $ref: '#/components/responses/E402SubscriptionRequired'
         '403':
-          $ref: '#/components/responses/E403InsufficientScope'
+          $ref: '#/components/responses/E403InsufficientScopeNotOwnerWide'
         '404':
           $ref: '#/components/responses/E404RouteNotFound'
         '405':
@@ -137,7 +137,7 @@ paths:
         '402':
           $ref: '#/components/responses/E402SubscriptionRequired'
         '403':
-          $ref: '#/components/responses/E403InsufficientScope'
+          $ref: '#/components/responses/E403InsufficientScopeNotOwnerWide'
         '404':
           $ref: '#/components/responses/E404RouteNotFound'
         '405':
@@ -169,7 +169,7 @@ paths:
         '402':
           $ref: '#/components/responses/E402SubscriptionRequired'
         '403':
-          $ref: '#/components/responses/E403InsufficientScope'
+          $ref: '#/components/responses/E403InsufficientScopeNotOwnerWide'
         '404':
           $ref: '#/components/responses/E404WorkRequestNotFoundRouteNotFound'
         '405':
@@ -209,7 +209,7 @@ paths:
         '402':
           $ref: '#/components/responses/E402SubscriptionRequired'
         '403':
-          $ref: '#/components/responses/E403InsufficientScope'
+          $ref: '#/components/responses/E403InsufficientScopeNotOwnerWide'
         '404':
           $ref: '#/components/responses/E404WorkRequestNotFoundRouteNotFound'
         '405':
@@ -240,7 +240,7 @@ paths:
         '402':
           $ref: '#/components/responses/E402SubscriptionRequired'
         '403':
-          $ref: '#/components/responses/E403InsufficientScope'
+          $ref: '#/components/responses/E403InsufficientScopeNotOwnerWide'
         '404':
           $ref: '#/components/responses/E404RouteNotFound'
         '405':
@@ -267,7 +267,7 @@ paths:
         '402':
           $ref: '#/components/responses/E402SubscriptionRequired'
         '403':
-          $ref: '#/components/responses/E403InsufficientScope'
+          $ref: '#/components/responses/E403InsufficientScopeNotOwnerWide'
         '404':
           $ref: '#/components/responses/E404RouteNotFound'
         '405':
@@ -299,7 +299,7 @@ paths:
         '402':
           $ref: '#/components/responses/E402SubscriptionRequired'
         '403':
-          $ref: '#/components/responses/E403InsufficientScope'
+          $ref: '#/components/responses/E403InsufficientScopeNotOwnerWide'
         '404':
           $ref: '#/components/responses/E404RouteNotFound'
         '405':
@@ -337,7 +337,7 @@ paths:
         '402':
           $ref: '#/components/responses/E402SubscriptionRequired'
         '403':
-          $ref: '#/components/responses/E403InsufficientScope'
+          $ref: '#/components/responses/E403InsufficientScopeNotOwnerWide'
         '404':
           $ref: '#/components/responses/E404RouteNotFound'
         '405':
@@ -577,7 +577,7 @@ paths:
         '405':
           $ref: '#/components/responses/E405MethodNotAllowed'
         '409':
-          $ref: '#/components/responses/E409AppNotConfiguredNoInstallationInstallationSuspendedAnd2More'
+          $ref: '#/components/responses/E409AppNotConfiguredNoInstallationInstallationSuspendedAnd3More'
         '415':
           $ref: '#/components/responses/E415UnsupportedMediaType'
         '422':
@@ -657,7 +657,7 @@ paths:
         '415':
           $ref: '#/components/responses/E415UnsupportedMediaType'
         '422':
-          $ref: '#/components/responses/E422InvalidSessionIdValidationFailed'
+          $ref: '#/components/responses/E422InvalidSessionIdValidationFailedSubjectRefused'
         '429':
           $ref: '#/components/responses/E429RateLimited'
   /api/v1/bridge/projects/{handle}/preview-tokens:
@@ -814,7 +814,7 @@ paths:
         '415':
           $ref: '#/components/responses/E415UnsupportedMediaType'
         '422':
-          $ref: '#/components/responses/E422InvalidRunIdValidationFailed'
+          $ref: '#/components/responses/E422InvalidRunIdValidationFailedSubjectRefused'
         '429':
           $ref: '#/components/responses/E429RateLimited'
   /api/v1/bridge/projects/{handle}/worker-runs/{runId}/output:
@@ -1869,6 +1869,7 @@ components:
       - projects
       - flags
       - cliRange
+      - revokedReleaseKeys
       - head
       properties:
         hubUrl:
@@ -1907,6 +1908,12 @@ components:
         cliRange:
           type: string
           example: ^2.0
+        revokedReleaseKeys:
+          type: array
+          description: Fingerprints of release keys that the bridge must not trust, as `ssh-keygen -l` prints them.
+          items:
+            type: string
+            example: SHA256:mPVVTkHngFt3LMCmwB7Nw6BtoS371HG9RRKbhn6T4jM
         head:
           type: integer
           description: The highest outbox sequence of the owner.
@@ -2486,6 +2493,7 @@ components:
       type: object
       required:
       - cliRange
+      - revokedReleaseKeys
       - paused
       - commands
       - workRequests
@@ -2495,6 +2503,12 @@ components:
         cliRange:
           type: string
           example: ^2.0
+        revokedReleaseKeys:
+          type: array
+          description: Fingerprints of release keys that the bridge must not trust, as `ssh-keygen -l` prints them.
+          items:
+            type: string
+            example: SHA256:mPVVTkHngFt3LMCmwB7Nw6BtoS371HG9RRKbhn6T4jM
         paused:
           type: boolean
           description: True when the server asks the bridge to take no new work.
@@ -4169,6 +4183,14 @@ components:
         status: 403
         code: credential_not_allowed
         detail: The token carries another scope.
+    CredentialNotOwnerWide:
+      summary: credential_not_owner_wide
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#credential_not_owner_wide
+        title: Credential not owner-wide
+        status: 403
+        code: credential_not_owner_wide
+        detail: This route needs a credential that covers every project of the owner. Connect again with every project.
     RouteNotFound:
       summary: route_not_found
       value:
@@ -4372,6 +4394,27 @@ components:
         title: Invalid run id
         status: 422
         code: invalid_run_id
+    UnknownSubjectType:
+      summary: unknown_subject_type
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#unknown_subject_type
+        title: Unknown subject type
+        status: 422
+        code: unknown_subject_type
+    SubjectNotFound:
+      summary: subject_not_found
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#subject_not_found
+        title: Subject not found
+        status: 422
+        code: subject_not_found
+    WorkRequestNotHeld:
+      summary: work_request_not_found
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#work_request_not_found
+        title: Work request not found
+        status: 422
+        code: work_request_not_found
     RunNotFound:
       summary: run_not_found
       value:
@@ -4541,6 +4584,14 @@ components:
         code: missing_grant
         missing:
         - contents
+    NoPushAccess:
+      summary: no_push_access
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#no_push_access
+        title: No push access
+        status: 409
+        code: no_push_access
+        missing: []
     GithubUnavailable:
       summary: github_unavailable
       value:
@@ -4697,6 +4748,17 @@ components:
           examples:
             credential_not_allowed:
               $ref: '#/components/examples/InsufficientScope'
+    E403InsufficientScopeNotOwnerWide:
+      description: 'Refused: `credential_not_allowed`, `credential_not_owner_wide`.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            credential_not_allowed:
+              $ref: '#/components/examples/InsufficientScope'
+            credential_not_owner_wide:
+              $ref: '#/components/examples/CredentialNotOwnerWide'
     E404RouteNotFound:
       description: 'Refused: `route_not_found`.'
       content:
@@ -4922,6 +4984,44 @@ components:
               $ref: '#/components/examples/ProcessCountMismatch'
             ambiguous_start_order:
               $ref: '#/components/examples/AmbiguousStartOrder'
+    E422InvalidRunIdValidationFailedSubjectRefused:
+      description: 'Refused: `invalid_run_id`, `validation_failed`, `unknown_subject_type`, `subject_not_found`, `work_request_not_found`.'
+      content:
+        application/problem+json:
+          schema:
+            anyOf:
+            - $ref: '#/components/schemas/Problem'
+            - $ref: '#/components/schemas/ValidationProblem'
+          examples:
+            invalid_run_id:
+              $ref: '#/components/examples/InvalidRunId'
+            validation_failed:
+              $ref: '#/components/examples/ValidationFailed'
+            unknown_subject_type:
+              $ref: '#/components/examples/UnknownSubjectType'
+            subject_not_found:
+              $ref: '#/components/examples/SubjectNotFound'
+            work_request_not_found:
+              $ref: '#/components/examples/WorkRequestNotHeld'
+    E422InvalidSessionIdValidationFailedSubjectRefused:
+      description: 'Refused: `invalid_session_id`, `validation_failed`, `unknown_subject_type`, `subject_not_found`, `work_request_not_found`.'
+      content:
+        application/problem+json:
+          schema:
+            anyOf:
+            - $ref: '#/components/schemas/Problem'
+            - $ref: '#/components/schemas/ValidationProblem'
+          examples:
+            invalid_session_id:
+              $ref: '#/components/examples/InvalidSessionId'
+            validation_failed:
+              $ref: '#/components/examples/ValidationFailed'
+            unknown_subject_type:
+              $ref: '#/components/examples/UnknownSubjectType'
+            subject_not_found:
+              $ref: '#/components/examples/SubjectNotFound'
+            work_request_not_found:
+              $ref: '#/components/examples/WorkRequestNotHeld'
     E422InvalidSessionIdInvalidRunIdValidationFailed:
       description: 'Refused: `invalid_session_id`, `invalid_run_id`, `validation_failed`.'
       content:
@@ -5086,8 +5186,8 @@ components:
               $ref: '#/components/examples/GitIdentityNotManaged'
             credential_not_allowed:
               $ref: '#/components/examples/InsufficientScope'
-    E409AppNotConfiguredNoInstallationInstallationSuspendedAnd2More:
-      description: 'Refused: `app_not_configured`, `no_installation`, `installation_suspended`, `no_repository`, `missing_grant`.'
+    E409AppNotConfiguredNoInstallationInstallationSuspendedAnd3More:
+      description: 'Refused: `app_not_configured`, `no_installation`, `installation_suspended`, `no_repository`, `missing_grant`, `no_push_access`.'
       content:
         application/problem+json:
           schema:
@@ -5103,6 +5203,8 @@ components:
               $ref: '#/components/examples/NoRepository'
             missing_grant:
               $ref: '#/components/examples/MissingGrant'
+            no_push_access:
+              $ref: '#/components/examples/NoPushAccess'
     E502GithubUnavailable:
       description: 'Refused: `github_unavailable`.'
       content:

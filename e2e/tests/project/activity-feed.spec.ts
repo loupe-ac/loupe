@@ -60,8 +60,12 @@ async function moveNewCard(page: Page, projectId: string, title: string) {
         page.getByRole('heading', { name: title, exact: true }),
     ).toBeVisible(NAVIGATION);
     await page.getByRole('tab', { name: 'Details', exact: true }).click();
+    const moved = page.waitForResponse(
+        (r) => r.url().includes('/move') && r.request().method() === 'POST',
+    );
     await page.getByLabel('Column').selectOption({ label: 'Next' });
-    await expect(page).toHaveURL(/\/board$/, NAVIGATION);
+    // The card page stays in place after the move.
+    expect((await moved).status()).toBe(200);
 }
 
 // Paging, the clamp and the page links are proven in ActivityPageTest.

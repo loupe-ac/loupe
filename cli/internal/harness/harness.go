@@ -72,7 +72,9 @@ type CheckSpec struct {
 	Account   string
 	ConfigDir string
 	Env       []string
-	Projects  map[string]string
+	// Pass holds the passEnv names of the rule set under check.
+	Pass     []string
+	Projects map[string]string
 	// Packages maps a project slug to the skill packages its workers need.
 	// A project with no entry needs none. LegacySkills says the user home
 	// still holds Loupe skill folders that the bridge has not moved, and they

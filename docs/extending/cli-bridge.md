@@ -567,6 +567,74 @@ variables into its launch script, because the terminal does not take the
 bridge's environment. The script is readable by its owner only, and it deletes
 itself when it runs.
 
+### Worker environment
+
+A worker does not get the whole environment of the bridge. The bridge builds the
+environment of each worker from three sources: a base list of names, the
+`passEnv` names of the rule file, and the [environment files](#environment-files)
+of the run. Every other inherited variable stays out. The bridge adds its own
+run variables, such as the session id, after the filter.
+
+The base list holds these names:
+
+- Process basics: `PATH`, `HOME`, `USER`, `LOGNAME`, `SHELL`, `TMPDIR`, `TERM`,
+  `COLORTERM`, `NO_COLOR`, `LANG`, `LC_*`, `TZ`, `XDG_*` and
+  `__CF_USER_TEXT_ENCODING`.
+- Network: `HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`, `ALL_PROXY` with their
+  lowercase forms, `SSL_CERT_FILE`, `SSL_CERT_DIR` and `NODE_EXTRA_CA_CERTS`.
+- Tools: `DOCKER_HOST`, `DOCKER_CONTEXT`, `DOCKER_CONFIG`, `HOMEBREW_PREFIX`,
+  `HOMEBREW_CELLAR` and `HOMEBREW_REPOSITORY`.
+- Git: `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME` and
+  `GIT_COMMITTER_EMAIL`. `SSH_AUTH_SOCK` passes only to a worker that has no
+  [bridge credentials](#credentials-for-workers).
+- Loupe: `LOUPE_CONFIG` and `LOUPE_URL`.
+- The harness. A Claude Code worker gets `ANTHROPIC_*`, `CLAUDE_*` and
+  `MCP_TIMEOUT`. A Codex worker gets `OPENAI_*` and `CODEX_*`.
+
+`GIT_CONFIG_COUNT` and its `GIT_CONFIG_KEY_n` and `GIT_CONFIG_VALUE_n` entries
+are not in the list, because a value can hold a token.
+
+A tool that needs another variable fails until you add it. Add it in one of two
+ways. A top-level `passEnv` list names variables that every worker gets. A name
+that ends in `*` is a prefix. An account cannot set `passEnv`.
+
+```yaml
+passEnv: [JAVA_HOME, GIT_CONFIG_*]
+```
+
+A secret that only one account needs belongs in the env file of that account.
+Env file values always reach the worker.
+
+The whole bridge also restarts once on the filtered environment: when it
+starts, it runs itself again in place, with the base lists of both harnesses, the
+`passEnv` names and the variables that only the bridge reads. The process id and
+the lock stay the same. `before` commands, command actions and hooks therefore
+see the filtered environment as well. A process of the same user can read the
+start environment of another process with `ps -E`, so a worker cannot read a
+secret from the bridge, unless the name is in the base list or in `passEnv`.
+
+The bridge logs `worker_env_dropped` at start and at each reload. It lists the
+variables that a worker loses for each harness, in `claude_code` and `codex`, and
+never a value. A name such as `OPENAI_API_KEY` can show under `claude_code` only,
+because a Codex worker still gets it. A bridge that is already running
+cannot get a dropped variable back. A reload that adds a `passEnv` name logs
+`pass_env_needs_restart`, and changes nothing for that name. A reload that
+removes a `passEnv` name the bridge holds fails at the `passEnv` stage and
+changes nothing, because the process image keeps the value and `ps -E` shows it.
+Restart the bridge to remove the name. Put the value in an
+env file and run `loupe bridge reload`, or restart the bridge from a shell that
+holds the variable while no worker runs. A name that you write before
+`loupe update` reaches the new bridge, because the handover passes the old
+environment on.
+
+This list limits the environment of a worker and nothing else. The worker still
+runs as your OS user. It can read every file that you can read, such as env files,
+the CLI token store and Terraform state. It can also read the environment of a
+running worker of another account. Keep production state and secrets off a host
+that runs a bridge. To keep accounts apart, use a separate OS user for each.
+The `env` block of the Claude settings file reaches the worker through Claude
+Code itself, so the bridge cannot filter it.
+
 ### A second Claude Code account
 
 Claude Code keeps a separate Keychain login for each config folder. So each
@@ -1371,7 +1439,8 @@ bridge drops the token at once.
 Nothing falls back to the machine. When the helper, the `gh` wrapper or
 `loupe credential` gets no token, it prints one line to stderr and exits with
 status 1. The cause is the code the endpoint gave, such as `missing_grant` or
-`no_installation`. The Connect page of the project shows the same cause.
+`no_installation`. The Connect page of the project shows the same cause, except
+for `no_push_access`.
 
 ### The credential command
 
@@ -1694,7 +1763,9 @@ conditions:
   `cli/vX.Y.Z`. The bridge skips every other tag, such as a plain `vX.Y.Z`.
 - The version is inside the range.
 - The version is not on the skip list.
-- The release has the archive for this OS and CPU, and `checksums.txt`.
+- The release has the archive for this OS and CPU, `checksums.txt`, and the
+  signature `checksums.txt.sig`. A release with no signature is no candidate.
+  Releases from before signing began have none.
 
 The bridge installs that release when the running version is lower, or when the
 running version is below the range. A bridge above the range installs nothing,
@@ -1702,7 +1773,10 @@ because a lower version does not fit a newer server. When the running version is
 outside the range and no release fits, the bridge logs `update_unavailable`
 once and [drains](#draining).
 
-The bridge downloads the archive and `checksums.txt`, and compares the SHA-256
+Before it downloads an archive, the bridge reads `checksums.txt` and
+`checksums.txt.sig` of the candidate, and checks the signature against the keys
+built into the CLI. See [Release signatures](#release-signatures). It then
+downloads the archive, and compares the SHA-256
 of the archive with its line in `checksums.txt`. A mismatch logs
 `update_rejected`, and the bridge installs nothing. A match logs
 `update_verified`, and the bridge writes the binary to
@@ -1736,6 +1810,35 @@ file to `defaultOff`. When the file takes no new last line, the bridge logs
 file to `autoUpdatePending` and keeps updates on. Each later start of that rule
 file, a handover or a plain restart, keeps updates on and tries again.
 
+### Release signatures
+
+Each release carries `checksums.txt.sig`, an SSH signature of `checksums.txt`
+made with a release key. The CLI embeds the public keys that it trusts, the
+active key and an offline backup key. The signature namespace is
+`loupe-release`.
+
+The check walks the candidates from the highest version down. For each one it
+reads `checksums.txt` and its signature. When the signature is not valid for a
+trusted key, the bridge logs `update_signature_rejected` with the version and
+the reason, once for each version and process. It then tries the next lower
+candidate. It installs the first release that verifies. So one bad release does
+not block the updates below it. When no candidate verifies, the bridge installs
+nothing and keeps its running version.
+
+The server can also name release keys that the bridge must not trust. It sends
+their fingerprints as `revokedReleaseKeys` beside `cliRange`, in the heartbeat
+answer, in `GET /api/v1/bridge/events` and in `GET /api/versions`. The bridge
+adds each one to `update.json` and never removes one. It refuses a signature
+from a listed key, deletes a staged binary that such a key signed, and skips a
+stored skill version that such a key signed. [Signing releases](../operating/release-signing.md)
+covers the key rotation and the reinstall after a leak.
+
+The skill package refresh makes the same check. A package version with a bad
+signature is held back, and the refresh goes on to the next lower version. The
+store keeps every version it holds, so a worker starts with the last good one.
+The refresh writes the fingerprint of the key that verified a version into a
+`.signer` file in the folder of that version.
+
 ### Skill package updates
 
 The skill packages have their own release tags, `skills/<package>/vX.Y.Z`, and
@@ -1749,11 +1852,13 @@ skill list of a project names. For each package, it picks the highest release
 that meets these conditions:
 
 - The release is not a draft or a prerelease.
-- The release has the archive `<package>_<version>.tar.gz` and `checksums.txt`.
+- The release has the archive `<package>_<version>.tar.gz`, `checksums.txt` and
+  `checksums.txt.sig`.
 - The store does not hold the version, and no higher version.
 
-The bridge downloads the archive and compares its SHA-256 with `checksums.txt`.
-It refuses an archive that holds an absolute path, a `..` path, a link that
+The bridge checks the signature of `checksums.txt`, as
+[Release signatures](#release-signatures) says. It downloads the archive and
+compares its SHA-256 with `checksums.txt`. It refuses an archive that holds an absolute path, a `..` path, a link that
 leaves the package, a hard link, or more than 5000 entries or 50 MB. It
 unpacks the archive in a temporary folder next to its place in the store, and
 then renames the folder. So the store never holds a half-written version.
@@ -1934,6 +2039,7 @@ runs a Homebrew binary also refuses the request of an older CLI. See
 | `update_download` | The bridge downloads a release |
 | `update_verified` | The archive matches `checksums.txt` |
 | `update_rejected` | The archive does not match, or holds no binary |
+| `update_signature_rejected` | The signature of `checksums.txt` is missing or not valid for a trusted key. The event carries the version and the reason |
 | `update_deferred` | The handover waits for the next check |
 | `update_handover` | The bridge runs the new binary |
 | `update_applied` | The new version is healthy |
@@ -2173,6 +2279,10 @@ The bridge reads `git worktree list` just before the `before` command. A folder
 with no claim file passes and gets the claim when the command made it in this
 run. A folder that already existed and has no claim fails, because a person or
 another tool can have made it.
+
+A `before` command that fails still claims the worktree it made for the card,
+so the next run of the card passes in that folder. The bridge claims it only
+when the command made exactly one new worktree.
 
 The `before` commands of one project run one at a time, from that list until
 the check of the printed folder. So a worktree that another card's `before`
@@ -2676,6 +2786,11 @@ saved cursor can start from it, and replay nothing older.
 reads it when no bridge runs. A running bridge reads the same range from the
 heartbeat reply.
 
+`revokedReleaseKeys` lists the fingerprints of release keys that the bridge must
+not trust, in the form `ssh-keygen -l` prints, such as `SHA256:...`. The list is
+empty unless the operator revoked a key. See
+[Release signatures](#release-signatures).
+
 `flags` holds the feature flags a bridge reads. The server lists a flag here
 only when its code names the flag, so no other flag reaches a token holder. A
 value is a boolean or an integer, as the flag's type says. Today the map holds
@@ -2921,7 +3036,9 @@ type. A good launch opens an interactive run in the state `running`, with the
 work kind and the bridge id. The report can also carry `harness`, `account`,
 `model` and `harnessSessionId`, with the rules of the
 [run state report](../reference/worker-runs.md#reporting-a-run-state). A retry
-of the launch report fills these fields on the run it finds.
+of the launch report fills these fields on the run it finds. The server answers 422 with
+`subject_not_found` when the project in the path holds no such card, and 422 with
+`work_request_not_found` when `workRequestId` names no work request of that card in the project.
 The session's `/loupe-lifecycle:product-design` skill calls `card_run_open` with the same
 session id, and takes over that run. So the
 [Runs tab](../using/worker-runs.md#interactive-sessions) of the Activity page
@@ -3154,9 +3271,14 @@ for every project. With the setting off, the endpoint hands out no token.
 | 422 | `validation_failed` | the body names no repository, or a value that is not `owner/name` |
 | 409 | `app_not_configured`, with `missing` empty | the instance has no `GITHUB_APP_ID` or `GITHUB_APP_PRIVATE_KEY`, so Loupe cannot sign as the App |
 | 409 | `missing_grant`, with `missing` such as `["contents"]` | the installation lacks write access to the permissions that `missing` names |
+| 409 | `no_push_access`, with `missing` empty | GitHub says that the person who added the repository to the project has no write access to it now. Loupe asks before it mints a new token, and not while it serves a kept token |
 | 429 | `rate_limited` | more than 60 requests in one minute from one token |
 | 502 | `github_unavailable`, with `missing` empty | GitHub did not answer |
 
 The Connect page of the project shows the same cause under "Agents of this
 project cannot push", so the owner can install the App, grant the permission, or
 turn the setting off.
+
+The Connect page does not show `no_push_access`, because the page does not ask
+GitHub about that person. To fix it, get write access on GitHub, or add the
+repository again in the picker as a GitHub user who has write access.

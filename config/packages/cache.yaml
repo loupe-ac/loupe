@@ -4,6 +4,10 @@ framework:
         # cache.app — so per-IP limits are per-replica unless it is shared.
         app: cache.adapter.doctrine_dbal
         default_doctrine_dbal_provider: 'doctrine.dbal.default_connection'
+        pools:
+            # Shared across replicas through its parent, and pruned with it.
+            cache.github_delivery:
+                adapter: cache.app
 
 when@test:
     framework:
@@ -11,3 +15,6 @@ when@test:
             # Keep this on the filesystem: dama wraps each test in one
             # transaction, so a database pool's writes would roll back with it.
             app: cache.adapter.filesystem
+            # ParaTest workers run at once, so each one needs its own pool
+            # directory, or a clear() in one test wipes the entries of another.
+            directory: '%kernel.cache_dir%/pools%env(default::TEST_TOKEN)%'

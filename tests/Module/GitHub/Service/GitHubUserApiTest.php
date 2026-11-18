@@ -97,6 +97,25 @@ final class GitHubUserApiTest extends TestCase
         $api->user('at');
     }
 
+    public function test_the_installation_listing_keeps_whether_the_user_can_push_to_each_repository(): void
+    {
+        $api = $this->api(apiResponses: [$this->json(['total_count' => 4, 'repositories' => [
+            ['id' => 1, 'full_name' => 'acme/write', 'permissions' => ['admin' => false, 'push' => true, 'pull' => true]],
+            ['id' => 2, 'full_name' => 'acme/admin', 'permissions' => ['admin' => true, 'push' => false, 'pull' => true]],
+            ['id' => 3, 'full_name' => 'acme/read', 'permissions' => ['admin' => false, 'push' => false, 'pull' => true]],
+            ['id' => 4, 'full_name' => 'acme/unknown'],
+        ]])]);
+
+        $list = $api->installationRepositories('at', 42);
+
+        $canPush = [];
+        foreach ($list->repositories as $listed) {
+            $canPush[$listed->repository->fullName] = $listed->canPush;
+        }
+        self::assertSame(['acme/write' => true, 'acme/admin' => true, 'acme/read' => false, 'acme/unknown' => false], $canPush);
+        self::assertSame('https://api.github.com/user/installations/42/repositories?per_page=100&page=1', $this->apiRequests[0]['url']);
+    }
+
     public function test_the_revoke_deletes_the_token_with_basic_auth_and_the_token_in_the_body(): void
     {
         $api = $this->api(apiResponses: [new MockResponse('', ['http_code' => 204])]);
