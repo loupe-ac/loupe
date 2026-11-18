@@ -52,6 +52,7 @@ use App\Module\Workflow\Template\TemplateMissing;
 use App\Module\Workflow\Template\TemplateSource;
 use App\Module\Workflow\Template\WorkFailurePolicy;
 use App\Observability\HandledMessage;
+use Doctrine\DBAL\TransactionIsolationLevel;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
@@ -144,7 +145,9 @@ final readonly class Engine
 
     private function evaluateOnce(Uuid $cardId, \DateTimeImmutable $now, bool $reportMiss): void
     {
-        $run = $this->em->wrapInTransaction(fn (): ?Evaluation => $this->evaluateLocked($cardId, $now, $reportMiss));
+        $run = $reportMiss
+            ? $this->sweepCheck($cardId, $now)
+            : $this->em->wrapInTransaction(fn (): ?Evaluation => $this->evaluateLocked($cardId, $now, false));
         if (null === $run) {
             return;
         }
@@ -171,6 +174,29 @@ final readonly class Engine
         }
         if ([] !== $run->fired) {
             $this->logger->info('workflow.card_evaluated', ['cardId' => $cardId->toRfc4122(), 'fired' => $run->fired]);
+        }
+    }
+
+    /**
+     * Every read of a sweep check sees one snapshot, so the mark it reads explains each fact it reads. A writer that commits during the check
+     * makes the first write of the check that touches the same row fail with a serialization failure. The snapshot starts after the session
+     * lock, because a snapshot taken while the check waits for the card lock would not see the pass it waited for.
+     */
+    private function sweepCheck(Uuid $cardId, \DateTimeImmutable $now): ?Evaluation
+    {
+        $connection = $this->em->getConnection();
+        $this->workflowRuleStates->lockCardSession($cardId);
+        try {
+            $previous = $connection->getTransactionIsolation();
+            // It sets the next transaction, so an open transaction of a caller keeps its own level.
+            $connection->setTransactionIsolation(TransactionIsolationLevel::REPEATABLE_READ);
+            try {
+                return $this->em->wrapInTransaction(fn (): ?Evaluation => $this->evaluateLocked($cardId, $now, true));
+            } finally {
+                $connection->setTransactionIsolation($previous);
+            }
+        } finally {
+            $this->workflowRuleStates->unlockCardSession($cardId);
         }
     }
 
@@ -255,8 +281,7 @@ final readonly class Engine
 
         $facts = $this->facts($card, $now);
         $states = $automated ? $this->workflowRuleStates->findForCard($cardId) : [];
-        // After the facts and the rule states, so a writer whose commit either read saw has its mark in view,
-        // because a writer commits its facts, states and mark together. A mark that lands after the read only hides an error.
+        // A sweep check reads its snapshot, so this mark agrees with every fact the check reads, the rebuild of runMarkers() too.
         $markedAfterClear = $reportMiss && $this->workflowCardChanges->isMarked($cardId);
         $run = new Evaluation($card, $project, $template, $facts, $states, $now);
         $run->markedAfterClear = $markedAfterClear;

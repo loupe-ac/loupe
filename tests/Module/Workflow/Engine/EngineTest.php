@@ -150,6 +150,7 @@ use Doctrine\Persistence\ManagerRegistry;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LogLevel;
+use Psr\Log\NullLogger;
 use Sentry\ClientBuilder;
 use Sentry\Metrics\Types\Metric;
 use Sentry\SentrySdk;
@@ -4409,7 +4410,7 @@ final class EngineTest extends KernelTestCase
 
         $this->service(CardEvaluations::class)->forCards([$card->id ?? throw new \LogicException('A flushed card has an id.')], 'test');
 
-        $handler = new EvaluateCardHandler(new EvaluateWorkflowCardHandler($this->service(Engine::class), new MockClock(self::NOON)), $this->service(WorkflowQueuedEvaluationRepository::class), $this->service(WorkflowCardChangeRepository::class), new EventDispatcher());
+        $handler = new EvaluateCardHandler(new EvaluateWorkflowCardHandler($this->service(Engine::class), new MockClock(self::NOON)), $this->service(WorkflowQueuedEvaluationRepository::class), $this->service(WorkflowCardChangeRepository::class), new EventDispatcher(), $this->service(MessageBusInterface::class), new NullLogger());
         $evaluations = 0;
         foreach ($transport->getSent() as $envelope) {
             $message = $envelope->getMessage();

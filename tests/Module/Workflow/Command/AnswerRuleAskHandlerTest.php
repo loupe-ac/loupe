@@ -42,9 +42,11 @@ use App\Module\Workflow\Repository\WorkflowQueuedEvaluationRepository;
 use App\Module\Workflow\Repository\WorkflowRuleStateRepository;
 use App\Tests\Module\Workflow\Action\ActionScenario;
 use App\Tests\Support\RecordingAuditor;
+use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\EventDispatcher\EventDispatcher;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Contracts\Service\ResetInterface;
@@ -334,7 +336,7 @@ final class AnswerRuleAskHandlerTest extends KernelTestCase
 
     private function evaluate(Card $card): void
     {
-        $handler = new EvaluateCardHandler(new EvaluateWorkflowCardHandler($this->service(Engine::class), new MockClock()), $this->service(WorkflowQueuedEvaluationRepository::class), $this->service(WorkflowCardChangeRepository::class), new EventDispatcher());
+        $handler = new EvaluateCardHandler(new EvaluateWorkflowCardHandler($this->service(Engine::class), new MockClock()), $this->service(WorkflowQueuedEvaluationRepository::class), $this->service(WorkflowCardChangeRepository::class), new EventDispatcher(), $this->service(MessageBusInterface::class), new NullLogger());
         $handler(new EvaluateCard((string) $card->id));
         $this->em()->flush();
     }
