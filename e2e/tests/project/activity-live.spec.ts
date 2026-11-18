@@ -5,28 +5,13 @@
  * The hub delivers the signal, so the run needs a hub.
  */
 
-import {
-    test,
-    expect,
-    type APIRequestContext,
-    type Page,
-} from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { signedInPage } from '../fixtures';
 
 const RUN = Date.now();
 const PASSWORD = 'E2eActivityLive1!';
 
 test.setTimeout(150_000);
-
-async function setLiveUpdates(
-    request: APIRequestContext,
-    enabled: boolean,
-): Promise<void> {
-    const response = await request.post('/dev/e2e/feature-flag', {
-        form: { name: 'live_updates.enabled', enabled: enabled ? 1 : 0 },
-    });
-    expect(response.ok()).toBeTruthy();
-}
 
 async function seedEvents(
     page: Page,
@@ -75,8 +60,7 @@ test('page one follows a new event, and page two shows a band and keeps its rows
     browser,
     request,
 }) => {
-    await setLiveUpdates(request, true);
-    const email = `e2e+activity+live+${RUN}@example.com`;
+    const email = `e2e+activity+live+${RUN}+r${test.info().repeatEachIndex}@example.com`;
     const registered = await request.post('/dev/register-and-verify', {
         form: { fullName: 'E2E Activity Live', email, password: PASSWORD },
     });
@@ -135,8 +119,7 @@ test('the project outbox list gains an unsent row without a reload', async ({
     browser,
     request,
 }) => {
-    await setLiveUpdates(request, true);
-    const email = `e2e+outbox+live+${RUN}@example.com`;
+    const email = `e2e+outbox+live+${RUN}+r${test.info().repeatEachIndex}@example.com`;
     const registered = await request.post('/dev/register-and-verify', {
         form: { fullName: 'E2E Outbox Live', email, password: PASSWORD },
     });

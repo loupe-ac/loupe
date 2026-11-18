@@ -69,12 +69,7 @@ test('a new version, a comment and a later page follow another actor', async ({
 }) => {
     test.slow();
     test.setTimeout(coverageScaled(240_000));
-    const flag = await request.post('/dev/e2e/feature-flag', {
-        form: { name: 'live_updates.enabled', enabled: 1 },
-    });
-    expect(flag.ok()).toBeTruthy();
-
-    const email = `e2e+documentlive+${RUN}@example.com`;
+    const email = `e2e+documentlive+${RUN}+r${test.info().repeatEachIndex}@example.com`;
     const registered = await request.post('/dev/register-and-verify', {
         form: { fullName: 'E2E Document Live', email, password: PASSWORD },
     });

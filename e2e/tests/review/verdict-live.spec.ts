@@ -65,12 +65,7 @@ test('a verdict in one tab shows in a second tab and keeps its comment in progre
     request,
 }) => {
     test.slow();
-    const flag = await request.post('/dev/e2e/feature-flag', {
-        form: { name: 'live_updates.enabled', enabled: 1 },
-    });
-    expect(flag.ok()).toBeTruthy();
-
-    const email = `e2e+verdictlive+${RUN}@example.com`;
+    const email = `e2e+verdictlive+${RUN}+r${test.info().repeatEachIndex}@example.com`;
     const registered = await request.post('/dev/register-and-verify', {
         form: { fullName: 'E2E Verdict Live', email, password: PASSWORD },
     });
