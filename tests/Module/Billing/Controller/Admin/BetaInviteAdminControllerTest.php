@@ -32,11 +32,14 @@ final class BetaInviteAdminControllerTest extends WebTestCase
         $client->request(Request::METHOD_POST, '/admin/beta-invites/'.$invite->id.'/revoke', ['_csrf_token' => 'csrf-token']);
         $this->assertResponseStatusCodeSame(Response::HTTP_FORBIDDEN);
 
+        $client->request(Request::METHOD_POST, '/admin/beta-invites/'.$invite->id.'/reissue', ['_csrf_token' => 'csrf-token']);
+        $this->assertResponseStatusCodeSame(Response::HTTP_FORBIDDEN);
+
         self::assertSame(1, $this->countInvites());
         self::assertNull($this->row($invite)['revoked_at']);
     }
 
-    public function test_an_admin_creates_a_link_and_the_list_keeps_it_copyable(): void
+    public function test_an_admin_creates_a_link_and_the_list_cannot_show_it_again(): void
     {
         $client = static::createClient();
         $em = $this->em();
@@ -61,9 +64,9 @@ final class BetaInviteAdminControllerTest extends WebTestCase
         self::assertSame(1, preg_match('#^https?://[^/]+/beta/([0-9a-f]{64})$#', trim($link->text()), $matches));
         $token = $matches[1] ?? throw new \LogicException('the link carries a token');
 
-        $rows = $this->em()->getConnection()->fetchAllAssociative('SELECT token, note, created_by_id FROM beta_invites');
+        $rows = $this->em()->getConnection()->fetchAllAssociative('SELECT token_hash, note, created_by_id FROM beta_invites');
         self::assertCount(1, $rows);
-        self::assertSame($token, $rows[0]['token']);
+        self::assertSame(BetaInvite::hashOf($token), $rows[0]['token_hash']);
         self::assertSame('reddit u/foo', $rows[0]['note']);
         self::assertSame((string) $admin->id, $rows[0]['created_by_id']);
         $this->assertSelectorTextContains('[data-beta-invite-id] [data-testid="beta-invite-note"]', 'reddit u/foo');
@@ -71,7 +74,9 @@ final class BetaInviteAdminControllerTest extends WebTestCase
         $client->request(Request::METHOD_GET, '/admin/beta-invites');
         $this->assertResponseIsSuccessful();
         $this->assertSelectorNotExists('[data-testid="beta-invite-link"]');
-        $this->assertSelectorExists('[data-beta-invite-id] [data-clipboard-text-value$="/beta/'.$token.'"] [data-testid="beta-invite-copy"]');
+        $this->assertSelectorExists('[data-beta-invite-id] [data-testid="beta-invite-reissue"]');
+        $this->assertSelectorNotExists('[data-testid="beta-invite-copy"]');
+        self::assertStringNotContainsString($token, (string) $client->getResponse()->getContent());
     }
 
     public function test_a_note_is_optional(): void
@@ -128,15 +133,15 @@ final class BetaInviteAdminControllerTest extends WebTestCase
 
         $this->assertSelectorTextContains($unusedRow.' [data-testid="beta-invite-state"]', 'Unused');
         $this->assertSelectorExists($unusedRow.' [data-testid="beta-invite-revoke"]');
-        $this->assertSelectorExists($unusedRow.' [data-testid="beta-invite-copy"]');
+        $this->assertSelectorExists($unusedRow.' [data-testid="beta-invite-reissue"]');
 
         $this->assertSelectorTextContains($usedRow.' [data-testid="beta-invite-state"]', 'Used by beta-list-redeemer@admin-test.example.com on');
         $this->assertSelectorNotExists($usedRow.' [data-testid="beta-invite-revoke"]');
-        $this->assertSelectorNotExists($usedRow.' [data-testid="beta-invite-copy"]');
+        $this->assertSelectorNotExists($usedRow.' [data-testid="beta-invite-reissue"]');
 
         $this->assertSelectorTextContains($revokedRow.' [data-testid="beta-invite-state"]', 'Revoked on');
         $this->assertSelectorNotExists($revokedRow.' [data-testid="beta-invite-revoke"]');
-        $this->assertSelectorNotExists($revokedRow.' [data-testid="beta-invite-copy"]');
+        $this->assertSelectorNotExists($revokedRow.' [data-testid="beta-invite-reissue"]');
     }
 
     public function test_an_admin_revokes_an_unused_link(): void
@@ -186,6 +191,48 @@ final class BetaInviteAdminControllerTest extends WebTestCase
 
         $this->assertResponseStatusCodeSame(Response::HTTP_FORBIDDEN);
         self::assertNull($this->row($invite)['revoked_at']);
+    }
+
+    public function test_an_admin_reissues_a_link_and_sees_the_new_link_once(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $admin = $this->seedUser($em, 'beta-reissue-admin@admin-test.example.com', ['ROLE_ADMIN']);
+        $invite = $this->seedInvite($em, $admin, 'to reissue');
+
+        $client->loginUser($admin);
+        $client->request(Request::METHOD_GET, '/admin/beta-invites');
+        $client->request(Request::METHOD_POST, '/admin/beta-invites/'.$invite->id.'/reissue', ['_csrf_token' => 'csrf-token']);
+
+        $this->assertResponseRedirects('/admin/beta-invites');
+        $crawler = $client->followRedirect();
+        $link = $crawler->filter('[data-testid="beta-invite-link"]');
+        self::assertCount(1, $link);
+        self::assertSame(1, preg_match('#/beta/([0-9a-f]{64})$#', trim($link->text()), $matches));
+        $token = $matches[1] ?? throw new \LogicException('the link carries a token');
+
+        self::assertNotNull($this->row($invite)['revoked_at']);
+        self::assertSame(2, $this->countInvites());
+        self::assertSame('to reissue', $this->em()->getConnection()->fetchOne('SELECT note FROM beta_invites WHERE token_hash = :h', ['h' => BetaInvite::hashOf($token)]));
+
+        $client->request(Request::METHOD_GET, '/admin/beta-invites');
+        $this->assertSelectorNotExists('[data-testid="beta-invite-link"]');
+    }
+
+    public function test_a_reissue_with_a_bad_csrf_token_is_refused(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $admin = $this->seedUser($em, 'beta-reicsrf-admin@admin-test.example.com', ['ROLE_ADMIN']);
+        $invite = $this->seedInvite($em, $admin, 'kept');
+
+        $client->loginUser($admin);
+        $client->request(Request::METHOD_GET, '/admin/beta-invites');
+        $client->request(Request::METHOD_POST, '/admin/beta-invites/'.$invite->id.'/reissue', ['_csrf_token' => 'not-a-valid-token']);
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_FORBIDDEN);
+        self::assertNull($this->row($invite)['revoked_at']);
+        self::assertSame(1, $this->countInvites());
     }
 
     public function test_the_admin_user_page_marks_a_beta_tester(): void

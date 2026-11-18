@@ -25,7 +25,7 @@ class BetaInviteRepository extends ServiceEntityRepository
     /** Any state: the caller decides whether a used or revoked invite counts. */
     public function findOneByToken(string $token): ?BetaInvite
     {
-        return $this->findOneBy(['token' => $token]);
+        return $this->findOneBy(['tokenHash' => BetaInvite::hashOf($token)]);
     }
 
     /** The first redemption, when a user redeemed several links. */
