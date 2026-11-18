@@ -15,6 +15,12 @@ final readonly class WorkflowSweepSettings
     ) {
     }
 
+    /** Whether the ten-minute sweep checks only the cards that hold a change mark. Off, it checks every open card. */
+    public function changeDrivenSweep(): bool
+    {
+        return $this->featureFlags->isEnabled(WorkflowInstallFlags::FLAG_CHANGE_DRIVEN_SWEEP);
+    }
+
     /** Hours. A full sweep starts when the last one is older than this. */
     public function fullSweepIntervalHours(): int
     {

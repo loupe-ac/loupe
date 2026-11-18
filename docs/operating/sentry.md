@@ -234,6 +234,13 @@ the info event `workflow.sweep_check_requeued`. When the check finds a change af
 late mark, it logs the info event `workflow.change_after_late_mark` with the same
 fields, and sends no error, so no alert fires. With a usable `SENTRY_DSN`, the error reaches Sentry.
 
+The sweep every ten minutes checks only the marked cards while the
+`workflow.change_driven_sweep` flag is on. It first turns each project mark into a mark on
+each open card of that project, deletes the marks of cards that are finished or
+unbound, and then queues the marked cards and the open children of a card. With
+the flag off, it queues every open card of a bound project. The deploy pass and
+the full sweep ignore the flag.
+
 The sweep every ten minutes also sends two gauges. With no usable `SENTRY_DSN`,
 it sends nothing.
 

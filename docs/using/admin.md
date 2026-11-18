@@ -74,9 +74,15 @@ and the worker container both run the new build. See
 [Post-deploy checks](../operating/post-deploy-checks.md) for how to read the
 worker build. To roll back, switch the flag off first, then deploy the old build.
 
-The **change-driven sweep** flag, `workflow.change_driven_sweep`, seeds on. The
-sweep does not read it yet, so switching it changes nothing today. The
-**full sweep interval** flag, `workflow.full_sweep_interval_hours`, is a number
+The **change-driven sweep** flag, `workflow.change_driven_sweep`, seeds on. With
+the flag on, the sweep that runs every ten minutes checks only the open cards
+that hold a change mark, and the open children of a card, because a branch push
+on the forge leaves no mark. With the flag off, it checks every open card of a
+bound project, as before. The first sweep after a new build and each full sweep
+check every open card, whatever the flag says. Switch the flag off to go back to
+the old sweep.
+
+The **full sweep interval** flag, `workflow.full_sweep_interval_hours`, is a number
 of hours and seeds at `24`. Each hour the worker starts a full sweep, which
 checks every open card, when the last full sweep is older than that interval.
 Each change that a full sweep finds in a card with no change mark is a
