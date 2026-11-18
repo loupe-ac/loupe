@@ -286,6 +286,22 @@ final class SweepWorkflowCardsTaskTest extends KernelTestCase
         self::assertContains((string) $quiet->id, $this->sent());
     }
 
+    public function test_with_the_flag_off_a_project_mark_becomes_a_card_mark_before_the_checks_run(): void
+    {
+        self::bootKernel();
+        $bound = $this->workflowProject('sweep-off-project-mark');
+        $this->bindLifecycle($bound);
+        $card = $this->card($bound, 'next');
+        $this->clearMarks();
+        $this->connection()->executeStatement('INSERT INTO workflow_project_changes (project_id, changed_at) VALUES (?, now())', [(string) $bound->id]);
+        $this->transport()->reset();
+
+        $this->task(new RecordingLogger(), changeDriven: false)();
+
+        self::assertTrue($this->service(WorkflowCardChangeRepository::class)->isMarked($card->id ?? throw new \LogicException('Flushed.')));
+        self::assertSame(0, (int) $this->connection()->fetchOne('SELECT count(*) FROM workflow_project_changes'));
+    }
+
     private function clearMarks(): void
     {
         $this->connection()->executeStatement('DELETE FROM workflow_card_changes');

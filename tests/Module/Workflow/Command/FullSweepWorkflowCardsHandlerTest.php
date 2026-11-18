@@ -9,6 +9,7 @@ use App\Module\Workflow\Command\FullSweepWorkflowCardsHandler;
 use App\Module\Workflow\Install\WorkflowInstallFlags;
 use App\Module\Workflow\Messenger\EvaluateCard;
 use App\Module\Workflow\Repository\WorkflowBindingRepository;
+use App\Module\Workflow\Repository\WorkflowCardChangeRepository;
 use App\Module\Workflow\Service\EvaluationTrigger;
 use App\Module\Workflow\Service\WorkflowSweepRecord;
 use App\Module\Workflow\Service\WorkflowSweepSettings;
@@ -79,6 +80,21 @@ final class FullSweepWorkflowCardsHandlerTest extends KernelTestCase
         self::assertCount(2, $this->sent());
     }
 
+    public function test_a_project_mark_becomes_a_card_mark_before_the_checks_run(): void
+    {
+        $this->setUpProject();
+        $connection = $this->service(\Doctrine\DBAL\Connection::class);
+        $connection->executeStatement('DELETE FROM workflow_card_changes');
+        $connection->executeStatement('DELETE FROM workflow_project_changes');
+        $projectId = $connection->fetchOne('SELECT c.project_id FROM board_cards c JOIN workflow_bindings b ON b.project_id = c.project_id LIMIT 1');
+        $connection->executeStatement('INSERT INTO workflow_project_changes (project_id, changed_at) VALUES (?, now())', [$projectId]);
+
+        $this->handler()(new FullSweepWorkflowCardsCommand());
+
+        self::assertSame(1, (int) $connection->fetchOne('SELECT count(*) FROM workflow_card_changes'));
+        self::assertSame(0, (int) $connection->fetchOne('SELECT count(*) FROM workflow_project_changes'));
+    }
+
     private function setUpProject(): void
     {
         self::bootKernel();
@@ -95,6 +111,7 @@ final class FullSweepWorkflowCardsHandlerTest extends KernelTestCase
     {
         return new FullSweepWorkflowCardsHandler(
             $this->service(WorkflowBindingRepository::class),
+            $this->service(WorkflowCardChangeRepository::class),
             $this->service(EvaluationTrigger::class),
             $this->service(WorkflowSweepRecord::class),
             $settings ?? $this->service(WorkflowSweepSettings::class),

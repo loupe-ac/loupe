@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Workflow\Command;
 
 use App\Module\Workflow\Repository\WorkflowBindingRepository;
+use App\Module\Workflow\Repository\WorkflowCardChangeRepository;
 use App\Module\Workflow\Service\EvaluationTrigger;
 use App\Module\Workflow\Service\WorkflowSweepRecord;
 use App\Module\Workflow\Service\WorkflowSweepSettings;
@@ -23,6 +24,7 @@ final readonly class FullSweepWorkflowCardsHandler
 {
     public function __construct(
         private WorkflowBindingRepository $workflowBindings,
+        private WorkflowCardChangeRepository $workflowCardChanges,
         private EvaluationTrigger $trigger,
         private WorkflowSweepRecord $record,
         private WorkflowSweepSettings $settings,
@@ -43,6 +45,8 @@ final readonly class FullSweepWorkflowCardsHandler
             return 0;
         }
 
+        // A project mark becomes a card mark first, so a check of a card that a project-wide change touched never reports a miss.
+        $this->workflowCardChanges->expandProjectMarks();
         $cardIds = $this->workflowBindings->findOpenBoundCardIds();
         $this->trigger->inBackground($cardIds, self::class, null, true);
         $this->record->recordFull($now);

@@ -48,6 +48,10 @@ final readonly class SweepWorkflowCardsHandler
         $version = $this->build->version;
         $deployPass = null !== $version && $this->record->build() !== $version;
         $marked = $this->settings->changeDrivenSweep() && !$deployPass;
+        if (!$marked) {
+            // A project mark becomes a card mark first, so a check of a card that a project-wide change touched never reports a miss.
+            $this->workflowCardChanges->expandProjectMarks();
+        }
         $cardIds = $marked ? $this->markedCardIds() : $this->workflowBindings->findOpenBoundCardIds();
         $this->trigger->inBackground($cardIds, self::class, null, !$marked);
         if ($deployPass) {
