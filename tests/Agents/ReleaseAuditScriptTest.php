@@ -53,6 +53,10 @@ final class ReleaseAuditScriptTest extends TestCase
         $this->commit('one');
         $this->git($this->repo, 'tag', 'cli/v1.0.0');
         $this->commit('two');
+        $this->manifest('loupe', '0.59.7');
+        $this->manifest('loupe-lifecycle', '0.4.23');
+        $this->git($this->repo, 'add', '.');
+        $this->git($this->repo, 'commit', '-q', '-m', 'manifests');
         $this->git($this->repo, 'tag', 'cli/v1.1.0');
         $this->git($this->repo, 'push', '-q', 'origin', 'main');
 
@@ -168,6 +172,43 @@ final class ReleaseAuditScriptTest extends TestCase
         self::assertStringContainsString('cli/v9.9.9', $result->getOutput());
     }
 
+    public function test_it_stops_on_a_signed_skills_release_that_the_manifests_do_not_name(): void
+    {
+        $this->accept();
+        $this->fixture('repos/loupe-ac/loupe/releases', [
+            ['tag_name' => 'skills/loupe/v9.9.9', 'draft' => false, 'created_at' => '2999-01-02T00:00:00Z', 'published_at' => '2999-01-02T00:00:00Z', 'assets' => [['name' => 'checksums.txt.sig']]],
+            ['tag_name' => 'cli/v1.1.0', 'draft' => true, 'created_at' => '2025-01-10T10:00:00Z', 'published_at' => null, 'assets' => []],
+            ['tag_name' => 'cli/v1.0.0', 'draft' => false, 'created_at' => '2025-01-01T10:00:00Z', 'published_at' => '2025-01-01T11:00:00Z', 'assets' => [['name' => 'checksums.txt.sig']]],
+        ]);
+        $this->fixture('repos/loupe-ac/loupe/actions/workflows/skills-release.yml/runs', ['workflow_runs' => [
+            ['id' => 3, 'created_at' => '2999-01-02T00:00:00Z', 'conclusion' => 'success'],
+        ]]);
+
+        $result = $this->audit();
+
+        self::assertSame(1, $result->getExitCode());
+        self::assertStringContainsString('skills/loupe/v9.9.9', $result->getOutput());
+    }
+
+    public function test_it_accepts_the_skills_releases_that_the_manifests_name(): void
+    {
+        $this->accept();
+        $this->fixture('repos/loupe-ac/loupe/releases', [
+            ['tag_name' => 'skills/loupe-lifecycle/v0.4.23', 'draft' => true, 'created_at' => '2999-01-02T00:00:00Z', 'published_at' => null, 'assets' => []],
+            ['tag_name' => 'skills/loupe/v0.59.7', 'draft' => true, 'created_at' => '2999-01-02T00:00:00Z', 'published_at' => null, 'assets' => []],
+            ['tag_name' => 'cli/v1.1.0', 'draft' => true, 'created_at' => '2025-01-10T10:00:00Z', 'published_at' => null, 'assets' => []],
+            ['tag_name' => 'cli/v1.0.0', 'draft' => false, 'created_at' => '2025-01-01T10:00:00Z', 'published_at' => '2025-01-01T11:00:00Z', 'assets' => [['name' => 'checksums.txt.sig']]],
+        ]);
+        $this->fixture('repos/loupe-ac/loupe/actions/workflows/skills-release.yml/runs', ['workflow_runs' => [
+            ['id' => 4, 'created_at' => '2999-01-02T00:00:00Z', 'conclusion' => 'success'],
+            ['id' => 3, 'created_at' => '2999-01-02T00:00:00Z', 'conclusion' => 'success'],
+        ]]);
+
+        $result = $this->audit();
+
+        self::assertSame(0, $result->getExitCode(), $result->getOutput());
+    }
+
     public function test_it_stops_when_the_tag_is_not_the_deployed_commit(): void
     {
         $result = $this->audit(deployed: str_repeat('a', 40));
@@ -231,6 +272,13 @@ final class ReleaseAuditScriptTest extends TestCase
             $this->fixtures.'/'.str_replace('/', '__', $path).'.json',
             json_encode($data, \JSON_THROW_ON_ERROR),
         );
+    }
+
+    private function manifest(string $package, string $version): void
+    {
+        $dir = $this->repo.'/plugins/'.$package.'/.claude-plugin';
+        mkdir($dir, 0o777, true);
+        file_put_contents($dir.'/plugin.json', json_encode(['version' => $version], \JSON_THROW_ON_ERROR));
     }
 
     private function commit(string $name): void

@@ -113,16 +113,30 @@ else
   fi
 fi
 
-# 3. No release appeared after the baseline other than this release.
-if [[ -n "$releases" ]]; then
-  extra="$(jq -r --arg b "$baseline" --arg t "$cli_tag" '.[] | select(.created > $b and .tag != $t and (((.tag | startswith("skills/")) and (.draft or .signed)) | not)) | .tag' <<<"$releases")"
-  if [[ -n "$extra" ]]; then
-    surprise "3 Releases created after the baseline: $(echo $extra)"
-  else
-    ok "3 No unexpected release since the baseline."
-  fi
-else
+# 3. No release appeared after the baseline other than this release and the skills releases
+# that the plugin manifests name at the CLI tag.
+if [[ -z "$releases" ]]; then
   blind "3 The releases cannot be read."
+else
+  expected="[\"$cli_tag\"]"
+  manifests_ok=true
+  for pkg in loupe loupe-lifecycle; do
+    if ver="$(git show "$cli_tag:plugins/$pkg/.claude-plugin/plugin.json" 2>/dev/null | jq -er '.version' 2>/dev/null)"; then
+      expected="$(jq -c --arg t "skills/$pkg/v$ver" '. + [$t]' <<<"$expected")"
+    else
+      manifests_ok=false
+    fi
+  done
+  if [[ "$manifests_ok" != true ]]; then
+    blind "3 The skills versions at $cli_tag cannot be read."
+  else
+    extra="$(jq -r --arg b "$baseline" --argjson e "$expected" '.[] | select(.created > $b and (.tag as $t | $e | index($t) | not)) | .tag' <<<"$releases")"
+    if [[ -n "$extra" ]]; then
+      surprise "3 Releases created after the baseline that this release does not name: $(echo $extra)"
+    else
+      ok "3 No unexpected release since the baseline."
+    fi
+  fi
 fi
 
 # 4. Each successful run of a release workflow made one release.
