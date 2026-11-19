@@ -1,3 +1,4 @@
+/* stimulusFetch: 'lazy' */
 import { Controller } from '@hotwired/stimulus';
 import { smoothScrollTo } from '../lib/smooth_scroll.js';
 

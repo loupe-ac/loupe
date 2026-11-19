@@ -1,3 +1,4 @@
+/* stimulusFetch: 'eager' */
 import { Controller } from '@hotwired/stimulus';
 
 const THIRTY_DAYS = 60 * 60 * 24 * 30;

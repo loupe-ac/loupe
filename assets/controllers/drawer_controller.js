@@ -1,3 +1,4 @@
+/* stimulusFetch: 'eager' */
 import { Controller } from '@hotwired/stimulus';
 import { COMPACT_QUERY } from '../lib/breakpoints.js';
 

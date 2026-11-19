@@ -1,3 +1,4 @@
+/* stimulusFetch: 'lazy' */
 import { Controller } from '@hotwired/stimulus';
 import { ServerTransport } from '../lib/review_transport.js';
 import {
@@ -2126,6 +2127,11 @@ export default class extends Controller {
             this.hideResolvedValue = true;
         }
         this.#applyHideResolved();
+        // Both controllers load lazily, so the panels may connect before this
+        // one sets the class they read.
+        this.dispatch('resolved-filter', {
+            detail: { hidden: this.hideResolvedValue },
+        });
     }
 
     #applyHideResolved() {

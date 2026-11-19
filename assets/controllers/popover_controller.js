@@ -1,3 +1,4 @@
+/* stimulusFetch: 'eager' */
 import { Controller } from '@hotwired/stimulus';
 import { followMenuPanel } from '../lib/menu_placement.js';
 
