@@ -14,6 +14,7 @@ final class ReleaseAuditScriptTest extends TestCase
     private string $repo;
     private string $fixtures;
     private string $baseline;
+    private string $script;
 
     protected function setUp(): void
     {
@@ -27,6 +28,20 @@ final class ReleaseAuditScriptTest extends TestCase
 
         file_put_contents($this->dir.'/bin/gh', <<<'FAKE_WRAP'
         #!/usr/bin/env bash
+        if [ "$1" = release ] && [ "$2" = download ]; then
+            tag="$3"; dir=""; prev=""; pats=()
+            for a in "$@"; do
+                [ "$prev" = --dir ] && dir="$a"
+                [ "$prev" = --pattern ] && pats+=("$a")
+                prev="$a"
+            done
+            for pat in "${pats[@]}"; do
+                src="$FAKE_FIXTURES/assets/${tag//\//__}/$pat"
+                [ -f "$src" ] || exit 1
+                cp "$src" "$dir/$pat"
+            done
+            exit 0
+        fi
         [ "$1" = api ] || exit 2
         path="$2"
         expr=""
@@ -42,6 +57,15 @@ final class ReleaseAuditScriptTest extends TestCase
         jq -c "$expr" "$file"
         FAKE_WRAP);
         chmod($this->dir.'/bin/gh', 0o755);
+
+        $this->script = $this->dir.'/tree/bin/agents/release-audit';
+        mkdir(\dirname($this->script), 0o777, true);
+        copy(\dirname(__DIR__, 2).'/bin/agents/release-audit', $this->script);
+        chmod($this->script, 0o755);
+        mkdir($this->dir.'/tree/cli/internal/update', 0o777, true);
+        $this->key('good');
+        file_put_contents($this->dir.'/tree/cli/internal/update/release_keys', 'loupe-release '.$this->publicKey('good')."\n");
+        $this->signRelease('cli/v1.0.0', 'good');
 
         $this->git($this->dir, 'init', '-q', '--bare', '-b', 'main', 'origin.git');
         $this->git($this->repo, 'init', '-q', '-b', 'main');
@@ -209,6 +233,42 @@ final class ReleaseAuditScriptTest extends TestCase
         self::assertStringContainsString('previous signed CLI release: cli/v1.0.0', $result->getOutput());
     }
 
+    public function test_a_forged_predecessor_signature_cannot_set_the_baseline(): void
+    {
+        $this->accept();
+        $this->signRelease('cli/v1.0.5', 'forged');
+        $this->fixture('repos/loupe-ac/loupe/releases', [
+            ['tag_name' => 'cli/v1.1.0', 'draft' => true, 'created_at' => '2025-01-10T10:00:00Z', 'published_at' => null, 'assets' => []],
+            ['tag_name' => 'cli/v1.0.5', 'draft' => false, 'created_at' => '2025-01-05T10:00:00Z', 'published_at' => '2025-01-05T11:00:00Z', 'assets' => [['name' => 'checksums.txt.sig']]],
+            ['tag_name' => 'cli/v1.0.0', 'draft' => false, 'created_at' => '2025-01-01T10:00:00Z', 'published_at' => '2025-01-01T11:00:00Z', 'assets' => [['name' => 'checksums.txt.sig']]],
+        ]);
+        $this->fixture('repos/loupe-ac/loupe/actions/workflows/cli-release.yml/runs', ['workflow_runs' => [
+            ['id' => 2, 'created_at' => '2025-01-10T09:00:00Z', 'conclusion' => 'success'],
+            ['id' => 1, 'created_at' => '2025-01-01T09:00:00Z', 'conclusion' => 'success'],
+        ]]);
+
+        $result = $this->audit();
+
+        self::assertSame(1, $result->getExitCode(), $result->getOutput());
+        self::assertStringContainsString('previous signed CLI release: cli/v1.0.0', $result->getOutput());
+        self::assertStringContainsString('cli/v1.0.5 has a signature asset that no release key signed', $result->getOutput());
+    }
+
+    public function test_an_old_draft_published_after_the_baseline_is_a_surprise(): void
+    {
+        $this->accept();
+        $this->fixture('repos/loupe-ac/loupe/releases', [
+            ['tag_name' => 'skills/loupe/v9.9.9', 'draft' => false, 'created_at' => '2024-06-01T00:00:00Z', 'published_at' => '2999-01-02T00:00:00Z', 'assets' => []],
+            ['tag_name' => 'cli/v1.1.0', 'draft' => true, 'created_at' => '2025-01-10T10:00:00Z', 'published_at' => null, 'assets' => []],
+            ['tag_name' => 'cli/v1.0.0', 'draft' => false, 'created_at' => '2025-01-01T10:00:00Z', 'published_at' => '2025-01-01T11:00:00Z', 'assets' => [['name' => 'checksums.txt.sig']]],
+        ]);
+
+        $result = $this->audit();
+
+        self::assertSame(1, $result->getExitCode(), $result->getOutput());
+        self::assertStringContainsString('3 Releases created after the baseline that this release does not name: skills/loupe/v9.9.9', $result->getOutput());
+    }
+
     public function test_it_stops_on_a_signed_skills_release_that_the_manifests_do_not_name(): void
     {
         $this->accept();
@@ -275,6 +335,29 @@ final class ReleaseAuditScriptTest extends TestCase
         self::assertFileDoesNotExist($this->baseline);
     }
 
+    private function key(string $name): void
+    {
+        new Process(['ssh-keygen', '-q', '-t', 'ed25519', '-N', '', '-C', $name, '-f', $this->dir.'/'.$name])->mustRun();
+    }
+
+    private function publicKey(string $name): string
+    {
+        $parts = explode(' ', trim((string) file_get_contents($this->dir.'/'.$name.'.pub')));
+
+        return $parts[0].' '.$parts[1];
+    }
+
+    private function signRelease(string $tag, string $keyName): void
+    {
+        if (!is_file($this->dir.'/'.$keyName)) {
+            $this->key($keyName);
+        }
+        $assets = $this->fixtures.'/assets/'.str_replace('/', '__', $tag);
+        mkdir($assets, 0o777, true);
+        file_put_contents($assets.'/checksums.txt', 'sums '.$tag."\n");
+        new Process(['ssh-keygen', '-Y', 'sign', '-f', $this->dir.'/'.$keyName, '-n', 'loupe-release', $assets.'/checksums.txt'])->mustRun();
+    }
+
     private function accept(): void
     {
         self::assertSame(0, $this->audit('--accept')->getExitCode());
@@ -285,7 +368,7 @@ final class ReleaseAuditScriptTest extends TestCase
         if ('' === $deployed) {
             $deployed = trim($this->gitOutput($this->repo, 'rev-parse', 'HEAD'));
         }
-        $command = [\dirname(__DIR__, 2).'/bin/agents/release-audit', 'cli/v1.1.0', $deployed];
+        $command = [$this->script, 'cli/v1.1.0', $deployed];
         if ('' !== $flag) {
             $command[] = $flag;
         }

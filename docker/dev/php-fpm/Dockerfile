@@ -36,12 +36,13 @@ RUN apk add --no-cache rsvg-convert fontconfig font-dejavu \
     && rm -rf /tmp/fonts
 
 # bin/rotate-secrets reads tfvars with terraform console and escapes values with
-# jq, and its PHPUnit test runs both. The zip is checked against a pinned SHA-256.
+# jq, and its PHPUnit test runs both. The release-audit test signs fake releases
+# with ssh-keygen. The zip is checked against a pinned SHA-256.
 ARG TARGETARCH
 ARG TERRAFORM_VERSION=1.15.6
 ARG TERRAFORM_SHA256_AMD64=a7150d3b0e1b5c466ad42e8c499954a3c54645f8b56b385fa025d34f7e88faa9
 ARG TERRAFORM_SHA256_ARM64=404c9cfa43728d31005f6e7a848b8a7cc701320067d9d87d8850031a5beb37b0
-RUN apk add --no-cache jq unzip \
+RUN apk add --no-cache jq unzip openssh-keygen \
     && case "$TARGETARCH" in \
         amd64) sha="$TERRAFORM_SHA256_AMD64" ;; \
         arm64) sha="$TERRAFORM_SHA256_ARM64" ;; \

@@ -17,7 +17,7 @@
 # --accept writes the baseline file from the current state. Run it only after the owner
 # confirmed each reported line in the chat. It refuses when a check was unreadable.
 #
-# Requires: gh, git, jq. Run it in a clone of the repository, with the CLI tag fetched.
+# Requires: gh, git, jq, ssh-keygen. Run it in a clone of the repository, with the CLI tag fetched.
 
 set -euo pipefail
 
@@ -39,7 +39,7 @@ fi
 cli_tag="${args[0]}"
 deployed="${args[1]}"
 [[ "$cli_tag" =~ ^cli/v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "the tag must look like cli/v1.2.3" >&2; exit 1; }
-for tool in gh git jq; do
+for tool in gh git jq ssh-keygen; do
   command -v "$tool" >/dev/null || { echo "this script needs $tool" >&2; exit 1; }
 done
 
@@ -65,16 +65,37 @@ api="repos/$repo"
 releases="$(collect releases "$api/releases" '.[] | {tag: .tag_name, draft: .draft, created: (.created_at // ""), published: (.published_at // ""), signed: (any(.assets[]?; .name == "checksums.txt.sig"))}')" || releases=""
 previous=""
 previous_time=""
+keys_file="$(cd "$(dirname "$0")/../.." && pwd)/cli/internal/update/release_keys"
+verify_release() {
+  # A named signature asset proves nothing: check it against the release keys.
+  local tmp ok=1
+  tmp="$(mktemp -d)"
+  if gh release download "$1" --repo "$repo" --pattern checksums.txt --pattern checksums.txt.sig --dir "$tmp" >/dev/null 2>&1 \
+    && ssh-keygen -Y verify -f "$keys_file" -I loupe-release -n loupe-release \
+      -s "$tmp/checksums.txt.sig" < "$tmp/checksums.txt" >/dev/null 2>&1; then
+    ok=0
+  fi
+  rm -rf "$tmp"
+  return $ok
+}
+bad_predecessors=()
 if [[ -n "$releases" ]]; then
-  previous="$(jq -r --arg t "$cli_tag" '
+  candidates="$(jq -r --arg t "$cli_tag" '
     def ver: ltrimstr("cli/v") | split(".") | map(tonumber);
     ([.[] | select(.tag == $t)][0].created // "") as $made
     | if $made == "" then empty else
         [.[] | select((.tag | test("^cli/v[0-9]+\\.[0-9]+\\.[0-9]+$")) and .draft == false and .signed == true
             and .published != "" and .published < $made and ((.tag | ver) < ($t | ver)))]
-        | sort_by(.tag | ver) | last | .tag // empty
+        | sort_by(.tag | ver) | reverse | .[].tag
       end' <<<"$releases")"
-  previous_time="$(jq -r --arg t "$previous" '[.[] | select(.tag == $t)][0].published // empty' <<<"$releases")"
+  for candidate in $candidates; do
+    if verify_release "$candidate"; then
+      previous="$candidate"
+      break
+    fi
+    bad_predecessors+=("$candidate")
+  done
+  [[ -z "$previous" ]] || previous_time="$(jq -r --arg t "$previous" '[.[] | select(.tag == $t)][0].published // empty' <<<"$releases")"
 fi
 
 accepted_at=""
@@ -82,6 +103,10 @@ accepted_at=""
 baseline="$previous_time"
 [[ "$accepted_at" > "$baseline" ]] && baseline="$accepted_at"
 echo "Baseline time: ${baseline:-none} (previous signed CLI release: ${previous:-none}, accepted: ${accepted_at:-never})"
+
+for bad in ${bad_predecessors[@]+"${bad_predecessors[@]}"}; do
+  surprise "0 $bad has a signature asset that no release key signed, so it cannot set the baseline."
+done
 
 # 1. The CLI tag points at the deployed sha.
 tag_sha="$(git rev-parse --verify --quiet "$cli_tag^{commit}" || true)"
@@ -140,7 +165,7 @@ else
   if [[ "$manifests_ok" != true ]]; then
     blind "3 The skills versions at $cli_tag cannot be read."
   else
-    extra="$(jq -r --arg b "$baseline" --argjson e "$expected" '.[] | select(.created > $b and (.tag as $t | $e | index($t) | not)) | .tag' <<<"$releases")"
+    extra="$(jq -r --arg b "$baseline" --argjson e "$expected" '.[] | select((.created > $b or (.published != "" and .published > $b)) and (.tag as $t | $e | index($t) | not)) | .tag' <<<"$releases")"
     if [[ -n "$extra" ]]; then
       surprise "3 Releases created after the baseline that this release does not name: $(echo $extra)"
     else
@@ -156,7 +181,7 @@ if [[ -n "$releases" ]]; then
     prefix="${pair#*:}"
     if runs="$(collect runs "$api/actions/workflows/$wf/runs" '.workflow_runs[] | {k: (.id | tostring), t: .created_at, c: .conclusion}')"; then
       n_runs="$(jq --arg b "$baseline" '[.[] | select(.t > $b and .c == "success")] | length' <<<"$runs")"
-      n_rel="$(jq --arg b "$baseline" --arg p "$prefix" '[.[] | select(.created > $b and (.tag | startswith($p)))] | length' <<<"$releases")"
+      n_rel="$(jq --arg b "$baseline" --arg p "$prefix" '[.[] | select((.created > $b or (.published != "" and .published > $b)) and (.tag | startswith($p)))] | length' <<<"$releases")"
       if [[ "$n_runs" -eq "$n_rel" ]]; then
         ok "4 $wf: $n_runs successful runs, $n_rel releases since the baseline."
       else

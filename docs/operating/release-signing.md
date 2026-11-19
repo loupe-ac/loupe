@@ -22,7 +22,7 @@ bin/agents/release-audit cli/v2.8.0 <deployed sha>
 just sign-all cli/v2.8.0 --yes
 ```
 
-`release-audit` is read-only. It looks for signs of a hijacked GitHub account: a commit on `main` with no merged pull request, a release or a workflow run that nobody expected, and a deploy key, secret, webhook, ruleset, environment, collaborator or open invitation that was added, removed or changed. It compares the access sets with a baseline in `~/.config/loupe/release-audit.json`, which only the `--accept` flag writes. On a surprise, or on a check that cannot read its data, the agent stops and shows the lines. It runs `--accept` only after the owner confirms each line.
+`release-audit` is read-only. It looks for signs of a hijacked GitHub account: a commit on `main` with no merged pull request, a release or a workflow run that nobody expected, and a deploy key, secret, webhook, ruleset, environment, collaborator or open invitation that was added, removed or changed. It takes the baseline time from the last CLI release whose signature a key of `release_keys` made, and it reports a release that was created or published after that time. It compares the access sets with a baseline in `~/.config/loupe/release-audit.json`, which only the `--accept` flag writes. On a surprise, or on a check that cannot read its data, the agent stops and shows the lines. It runs `--accept` only after the owner confirms each line.
 
 `sign-all` signs the drafts of both skills packages, then the CLI draft. It checks every draft before it signs any draft:
 
