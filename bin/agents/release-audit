@@ -1,0 +1,227 @@
+#!/usr/bin/env bash
+# Looks for signs of a hijacked GitHub account before a release is signed.
+#
+# Usage:
+#   bin/agents/release-audit <cli tag> <deployed sha> [--accept]
+#
+# Read-only against GitHub. It prints one line per check: OK, SURPRISE or UNREADABLE.
+# Exit 0: every check is clean. Exit 1: a check found a surprise. Exit 2: a check could
+# not read its data, and no check found a surprise.
+#
+# The baseline is a local file, ~/.config/loupe/release-audit.json (override with
+# RELEASE_AUDIT_FILE). It holds `accepted_at` and a snapshot of the repository access:
+# deploy keys, secret names, webhooks, rulesets, environments, collaborators with their
+# roles, and open invitations. The baseline time is the later of `accepted_at` and the
+# publication time of the previous signed CLI release.
+#
+# --accept writes the baseline file from the current state. Run it only after the owner
+# confirmed each reported line in the chat. It refuses when a check was unreadable.
+#
+# Requires: gh, git, jq. Run it in a clone of the repository, with the CLI tag fetched.
+
+set -euo pipefail
+
+repo="${RELEASE_AUDIT_REPO:-loupe-ac/loupe}"
+file="${RELEASE_AUDIT_FILE:-$HOME/.config/loupe/release-audit.json}"
+accept=false
+args=()
+for a in "$@"; do
+  case "$a" in
+    --accept) accept=true ;;
+    -*) echo "unknown flag $a" >&2; exit 1 ;;
+    *) args+=("$a") ;;
+  esac
+done
+if [[ ${#args[@]} -ne 2 ]]; then
+  echo "Usage: $(basename "$0") <cli tag> <deployed sha> [--accept]" >&2
+  exit 1
+fi
+cli_tag="${args[0]}"
+deployed="${args[1]}"
+[[ "$cli_tag" =~ ^cli/v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "the tag must look like cli/v1.2.3" >&2; exit 1; }
+for tool in gh git jq; do
+  command -v "$tool" >/dev/null || { echo "this script needs $tool" >&2; exit 1; }
+done
+
+surprises=0
+unreadable=0
+ok() { echo "OK         $1"; }
+surprise() { echo "SURPRISE   $1"; surprises=$((surprises + 1)); }
+blind() { echo "UNREADABLE $1"; unreadable=$((unreadable + 1)); }
+
+# collect <name> <api path> <jq expression>: prints a JSON array of {k, t}, or fails.
+collect() {
+  local lines
+  lines="$(gh api "$2" --paginate --jq "$3" 2>/dev/null)" || return 1
+  printf '%s\n' "$lines" | jq -s '.' 2>/dev/null
+}
+
+api="repos/$repo"
+
+# The previous signed CLI release gives the baseline time and the start of the commit range.
+releases="$(collect releases "$api/releases" '.[] | {tag: .tag_name, draft: .draft, created: (.created_at // ""), published: (.published_at // ""), signed: (any(.assets[]?; .name == "checksums.txt.sig"))}')" || releases=""
+previous=""
+previous_time=""
+if [[ -n "$releases" ]]; then
+  previous="$(jq -r --arg t "$cli_tag" '[.[] | select((.tag | startswith("cli/v")) and .tag != $t and .draft == false and .signed == true)] | sort_by(.created) | last | .tag // empty' <<<"$releases")"
+  previous_time="$(jq -r --arg t "$previous" '[.[] | select(.tag == $t)][0].published // empty' <<<"$releases")"
+fi
+
+accepted_at=""
+[[ -f "$file" ]] && accepted_at="$(jq -r '.accepted_at // empty' "$file" 2>/dev/null || true)"
+baseline="$previous_time"
+[[ "$accepted_at" > "$baseline" ]] && baseline="$accepted_at"
+echo "Baseline time: ${baseline:-none} (previous signed CLI release: ${previous:-none}, accepted: ${accepted_at:-never})"
+
+# 1. The CLI tag points at the deployed sha.
+tag_sha="$(git rev-parse --verify --quiet "$cli_tag^{commit}" || true)"
+if [[ -z "$tag_sha" ]]; then
+  blind "1 The tag $cli_tag is not in this clone. Fetch the tags."
+elif [[ "$tag_sha" == "$deployed"* || "$deployed" == "$tag_sha"* ]]; then
+  ok "1 $cli_tag points at the deployed commit."
+else
+  surprise "1 $cli_tag points at $tag_sha, not at the deployed commit $deployed."
+fi
+
+# 2. Each first-parent commit since the previous signed CLI release belongs to a merged pull request.
+if [[ -z "$releases" ]]; then
+  blind "2 The releases cannot be read."
+elif [[ -z "$previous" ]]; then
+  blind "2 No previous signed CLI release gives the start of the commit range."
+elif ! git fetch --quiet origin main 2>/dev/null; then
+  blind "2 origin/main cannot be fetched."
+elif ! prev_sha="$(git rev-parse --verify --quiet "$previous^{commit}")"; then
+  blind "2 The tag $previous is not in this clone. Fetch the tags."
+else
+  bad=0
+  read_fail=0
+  while read -r sha; do
+    [[ -n "$sha" ]] || continue
+    if ! n="$(gh api "$api/commits/$sha/pulls" --jq '[.[] | select(.merged_at != null and .base.ref == "main")] | length' 2>/dev/null)"; then
+      read_fail=1
+      break
+    fi
+    if [[ "$n" -lt 1 ]]; then
+      surprise "2 Commit $sha is on main with no merged pull request."
+      bad=1
+    fi
+  done < <(git rev-list --first-parent "$prev_sha..origin/main")
+  if [[ $read_fail -eq 1 ]]; then
+    blind "2 The pull requests of a commit cannot be read."
+  elif [[ $bad -eq 0 ]]; then
+    ok "2 Every commit since $previous belongs to a merged pull request."
+  fi
+fi
+
+# 3. No release appeared after the baseline other than this release.
+if [[ -n "$releases" ]]; then
+  extra="$(jq -r --arg b "$baseline" --arg t "$cli_tag" '.[] | select(.created > $b and .tag != $t and (((.tag | startswith("skills/")) and (.draft or .signed)) | not)) | .tag' <<<"$releases")"
+  if [[ -n "$extra" ]]; then
+    surprise "3 Releases created after the baseline: $(echo $extra)"
+  else
+    ok "3 No unexpected release since the baseline."
+  fi
+else
+  blind "3 The releases cannot be read."
+fi
+
+# 4. Each successful run of a release workflow made one release.
+if [[ -n "$releases" ]]; then
+  for pair in "cli-release.yml:cli/v" "skills-release.yml:skills/"; do
+    wf="${pair%%:*}"
+    prefix="${pair#*:}"
+    if runs="$(collect runs "$api/actions/workflows/$wf/runs" '.workflow_runs[] | {k: (.id | tostring), t: .created_at, c: .conclusion}')"; then
+      n_runs="$(jq --arg b "$baseline" '[.[] | select(.t > $b and .c == "success")] | length' <<<"$runs")"
+      n_rel="$(jq --arg b "$baseline" --arg p "$prefix" '[.[] | select(.created > $b and (.tag | startswith($p)))] | length' <<<"$releases")"
+      if [[ "$n_runs" -eq "$n_rel" ]]; then
+        ok "4 $wf: $n_runs successful runs, $n_rel releases since the baseline."
+      else
+        surprise "4 $wf: $n_runs successful runs but $n_rel releases since the baseline."
+      fi
+    else
+      blind "4 The runs of $wf cannot be read."
+    fi
+  done
+else
+  blind "4 The releases cannot be read."
+fi
+
+# 5 to 8. Access sets against the snapshot, and no change after the baseline.
+declare -A paths exprs labels
+order=(deploy_keys secrets homebrew_secrets webhooks rulesets environments collaborators invitations)
+paths[deploy_keys]="$api/keys"
+exprs[deploy_keys]='.[] | {k: (.id | tostring), t: (.created_at // "")}'
+labels[deploy_keys]="5 Deploy keys"
+paths[secrets]="$api/actions/secrets"
+exprs[secrets]='.secrets[] | {k: .name, t: (.updated_at // "")}'
+labels[secrets]="6 Repository secrets"
+paths[homebrew_secrets]="$api/environments/homebrew/secrets"
+exprs[homebrew_secrets]='.secrets[] | {k: .name, t: (.updated_at // "")}'
+labels[homebrew_secrets]="6 Homebrew environment secrets"
+paths[webhooks]="$api/hooks"
+exprs[webhooks]='.[] | {k: (.id | tostring), t: (.updated_at // "")}'
+labels[webhooks]="7 Webhooks"
+paths[rulesets]="$api/rulesets"
+exprs[rulesets]='.[] | {k: (.id | tostring), t: (.updated_at // "")}'
+labels[rulesets]="7 Rulesets"
+paths[environments]="$api/environments"
+exprs[environments]='.environments[] | {k: .name, t: (.updated_at // "")}'
+labels[environments]="7 Environments"
+paths[collaborators]="$api/collaborators"
+exprs[collaborators]='.[] | {k: (.login + ":" + (.role_name // "")), t: ""}'
+labels[collaborators]="8 Collaborators (login:role)"
+paths[invitations]="$api/invitations"
+exprs[invitations]='.[] | {k: ((.id | tostring) + ":" + (.invitee.login // "") + ":" + (.permissions // "")), t: (.created_at // "")}'
+labels[invitations]="8 Open invitations"
+
+snapshot='{}'
+all_read=true
+for name in "${order[@]}"; do
+  label="${labels[$name]}"
+  if ! current="$(collect "$name" "${paths[$name]}" "${exprs[$name]}")"; then
+    blind "$label cannot be read."
+    all_read=false
+    continue
+  fi
+  keys="$(jq -c '[.[].k] | sort' <<<"$current")"
+  snapshot="$(jq -c --arg n "$name" --argjson k "$keys" '. + {($n): $k}' <<<"$snapshot")"
+  if [[ ! -f "$file" ]] || ! jq -e --arg n "$name" 'has($n)' "$file" >/dev/null 2>&1; then
+    surprise "$label: no baseline. Current: $(jq -r 'join(", ")' <<<"$keys")"
+    continue
+  fi
+  added="$(jq -r --argjson k "$keys" --slurpfile s "$file" --arg n "$name" '($k - $s[0][$n]) | join(", ")' <<<'null')"
+  removed="$(jq -r --argjson k "$keys" --slurpfile s "$file" --arg n "$name" '($s[0][$n] - $k) | join(", ")' <<<'null')"
+  changed="$(jq -r --arg b "$baseline" '[.[] | select(.t != "" and .t > $b) | .k] | join(", ")' <<<"$current")"
+  if [[ -n "$added" || -n "$removed" || -n "$changed" ]]; then
+    msg="$label:"
+    [[ -n "$added" ]] && msg+=" added [$added]"
+    [[ -n "$removed" ]] && msg+=" removed [$removed]"
+    [[ -n "$changed" ]] && msg+=" changed after the baseline [$changed]"
+    surprise "$msg"
+  else
+    ok "$label match the baseline."
+  fi
+done
+
+if [[ "$accept" == true ]]; then
+  if [[ "$all_read" != true || $unreadable -gt 0 ]]; then
+    echo "Nothing accepted: a check could not read its data." >&2
+    exit 2
+  fi
+  mkdir -p "$(dirname "$file")"
+  now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  jq -c --arg now "$now" '. + {accepted_at: $now}' <<<"$snapshot" > "$file.tmp"
+  mv "$file.tmp" "$file"
+  echo "Accepted at $now. Baseline written to $file."
+  exit 0
+fi
+
+if [[ $surprises -gt 0 ]]; then
+  echo "Result: $surprises surprise(s). Do not sign. Show these lines to the owner."
+  exit 1
+fi
+if [[ $unreadable -gt 0 ]]; then
+  echo "Result: $unreadable check(s) could not read their data. Do not sign."
+  exit 2
+fi
+echo "Result: clean."
