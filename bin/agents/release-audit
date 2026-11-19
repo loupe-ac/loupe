@@ -59,9 +59,9 @@ collect() {
 api="repos/$repo"
 
 # The previous signed CLI release gives the baseline time and the start of the commit range.
-# It is the highest published, signed CLI version below the target that was created before
-# the target draft. A release made after the target, or with a higher version, never counts,
-# so a new release cannot move the baseline past itself.
+# It is the highest published, signed CLI version below the target that was published before
+# the target draft was created. A release made or published after the target, or with a
+# higher version, never counts, so a new release cannot move the baseline past itself.
 releases="$(collect releases "$api/releases" '.[] | {tag: .tag_name, draft: .draft, created: (.created_at // ""), published: (.published_at // ""), signed: (any(.assets[]?; .name == "checksums.txt.sig"))}')" || releases=""
 previous=""
 previous_time=""
@@ -71,7 +71,7 @@ if [[ -n "$releases" ]]; then
     ([.[] | select(.tag == $t)][0].created // "") as $made
     | if $made == "" then empty else
         [.[] | select((.tag | test("^cli/v[0-9]+\\.[0-9]+\\.[0-9]+$")) and .draft == false and .signed == true
-            and .created < $made and ((.tag | ver) < ($t | ver)))]
+            and .published != "" and .published < $made and ((.tag | ver) < ($t | ver)))]
         | sort_by(.tag | ver) | last | .tag // empty
       end' <<<"$releases")"
   previous_time="$(jq -r --arg t "$previous" '[.[] | select(.tag == $t)][0].published // empty' <<<"$releases")"
