@@ -4,6 +4,8 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         {% if app.user %}<meta name="turbo-cache-control" content="no-preview">{% endif %}
+        <meta name="turbo-refresh-method" content="morph">
+        <meta name="turbo-refresh-scroll" content="preserve">
         <title>{% block title %}{{ 'app.name'|trans }}{% endblock %}</title>
         {# block() returns text the block already escaped, so it is printed with |raw #}
         {% set pageDescription = block('description') is defined ? block('description')|trim : '' %}
