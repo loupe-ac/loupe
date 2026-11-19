@@ -328,7 +328,7 @@ jobs:
             fi
           done
           [ "$found" -gt 0 ] || { echo 'no leg uploaded raw coverage'; exit 1; }
-          docker compose exec -T php-fpm vendor/bin/phpcov merge var/coverage --html var/coverage/html --clover var/coverage/clover.xml --text var/coverage/summary.txt
+          docker compose exec -T php-fpm php -d memory_limit=2G vendor/bin/phpcov merge var/coverage --html var/coverage/html --clover var/coverage/clover.xml --text var/coverage/summary.txt
           [ "$missing" -eq 0 ] || { echo "$missing leg(s) uploaded no raw coverage; the report is partial"; exit 1; }
 
       - name: Coverage summary
