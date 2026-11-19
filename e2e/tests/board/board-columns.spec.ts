@@ -7,14 +7,12 @@
 
 import { expect, type Page } from '@playwright/test';
 import {
-    hubStubbedTest as base,
+    seedDocument,
+    signedInTest as base,
     suppressToolbar,
     suppressWidget,
 } from '../fixtures';
 import { addBoardColumn } from '../helpers';
-
-const RUN = Date.now();
-const PASSWORD = 'E2eBoardColumns1!';
 
 const COLUMN = 'section.lp-board__column';
 
@@ -35,26 +33,13 @@ async function openToolbarActions(page: Page): Promise<boolean> {
     return true;
 }
 
-async function registerAndLogin(page: Page, email: string): Promise<void> {
-    const response = await page.request.post('/dev/register-and-verify', {
-        form: { fullName: 'E2E Columns User', email, password: PASSWORD },
-    });
-    expect(response.status()).toBe(200);
-
-    await page.goto('/login');
-    await page.getByLabel('Email').fill(email);
-    await page.getByLabel('Password').fill(PASSWORD);
-    await page.getByRole('button', { name: 'Sign in' }).click();
-    await expect(page).toHaveURL('/welcome', { timeout: 15000 });
-}
-
 async function seedProject(page: Page): Promise<string> {
-    const response = await page.request.post('/dev/seed/document', {
-        form: { title: 'E2E Columns Project', markdown: '# Columns' },
+    const { projectId } = await seedDocument(page, {
+        title: 'E2E Columns Project',
+        markdown: '# Columns',
     });
-    expect(response.status()).toBe(201);
 
-    return (await response.json()).projectId as string;
+    return projectId;
 }
 
 async function createCard(
@@ -109,15 +94,9 @@ interface Board {
 
 const test = base.extend<{ board: Board }>({
     board: [
-        async ({ page }, use, testInfo) => {
+        async ({ page }, use) => {
             await suppressToolbar(page);
             await suppressWidget(page);
-
-            const tag = testInfo.testId.replace(/[^a-z0-9]/gi, '');
-            await registerAndLogin(
-                page,
-                `e2e+columns+${tag}+${RUN}@example.com`,
-            );
 
             const projectId = await seedProject(page);
             await createCard(page, projectId, 'Waiting', 'Next');
@@ -136,7 +115,6 @@ const test = base.extend<{ board: Board }>({
 test.slow();
 
 test.use({
-    storageState: { cookies: [], origins: [] },
     viewport: { width: 1600, height: 900 },
 });
 

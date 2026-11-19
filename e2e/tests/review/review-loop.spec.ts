@@ -2,15 +2,16 @@
  * Browser coverage for the document review loop: anchoring a comment to selected
  * text, replying, resolving, deleting, and recording a verdict.
  *
- * Every test drives its own user and document through the dev-only endpoints —
- * /dev/register-and-verify (registers and verifies in one call), /dev/seed/document
- * (seeds the document), /dev/review/{id}/state (reads the stored anchors back).
+ * Every test seeds its own document, in a project of its own, for the user its worker
+ * signed in as, through the dev-only endpoints /dev/seed/document and
+ * /dev/review/{id}/state (reads the stored anchors back).
  * The status badge is asserted on the project dashboard (/projects/{projectId}/documents).
  */
 
 import { expect, type Page } from '@playwright/test';
 import {
-    hubStubbedTest as base,
+    seedDocument as seedInProject,
+    signedInTest as base,
     skipUnreachableHub,
     suppressToolbar,
     suppressWidget,
@@ -18,9 +19,6 @@ import {
 import { submitRedirectingForm } from '../helpers';
 import { coverageScaled } from '../timeouts';
 import { showPanel, toggleOn } from './panels';
-
-const RUN = Date.now();
-const PASSWORD = 'E2eReviewLoop1!';
 
 const KNOWN_PHRASE = 'sample phrase for selection';
 const DOCUMENT_MARKDOWN = `# E2E Review Test Document
@@ -36,57 +34,14 @@ const TOOLBAR = '[data-comment-anchor-target="toolbar"]';
 const COMPOSER = '[data-comment-anchor-target="composer"]';
 const COMPOSER_BODY = '[data-comment-anchor-target="composerBody"]';
 
-/** Register a user via the dev endpoint and immediately mark them as verified. */
-async function devRegisterAndVerify(
-    page: Page,
-    email: string,
-    password: string,
-): Promise<void> {
-    const response = await page.request.post('/dev/register-and-verify', {
-        form: {
-            fullName: 'E2E Reviewer',
-            email,
-            password,
-        },
-    });
-    expect(response.status()).toBe(200);
-}
-
-/** Log in as a user via the login form and wait for home page. */
-async function login(
-    page: Page,
-    email: string,
-    password: string,
-): Promise<void> {
-    await page.goto('/login');
-    await page.getByLabel('Email').fill(email);
-    await page.getByLabel('Password').fill(password);
-    await page.getByRole('button', { name: 'Sign in' }).click();
-    // A freshly-registered user owns no projects and hasn't completed the
-    // first-run wizard yet, so LandingController lands them on it (seedDocument,
-    // called right after this, creates the project the wizard would have).
-    await expect(page).toHaveURL('/welcome', { timeout: 15000 });
-}
-
-/**
- * Seed a document via the dev-only endpoint. Returns the document and its
- * owning project UUIDs. Must be called while the page session is authenticated.
- */
+/** Seeds the document of a test, and returns it with its owning project. */
 async function seedDocument(
     page: Page,
 ): Promise<{ documentId: string; projectId: string }> {
-    const response = await page.request.post('/dev/seed/document', {
-        form: {
-            title: 'E2E Review Test Document',
-            markdown: DOCUMENT_MARKDOWN,
-        },
+    return seedInProject(page, {
+        title: 'E2E Review Test Document',
+        markdown: DOCUMENT_MARKDOWN,
     });
-    expect(response.status()).toBe(201);
-    const body = await response.json();
-    return {
-        documentId: body.documentId as string,
-        projectId: body.projectId as string,
-    };
 }
 
 interface SeededReview {
@@ -97,23 +52,16 @@ interface SeededReview {
 }
 
 /**
- * Registers a user, logs in, seeds a document and opens its review page. Runs
- * for every test in this file; tests that need the ids destructure `review`.
- * Each test gets its own user and document, so nothing here can disturb a
- * sibling test's state.
+ * Seeds a document and opens its review page. Runs for every test in this file;
+ * tests that need the ids destructure `review`. Each test gets its own document in a
+ * project of its own, so nothing here can disturb a sibling test's state.
  */
 const test = base.extend<{ review: SeededReview }>({
     review: [
-        async ({ page }, use, testInfo) => {
+        async ({ page }, use) => {
             await skipUnreachableHub(page.context());
             await suppressToolbar(page);
             await suppressWidget(page);
-
-            const tag = testInfo.testId.replace(/[^a-z0-9]/gi, '');
-            const email = `e2e+review+${tag}+${RUN}@example.com`;
-
-            await devRegisterAndVerify(page, email, PASSWORD);
-            await login(page, email, PASSWORD);
 
             const { documentId, projectId } = await seedDocument(page);
             const reviewUrl = `/projects/${projectId}/documents/${documentId}/review`;
@@ -131,9 +79,6 @@ const test = base.extend<{ review: SeededReview }>({
         { auto: true },
     ],
 });
-
-// Guest by default — make the unauthenticated starting state explicit.
-test.use({ storageState: { cookies: [], origins: [] } });
 
 const DRAFT_MARKDOWN = '# Draft scope\n\nA new document from the browser.';
 

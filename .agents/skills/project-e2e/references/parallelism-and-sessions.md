@@ -6,6 +6,12 @@ Each spec file that needs an authenticated session calls `createTest(credentials
 
 Mailpit tests (register, delete account) search by recipient address and do not clear all messages, so they do not race.
 
+## One shared user per worker: `signedInTest`
+
+Nine large chromium specs import `signedInTest` from `fixtures.ts` in place of `createTest`: the widget, review loop, review bar, decision controls, comment rail, mobile review, app shell and the two board column specs. Each Playwright worker registers one user through `/dev/register-and-verify` and signs in once. Every test of the worker opens signed in, and the user is shared by all of those files. A test must never sign out or change the display name or the password of that user. Use `registerAndVerify` for a throwaway user in that case.
+
+The shared user owns one project per test. `seedDocument(page, { title, markdown })` from `fixtures.ts` passes `project` to the dev seed, named `t-` plus the last 12 characters of the test id, so a test that counts columns, cards or documents sees only its own rows. Never post to `/dev/seed/document` by hand in these files, because the default `e2e-harness` project is then shared by all tests of the worker. A spec that keeps `test.use({ storageState: { cookies: [], origins: [] } })` never runs the worker fixture.
+
 ## Mailpit is per worktree and never cleared
 
 Assume dirty inboxes. Each worktree has its own sidecar (`MAILPIT_URL`, exported by `just e2e`). A run with an explicit `E2E_BASE_URL` gets the shared instance. A recipient search is not enough when a previous run sent an email with the same subject to that address. Capture the newest matching message id before the triggering action. Then use `getEmailWithSubject(request, address, subject, { afterId })`, so the poll waits for a fresh message. When you get this wrong, the test follows a link from the stale email of another worktree, and gets a wrong-host 404 that looks like an app bug.

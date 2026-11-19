@@ -2,21 +2,18 @@
  * The authenticated shell at a 375px phone viewport with a touch pointer.
  *
  * The sidebar is off-canvas below 1024px, and the topbar carries the
- * hamburger that slides it in. Every test drives its own user and document
- * through the dev-only endpoints (/dev/register-and-verify, /dev/seed/document),
- * so nothing here touches Mailpit.
+ * hamburger that slides it in. Every test seeds its own document, in a project of its
+ * own, for the user its worker signed in as, so nothing here touches Mailpit.
  */
 
 import { expect, type Locator, type Page } from '@playwright/test';
 import {
-    hubStubbedTest as base,
+    signedInTest as base,
+    seedDocument as seedInProject,
     suppressToolbar,
     suppressWidget,
 } from '../fixtures';
 import { expectFilterFocusRingVisible } from '../helpers';
-
-const RUN = Date.now();
-const PASSWORD = 'E2eMobileShell1!';
 
 const PHONE = { width: 375, height: 812 };
 
@@ -36,33 +33,6 @@ async function expectPhoneFilterFocusRingVisible(
 const SIDEBAR = '[data-drawer-target="panel"]';
 const SCRIM = '[data-drawer-target="scrim"]';
 
-async function devRegisterAndVerify(
-    page: Page,
-    email: string,
-    password: string,
-): Promise<void> {
-    const response = await page.request.post('/dev/register-and-verify', {
-        form: { fullName: 'E2E Mobile', email, password },
-    });
-    expect(response.status()).toBe(200);
-}
-
-async function login(
-    page: Page,
-    email: string,
-    password: string,
-): Promise<void> {
-    await page.goto('/login');
-    await page.getByLabel('Email').fill(email);
-    await page.getByLabel('Password').fill(password);
-    await page.getByRole('button', { name: 'Sign in' }).click();
-    // A fresh user owns no project, so the first-run wizard takes the landing.
-    // seedDocument below creates the project the wizard would have created.
-    // The generous timeout covers a cold PHP cache on the first login of a run,
-    // which outran the 5s default and read as a rejected sign-in.
-    await expect(page).toHaveURL('/welcome', { timeout: 20000 });
-}
-
 interface Seeded {
     projectId: string;
     documentId: string;
@@ -74,19 +44,10 @@ const DOCUMENT_TITLE =
     'Quarterly platform architecture review and migration plan';
 
 async function seedDocument(page: Page): Promise<Seeded> {
-    const response = await page.request.post('/dev/seed/document', {
-        form: {
-            title: DOCUMENT_TITLE,
-            markdown:
-                '# Mobile\n\nA seeded document, so the filter bar renders.',
-        },
+    return seedInProject(page, {
+        title: DOCUMENT_TITLE,
+        markdown: '# Mobile\n\nA seeded document, so the filter bar renders.',
     });
-    expect(response.status()).toBe(201);
-    const body = await response.json();
-    return {
-        projectId: body.projectId as string,
-        documentId: body.documentId as string,
-    };
 }
 
 /**
@@ -109,15 +70,9 @@ async function horizontalOverflow(page: Page): Promise<number> {
 
 const test = base.extend<{ seeded: Seeded }>({
     seeded: [
-        async ({ page }, use, testInfo) => {
+        async ({ page }, use) => {
             await suppressToolbar(page);
             await suppressWidget(page);
-
-            const tag = testInfo.testId.replace(/[^a-z0-9]/gi, '');
-            const email = `e2e+mobile+${tag}+${RUN}@example.com`;
-
-            await devRegisterAndVerify(page, email, PASSWORD);
-            await login(page, email, PASSWORD);
 
             await use(await seedDocument(page));
         },
@@ -126,7 +81,6 @@ const test = base.extend<{ seeded: Seeded }>({
 });
 
 test.use({
-    storageState: { cookies: [], origins: [] },
     viewport: PHONE,
     hasTouch: true,
 });

@@ -14,9 +14,9 @@
  * PATCH and deletes DELETE. Only a Pending comment is still editable, so once
  * the agent addresses one the widget's PATCH/DELETE 404s by design.
  *
- * User creation uses the dev-only /dev/register-and-verify endpoint (registers and
- * immediately marks the email as verified). The harness is PUBLIC_ACCESS and looks
- * the user up by the e2e email passed in the query string. `signWidgetIn` runs the
+ * The worker registers one user through the dev-only /dev/register-and-verify endpoint and signs
+ * in once, and every test opens signed in. The harness is PUBLIC_ACCESS and looks the user up by
+ * the e2e email passed in the query string. `signWidgetIn` runs the
  * sign-in the popup would run, in a context of its own, so the harness page itself
  * stays a guest page.
  *
@@ -28,7 +28,7 @@
 
 import { expect, type Locator, type Page } from '@playwright/test';
 import {
-    hubStubbedTest as test,
+    signedInTest,
     signWidgetIn,
     siteReviewGrantKey,
     siteReviewPanelSettled,
@@ -37,16 +37,25 @@ import {
 } from '../fixtures';
 import { coverageScaled } from '../timeouts';
 
-// Guest flow — no session cookie should be carried in.
-test.use({ storageState: { cookies: [], origins: [] } });
+// The email of the user the worker signed in as. A worker runs one test at a time, and each
+// worker is its own process, so the auto fixture below sets it before every test.
+let workerEmail = '';
+
+const test = signedInTest.extend<{ workerEmailSet: void }>({
+    workerEmailSet: [
+        async ({ workerUser }, use) => {
+            workerEmail = workerUser.email;
+            await use();
+        },
+        { auto: true },
+    ],
+});
+
 test.describe.configure({ mode: 'parallel' });
 
-const E2E_PASSWORD = 'E2eSiteReview1!';
-
-// `test.info()` only answers inside a running test, so the email and the URLs
-// built from it are functions rather than constants.
-const e2eEmail = (): string =>
-    `e2e-site-review-${test.info().parallelIndex}@example.com`;
+// The URLs built from the email are functions, because the email is known only once the worker
+// has signed in.
+const e2eEmail = (): string => workerEmail;
 
 /**
  * The widget appends `?context=` when the page names a card, so a glob without
@@ -60,8 +69,7 @@ const harnessUrl = (): string =>
 const keepHarnessUrl = (): string => `${harnessUrl()}&keep=1`;
 
 /**
- * Register this worker's e2e user (idempotent — re-registering is handled by the dev
- * endpoint) and sign the widget in, without loading the harness. Tests that need to
+ * Sign the widget in as this worker's e2e user, without loading the harness. Tests that need to
  * intercept the widget's boot request install their route between this and their own
  * `page.goto(harnessUrl())`. Returns the harness project's id.
  *
@@ -82,28 +90,6 @@ const registerUser = async (
     mode: NoteMode | null = PER_NOTE,
 ): Promise<string> => {
     await suppressToolbar(page);
-    const email = e2eEmail();
-    const registerResponse = await page.request.post(
-        '/dev/register-and-verify',
-        {
-            form: {
-                fullName: `E2E Site Review ${test.info().parallelIndex}`,
-                email,
-                password: E2E_PASSWORD,
-            },
-        },
-    );
-    expect(registerResponse.status()).toBe(200);
-
-    // The mint needs a session, and /dev/register-and-verify creates none. The
-    // firewall on ^/api is stateless, so the cookie this leaves cannot stand in
-    // for the bearer the widget sends.
-    await page.goto('/login');
-    await page.getByLabel('Email').fill(email);
-    await page.getByLabel('Password').fill(E2E_PASSWORD);
-    await page.getByRole('button', { name: 'Sign in' }).click();
-    await expect(page).not.toHaveURL(/\/login$/, { timeout: 15_000 });
-
     const harness = await page.request.get(harnessUrl());
     expect(harness.ok()).toBeTruthy();
     const projectId = /data-project="([^"]+)"/.exec(await harness.text())?.[1];

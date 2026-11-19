@@ -1,5 +1,10 @@
-import { test as base, expect, type Page } from '@playwright/test';
-import { suppressToolbar, suppressWidget } from '../fixtures';
+import { expect, type Page } from '@playwright/test';
+import {
+    signedInTest as base,
+    seedDocument as seedInProject,
+    suppressToolbar,
+    suppressWidget,
+} from '../fixtures';
 import { coverageScaled } from '../timeouts';
 import { showPanel, toggleOn } from './panels';
 
@@ -39,46 +44,13 @@ const DESKTOP = { width: 1440, height: 900 };
 // desktop block spends 172px of it, which is a quarter of an 812px screen.
 const PHONE_VERTICAL_PADDING_BUDGET = 110;
 
-async function devRegisterAndVerify(
-    page: Page,
-    email: string,
-    password: string,
-): Promise<void> {
-    const response = await page.request.post('/dev/register-and-verify', {
-        form: { fullName: 'E2E Mobile Reviewer', email, password },
-    });
-    expect(response.status()).toBe(200);
-}
-
-async function login(
-    page: Page,
-    email: string,
-    password: string,
-): Promise<void> {
-    await page.goto('/login');
-    await page.getByLabel('Email').fill(email);
-    await page.getByLabel('Password').fill(password);
-    await page.getByRole('button', { name: 'Sign in' }).click();
-    await expect(page).toHaveURL('/welcome', {
-        timeout: coverageScaled(15000),
-    });
-}
-
 async function seedDocument(
     page: Page,
 ): Promise<{ documentId: string; projectId: string }> {
-    const response = await page.request.post('/dev/seed/document', {
-        form: {
-            title: 'E2E Mobile Review Document',
-            markdown: DOCUMENT_MARKDOWN,
-        },
+    return seedInProject(page, {
+        title: 'E2E Mobile Review Document',
+        markdown: DOCUMENT_MARKDOWN,
     });
-    expect(response.status()).toBe(201);
-    const body = await response.json();
-    return {
-        documentId: body.documentId as string,
-        projectId: body.projectId as string,
-    };
 }
 
 /**
@@ -298,23 +270,14 @@ async function givePhoneWidthReadingArea(page: Page): Promise<void> {
 async function seedRevisedDocument(
     page: Page,
 ): Promise<{ documentId: string; projectId: string }> {
-    const response = await page.request.post('/dev/seed/document', {
-        form: {
-            title: 'E2E Mobile Diff Document',
-            markdown:
-                '# Deployment notes\n\nThe worker consumes the async transport and the scheduler transport. It runs under a time limit.\n',
-            revisions: JSON.stringify([
-                '# Deployment notes\n\nThe worker consumes the scheduler transport first and the async transport second. It runs under a time limit and a memory limit, so a deep backlog cannot delay a scheduled tick.\n',
-            ]),
-        },
+    return seedInProject(page, {
+        title: 'E2E Mobile Diff Document',
+        markdown:
+            '# Deployment notes\n\nThe worker consumes the async transport and the scheduler transport. It runs under a time limit.\n',
+        revisions: [
+            '# Deployment notes\n\nThe worker consumes the scheduler transport first and the async transport second. It runs under a time limit and a memory limit, so a deep backlog cannot delay a scheduled tick.\n',
+        ],
     });
-    expect(response.status()).toBe(201);
-    const body = await response.json();
-
-    return {
-        documentId: body.documentId as string,
-        projectId: body.projectId as string,
-    };
 }
 
 interface SeededReview {
@@ -323,15 +286,9 @@ interface SeededReview {
 
 const test = base.extend<{ review: SeededReview }>({
     review: [
-        async ({ page }, use, testInfo) => {
+        async ({ page }, use) => {
             await suppressToolbar(page);
             await suppressWidget(page);
-
-            const tag = testInfo.testId.replace(/[^a-z0-9]/gi, '');
-            const email = `e2e+mobilereview+${tag}+${RUN}@example.com`;
-
-            await devRegisterAndVerify(page, email, PASSWORD);
-            await login(page, email, PASSWORD);
 
             const { documentId, projectId } = await seedDocument(page);
             const reviewUrl = `/projects/${projectId}/documents/${documentId}/review`;
@@ -346,7 +303,6 @@ const test = base.extend<{ review: SeededReview }>({
 });
 
 test.use({
-    storageState: { cookies: [], origins: [] },
     viewport: PHONE,
     hasTouch: true,
 });
