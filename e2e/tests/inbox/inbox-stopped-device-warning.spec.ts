@@ -10,6 +10,7 @@ import {
     suppressToolbar,
     suppressWidget,
 } from '../fixtures';
+import { registerSignedIn } from '../helpers';
 
 const RUN = Date.now();
 const PASSWORD = 'E2eStoppedDevice1!';
@@ -32,15 +33,11 @@ async function signInWithStoppedDevice(
     await suppressWidget(page);
     await setInboxFlag(page.request, true);
     const email = `e2e+stopped+device+${tag}+${RUN}@example.com`;
-    const registered = await page.request.post('/dev/register-and-verify', {
-        form: { fullName: 'E2E Stopped Device', email, password: PASSWORD },
+    await registerSignedIn(page, {
+        fullName: 'E2E Stopped Device',
+        email,
+        password: PASSWORD,
     });
-    expect(registered.status()).toBe(200);
-    await page.goto('/login');
-    await page.getByLabel('Email').fill(email);
-    await page.getByLabel('Password').fill(PASSWORD);
-    await page.getByRole('button', { name: 'Sign in' }).click();
-    await expect(page).toHaveURL('/welcome', { timeout: 15000 });
 
     const { projectId } = await (
         await page.request.post('/dev/seed/inbox')

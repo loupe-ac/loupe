@@ -11,6 +11,7 @@ import {
     suppressToolbar,
     suppressWidget,
 } from '../fixtures';
+import { registerSignedIn } from '../helpers';
 
 const RUN = Date.now();
 const PASSWORD = 'E2eInboxView1!';
@@ -40,15 +41,11 @@ async function seedTwoAsks(
     await suppressWidget(page);
     await setInboxFlag(page.request, true);
     const email = `e2e+inbox+view+${tag}+${RUN}@example.com`;
-    const registered = await page.request.post('/dev/register-and-verify', {
-        form: { fullName: 'E2E Inbox View', email, password: PASSWORD },
+    await registerSignedIn(page, {
+        fullName: 'E2E Inbox View',
+        email,
+        password: PASSWORD,
     });
-    expect(registered.status()).toBe(200);
-    await page.goto('/login');
-    await page.getByLabel('Email').fill(email);
-    await page.getByLabel('Password').fill(PASSWORD);
-    await page.getByRole('button', { name: 'Sign in' }).click();
-    await expect(page).toHaveURL('/welcome', { timeout: 15000 });
 
     const first = await (await page.request.post('/dev/seed/inbox')).json();
     const second = await (await page.request.post('/dev/seed/inbox')).json();

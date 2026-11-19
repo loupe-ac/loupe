@@ -447,6 +447,26 @@ export async function registerAndVerify(
     }
 }
 
+/**
+ * Registers a verified user through the dev endpoint and signs the browser
+ * context in on the same request, so a test skips the login form. The session
+ * cookie lands in the page context because the call goes through page.request.
+ */
+export async function registerSignedIn(
+    page: Page,
+    credentials: Credentials,
+): Promise<void> {
+    const response = await page.request.post('/dev/register-and-verify', {
+        form: {
+            fullName: credentials.fullName ?? DEFAULT_DISPLAY_NAME,
+            email: credentials.email,
+            password: credentials.password,
+            login: 1,
+        },
+    });
+    expect(response.status()).toBe(200);
+}
+
 /** Adds a column at the end of the board from its settings page, and waits until the page lists it. */
 export async function addBoardColumn(
     page: Page,

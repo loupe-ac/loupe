@@ -10,6 +10,7 @@ import {
     suppressToolbar,
     suppressWidget,
 } from '../fixtures';
+import { registerSignedIn } from '../helpers';
 
 const RUN = Date.now();
 const PASSWORD = 'E2eInboxCard1!';
@@ -26,16 +27,11 @@ async function setFlag(
 }
 
 async function registerAndLogin(page: Page, email: string): Promise<void> {
-    const response = await page.request.post('/dev/register-and-verify', {
-        form: { fullName: 'E2E Inbox Card User', email, password: PASSWORD },
+    await registerSignedIn(page, {
+        fullName: 'E2E Inbox Card User',
+        email,
+        password: PASSWORD,
     });
-    expect(response.status()).toBe(200);
-
-    await page.goto('/login');
-    await page.getByLabel('Email').fill(email);
-    await page.getByLabel('Password').fill(PASSWORD);
-    await page.getByRole('button', { name: 'Sign in' }).click();
-    await expect(page).toHaveURL('/welcome', { timeout: 15000 });
 }
 
 test.use({

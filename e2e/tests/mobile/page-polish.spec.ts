@@ -11,6 +11,7 @@ import {
     suppressToolbar,
     suppressWidget,
 } from '../fixtures';
+import { registerSignedIn } from '../helpers';
 
 const RUN = Date.now();
 const PASSWORD = 'E2eMobilePolish1!';
@@ -45,23 +46,11 @@ const test = base.extend<{ seeded: Seeded }>({
 
             const tag = testInfo.testId.replace(/[^a-z0-9]/gi, '');
             const email = `e2e+polish+${tag}+${RUN}@example.com`;
-            const registered = await page.request.post(
-                '/dev/register-and-verify',
-                {
-                    form: {
-                        fullName: 'E2E Polish',
-                        email,
-                        password: PASSWORD,
-                    },
-                },
-            );
-            expect(registered.status()).toBe(200);
-
-            await page.goto('/login');
-            await page.getByLabel('Email').fill(email);
-            await page.getByLabel('Password').fill(PASSWORD);
-            await page.getByRole('button', { name: 'Sign in' }).click();
-            await expect(page).toHaveURL('/welcome', { timeout: 20000 });
+            await registerSignedIn(page, {
+                fullName: 'E2E Polish',
+                email,
+                password: PASSWORD,
+            });
 
             await setInbox(page, 1);
             const seeded = await page.request.post('/dev/seed/inbox', {
