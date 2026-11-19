@@ -72,7 +72,7 @@ func TestReleaseKeysMatchTheScriptsAndTheRecipe(t *testing.T) {
 		t.Fatal("release_keys holds no key")
 	}
 	// The justfile holds one block for each recipe that checks a signature.
-	for path, count := range map[string]int{"../install.sh": 1, justfilePath(): 2} {
+	for path, count := range map[string]int{"../install.sh": 1, justfilePath(): 1, "../scripts/sign-release.sh": 1} {
 		found := blocks(t, path)
 		if len(found) != count {
 			t.Errorf("%s holds %d release_keys blocks, want %d", path, len(found), count)
