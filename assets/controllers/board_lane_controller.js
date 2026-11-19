@@ -1,4 +1,4 @@
-/* stimulusFetch: 'lazy' */
+/* stimulusFetch: 'eager' */
 import { Controller } from '@hotwired/stimulus';
 
 /** How long the head parts glide, and how long CSS animates the rest. */
