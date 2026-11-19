@@ -2,8 +2,7 @@
 // [Claude] The dialog element is animated exclusively with WAAPI (element.animate), not CSS animations.
 // CSS animations cache per-element state and silently fail to restart after a close/reopen cycle even
 // with a reflow trick. WAAPI always creates a fresh animation object and never has this stale-state problem.
-// Do NOT add CSS animation: rules targeting .mp-dialog-box.is-opening or .mp-dialog-box.is-closing.
-// Only the ::backdrop animations remain as CSS (WAAPI cannot animate the backdrop).
+// Do NOT add CSS animation: rules for .mp-dialog-box.is-opening or .is-closing; only ::backdrop stays CSS.
 import { Controller } from '@hotwired/stimulus';
 import { prefersReducedMotion } from '../lib/smooth_scroll.js';
 import { COMPACT_QUERY, PHONE_QUERY } from '../lib/breakpoints.js';
