@@ -224,6 +224,59 @@ Create these metric monitors in Sentry once the first points arrive. Each one us
 2. **Failed messages.** Monitor `max(messenger.queue.pending)` with the filter `queue_name:failed`. Alert when it is above 0. [Failed messages](failed-messages.md) says how to retry or remove them.
 3. **Slow card checks.** Monitor `min(messenger.queue.oldest_age)` with the filter `queue_name:card_eval`. Alert when it is above 30 seconds. This queue holds the card checks, so it gets a lower limit than the queues of monitor 1.
 
+## Workflow sweep
+
+The workflow sweep keeps a database mark on each card whose facts changed. A full
+sweep checks every open card, and it reports each change that the marks missed.
+A full sweep runs in three cases:
+
+1. The first sweep after a new build, the deploy pass.
+2. The hourly task, when the last full sweep is older than the
+   `workflow.full_sweep_interval_hours` flag. The default is 24 hours.
+3. `bin/console app:full-sweep-workflow-cards`, which runs at once.
+
+A check of a full sweep that finds a change in a card with no mark logs the error
+`workflow.change_missed`. The error carries the card id, the changed rules, the
+rules that fired, the rules that opened a work request, whether the markers
+changed, and the keys of the board and inbox markers that changed. It also names
+the changed rules and the markers whose stored time came before the check, because a clock can explain such a change. A time alone does not
+hide the change. When a writer marked the card after the check cleared its mark, that write can
+explain the change. The check reads the facts, the rule states and the mark under one
+repeatable-read snapshot, so it sees a late mark only when the writer committed before
+the snapshot began. A writer that commits during the check makes the check fail with a
+serialization failure, and the handler queues the check again on `card_sweep` and logs
+the info event `workflow.sweep_check_requeued`. When the check finds a change after a
+late mark, it logs the info event `workflow.change_after_late_mark` with the same
+fields, and sends no error, so no alert fires. With a usable `SENTRY_DSN`, the error reaches Sentry.
+
+The sweep every ten minutes checks only the marked cards while the
+`workflow.change_driven_sweep` flag is on. It first turns each project mark into a mark on
+each open card of that project, deletes the marks of cards that are finished or
+unbound, and then queues the marked cards and the open children of a card. With
+the flag off, it queues every open card of a bound project. The deploy pass and
+the full sweep ignore the flag.
+
+The sweep every ten minutes also sends two gauges. With no usable `SENTRY_DSN`,
+it sends nothing.
+
+| Gauge | Meaning | Attributes |
+|---|---|---|
+| `workflow.sweep.marked_cards` | The number of cards that hold a change mark when the sweep starts. | none |
+| `workflow.mark.table_writes` | The inserts, updates and deletes of one fact table since the database statistics began. The count is an upper bound of the mark writes of that table. | `table` |
+
+Create these in Sentry once the first points arrive:
+
+1. **Missed change alert.** Create an issue alert on the error message
+   `workflow.change_missed`, and notify the owner. A miss means a table that a
+   fact reads has no mark trigger, or a trigger marks the wrong cards. Find the
+   table from the facts that the named rule reads, add the trigger, and extend the
+   coverage tests of `tests/Module/Workflow/Mark`. Until then, the card waits for
+   its next check, at most one flag interval.
+2. **Too many marks.** Create a metric monitor on `max(workflow.sweep.marked_cards)`
+   with a 5-minute window. Alert when it stays near the number of open cards. A
+   trigger that marks too much then shows. Compare the rate of
+   `workflow.mark.table_writes` for each `table` to find the table.
+
 ## Worker timing metrics
 
 Every message that a worker takes sends two distributions, and the app sends three more around the work requests of a card. With no usable `SENTRY_DSN`, nothing is sent. A worker sends its metrics at most every 30 seconds, so a point can arrive up to 30 seconds late. The `sync` transport of dev and e2e handles a message inline, so it has no wait.

@@ -24,6 +24,17 @@ final readonly class StaleApprovalFactProvider implements FactProvider
     }
 
     #[\Override]
+    public function sourceTables(): array
+    {
+        return [
+            'board_card_pull_requests',
+            'board_cards',
+            'board_pull_request_notices',
+            'forge_pull_requests',
+        ];
+    }
+
+    #[\Override]
     public function isOn(): bool
     {
         return true;

@@ -52,7 +52,7 @@ final readonly class RunWorkNoTaker implements Condition, TimedCondition
     #[\Override]
     public function changesAt(Facts $facts, array $params): ?\DateTimeImmutable
     {
-        $at = $facts->get(WorkTakerFacts::class)->changesAt();
+        $at = $facts->get(WorkTakerFacts::class)->changesAt($facts->now);
 
         return null !== $at && $at > $facts->now ? $at : null;
     }

@@ -22,6 +22,14 @@ final readonly class DiscoveryFactProvider implements FactProvider
     }
 
     #[\Override]
+    public function sourceTables(): array
+    {
+        return [
+            'discovery_runs',
+        ];
+    }
+
+    #[\Override]
     public function isOn(): bool
     {
         return true;

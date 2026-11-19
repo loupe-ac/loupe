@@ -22,6 +22,14 @@ final readonly class RefusalFactProvider extends BridgeFactProvider
     }
 
     #[\Override]
+    public function sourceTables(): array
+    {
+        return [
+            'work_requests',
+        ];
+    }
+
+    #[\Override]
     public function legacyGroup(): string
     {
         return 'refusal';

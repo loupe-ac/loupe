@@ -23,6 +23,14 @@ final readonly class WorkHoldFactProvider implements FactProvider
     }
 
     #[\Override]
+    public function sourceTables(): array
+    {
+        return [
+            'workflow_rule_states',
+        ];
+    }
+
+    #[\Override]
     public function isOn(): bool
     {
         return true;

@@ -6,9 +6,10 @@ namespace App\Module\Bridge\Workflow;
 
 use App\Module\Bridge\ValueObject\WorkTakerReading;
 use App\Module\Bridge\ValueObject\WorkTakerState;
+use App\Module\Workflow\Contract\TimedFacts;
 
 /** Whether an online bridge could take each open work request of the card. A claimed request has no reading. */
-final readonly class WorkTakerFacts
+final readonly class WorkTakerFacts implements TimedFacts
 {
     /** @param array<string, WorkTakerReading> $readings kind => the reading of its open request */
     public function __construct(
@@ -46,10 +47,14 @@ final readonly class WorkTakerFacts
         return null === $this->withoutTaker() ? $this->earliest(WorkTakerState::Disconnected) : null;
     }
 
-    /** The time the first reading changes because its online bridge turns quiet. */
-    public function changesAt(): ?\DateTimeImmutable
+    /** The first time after now that a reading changes by the clock alone: its online bridge turns quiet, an account resets, a claim ends or a network wait ends. A time at or before now is already in the answer, so a later time of another request still counts. */
+    #[\Override]
+    public function changesAt(\DateTimeImmutable $now): ?\DateTimeImmutable
     {
-        $times = array_filter(array_map(static fn (WorkTakerReading $reading): ?\DateTimeImmutable => $reading->quietAt, $this->readings));
+        $times = array_filter(
+            array_map(static fn (WorkTakerReading $reading): ?\DateTimeImmutable => $reading->quietAt, $this->readings),
+            static fn (?\DateTimeImmutable $time): bool => null !== $time && $time > $now,
+        );
 
         return [] === $times ? null : min($times);
     }

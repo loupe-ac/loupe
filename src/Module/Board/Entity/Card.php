@@ -315,6 +315,7 @@ class Card implements ProjectScopedSubject
             $this->parent?->number,
             $this->parent?->column->ref(),
             $this->arrivedInSession,
+            $this->markersDueAt,
         );
     }
 

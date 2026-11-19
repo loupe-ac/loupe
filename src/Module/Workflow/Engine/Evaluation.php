@@ -39,6 +39,24 @@ final class Evaluation
     /** @var list<array{rule: string, outcome: string, code: ?string}> */
     public array $fired = [];
 
+    /** @var array<string, true> the ids of the rules whose stored state this pass changed */
+    public array $changedRules = [];
+
+    /** True when the pass stored a different board or inbox marker set. */
+    public bool $markersChanged = false;
+
+    /** @var list<string> the keys of the board and inbox markers that this pass changed */
+    public array $markerKeys = [];
+
+    /** @var array<string, true> the ids of the rules whose stored time had come before the pass, so the clock can explain their change */
+    public array $dueRules = [];
+
+    /** True when the stored marker time of the card had come before the pass, so the clock can explain a marker change. */
+    public bool $markersDue = false;
+
+    /** True when a writer marked the card after the check cleared its mark and before the pass changed anything, so the marks can explain a change. It explains only that write, never an earlier one. */
+    public bool $markedAfterClear = false;
+
     /** @var list<string> the id of the rule for each work request this evaluation opened */
     public array $opened = [];
 

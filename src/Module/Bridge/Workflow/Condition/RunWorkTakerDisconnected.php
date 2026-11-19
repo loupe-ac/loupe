@@ -55,7 +55,7 @@ final readonly class RunWorkTakerDisconnected implements Condition, MarkerEviden
     #[\Override]
     public function changesAt(Facts $facts, array $params): ?\DateTimeImmutable
     {
-        $at = $facts->get(WorkTakerFacts::class)->changesAt();
+        $at = $facts->get(WorkTakerFacts::class)->changesAt($facts->now);
 
         return null !== $at && $at > $facts->now ? $at : null;
     }

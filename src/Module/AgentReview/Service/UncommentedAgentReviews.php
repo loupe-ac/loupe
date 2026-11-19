@@ -14,12 +14,24 @@ use Psr\Clock\ClockInterface;
  */
 final readonly class UncommentedAgentReviews
 {
-    private const string RECENT = '-1 hour';
+    private const string RECENT = '1 hour';
 
     public function __construct(
         private PullRequestNoticeRepository $pullRequestNotices,
         private ClockInterface $clock,
     ) {
+    }
+
+    /**
+     * The first instant at which a review of $due leaves the window: the read keeps a review while its time is not before the start of the window, so the instant is one second after the end.
+     *
+     * @param list<AgentReview> $due the reviews among() returned
+     */
+    public function changesAt(array $due): ?\DateTimeImmutable
+    {
+        $times = array_filter(array_map(static fn (AgentReview $review): ?\DateTimeImmutable => $review->postedAt, $due));
+
+        return [] === $times ? null : min($times)->modify('+'.self::RECENT)->modify('+1 second');
     }
 
     /**
@@ -29,7 +41,7 @@ final readonly class UncommentedAgentReviews
      */
     public function among(iterable $latest): array
     {
-        $since = $this->clock->now()->modify(self::RECENT);
+        $since = $this->clock->now()->modify('-'.self::RECENT);
         $due = [];
         foreach ($latest as $review) {
             $pullRequest = $review->pullRequest;

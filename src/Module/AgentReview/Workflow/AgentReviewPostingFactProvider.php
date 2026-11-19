@@ -34,6 +34,19 @@ final readonly class AgentReviewPostingFactProvider implements FactProvider
     }
 
     #[\Override]
+    public function sourceTables(): array
+    {
+        return [
+            'agent_review_posts',
+            'agent_reviews',
+            'board_card_pull_requests',
+            'board_cards',
+            'board_pull_request_notices',
+            'forge_pull_requests',
+        ];
+    }
+
+    #[\Override]
     public function isOn(): bool
     {
         return true;
@@ -49,9 +62,12 @@ final readonly class AgentReviewPostingFactProvider implements FactProvider
         ));
         $latest = $this->agentReviews->findLatestOfHeads($open);
 
+        $due = $this->uncommented->among($latest);
+
         return new AgentReviewPostingFacts(
             [] !== $this->posts->dueForCard($card),
-            array_map(static fn (AgentReview $review): string => (string) $review->id, $this->uncommented->among($latest)),
+            array_map(static fn (AgentReview $review): string => (string) $review->id, $due),
+            $this->uncommented->changesAt($due),
         );
     }
 

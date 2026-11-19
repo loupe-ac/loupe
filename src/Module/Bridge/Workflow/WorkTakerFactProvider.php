@@ -29,6 +29,23 @@ final readonly class WorkTakerFactProvider implements FactProvider
     }
 
     #[\Override]
+    public function sourceTables(): array
+    {
+        return [
+            'bridge_account_readings',
+            'bridge_account_try_now',
+            'bridge_claim_refusals',
+            'bridge_work_matches',
+            'bridges',
+            'feature_flag',
+            'oauth2_refresh_token',
+            'oauth_refresh_token_login',
+            'projects',
+            'work_requests',
+        ];
+    }
+
+    #[\Override]
     public function isOn(): bool
     {
         return true;

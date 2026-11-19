@@ -53,6 +53,24 @@ final readonly class PullRequestListFactProvider extends BoardFactProvider
     }
 
     #[\Override]
+    public function sourceTables(): array
+    {
+        return [
+            'board_card_pull_requests',
+            'board_cards',
+            'bridge_worker_runs',
+            'forge_pull_requests',
+            'forge_repositories',
+            'forge_repository_checks',
+            'github_installations',
+            'work_requests',
+            'workflow_bindings',
+            'workflow_repository_settings',
+            'workflow_setting_overrides',
+        ];
+    }
+
+    #[\Override]
     public function legacyGroup(): string
     {
         return 'pull-requests';

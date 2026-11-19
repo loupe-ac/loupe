@@ -32,7 +32,7 @@ final readonly class BridgeWorkshopConnectionsProvider implements WorkshopConnec
         $url = $this->urls->generate('app_project_agents', ['id' => (string) $project->id]);
         $projectId = (string) $project->id;
 
-        return array_map(static function (Bridge $bridge) use ($statuses, $url, $projectId): WorkshopConnection {
+        return array_map(function (Bridge $bridge) use ($statuses, $url, $projectId): WorkshopConnection {
             $id = (string) $bridge->id;
             $status = $statuses[$bridge->id->toRfc4122()];
             $repository = array_find($bridge->repositories ?? [], static fn (array $row): bool => $row['projectId'] === $projectId);
@@ -49,6 +49,7 @@ final readonly class BridgeWorkshopConnectionsProvider implements WorkshopConnec
                 $repository['remoteUrl'] ?? null,
                 null !== $bridge->gitIdentities,
                 $status->loginExpired,
+                null === $status->lastSeenAt ? null : $this->liveness->quietAt($status->lastSeenAt),
             );
         }, $bridges);
     }

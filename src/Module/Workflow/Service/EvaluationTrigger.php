@@ -80,15 +80,16 @@ final readonly class EvaluationTrigger implements CardEvaluations
 
     /**
      * Queues each evaluation on the low-priority transport, which the worker reads only when the other transports are empty.
+     * A full sweep marks its messages, so a change that a check finds in a card with no mark is reported as a miss.
      *
      * @param list<string|Uuid> $cardIds
      */
-    public function inBackground(array $cardIds, string $cause, ?\DateTimeImmutable $occurredAt = null): void
+    public function inBackground(array $cardIds, string $cause, ?\DateTimeImmutable $occurredAt = null, bool $fullSweep = false): void
     {
         $stamp = $this->stampFor($cause, $occurredAt);
         $queued = 0;
         foreach ($this->unique($cardIds) as $cardId) {
-            $this->bus->dispatch(new EvaluateCard($cardId), [$stamp, new TransportNamesStamp([self::LOW_PRIORITY_TRANSPORT])]);
+            $this->bus->dispatch(new EvaluateCard($cardId, fullSweep: $fullSweep), [$stamp, new TransportNamesStamp([self::LOW_PRIORITY_TRANSPORT])]);
             ++$queued;
         }
 

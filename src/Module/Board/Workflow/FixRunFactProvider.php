@@ -25,6 +25,17 @@ final readonly class FixRunFactProvider implements FactProvider
     }
 
     #[\Override]
+    public function sourceTables(): array
+    {
+        return [
+            'board_card_pull_requests',
+            'board_cards',
+            'board_pull_request_comments',
+            'bridge_worker_runs',
+        ];
+    }
+
+    #[\Override]
     public function isOn(): bool
     {
         return true;
@@ -34,10 +45,11 @@ final readonly class FixRunFactProvider implements FactProvider
     public function build(CardSnapshot $snapshot): object
     {
         $card = $this->cards->find($snapshot->id) ?? throw new \LogicException('The card of the facts exists.');
-        $ids = array_map(static fn (WorkerRun $run): string => ($run->id ?? throw new \LogicException('A stored run has an id.'))->toRfc4122(), $this->fixRunComments->uncommentedRuns($card));
+        $runs = $this->fixRunComments->uncommentedRuns($card);
+        $ids = array_map(static fn (WorkerRun $run): string => ($run->id ?? throw new \LogicException('A stored run has an id.'))->toRfc4122(), $runs);
         sort($ids);
 
-        return new FixRunFacts($ids);
+        return new FixRunFacts($ids, $this->fixRunComments->changesAt($runs));
     }
 
     #[\Override]

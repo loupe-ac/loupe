@@ -16,6 +16,8 @@ use App\Module\Workflow\Contract\MarkerSubjectType;
 use App\Module\Workflow\Contract\SlotKeys;
 use App\Module\Workflow\Contract\StoredMarker;
 use App\Module\Workflow\Contract\TimedCondition;
+use App\Module\Workflow\Contract\TimedFacts;
+use App\Module\Workflow\Expression\Expression;
 use App\Module\Workflow\Template\MarkerSubjectClassifier;
 use App\Module\Workflow\Template\TemplateMarker;
 
@@ -42,9 +44,56 @@ final readonly class MarkerPass
                 $stored[$marker->key] = $marker;
             }
             [$markers, $inbox, $dueAt] = $this->find($run, $stored, $this->store->readInbox($run->card->id));
+            $dueAt = $this->due($run, $dueAt);
         }
 
-        $this->store->write($run->card->projectId, $run->card->id, $markers, $inbox, $dueAt);
+        $write = $this->store->write($run->card->projectId, $run->card->id, $markers, $inbox, $dueAt);
+        $run->markersChanged = $write->changed;
+        $run->markerKeys = $write->keys;
+    }
+
+    /**
+     * The earliest time after this pass at which the answer of a marker, a rule or a fact changes by the clock alone.
+     * A time at or before the clock of the pass is already in the answer, and a check at that time finds nothing new,
+     * so it never counts: a time that stays in the past, such as the lease end of a held claim, would select the card on every minute.
+     */
+    private function due(Evaluation $run, ?\DateTimeImmutable $markerAt): ?\DateTimeImmutable
+    {
+        $due = $markerAt;
+        foreach ($run->template->rules as $rule) {
+            if (!$run->applies($rule) || null !== $rule->when->unreadable($run->facts)) {
+                continue;
+            }
+            // Every open pull request counts, as it does for a marker.
+            foreach ($this->ruleSubject->subjects($rule->when, $run->facts) as $subject) {
+                $due = self::earlier($due, $this->whenChangesAt($rule->when, $subject, $run->now));
+            }
+        }
+        foreach ($run->facts->provided as $provided) {
+            if ($provided instanceof TimedFacts) {
+                $due = self::earlier($due, self::after($provided->changesAt($run->now), $run->now));
+            }
+        }
+
+        return $due;
+    }
+
+    /** The time of a leaf counts whether the leaf is true or false now, so a condition that turns true later is checked again. */
+    private function whenChangesAt(Expression $when, Facts $facts, \DateTimeImmutable $now): ?\DateTimeImmutable
+    {
+        $dueAt = null;
+        foreach ($when->leaves() as $leaf) {
+            if ($leaf->condition instanceof TimedCondition) {
+                $dueAt = self::earlier($dueAt, self::after($leaf->condition->changesAt($facts, $leaf->params), $now));
+            }
+        }
+
+        return $dueAt;
+    }
+
+    private static function after(?\DateTimeImmutable $time, \DateTimeImmutable $now): ?\DateTimeImmutable
+    {
+        return null !== $time && $time > $now ? $time : null;
     }
 
     /** Stores an empty set for a card that has no template to read markers from. */
@@ -73,7 +122,7 @@ final readonly class MarkerPass
                 continue;
             }
             foreach ($this->ruleSubject->subjects($marker->when, $run->facts) as $subject) {
-                $dueAt = self::earlier($dueAt, $this->changesAt($marker, $subject));
+                $dueAt = self::earlier($dueAt, $this->whenChangesAt($marker->when, $subject, $run->now));
             }
             $bound = $this->ruleSubject->bindWhen($marker->when, $run->facts);
             $facts = MarkerSubjectType::Document === MarkerSubjectClassifier::of($marker->when) ? self::bindDocument($marker, $bound->facts) : null;
@@ -190,19 +239,6 @@ final readonly class MarkerPass
         }
 
         return new StoredMarker($marker->key, $marker->kind, $marker->label, $marker->remedy, $params, $stored->since ?? $now, $marker->link, $subject);
-    }
-
-    /** The time of a leaf counts whether the leaf is true or false now, and on every open pull request, so a marker that turns true later is checked again. */
-    private function changesAt(TemplateMarker $marker, Facts $facts): ?\DateTimeImmutable
-    {
-        $dueAt = null;
-        foreach ($marker->when->leaves() as $leaf) {
-            if ($leaf->condition instanceof TimedCondition) {
-                $dueAt = self::earlier($dueAt, $leaf->condition->changesAt($facts, $leaf->params));
-            }
-        }
-
-        return $dueAt;
     }
 
     private static function earlier(?\DateTimeImmutable $a, ?\DateTimeImmutable $b): ?\DateTimeImmutable

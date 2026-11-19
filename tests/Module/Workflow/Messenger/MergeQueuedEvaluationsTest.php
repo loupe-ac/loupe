@@ -10,6 +10,7 @@ use App\Module\Workflow\Engine\Engine;
 use App\Module\Workflow\Install\WorkflowInstallFlags;
 use App\Module\Workflow\Messenger\EvaluateCard;
 use App\Module\Workflow\Messenger\EvaluateCardHandler;
+use App\Module\Workflow\Repository\WorkflowCardChangeRepository;
 use App\Module\Workflow\Repository\WorkflowQueuedEvaluationRepository;
 use App\Module\Workflow\Service\EvaluationTrigger;
 use App\Module\Workflow\Service\WorkflowRowCleaner;
@@ -19,6 +20,7 @@ use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Event\PostLoadEventArgs;
 use Doctrine\ORM\Events;
+use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\EventDispatcher\EventDispatcher;
@@ -129,7 +131,10 @@ final class MergeQueuedEvaluationsTest extends KernelTestCase
         return new EvaluateCardHandler(
             new EvaluateWorkflowCardHandler($this->service(Engine::class), new MockClock('2026-10-30 12:00:00')),
             $this->service(WorkflowQueuedEvaluationRepository::class),
+            $this->service(WorkflowCardChangeRepository::class),
             new EventDispatcher(),
+            $this->service(MessageBusInterface::class),
+            new NullLogger(),
         );
     }
 

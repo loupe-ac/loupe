@@ -19,13 +19,41 @@ class WorkflowRuleStateRepository extends ServiceEntityRepository
         parent::__construct($registry, WorkflowRuleState::class);
     }
 
+    /**
+     * Tells the change triggers which card the transaction checks, until it ends. They skip the rule states and
+     * the pending baselines of that card, which the check writes itself.
+     */
+    public function declareCheck(Uuid $cardId): void
+    {
+        $this->getEntityManager()->getConnection()->executeStatement(
+            "SELECT set_config('app.workflow_checking_card', ?, true)",
+            [$cardId->toRfc4122()],
+        );
+    }
+
     /** Serialises the evaluations of one card until the transaction ends. */
     public function lockCard(Uuid $cardId): void
     {
         $this->getEntityManager()->getConnection()->executeStatement(
             'SELECT pg_advisory_xact_lock(hashtext(?))',
-            ['workflow_card:'.$cardId->toRfc4122()],
+            [self::cardLockKey($cardId)],
         );
+    }
+
+    /** The lock of lockCard() until unlockCardSession(). A session that holds it also gets the transaction lock at once. */
+    public function lockCardSession(Uuid $cardId): void
+    {
+        $this->getEntityManager()->getConnection()->executeStatement('SELECT pg_advisory_lock(hashtext(?))', [self::cardLockKey($cardId)]);
+    }
+
+    public function unlockCardSession(Uuid $cardId): void
+    {
+        $this->getEntityManager()->getConnection()->executeStatement('SELECT pg_advisory_unlock(hashtext(?))', [self::cardLockKey($cardId)]);
+    }
+
+    private static function cardLockKey(Uuid $cardId): string
+    {
+        return 'workflow_card:'.$cardId->toRfc4122();
     }
 
     /**

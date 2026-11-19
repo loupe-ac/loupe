@@ -39,6 +39,7 @@ use App\Tests\Support\AgentCredential;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
@@ -53,10 +54,15 @@ final class AgentReviewFactProviderTest extends KernelTestCase
     protected function setUp(): void
     {
         self::bootKernel();
+        $this->provision('agent-review-facts');
+    }
+
+    private function provision(string $slug): void
+    {
         $em = self::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
         $this->em = $em;
-        $this->project = $this->makeProject('agent-review-facts');
+        $this->project = $this->makeProject($slug);
     }
 
     public function test_the_provider_is_on_and_names_its_source(): void
@@ -365,6 +371,51 @@ final class AgentReviewFactProviderTest extends KernelTestCase
         $this->review($card, $pullRequest, new \DateTimeImmutable('-61 minutes'));
 
         self::assertSame([], $this->posting($card)->uncommented);
+    }
+
+    public function test_the_comment_window_ends_one_second_after_the_returned_time(): void
+    {
+        $clock = new MockClock('2026-11-16 12:00:00');
+        self::ensureKernelShutdown();
+        self::bootKernel();
+        self::getContainer()->set('clock', $clock);
+        $this->provision('agent-review-facts-clock');
+        $card = $this->card($this->project);
+        $pullRequest = $this->linked($card, 7);
+        $older = $this->review($card, $pullRequest, new \DateTimeImmutable('2026-11-16 11:30:00'));
+        $this->review($card, $this->linked($card, 8), new \DateTimeImmutable('2026-11-16 11:45:00'));
+
+        $facts = $this->posting($card);
+        $edge = new \DateTimeImmutable('2026-11-16 12:30:01');
+
+        self::assertEquals($edge, $facts->changesAt(new \DateTimeImmutable('2026-11-16 12:00:00')));
+        self::assertContains((string) $older->id, $facts->uncommented);
+
+        $clock->modify('2026-11-16 12:30:00');
+        self::assertContains((string) $older->id, $this->posting($card)->uncommented, 'the exact edge still gives the old answer');
+
+        $clock->modify($edge->format('Y-m-d H:i:s'));
+        $after = $this->posting($card);
+        self::assertNotContains((string) $older->id, $after->uncommented);
+        self::assertEquals(new \DateTimeImmutable('2026-11-16 12:45:01'), $after->changesAt(new \DateTimeImmutable('2026-11-16 12:00:00')));
+    }
+
+    public function test_the_comment_window_gives_no_time_when_no_review_waits_for_a_comment(): void
+    {
+        $card = $this->card($this->project);
+        $this->review($card, $this->linked($card, 7));
+
+        self::assertNull($this->posting($card)->changesAt(new \DateTimeImmutable('2026-11-16 12:00:00')));
+    }
+
+    public function test_the_time_is_left_out_of_the_fingerprint(): void
+    {
+        $card = $this->card($this->project);
+        $review = $this->review($card, $this->linked($card, 7), new \DateTimeImmutable('-10 minutes'));
+        $facts = $this->posting($card);
+
+        self::assertNotNull($facts->changesAt(new \DateTimeImmutable('2026-11-16 12:00:00')));
+        self::assertSame([false, [(string) $review->id]], $this->postingProvider()->fingerprint($facts));
     }
 
     public function test_a_review_that_has_its_notice_needs_no_comment(): void

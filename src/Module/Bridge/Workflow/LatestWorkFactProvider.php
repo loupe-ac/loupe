@@ -22,6 +22,14 @@ final readonly class LatestWorkFactProvider implements FactProvider
     }
 
     #[\Override]
+    public function sourceTables(): array
+    {
+        return [
+            'work_requests',
+        ];
+    }
+
+    #[\Override]
     public function isOn(): bool
     {
         return true;

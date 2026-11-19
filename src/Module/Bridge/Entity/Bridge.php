@@ -235,6 +235,10 @@ class Bridge
     #[ORM\Column(name: 'narrowed_at', nullable: true)]
     public ?\DateTimeImmutable $narrowedAt = null;
 
+    /** The server clock at the heartbeat that found the bridge quiet and made it live again. */
+    #[ORM\Column(name: 'came_back_at', nullable: true)]
+    public ?\DateTimeImmutable $cameBackAt = null;
+
     /** The name the bridge holds. Null while it asked for none, or while another bridge of the owner holds the one it asked for. */
     #[ORM\Column(name: 'name', length: self::MAX_NAME_LENGTH, nullable: true)]
     public ?string $name = null;

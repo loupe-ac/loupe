@@ -22,6 +22,14 @@ final readonly class StuckDelayFactProvider implements FactProvider
     }
 
     #[\Override]
+    public function sourceTables(): array
+    {
+        return [
+            'board_automation_settings',
+        ];
+    }
+
+    #[\Override]
     public function isOn(): bool
     {
         return true;

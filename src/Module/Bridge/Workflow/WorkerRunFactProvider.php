@@ -22,6 +22,15 @@ final readonly class WorkerRunFactProvider extends BridgeFactProvider
     }
 
     #[\Override]
+    public function sourceTables(): array
+    {
+        return [
+            'bridge_worker_runs',
+            'work_requests',
+        ];
+    }
+
+    #[\Override]
     public function legacyGroup(): string
     {
         return 'worker-runs';
