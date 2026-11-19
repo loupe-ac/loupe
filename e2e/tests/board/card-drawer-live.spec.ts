@@ -7,6 +7,7 @@
 
 import { test, expect } from '@playwright/test';
 import { signedInPage } from '../fixtures';
+import { coverageScaled } from '../timeouts';
 
 const RUN = Date.now();
 const PASSWORD = 'E2eCardDrawerLive1!';
@@ -42,7 +43,7 @@ test('the drawer warns about a change made elsewhere, and shows a card deleted e
         .click();
     await expect(
         editor.getByRole('heading', { name: 'Shared card', exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    ).toBeVisible({ timeout: coverageScaled(15_000) });
     const cardUrl = new URL(editor.url()).pathname;
 
     await editor.goto(boardUrl);
@@ -66,12 +67,12 @@ test('the drawer warns about a change made elsewhere, and shows a card deleted e
     await other.getByRole('button', { name: 'Save card', exact: true }).click();
     await expect(
         other.getByRole('heading', { name: 'Shared card', exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    ).toBeVisible({ timeout: coverageScaled(15_000) });
 
     const notice = drawer.getByRole('alert').filter({
         hasText: 'This card changed since you opened it.',
     });
-    await expect(notice).toBeVisible({ timeout: 15_000 });
+    await expect(notice).toBeVisible({ timeout: coverageScaled(15_000) });
     await expect(
         notice.getByRole('link', { name: 'View the latest version' }),
     ).toHaveAttribute('href', cardUrl);
@@ -92,7 +93,7 @@ test('the drawer warns about a change made elsewhere, and shows a card deleted e
     await notice.getByRole('button', { name: 'Save anyway' }).click();
     await expect(
         drawer.getByRole('button', { name: 'Saved', exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    ).toBeVisible({ timeout: coverageScaled(15_000) });
     await expect(notice).toBeHidden();
 
     await other.goto(cardUrl);
@@ -100,16 +101,16 @@ test('the drawer warns about a change made elsewhere, and shows a card deleted e
     await other.getByRole('button', { name: 'Delete card' }).click();
     await other.getByRole('button', { name: 'Delete it' }).click();
     await expect(other).toHaveURL(new RegExp(`${boardUrl}$`), {
-        timeout: 15_000,
+        timeout: coverageScaled(15_000),
     });
 
     await expect(drawer.getByText('This card was deleted.')).toBeVisible({
-        timeout: 15_000,
+        timeout: coverageScaled(15_000),
     });
     await expect(drawer.getByRole('button', { name: /^Save/ })).toHaveCount(0);
     await expect(
         editor.locator('.lp-board-card[data-card-title="Shared card"]'),
-    ).toHaveCount(0, { timeout: 15_000 });
+    ).toHaveCount(0, { timeout: coverageScaled(15_000) });
 
     await editor.context().close();
     await other.context().close();
@@ -144,7 +145,7 @@ test('the open drawer shows a move made elsewhere, on the tab the reader had ope
         .click();
     await expect(
         reader.getByRole('heading', { name: 'Moving card', exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    ).toBeVisible({ timeout: coverageScaled(15_000) });
     const cardUrl = new URL(reader.url()).pathname;
 
     await reader.goto(boardUrl);
@@ -157,7 +158,9 @@ test('the open drawer shows a move made elsewhere, on the tab the reader had ope
     const drawer = reader.locator('dialog.lp-card-drawer-overlay');
     const identity = drawer.locator('.lp-card-drawer__identity');
     // A drawer fetch takes up to 5 s on CI, beside three other workers.
-    await expect(identity).toContainText('Next', { timeout: 15_000 });
+    await expect(identity).toContainText('Next', {
+        timeout: coverageScaled(15_000),
+    });
     await drawer.getByRole('tab', { name: 'History', exact: true }).click();
 
     const other = await signedInPage(browser, email, PASSWORD);
@@ -166,7 +169,7 @@ test('the open drawer shows a move made elsewhere, on the tab the reader had ope
     // The card page stays in place after the move.
     const moved = other.waitForResponse(
         (r) => r.url().includes('/move') && r.request().method() === 'POST',
-        { timeout: 15_000 },
+        { timeout: coverageScaled(15_000) },
     );
     await other
         .locator('.lp-card-move__form select[name$="[column]"]')

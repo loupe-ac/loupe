@@ -233,6 +233,13 @@ still died at exactly 536870912 bytes. Change the value in `phpunit.dist.xml`.
 This also raises the ceiling for `just phpunit` and the gate, which gives a
 memory regression more room to hide.
 
+A coverage worker needs more than 512M to write its coverage after a batch of
+100 test files. It dies with no message, and ParaTest then reports
+`MissingResultsException` after every dot printed. `bin/coverage-shard.php`
+raises the limit to 2G in the generated shard config only, and the recipes run
+`phpcov merge` under `php -d memory_limit=2G`. To read such a failure, pass
+`--tmp-dir=var/...`: a dead worker leaves a `status` file and no `test_result`.
+
 This project does not use `--path-coverage`. Path coverage held 492 MB for 51
 tests and killed the container at about 250 of 2,262 tests, so it does not fit
 this suite.

@@ -73,6 +73,18 @@ final class CoverageShardScriptsTest extends TestCase
         self::assertSame($all, $seen);
     }
 
+    public function test_a_test_shard_raises_the_worker_memory_limit_above_the_dist_value(): void
+    {
+        $config = new \DOMDocument();
+        $config->load(trim($this->php(['bin/coverage-shard.php', 'phpunit-config', '1', '3'])));
+        $limit = new \DOMXPath($config)->query('//php/ini[@name="memory_limit"]');
+        self::assertNotFalse($limit);
+        self::assertSame(1, $limit->length);
+        $value = $limit->item(0);
+        \assert($value instanceof \DOMElement);
+        self::assertSame('2G', $value->getAttribute('value'));
+    }
+
     public function test_a_shard_number_beyond_the_shard_count_is_refused(): void
     {
         $process = new Process(['php', 'bin/coverage-shard.php', 'src-filter', '4', '3'], $this->root);

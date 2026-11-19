@@ -7,6 +7,7 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { signedInPage } from '../fixtures';
+import { coverageScaled } from '../timeouts';
 
 const RUN = Date.now();
 const PASSWORD = 'E2eBoardRefresh1!';
@@ -109,7 +110,7 @@ test('a column renamed in one browser shows in another without a reload', async 
     await dialog.getByRole('button', { name: 'Save column' }).click();
     await expect(
         settings.getByRole('heading', { name: 'Up next', exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    ).toBeVisible({ timeout: coverageScaled(15_000) });
 
     await expect(
         watcher.locator(`${COLUMN}[data-column-slug="up-next"] h2`),
@@ -150,7 +151,7 @@ async function createCard(
     await page.getByLabel('Column').selectOption({ label: column });
     await page.getByRole('button', { name: 'Create card' }).click();
     await expect(page.getByRole('heading', { name: title })).toBeVisible({
-        timeout: 15_000,
+        timeout: coverageScaled(15_000),
     });
 }
 
@@ -209,9 +210,9 @@ test('columns added, reordered and deleted in one browser update another in plac
         .click();
     await expect(
         settings.getByRole('heading', { name: 'Parked', exact: true }),
-    ).toBeVisible({ timeout: 15_000 });
+    ).toBeVisible({ timeout: coverageScaled(15_000) });
     await expect
-        .poll(() => slugs(watcher), { timeout: 15_000 })
+        .poll(() => slugs(watcher), { timeout: coverageScaled(15_000) })
         .toEqual(['next', 'in-progress', 'done', 'parked']);
     await expect(kept).toHaveJSProperty('kept', true);
 
@@ -224,10 +225,10 @@ test('columns added, reordered and deleted in one browser update another in plac
         .click();
     await expect(settings.locator('.lp-settings-column__name code')).toHaveText(
         ['next', 'in-progress', 'parked', 'done'],
-        { timeout: 15_000 },
+        { timeout: coverageScaled(15_000) },
     );
     await expect
-        .poll(() => slugs(watcher), { timeout: 15_000 })
+        .poll(() => slugs(watcher), { timeout: coverageScaled(15_000) })
         .toEqual(['next', 'in-progress', 'parked', 'done']);
     await expect(kept).toHaveJSProperty('kept', true);
 
@@ -243,16 +244,16 @@ test('columns added, reordered and deleted in one browser update another in plac
         .getByRole('button', { name: 'Move the cards and delete' })
         .click();
     await expect(editor.getByText('moved its card')).toBeVisible({
-        timeout: 15_000,
+        timeout: coverageScaled(15_000),
     });
     await expect
-        .poll(() => slugs(watcher), { timeout: 15_000 })
+        .poll(() => slugs(watcher), { timeout: coverageScaled(15_000) })
         .toEqual(['in-progress', 'parked', 'done']);
     await expect(
         watcher.locator(
             `${COLUMN}[data-column-slug="in-progress"] .lp-board-card[data-card-title="Moved"]`,
         ),
-    ).toBeVisible({ timeout: 15_000 });
+    ).toBeVisible({ timeout: coverageScaled(15_000) });
     await expect(kept).toHaveJSProperty('kept', true);
     expect(boardLoads).toEqual([]);
 

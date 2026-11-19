@@ -609,7 +609,7 @@ e2e-coverage *args:
     # status is preserved below, so a red run still reads as red.
     # clover.xml and summary.txt sit beside the HTML so a reader can grep a number.
     bin/worktrees/compose-exec.sh env XDEBUG_MODE=coverage php bin/coverage-baseline.php var/coverage
-    bin/worktrees/compose-exec.sh vendor/bin/phpcov merge var/coverage --html var/coverage/html --clover var/coverage/clover.xml --text var/coverage/summary.txt
+    bin/worktrees/compose-exec.sh php -d memory_limit=2G vendor/bin/phpcov merge var/coverage --html var/coverage/html --clover var/coverage/clover.xml --text var/coverage/summary.txt
     [ "$status" -eq 0 ] || exit $status
 
 open-coverage:
@@ -633,7 +633,7 @@ phpunit-coverage-shard shard of="4":
 # Joins the shards of `phpunit-coverage-shard` into the reports of `phpunit-coverage`.
 # Run it where the shard files sit in var/phpunit-coverage.
 phpunit-coverage-merge:
-    bin/worktrees/compose-exec.sh vendor/bin/phpcov merge var/phpunit-coverage --html var/phpunit-coverage/html --clover var/phpunit-coverage/clover.xml --text var/phpunit-coverage/summary.txt --xml var/phpunit-coverage/coverage-xml
+    bin/worktrees/compose-exec.sh php -d memory_limit=2G vendor/bin/phpcov merge var/phpunit-coverage --html var/phpunit-coverage/html --clover var/phpunit-coverage/clover.xml --text var/phpunit-coverage/summary.txt --xml var/phpunit-coverage/coverage-xml
     bin/worktrees/compose-exec.sh sh -c 'php bin/merge-junit.php var/phpunit-coverage/junit.xml var/phpunit-coverage/junit-*.xml'
 
 open-phpunit-coverage:

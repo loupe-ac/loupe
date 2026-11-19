@@ -80,6 +80,13 @@ if ('phpunit-config' === $command) {
     $phpunit->setAttribute('cacheDirectory', $root.'/'.$phpunit->getAttribute('cacheDirectory'));
 
     $xpath = new DOMXPath($dist);
+    // A worker writes its coverage after its last test file, and 512M is too
+    // little for that on a batch of 100 files: the worker dies with no message.
+    foreach ($xpath->query('//php/ini[@name="memory_limit"]') ?: [] as $ini) {
+        if ($ini instanceof DOMElement) {
+            $ini->setAttribute('value', '2G');
+        }
+    }
     foreach ($xpath->query('//source/include/directory') ?: [] as $directory) {
         if ($directory instanceof DOMElement) {
             $directory->textContent = $root.'/'.trim($directory->textContent);
