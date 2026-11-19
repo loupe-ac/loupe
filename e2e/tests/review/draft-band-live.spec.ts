@@ -2,8 +2,8 @@
  * The band and the Finish review warning follow the draft without a reload:
  * scenarios S9 and S10 of the product design, and the open Finish review
  * dialog that keeps its verdict and note. The hub delivers the signal, so the
- * run needs a Mercure hub the browser can reach, and the spec turns the live
- * updates flag on.
+ * run needs a Mercure hub the browser can reach. Global setup turns the live
+ * updates flag on for the whole run.
  */
 
 import { test, expect, type Page } from '@playwright/test';
@@ -21,12 +21,7 @@ async function setup(
     request: Parameters<Parameters<typeof test>[2]>[0]['request'],
     tag: string,
 ): Promise<{ author: Page; watcher: Page; draft: DraftDesign }> {
-    const flag = await request.post('/dev/e2e/feature-flag', {
-        form: { name: 'live_updates.enabled', enabled: 1 },
-    });
-    expect(flag.ok()).toBeTruthy();
-
-    const email = `e2e+draftbandlive+${tag}+${RUN}@example.com`;
+    const email = `e2e+draftbandlive+${tag}+${RUN}+r${test.info().repeatEachIndex}@example.com`;
     const registered = await request.post('/dev/register-and-verify', {
         form: { fullName: 'E2E Draft Live', email, password: PASSWORD },
     });

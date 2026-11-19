@@ -1,8 +1,8 @@
 /**
  * An account page follows the account live: a change made in another browser
  * of the same account shows up without a reload. The hub delivers the signal,
- * so the run needs a Mercure hub the browser can reach, and the spec turns the
- * live updates flag on.
+ * so the run needs a Mercure hub the browser can reach. Global setup turns the
+ * live updates flag on for the whole run.
  */
 
 import {
@@ -22,23 +22,11 @@ const PASSWORD = 'E2eAccountLive1!';
 const LIVE = { timeout: coverageScaled(60_000) };
 const ACT = { timeout: coverageScaled(30_000) };
 
-const setFlag = async (
-    request: APIRequestContext,
-    name: string,
-    enabled: boolean,
-): Promise<void> => {
-    const response = await request.post('/dev/e2e/feature-flag', {
-        form: { name, enabled: enabled ? 1 : 0 },
-    });
-    expect(response.ok()).toBeTruthy();
-};
-
 const register = async (
     request: APIRequestContext,
     tag: string,
 ): Promise<string> => {
-    await setFlag(request, 'live_updates.enabled', true);
-    const email = `e2e+accountlive+${tag}+${RUN}@example.com`;
+    const email = `e2e+accountlive+${tag}+${RUN}+r${test.info().repeatEachIndex}@example.com`;
     const registered = await request.post('/dev/register-and-verify', {
         form: { fullName: 'E2E Account Live', email, password: PASSWORD },
     });

@@ -4,12 +4,7 @@
  * the run needs a Mercure hub the browser can reach.
  */
 
-import {
-    test,
-    expect,
-    type APIRequestContext,
-    type Page,
-} from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { signedInPage, suppressToolbar, suppressWidget } from '../fixtures';
 import { coverageScaled } from '../timeouts';
 
@@ -29,17 +24,6 @@ const MARKDOWN = `# Rollout
 <!-- /decision -->
 
 Some prose after the decision.`;
-
-async function setFlag(
-    request: APIRequestContext,
-    name: string,
-    enabled: boolean,
-): Promise<void> {
-    const response = await request.post('/dev/e2e/feature-flag', {
-        form: { name, enabled: enabled ? 1 : 0 },
-    });
-    expect(response.ok()).toBeTruthy();
-}
 
 async function saving(page: Page, action: () => Promise<void>): Promise<void> {
     const response = page.waitForResponse(
@@ -76,9 +60,8 @@ test('an answer saved in one tab shows in another tab of the document', async ({
 }) => {
     // Takes about 16 s warm. A cold worktree ran out of the 30 s default once.
     test.slow();
-    await setFlag(request, 'live_updates.enabled', true);
 
-    const email = `e2e+decisionlive+${RUN}@example.com`;
+    const email = `e2e+decisionlive+${RUN}+r${test.info().repeatEachIndex}@example.com`;
     const registered = await request.post('/dev/register-and-verify', {
         form: { fullName: FULL_NAME, email, password: PASSWORD },
     });
