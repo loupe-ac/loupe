@@ -7,6 +7,7 @@ declare(strict_types=1);
 // Infection reads to find the tests of each mutated line.
 // Usage: php bin/merge-junit.php <output.xml> <input.xml>...
 
+$argv = $_SERVER['argv'] ?? [];
 $output = $argv[1] ?? null;
 $inputs = \array_slice($argv, 2);
 
@@ -28,7 +29,7 @@ foreach ($inputs as $input) {
 
     // A process that dies between opening and writing its log leaves an empty
     // file. Refuse it, because the merged log would then lack that shard's tests.
-    $count = (new DOMXPath($log))->query('//testcase')->length;
+    $count = (int) (new DOMXPath($log))->evaluate('count(//testcase)');
     if (0 === $count) {
         fwrite(STDERR, "merge-junit: $input holds no test case\n");
         exit(1);

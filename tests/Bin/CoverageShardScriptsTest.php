@@ -56,6 +56,7 @@ final class CoverageShardScriptsTest extends TestCase
             $config = new \DOMDocument();
             $config->load(trim($this->php(['bin/coverage-shard.php', 'phpunit-config', (string) $shard, '3'])));
             foreach (new \DOMXPath($config)->query('//testsuite/file') ?: [] as $file) {
+                \assert($file instanceof \DOMElement);
                 $seen[] = $file->textContent;
             }
         }
@@ -91,7 +92,7 @@ final class CoverageShardScriptsTest extends TestCase
 
         $out = new \DOMDocument();
         $out->load($this->dir.'/out.xml');
-        self::assertSame(3, new \DOMXPath($out)->query('//testcase')->length);
+        self::assertSame(3, (int) new \DOMXPath($out)->evaluate('count(//testcase)'));
 
         $empty = $this->dir.'/empty.xml';
         file_put_contents($empty, '<testsuites/>');

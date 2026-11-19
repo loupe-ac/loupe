@@ -12,6 +12,7 @@ declare(strict_types=1);
 //   php bin/coverage-shard.php src-filter <shard> <of>      prints the Infection --filter value
 
 $root = dirname(__DIR__);
+$argv = $_SERVER['argv'] ?? [];
 
 /**
  * @return list<string> the files below $directory that match $suffix, sorted, relative to the project root
@@ -80,10 +81,12 @@ if ('phpunit-config' === $command) {
 
     $xpath = new DOMXPath($dist);
     foreach ($xpath->query('//source/include/directory') ?: [] as $directory) {
-        $directory->textContent = $root.'/'.trim($directory->textContent);
+        if ($directory instanceof DOMElement) {
+            $directory->textContent = $root.'/'.trim($directory->textContent);
+        }
     }
 
-    $suite = $xpath->query('/phpunit/testsuites/testsuite')?->item(0);
+    $suite = $dist->getElementsByTagName('testsuite')->item(0);
     \assert($suite instanceof DOMElement);
     while (null !== $suite->firstChild) {
         $suite->removeChild($suite->firstChild);

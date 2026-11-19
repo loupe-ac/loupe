@@ -8,6 +8,7 @@ declare(strict_types=1);
 // out and uncovered mutants, so the shard logs follow one another.
 // Usage: php bin/merge-infection-logs.php <output-dir> <shard-dir>...
 
+$argv = $_SERVER['argv'] ?? [];
 $outputDir = $argv[1] ?? null;
 $shardDirs = \array_slice($argv, 2);
 
