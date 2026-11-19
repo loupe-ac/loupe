@@ -1,3 +1,4 @@
+/* stimulusFetch: 'lazy' */
 import ModalController from './modal_controller.js';
 
 const SLIDE_UP = [

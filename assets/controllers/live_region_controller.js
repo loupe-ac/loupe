@@ -1,3 +1,4 @@
+/* stimulusFetch: 'lazy' */
 import { Controller } from '@hotwired/stimulus';
 import { morphTurboFrameElements, renderStreamMessage } from '@hotwired/turbo';
 import { on } from '../lib/live.js';
