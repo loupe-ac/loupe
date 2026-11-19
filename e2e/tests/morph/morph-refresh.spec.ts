@@ -375,6 +375,9 @@ test('S5 card delete from the drawer keeps the board in list mode', async ({
     await expectMorphed(page);
 
     await expect
+        .soft(row, 'the list drops the row of the deleted card')
+        .toHaveCount(0);
+    await expect
         .soft(listButton, 'the List button stays pressed')
         .toHaveAttribute('aria-pressed', 'true');
     await expect
@@ -589,12 +592,18 @@ test('S12 a verdict keeps an unposted comment and leaves the page interactive', 
         page.locator(COMPOSER_BODY),
         'the composer still holds the text with the dialog open',
     ).toHaveValue('Typed and not posted.');
-    await finish.getByRole('radio', { name: 'Approve', exact: true }).check();
+    // Request changes keeps the document open to comments, so the server still renders the composer.
+    await finish
+        .getByRole('radio', { name: 'Request changes', exact: true })
+        .check();
+    await finish
+        .getByRole('textbox', { name: 'Review note' })
+        .fill('Rework it.');
     await resetRenders(page);
     await finish.getByRole('button', { name: 'Submit review' }).click();
-    await expect(page.locator('.lp-verdict-chip--approved')).toBeVisible(
-        ROUND_TRIP,
-    );
+    await expect(
+        page.locator('.lp-verdict-chip--changes-requested'),
+    ).toBeVisible(ROUND_TRIP);
     await expectMorphed(page);
 
     await expect
