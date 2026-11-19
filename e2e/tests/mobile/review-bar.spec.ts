@@ -3,22 +3,20 @@
  *
  * Below lg the bar sits at the foot of the review page. Contents, Decisions and
  * More each open a sheet, and Finish review opens the sheet of the review block.
- * Every test drives its own user and documents through the dev-only endpoints,
- * so nothing here touches Mailpit. The reference comes from the MCP
+ * Every test seeds its own documents, in a project of its own, for the user
+ * its worker signed in as, so nothing here touches Mailpit. The reference comes from the MCP
  * document_set_references tool, because the app has no form for it.
  */
 
 import { expect, type Page } from '@playwright/test';
 import {
     accessToken,
-    hubStubbedTest as base,
+    seedDocument as seedInProject,
+    signedInTest as base,
     suppressToolbar,
     suppressWidget,
 } from '../fixtures';
 import { coverageScaled } from '../timeouts';
-
-const RUN = Date.now();
-const PASSWORD = 'E2eReviewBar1!';
 
 const VIEWPORTS = [
     { name: 'phone', viewport: { width: 390, height: 844 } },
@@ -65,14 +63,7 @@ async function seedDocument(
     markdown: string,
     revisions?: string[],
 ): Promise<Seeded> {
-    const form: Record<string, string> = { title, markdown };
-    if (revisions !== undefined) {
-        form.revisions = JSON.stringify(revisions);
-    }
-    const response = await page.request.post('/dev/seed/document', { form });
-    expect(response.status()).toBe(201);
-    const body = await response.json();
-    return { projectId: body.projectId, documentId: body.documentId };
+    return seedInProject(page, { title, markdown, revisions });
 }
 
 async function setReferences(
@@ -126,36 +117,23 @@ function reviewPath(seeded: Seeded): string {
 
 const test = base.extend<{ seeded: Seeded }>({
     seeded: [
-        async ({ page }, use, testInfo) => {
+        async ({ page }, use) => {
             await suppressToolbar(page);
             await suppressWidget(page);
 
-            const tag = testInfo.testId.replace(/[^a-z0-9]/gi, '');
-            const email = `e2e+revbar+${tag}+${RUN}@example.com`;
-            const registered = await page.request.post(
-                '/dev/register-and-verify',
-                {
-                    form: {
-                        fullName: 'E2E Review Bar',
-                        email,
-                        password: PASSWORD,
-                    },
-                },
+            const seeded = await seedDocument(
+                page,
+                'Review bar plan',
+                MARKDOWN,
+                [REVISION],
             );
-            expect(registered.status()).toBe(200);
-            await page.goto('/login');
-            await page.getByLabel('Email').fill(email);
-            await page.getByLabel('Password').fill(PASSWORD);
-            await page.getByRole('button', { name: 'Sign in' }).click();
-            await expect(page).toHaveURL('/welcome', {
-                timeout: coverageScaled(20000),
-            });
+            // A signed-in context has loaded no page yet, so the first visit
+            // fetches the scripts and a tap straight after it can beat the
+            // Stimulus controllers. Load the page once so the tests start warm.
+            await page.goto(reviewPath(seeded));
+            await expect(page.locator(BAR)).toBeVisible();
 
-            await use(
-                await seedDocument(page, 'Review bar plan', MARKDOWN, [
-                    REVISION,
-                ]),
-            );
+            await use(seeded);
         },
         { auto: true },
     ],
@@ -164,7 +142,6 @@ const test = base.extend<{ seeded: Seeded }>({
 for (const { name, viewport } of VIEWPORTS) {
     test.describe(`the review bar on a ${name}`, () => {
         test.use({
-            storageState: { cookies: [], origins: [] },
             viewport,
             hasTouch: true,
             isMobile: true,

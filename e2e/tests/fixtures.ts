@@ -407,6 +407,97 @@ export function createTest(credentials: Credentials) {
     });
 }
 
+export type WorkerUser = Credentials & { storageState: StorageState };
+
+/**
+ * The `test` of a spec whose tests need a signed-in user and nothing else of that user. Each
+ * Playwright worker registers one verified user through the dev endpoint and signs in once, and
+ * every test of the worker opens already signed in. The user is shared by all tests of the
+ * worker, so a test must never sign out or change the name or password of the user.
+ */
+export const signedInTest = hubStubbedTest.extend<
+    {},
+    { workerUser: WorkerUser }
+>({
+    workerUser: [
+        async ({ browser }, use, workerInfo) => {
+            const credentials: Credentials = {
+                email: `e2e-worker-${workerInfo.parallelIndex}-${Date.now()}@example.com`,
+                password: 'E2eWorkerPassword1!',
+                fullName: `E2E Worker ${workerInfo.parallelIndex}`,
+            };
+            const ctx = await browser.newContext({
+                baseURL: workerInfo.project.use.baseURL,
+                extraHTTPHeaders: workerInfo.project.use.extraHTTPHeaders,
+                ignoreHTTPSErrors: workerInfo.project.use.ignoreHTTPSErrors,
+            });
+            const registered = await ctx.request.post(
+                '/dev/register-and-verify',
+                {
+                    form: {
+                        fullName: credentials.fullName ?? 'E2E Worker',
+                        email: credentials.email,
+                        password: credentials.password,
+                    },
+                },
+            );
+            expect(registered.status()).toBe(200);
+
+            const page = await ctx.newPage();
+            await page.goto('/login', { timeout: coverageScaled(45_000) });
+            await page.getByLabel('Email').fill(credentials.email);
+            await page.getByLabel('Password').fill(credentials.password);
+            await page.getByRole('button', { name: 'Sign in' }).click();
+            await expect(page).not.toHaveURL(/\/login$/, {
+                timeout: coverageScaled(45_000),
+            });
+
+            const storageState = await ctx.storageState();
+            await ctx.close();
+            await use({ ...credentials, storageState });
+        },
+        { scope: 'worker', timeout: coverageScaled(60_000) },
+    ],
+
+    storageState: ({ workerUser }, use) => use(workerUser.storageState),
+});
+
+/**
+ * Seeds a review document through the dev endpoint, in a project named after the running test.
+ * The last 12 characters of the test id differ for every test, while the first ones hash the file.
+ * The user of a worker is shared, so each test needs a project that no other test writes to.
+ */
+export async function seedDocument(
+    page: Page,
+    seed: {
+        title: string;
+        markdown: string;
+        revisions?: string[];
+        archiveReason?: string;
+    },
+): Promise<{ documentId: string; projectId: string }> {
+    const response = await page.request.post('/dev/seed/document', {
+        form: {
+            title: seed.title,
+            markdown: seed.markdown,
+            project: `t-${base.info().testId.slice(-12)}`,
+            ...(seed.revisions
+                ? { revisions: JSON.stringify(seed.revisions) }
+                : {}),
+            ...(seed.archiveReason
+                ? { archiveReason: seed.archiveReason }
+                : {}),
+        },
+    });
+    expect(response.status()).toBe(201);
+    const body = await response.json();
+
+    return {
+        documentId: body.documentId as string,
+        projectId: body.projectId as string,
+    };
+}
+
 export interface Card {
     id: string;
     number: number;

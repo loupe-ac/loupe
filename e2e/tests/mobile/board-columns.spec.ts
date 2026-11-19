@@ -7,14 +7,12 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import {
     accessToken,
-    hubStubbedTest as base,
+    seedDocument,
+    signedInTest as base,
     suppressToolbar,
     suppressWidget,
 } from '../fixtures';
 import { addBoardColumn } from '../helpers';
-
-const RUN = Date.now();
-const PASSWORD = 'E2ePhoneBoard1!';
 
 const COLUMN = 'section.lp-board__column';
 const EXTRA_COLUMNS = ['Review', 'QA', 'Shipped'];
@@ -82,29 +80,14 @@ async function createCards(
 
 const test = base.extend<{ boardUrl: string }>({
     boardUrl: [
-        async ({ page }, use, testInfo) => {
+        async ({ page }, use) => {
             await suppressToolbar(page);
             await suppressWidget(page);
 
-            const tag = testInfo.testId.replace(/[^a-z0-9]/gi, '');
-            const email = `e2e+phoneboard+${tag}+${RUN}@example.com`;
-            const registered = await page.request.post(
-                '/dev/register-and-verify',
-                { form: { fullName: 'E2E Phone', email, password: PASSWORD } },
-            );
-            expect(registered.status()).toBe(200);
-
-            await page.goto('/login');
-            await page.getByLabel('Email').fill(email);
-            await page.getByLabel('Password').fill(PASSWORD);
-            await page.getByRole('button', { name: 'Sign in' }).click();
-            await expect(page).toHaveURL('/welcome', { timeout: 20000 });
-
-            const seeded = await page.request.post('/dev/seed/document', {
-                form: { title: 'Phone board', markdown: '# Board' },
+            const { projectId } = await seedDocument(page, {
+                title: 'Phone board',
+                markdown: '# Board',
             });
-            expect(seeded.status()).toBe(201);
-            const projectId = (await seeded.json()).projectId as string;
 
             for (const label of EXTRA_COLUMNS) {
                 await addBoardColumn(page, projectId, label);
@@ -117,7 +100,6 @@ const test = base.extend<{ boardUrl: string }>({
 });
 
 test.use({
-    storageState: { cookies: [], origins: [] },
     viewport: { width: 390, height: 844 },
     hasTouch: true,
     isMobile: true,

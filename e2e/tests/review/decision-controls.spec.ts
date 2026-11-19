@@ -1,40 +1,14 @@
 import { expect, type Page } from '@playwright/test';
 import {
-    hubStubbedTest as test,
+    signedInTest as test,
+    seedDocument as seedInProject,
     suppressToolbar,
     suppressWidget,
 } from '../fixtures';
 import { coverageScaled } from '../timeouts';
 import { panelButton } from './panels';
 
-// Guest by default, and self-registering through the dev endpoints — the same
-// shape as review-loop.spec.ts. The shared worker fixture expects to land on
-// /projects after login, which a freshly-registered user with no project does
-// not, so review specs that seed their own documents drive their own user.
-test.use({ storageState: { cookies: [], origins: [] } });
-
-const RUN = Date.now();
-const PASSWORD = 'e2e_password_123';
-
-async function signedInReviewer(page: Page, slug: string): Promise<void> {
-    const email = `e2e-decision-${slug}-${RUN}@example.com`;
-    const register = await page.request.post('/dev/register-and-verify', {
-        form: {
-            username: `dec${slug}${RUN}`.slice(0, 30),
-            fullName: 'E2E Decisions',
-            email,
-            password: PASSWORD,
-        },
-    });
-    expect(register.status()).toBe(200);
-
-    await page.goto('/login');
-    await page.getByLabel('Email').fill(email);
-    await page.getByLabel('Password').fill(PASSWORD);
-    await page.getByRole('button', { name: 'Sign in' }).click();
-    // No project yet, so LandingController lands on the first-run wizard;
-    // seedDocument below creates the project the wizard would have.
-    await expect(page).toHaveURL('/welcome', { timeout: 15000 });
+async function signedInReviewer(page: Page): Promise<void> {
     await suppressToolbar(page);
     await suppressWidget(page);
 }
@@ -75,25 +49,21 @@ async function seedDocument(
     title: string,
     markdown: string = MARKDOWN,
 ): Promise<{ documentId: string; reviewUrl: string }> {
-    const response = await page.request.post('/dev/seed/document', {
-        form: { title, markdown },
+    const { documentId, projectId } = await seedInProject(page, {
+        title,
+        markdown,
     });
-    expect(response.status()).toBe(201);
-    const body = (await response.json()) as {
-        documentId: string;
-        projectId: string;
-    };
 
     return {
-        documentId: body.documentId,
-        reviewUrl: `/projects/${body.projectId}/documents/${body.documentId}/review`,
+        documentId,
+        reviewUrl: `/projects/${projectId}/documents/${documentId}/review`,
     };
 }
 
 test('choosing an option records the answer and survives a reload', async ({
     page,
 }) => {
-    await signedInReviewer(page, 'persist');
+    await signedInReviewer(page);
     const { reviewUrl } = await seedDocument(page, 'Decision — persistence');
     await page.goto(reviewUrl);
 
@@ -116,7 +86,7 @@ test('choosing an option records the answer and survives a reload', async ({
 });
 
 test('the answer reaches the review payload', async ({ page }) => {
-    await signedInReviewer(page, 'payload');
+    await signedInReviewer(page);
     const { documentId, reviewUrl } = await seedDocument(
         page,
         'Decision — payload',
@@ -173,7 +143,7 @@ async function selectPhrase(page: Page, phrase: string): Promise<void> {
 test('selecting text below the block still anchors where the reviewer put it', async ({
     page,
 }) => {
-    await signedInReviewer(page, 'anchor');
+    await signedInReviewer(page);
     const { documentId, reviewUrl } = await seedDocument(
         page,
         'Decision — anchoring',
@@ -230,15 +200,11 @@ ${'Filler paragraph.\n\n'.repeat(40)}
 This is ${BELOW_BLOCK_PHRASE} in the document.`;
 
 test('the Decisions panel reports the saved answer', async ({ page }) => {
-    await signedInReviewer(page, 'summary');
-    const response = await page.request.post('/dev/seed/document', {
-        form: { title: 'Decision — summary', markdown: PROMPTED_MARKDOWN },
+    await signedInReviewer(page);
+    const body = await seedInProject(page, {
+        title: 'Decision — summary',
+        markdown: PROMPTED_MARKDOWN,
     });
-    expect(response.status()).toBe(201);
-    const body = (await response.json()) as {
-        documentId: string;
-        projectId: string;
-    };
     await page.goto(
         `/projects/${body.projectId}/documents/${body.documentId}/review`,
     );
@@ -281,7 +247,7 @@ const SECOND_PROMPT = 'When does the backfill run?';
 test('the Decisions panel is open by default and lists each answer', async ({
     page,
 }) => {
-    await signedInReviewer(page, 'panel-rows');
+    await signedInReviewer(page);
     const { reviewUrl } = await seedDocument(
         page,
         'Decision — panel rows',
@@ -362,15 +328,11 @@ ${SECOND_PROMPT}
 test('the Decisions panel scrolls to its question without navigating', async ({
     page,
 }) => {
-    await signedInReviewer(page, 'sticky');
-    const response = await page.request.post('/dev/seed/document', {
-        form: { title: 'Decision — sticky', markdown: PROMPTED_MARKDOWN },
+    await signedInReviewer(page);
+    const body = await seedInProject(page, {
+        title: 'Decision — sticky',
+        markdown: PROMPTED_MARKDOWN,
     });
-    expect(response.status()).toBe(201);
-    const body = (await response.json()) as {
-        documentId: string;
-        projectId: string;
-    };
     await page.goto(
         `/projects/${body.projectId}/documents/${body.documentId}/review`,
     );
@@ -386,7 +348,7 @@ test('the Decisions panel scrolls to its question without navigating', async ({
 const MULTIPLE_ID = 'ship-with';
 
 test('the last write wins', async ({ page, context }) => {
-    await signedInReviewer(page, 'concurrent');
+    await signedInReviewer(page);
     const { documentId, reviewUrl } = await seedDocument(
         page,
         'Concurrent decision',
@@ -439,7 +401,7 @@ const NOTE = 'Only if the backfill finishes first.';
 test('a decision save and a comment posted at once both land', async ({
     page,
 }) => {
-    await signedInReviewer(page, 'with-comment');
+    await signedInReviewer(page);
     const { documentId, reviewUrl } = await seedDocument(
         page,
         'Decision — with a comment',
@@ -485,7 +447,7 @@ test('a decision save and a comment posted at once both land', async ({
 test('a note saves after typing stops and reaches the review payload', async ({
     page,
 }) => {
-    await signedInReviewer(page, 'note');
+    await signedInReviewer(page);
     const { documentId, reviewUrl } = await seedDocument(
         page,
         'Decision — note',
@@ -511,7 +473,7 @@ test('a note saves after typing stops and reaches the review payload', async ({
 });
 
 test('a note typed just before Back is still saved', async ({ page }) => {
-    await signedInReviewer(page, 'back');
+    await signedInReviewer(page);
     const { documentId, reviewUrl } = await seedDocument(
         page,
         'Decision — Back',
@@ -540,7 +502,7 @@ test('a note typed just before Back is still saved', async ({ page }) => {
 });
 
 test('Clear choice removes the pick and keeps the note', async ({ page }) => {
-    await signedInReviewer(page, 'clear');
+    await signedInReviewer(page);
     const { documentId, reviewUrl } = await seedDocument(
         page,
         'Decision — clear',
@@ -591,7 +553,7 @@ const RECOMMENDED_MARKDOWN = `# Rollout
 `;
 
 test('a recommended marker shows a badge on its option', async ({ page }) => {
-    await signedInReviewer(page, 'badge');
+    await signedInReviewer(page);
     const { reviewUrl } = await seedDocument(
         page,
         'Decision — recommended',
@@ -636,7 +598,7 @@ test('a recommended marker leaves a phone page with no sideways scroll', async (
     page,
 }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await signedInReviewer(page, 'badge-phone');
+    await signedInReviewer(page);
     const { reviewUrl } = await seedDocument(
         page,
         'Decision — recommended on a phone',
@@ -688,15 +650,11 @@ async function readDecision(
 test('a multi-choice block records several answers and clears one', async ({
     page,
 }) => {
-    await signedInReviewer(page, 'multi');
-    const response = await page.request.post('/dev/seed/document', {
-        form: { title: 'Decision — multi', markdown: MULTIPLE_MARKDOWN },
+    await signedInReviewer(page);
+    const body = await seedInProject(page, {
+        title: 'Decision — multi',
+        markdown: MULTIPLE_MARKDOWN,
     });
-    expect(response.status()).toBe(201);
-    const body = (await response.json()) as {
-        documentId: string;
-        projectId: string;
-    };
     await page.goto(
         `/projects/${body.projectId}/documents/${body.documentId}/review`,
     );
@@ -750,18 +708,12 @@ test('a multi-choice block records several answers and clears one', async ({
 test('the Decisions button stays in the toolbar when it cannot be opened', async ({
     page,
 }) => {
-    await signedInReviewer(page, 'disabled-tab');
-    const plain = await page.request.post('/dev/seed/document', {
-        form: {
-            title: `No decisions ${RUN}`,
-            markdown: '# Plain\n\nThis document asks nothing.',
-            revisions: JSON.stringify([
-                '# Plain\n\nThis document asks little.',
-            ]),
-        },
+    await signedInReviewer(page);
+    const { projectId, documentId } = await seedInProject(page, {
+        title: 'No decisions',
+        markdown: '# Plain\n\nThis document asks nothing.',
+        revisions: ['# Plain\n\nThis document asks little.'],
     });
-    expect(plain.status()).toBe(201);
-    const { projectId, documentId } = await plain.json();
     const reviewUrl = `/projects/${projectId}/documents/${documentId}/review`;
     const button = page.getByRole('button', {
         name: 'Decisions',

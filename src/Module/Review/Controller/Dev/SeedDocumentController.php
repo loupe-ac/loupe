@@ -49,7 +49,9 @@ final class SeedDocumentController extends AppController
         $title = $request->request->getString('title', 'E2E Test Document');
         $markdown = $request->request->getString('markdown', '# Hello World');
 
-        $project = ($this->ensureHarnessProject)(new EnsureHarnessProjectCommand($user, 'e2e-harness'));
+        // An optional `project` name lets tests that share one user each seed into a project of their own.
+        $projectName = $request->request->getString('project');
+        $project = ($this->ensureHarnessProject)(new EnsureHarnessProjectCommand($user, '' === $projectName ? 'e2e-harness' : $projectName));
 
         $document = ($this->createDocument)(new CreateDocumentCommand(project: $project, title: $title, markdown: $markdown));
 

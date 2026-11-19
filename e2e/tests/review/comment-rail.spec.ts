@@ -1,6 +1,7 @@
 import { expect, type Page } from '@playwright/test';
 import {
-    hubStubbedTest as base,
+    signedInTest as base,
+    seedDocument,
     suppressToolbar,
     suppressWidget,
 } from '../fixtures';
@@ -13,9 +14,6 @@ import {
     showPanel,
     threadOf,
 } from './panels';
-
-const RUN = Date.now();
-const PASSWORD = 'E2eCommentRail1!';
 
 const FIRST = 'first anchored phrase';
 const SECOND = 'second anchored phrase';
@@ -32,49 +30,17 @@ const COMPOSER_BODY = '[data-comment-anchor-target="composerBody"]';
 const ROW = '#comment-rows .lp-comment-row';
 const COUNT = '[data-review-panels-target="openCount"]';
 
-async function devRegisterAndVerify(
-    page: Page,
-    email: string,
-    password: string,
-): Promise<void> {
-    const response = await page.request.post('/dev/register-and-verify', {
-        form: { fullName: 'E2E Rail Reviewer', email, password },
-    });
-    expect(response.status()).toBe(200);
-}
-
-async function login(
-    page: Page,
-    email: string,
-    password: string,
-): Promise<void> {
-    await page.goto('/login');
-    await page.getByLabel('Email').fill(email);
-    await page.getByLabel('Password').fill(password);
-    await page.getByRole('button', { name: 'Sign in' }).click();
-    await expect(page).toHaveURL('/welcome', { timeout: 15000 });
-}
-
 const test = base.extend<{ reviewUrl: string }>({
     reviewUrl: [
-        async ({ page }, use, testInfo) => {
+        async ({ page }, use) => {
             await suppressToolbar(page);
             await suppressWidget(page);
 
-            const tag = testInfo.testId.replace(/[^a-z0-9]/gi, '');
-            const email = `e2e+rail+${tag}+${RUN}@example.com`;
-            await devRegisterAndVerify(page, email, PASSWORD);
-            await login(page, email, PASSWORD);
-
-            const response = await page.request.post('/dev/seed/document', {
-                form: {
-                    title: 'E2E Comment Rail Document',
-                    markdown: DOCUMENT_MARKDOWN,
-                },
+            const { projectId, documentId } = await seedDocument(page, {
+                title: 'E2E Comment Rail Document',
+                markdown: DOCUMENT_MARKDOWN,
             });
-            expect(response.status()).toBe(201);
-            const body = await response.json();
-            const url = `/projects/${body.projectId as string}/documents/${body.documentId as string}/review`;
+            const url = `/projects/${projectId}/documents/${documentId}/review`;
 
             await page.goto(url);
             await expect(page.locator(DOC)).toBeVisible();
@@ -86,7 +52,6 @@ const test = base.extend<{ reviewUrl: string }>({
 });
 
 test.use({
-    storageState: { cookies: [], origins: [] },
     viewport: { width: 1440, height: 900 },
 });
 // Sign-in, seeding and three posted threads alone were measured at 30 seconds
@@ -235,6 +200,7 @@ test('Cmd+Enter posts a comment while the Comments panel is closed', async ({
 
 test('clicking a highlighted passage opens its thread as a popover', async ({
     page,
+    workerUser,
 }) => {
     await commentOn(page, SECOND, 'Found from the passage.');
     const thread = await openThread(page, 'Found from the passage.');
@@ -261,7 +227,7 @@ test('clicking a highlighted passage opens its thread as a popover', async ({
     await expect(thread).toBeVisible();
     await expect(comments).toHaveAttribute('aria-pressed', 'false');
     await expect(thread.locator('.lp-comment-author').first()).toHaveText(
-        'E2E Rail Reviewer',
+        workerUser.fullName,
     );
     await expect(thread.locator('.lp-comment-body').first()).toHaveText(
         'Found from the passage.',
