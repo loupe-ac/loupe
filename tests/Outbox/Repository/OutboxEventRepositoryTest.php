@@ -294,6 +294,38 @@ final class OutboxEventRepositoryTest extends KernelTestCase
         self::assertSame(0, $this->outboxEvents->highestSequenceForOwner($project->owner));
     }
 
+    public function test_the_highest_sequence_for_an_owner_skips_an_empty_project(): void
+    {
+        $first = $this->project('seq-d@example.com');
+        $empty = new Project($first->owner, 'outbox-empty-'.bin2hex(random_bytes(4)));
+        $this->em->persist($empty);
+        $event = $this->event($first);
+        $this->em->flush();
+
+        self::assertSame((int) $event->sequence, $this->outboxEvents->highestSequenceForOwner($first->owner));
+    }
+
+    public function test_the_highest_sequence_for_a_project_ignores_another_projects_higher_numbers(): void
+    {
+        $mine = $this->project('seq-e@example.com');
+        $other = $this->project('seq-f@example.com');
+        $own = $this->event($mine);
+        $this->event($other);
+        $this->em->flush();
+
+        self::assertSame((int) $own->sequence, $this->outboxEvents->highestSequenceForProject($mine));
+    }
+
+    public function test_the_highest_sequence_for_a_project_is_zero_when_it_has_no_event(): void
+    {
+        $empty = $this->project('seq-g@example.com');
+        $other = $this->project('seq-h@example.com');
+        $this->event($other);
+        $this->em->flush();
+
+        self::assertSame(0, $this->outboxEvents->highestSequenceForProject($empty));
+    }
+
     private function activity(Project $project, string $type, string $payload = '{}', string $createdAt = 'now'): OutboxEvent
     {
         $event = new OutboxEvent($project, $type, 'https://app/topic', $payload, new \DateTimeImmutable($createdAt));

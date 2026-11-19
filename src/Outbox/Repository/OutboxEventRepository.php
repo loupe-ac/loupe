@@ -23,6 +23,17 @@ use Symfony\Component\Uid\Uuid;
  */
 class OutboxEventRepository extends ServiceEntityRepository
 {
+    private const string LATEST_SEQUENCE_JOIN = <<<'SQL'
+        CROSS JOIN LATERAL (
+            SELECT x.sequence FROM (
+                SELECT e.project_id, e.sequence FROM outbox_events e
+                WHERE (e.project_id, e.sequence) <= (p.id, 9223372036854775807)
+                ORDER BY e.project_id DESC, e.sequence DESC
+                LIMIT 1
+            ) x WHERE x.project_id = p.id
+        ) latest
+        SQL;
+
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, OutboxEvent::class);
@@ -89,17 +100,13 @@ class OutboxEventRepository extends ServiceEntityRepository
         ));
     }
 
-    /** One backward probe of the (project_id, sequence) index for each project of the owner. */
+    /**
+     * The highest sequence over all projects of the owner, or 0 when none has an event. The row comparison
+     * keeps Postgres on idx_outbox_events_project_sequence. A plain MAX() scans the global sequence index.
+     */
     public function highestSequenceForOwner(User $owner): int
     {
-        $sql = <<<'SQL'
-            SELECT COALESCE(MAX(latest.sequence), 0)
-            FROM projects p
-            CROSS JOIN LATERAL (
-                SELECT MAX(e.sequence) AS sequence FROM outbox_events e WHERE e.project_id = p.id
-            ) latest
-            WHERE p.owner_id = :owner
-            SQL;
+        $sql = 'SELECT COALESCE(MAX(latest.sequence), 0) FROM projects p '.self::LATEST_SEQUENCE_JOIN.' WHERE p.owner_id = :owner';
 
         return (int) $this->getEntityManager()->getConnection()->fetchOne(
             $sql,
@@ -229,15 +236,16 @@ class OutboxEventRepository extends ServiceEntityRepository
         return $qb->getQuery()->getResult();
     }
 
-    /** The highest sequence of the project, or 0 when it has no event. */
+    /** The highest sequence of the project, or 0 when it has no event. Uses the same row comparison as the owner read. */
     public function highestSequenceForProject(Project $project): int
     {
-        return (int) $this->createQueryBuilder('e')
-            ->select('MAX(e.sequence)')
-            ->andWhere('e.project = :project')
-            ->setParameter('project', $project)
-            ->getQuery()
-            ->getSingleScalarResult();
+        $sql = 'SELECT COALESCE(MAX(latest.sequence), 0) FROM projects p '.self::LATEST_SEQUENCE_JOIN.' WHERE p.id = :project';
+
+        return (int) $this->getEntityManager()->getConnection()->fetchOne(
+            $sql,
+            ['project' => $project->id],
+            ['project' => UuidType::NAME],
+        );
     }
 
     /** How many events above the sequence match the filters. */
