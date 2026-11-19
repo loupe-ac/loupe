@@ -172,6 +172,25 @@ final class ReleaseAuditScriptTest extends TestCase
         self::assertStringContainsString('cli/v9.9.9', $result->getOutput());
     }
 
+    public function test_a_later_signed_cli_release_does_not_move_the_baseline(): void
+    {
+        $this->accept();
+        $this->fixture('repos/loupe-ac/loupe/releases', [
+            ['tag_name' => 'cli/v9.9.9', 'draft' => false, 'created_at' => '2999-01-02T00:00:00Z', 'published_at' => '2999-01-02T00:00:00Z', 'assets' => [['name' => 'checksums.txt.sig']]],
+            ['tag_name' => 'cli/v1.1.0', 'draft' => true, 'created_at' => '2025-01-10T10:00:00Z', 'published_at' => null, 'assets' => []],
+            ['tag_name' => 'cli/v1.0.0', 'draft' => false, 'created_at' => '2025-01-01T10:00:00Z', 'published_at' => '2025-01-01T11:00:00Z', 'assets' => [['name' => 'checksums.txt.sig']]],
+        ]);
+        $this->fixture('repos/loupe-ac/loupe/actions/workflows/cli-release.yml/runs', ['workflow_runs' => [
+            ['id' => 9, 'created_at' => '2999-01-02T00:00:00Z', 'conclusion' => 'success'],
+            ['id' => 2, 'created_at' => '2025-01-10T09:00:00Z', 'conclusion' => 'success'],
+            ['id' => 1, 'created_at' => '2025-01-01T09:00:00Z', 'conclusion' => 'success'],
+        ]]);
+
+        $result = $this->audit();
+
+        self::assertStringContainsString('previous signed CLI release: cli/v1.0.0', $result->getOutput());
+    }
+
     public function test_it_stops_on_a_signed_skills_release_that_the_manifests_do_not_name(): void
     {
         $this->accept();
