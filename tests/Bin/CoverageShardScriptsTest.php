@@ -39,8 +39,8 @@ final class CoverageShardScriptsTest extends TestCase
 
         $all = [];
         foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($this->root.'/src', \FilesystemIterator::SKIP_DOTS)) as $file) {
-            if ($file->isFile() && str_ends_with($file->getFilename(), '.php')) {
-                $all[] = 'src/'.substr($file->getPathname(), \strlen($this->root.'/src/'));
+            if ($file->isFile() && str_ends_with((string) $file->getFilename(), '.php')) {
+                $all[] = 'src/'.substr((string) $file->getPathname(), \strlen($this->root.'/src/'));
             }
         }
 
@@ -55,14 +55,14 @@ final class CoverageShardScriptsTest extends TestCase
         foreach ([1, 2, 3] as $shard) {
             $config = new \DOMDocument();
             $config->load(trim($this->php(['bin/coverage-shard.php', 'phpunit-config', (string) $shard, '3'])));
-            foreach ((new \DOMXPath($config))->query('//testsuite/file') ?: [] as $file) {
+            foreach (new \DOMXPath($config)->query('//testsuite/file') ?: [] as $file) {
                 $seen[] = $file->textContent;
             }
         }
 
         $all = [];
         foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($this->root.'/tests', \FilesystemIterator::SKIP_DOTS)) as $file) {
-            if ($file->isFile() && str_ends_with($file->getFilename(), 'Test.php')) {
+            if ($file->isFile() && str_ends_with((string) $file->getFilename(), 'Test.php')) {
                 $all[] = $file->getPathname();
             }
         }
@@ -91,7 +91,7 @@ final class CoverageShardScriptsTest extends TestCase
 
         $out = new \DOMDocument();
         $out->load($this->dir.'/out.xml');
-        self::assertSame(3, (new \DOMXPath($out))->query('//testcase')->length);
+        self::assertSame(3, new \DOMXPath($out)->query('//testcase')->length);
 
         $empty = $this->dir.'/empty.xml';
         file_put_contents($empty, '<testsuites/>');

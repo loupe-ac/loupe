@@ -54,4 +54,4 @@ foreach ($totals as $label => $count) {
 }
 file_put_contents($outputDir.'/summary.log', implode("\n", $lines)."\n");
 file_put_contents($outputDir.'/infection.log', $detail);
-fwrite(STDOUT, 'merge-infection-logs: '.\count($shardDirs)." shards, total ".($totals['Total'] ?? 0)." mutants\n");
+fwrite(STDOUT, 'merge-infection-logs: '.\count($shardDirs).' shards, total '.($totals['Total'] ?? 0)." mutants\n");
