@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "1c2d801de8bad6cb5febc6c279b69486",
+    "content-hash": "033f254558a6e5d1a72d306c99ce0f0d",
     "packages": [
         {
             "name": "async-aws/core",
@@ -13841,12 +13841,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/ubermuda/symfony-extra.git",
-                "reference": "690508f376fd9acf6a00fcab69172bd8590fe3c5"
+                "reference": "e5d9f36b18f147e0f5e48d7f4c41b839451c437b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ubermuda/symfony-extra/zipball/690508f376fd9acf6a00fcab69172bd8590fe3c5",
-                "reference": "690508f376fd9acf6a00fcab69172bd8590fe3c5",
+                "url": "https://api.github.com/repos/ubermuda/symfony-extra/zipball/e5d9f36b18f147e0f5e48d7f4c41b839451c437b",
+                "reference": "e5d9f36b18f147e0f5e48d7f4c41b839451c437b",
                 "shasum": ""
             },
             "require": {
@@ -13888,7 +13888,7 @@
                 "source": "https://github.com/ubermuda/symfony-extra/tree/main",
                 "issues": "https://github.com/ubermuda/symfony-extra/issues"
             },
-            "time": "2026-06-18T16:35:29+00:00"
+            "time": "2026-11-19T02:08:45+00:00"
         },
         {
             "name": "web-token/jwt-library",

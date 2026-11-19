@@ -113,7 +113,7 @@
         "ubermuda/doctrine-extra": "dev-main#21d12425430c914d813ac85de089dbac6d107437",
         "ubermuda/feature-flags-bundle": "dev-main#d8934784a9545dc5ec648c68deb0b2d58757764f",
         "ubermuda/health-check-bundle": "dev-main#dacf874c2aeaf2f48ef7b0c3d1a22f7aad0f4352",
-        "ubermuda/symfony-extra": "dev-main#690508f376fd9acf6a00fcab69172bd8590fe3c5",
+        "ubermuda/symfony-extra": "dev-main#e5d9f36b18f147e0f5e48d7f4c41b839451c437b",
         "zircote/swagger-php": "^7.0"
     },
     "config": {

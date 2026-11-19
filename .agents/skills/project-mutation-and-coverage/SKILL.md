@@ -21,7 +21,10 @@ The recipe names do not make the difference obvious.
 | `just mutation` | mutation, all of `src`. CI passes `--coverage=var/phpunit-coverage --skip-initial-tests`, so it reuses the coverage run | `var/infection/` |
 | `just mutation-diff [BASE]` | mutation, the `src/` files you changed | `var/infection/` |
 | `just phpunit-coverage` | coverage, the PHPUnit suites, through ParaTest with four workers | `var/phpunit-coverage/`, with `coverage-xml/` and `junit.xml` for Infection |
-| `just e2e-coverage` | coverage, the Playwright suite | `var/coverage/` |
+| `just e2e-coverage` | coverage, the Playwright suite. It warms the parse cache first, and writes `baseline.cov` before the merge | `var/coverage/` |
+| `just phpunit-coverage-shard N 4` | one quarter of the PHPUnit test files, as the weekly run does | `var/phpunit-coverage/shard-N.cov` and `junit-N.xml` |
+| `just phpunit-coverage-merge` | joins the shard files into the reports of `phpunit-coverage` | `var/phpunit-coverage/` |
+| `just mutation-shard N 4` | mutation of one quarter of the `src` files, from the merged coverage | `var/infection/` |
 
 A hook refuses a bare `just phpunit-coverage` for an agent. Pass a path, such as
 `just phpunit-coverage tests/Module/Review`, or fetch the weekly CI report.
@@ -68,8 +71,8 @@ holds the report yet.
 
 | Report | Workflow | Job | Artifact | Holds | Retention |
 |---|---|---|---|---|---|
-| mutation | `Coverage report` | `infection` | `infection-report` | `summary.log`, `infection.log` | 90 days |
-| PHPUnit coverage | `Coverage report` | `phpunit-coverage` | `phpunit-coverage` | `summary.txt`, `clover.xml`, `html/` | 90 days |
+| mutation | `Coverage report` | `infection` (four shards), added up by `infection-report` | `infection-report` | `summary.log`, `infection.log` | 90 days |
+| PHPUnit coverage | `Coverage report` | `phpunit-coverage` (four shards), merged by `phpunit-coverage-merge` | `phpunit-coverage` | `summary.txt`, `clover.xml`, `html/` | 90 days |
 | e2e coverage | `Coverage report` | `e2e-coverage-leg` (eight legs), merged by `e2e-coverage` | `e2e-coverage` | `summary.txt`, `clover.xml`, `html/` | 90 days |
 | e2e timing | `CI` | `e2e-<leg>`, one per matrix leg | `e2e-timing-<leg>`, such as `e2e-timing-chromium-3` | `results.json` | 30 days |
 | PHPUnit timing | `CI` | `phpunit` | `phpunit-timing` | `junit.xml` | 30 days |
@@ -122,6 +125,45 @@ that never came up.
 `Timed Out mutants:`, `Skipped mutants:` and `Not Covered mutants:`. An escaped
 mutant names a test that asserts nothing about a line it covers. Judge each one,
 because some are harmless.
+
+## How the weekly run is split
+
+A shard takes every Nth file of a sorted list (`bin/coverage-shard.php`), so a
+new test file or a new `src` file joins a shard by itself and no file is left
+out. `bin/merge-junit.php` joins the JUnit logs for Infection, and refuses an
+empty log, because a shard that died would otherwise drop its tests without a
+sound. `bin/merge-infection-logs.php` adds the shard summaries. The `src`
+filter of a mutation shard is one command line argument, so the script fails
+above 100,000 bytes. Raise the shard count when it does.
+
+## A covered browser request must not parse all of `src`
+
+The `X-Coverage` header makes `CoverageSubscriber` of `ubermuda/symfony-extra`
+record the request. At its end the coverage library parses each file it counts
+to find the executable lines. Counting all of `src` costs about 40 s on a hosted
+runner, and PHP stops a request at 30 s. The page then comes back with an error
+page appended, and every spec fails on it. The legs of 2026-11-16 looked like a
+missing stylesheet. The `tailwind:build failed on attempt` text in their logs
+is only the retry script that GitHub echoes.
+
+The fix has three parts. The subscriber lists only the files that the request
+ran (`excludeUncoveredFiles()`). It reads their parse from
+`.phpunit.cache/code-coverage` (`cacheStaticAnalysis()`), which
+`phpunit --warm-coverage-cache` fills at the start of `just e2e-coverage`. The
+files that no browser test reaches come back through `bin/coverage-baseline.php`,
+which writes `var/coverage/baseline.cov` with every file of `src` and no line
+run. Without that file the merged report leaves out the files that no spec
+reaches, and its percentages read too high.
+
+Read a leg that fails again like this:
+
+- `MaxExecutionTimeError` in `var/log/dev.log` means a request parsed too much.
+  Look for a warm step that printed cache misses.
+- `No "*.cov" files found` means no request lived long enough to write one.
+- The shared dev stack runs with `XDEBUG_MODE=off`, so a local run of
+  `just e2e-coverage` answers 500 with `XdebugNotEnabledException`. Prove the
+  collector on a hosted runner, or call `CoverageSubscriber` from a CLI script
+  with `XDEBUG_MODE=coverage`.
 
 ## A wall-clock assertion is a landmine
 

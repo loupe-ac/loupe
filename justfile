@@ -209,6 +209,14 @@ mutation *args:
     bin/worktrees/compose-exec.sh vendor/bin/phpunit --list-tests > /dev/null
     bin/worktrees/compose-exec.sh env TEST_SCHEMA_READY=1 XDEBUG_MODE=coverage php -d memory_limit=2G vendor/bin/infection --no-interaction --with-uncovered "$@"
 
+# One shard of the weekly mutation run: every Nth file of src/, from the merged
+# coverage of `phpunit-coverage-merge`. Never run it beside another test run in
+# this worktree, for the reason `mutation` gives.
+mutation-shard shard of="4" *args:
+    rm -rf var/infection/infection
+    bin/worktrees/compose-exec.sh vendor/bin/phpunit --list-tests > /dev/null
+    bin/worktrees/compose-exec.sh sh -c 'env TEST_SCHEMA_READY=1 XDEBUG_MODE=coverage php -d memory_limit=2G vendor/bin/infection --no-interaction --with-uncovered --coverage=var/phpunit-coverage --skip-initial-tests --filter="$(php bin/coverage-shard.php src-filter {{shard}} {{of}})" {{args}}'
+
 # Mutation testing over the src/ files this branch changed. The one to run while
 # you work, because it mutates your files alone. Usage: just mutation-diff [BASE]
 mutation-diff base="origin/main":
@@ -580,6 +588,9 @@ e2e-coverage *args:
         bin/worktrees/compose-exec.sh bin/console tailwind:build >/dev/null
     fi
     rm -rf var/coverage
+    # The collector reads each file's parse from this cache. Without it, every
+    # covered request parses all of src/ and dies at PHP's 30 second limit.
+    bin/worktrees/compose-exec.sh env XDEBUG_MODE=coverage vendor/bin/phpunit --warm-coverage-cache
     status=0
     ( cd e2e && COVERAGE=1 npx playwright test "$@" ) || status=$?
     # Same repair as `just e2e`, for the same reason: this run is destructive to
@@ -597,6 +608,7 @@ e2e-coverage *args:
     # other 120, and a run that exits first produces no report at all. The exit
     # status is preserved below, so a red run still reads as red.
     # clover.xml and summary.txt sit beside the HTML so a reader can grep a number.
+    bin/worktrees/compose-exec.sh env XDEBUG_MODE=coverage php bin/coverage-baseline.php var/coverage
     bin/worktrees/compose-exec.sh vendor/bin/phpcov merge var/coverage --html var/coverage/html --clover var/coverage/clover.xml --text var/coverage/summary.txt
     [ "$status" -eq 0 ] || exit $status
 
@@ -610,6 +622,19 @@ open-coverage:
 phpunit-coverage *args:
     bin/worktrees/compose-exec.sh env XDEBUG_MODE=coverage vendor/bin/paratest --processes={{phpunit_processes}} --max-batch-size=100 --coverage-html=var/phpunit-coverage/html --coverage-clover=var/phpunit-coverage/clover.xml --coverage-text=var/phpunit-coverage/summary.txt --coverage-xml=var/phpunit-coverage/coverage-xml --log-junit=var/phpunit-coverage/junit.xml "$@"
     @echo "coverage: var/phpunit-coverage/html/index.html — 'just open-phpunit-coverage'"
+
+# One shard of the weekly PHPUnit coverage run. A shard runs every Nth test file
+# of a sorted list, so a new test file joins a shard by itself. It writes a raw
+# coverage file and a JUnit log, which `phpunit-coverage-merge` joins.
+phpunit-coverage-shard shard of="4":
+    bin/worktrees/compose-exec.sh php bin/coverage-shard.php phpunit-config {{shard}} {{of}}
+    bin/worktrees/compose-exec.sh env XDEBUG_MODE=coverage vendor/bin/paratest --processes={{phpunit_processes}} --max-batch-size=100 --configuration=var/phpunit-shard-{{shard}}.xml --coverage-php=var/phpunit-coverage/shard-{{shard}}.cov --log-junit=var/phpunit-coverage/junit-{{shard}}.xml
+
+# Joins the shards of `phpunit-coverage-shard` into the reports of `phpunit-coverage`.
+# Run it where the shard files sit in var/phpunit-coverage.
+phpunit-coverage-merge:
+    bin/worktrees/compose-exec.sh vendor/bin/phpcov merge var/phpunit-coverage --html var/phpunit-coverage/html --clover var/phpunit-coverage/clover.xml --text var/phpunit-coverage/summary.txt --xml var/phpunit-coverage/coverage-xml
+    bin/worktrees/compose-exec.sh sh -c 'php bin/merge-junit.php var/phpunit-coverage/junit.xml var/phpunit-coverage/junit-*.xml'
 
 open-phpunit-coverage:
     open var/phpunit-coverage/html/index.html
