@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Module\Review\Command;
 
 use App\Module\Review\Repository\DocumentRepository;
+use App\Module\Review\Repository\SeriesRepository;
+use App\Module\Review\Repository\TagRepository;
 use App\Module\Review\Service\DocumentListItems;
 use Symfony\Component\Uid\Uuid;
 
@@ -20,6 +22,8 @@ final readonly class ListDocumentRowsHandler
     public function __construct(
         private DocumentRepository $documents,
         private DocumentListItems $items,
+        private TagRepository $tags,
+        private SeriesRepository $series,
     ) {
     }
 
@@ -76,6 +80,8 @@ final readonly class ListDocumentRowsHandler
             items: $this->items->of($matching),
             removedIds: $removedIds,
             newerCount: $newerCount,
+            projectTags: $this->tags->findByProject($command->project),
+            projectSeries: $this->series->findByProject($command->project),
         );
     }
 }

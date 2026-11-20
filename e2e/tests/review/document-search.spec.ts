@@ -1,7 +1,7 @@
 /**
  * The documents-list search box, which only a browser can exercise: it depends on
- * a 300ms debounce, on Turbo replacing the page body, and on the focused input
- * surviving that replacement. PHPUnit renders the markup but never types into it,
+ * a 300ms debounce, on Turbo swapping the list frame, and on the focused input
+ * staying put while it does. PHPUnit renders the markup but never types into it,
  * so nothing else in the suite can see a caret that has been thrown away.
  *
  * Every test seeds its own user and documents through the dev-only endpoints
@@ -23,14 +23,14 @@ const RUN = Date.now();
 
 const SEARCH_BOX = 'input[name="search"]';
 
-// Marks the input that is live *now*, so the swap that replaces it is
+// Marks the input that is live *now*, so a swap that replaces it is
 // observable. Nothing in the app reads it.
 const STALE = 'data-e2e-stale';
 
 /**
- * Tags the live search input. Submitting is a full Turbo visit that replaces the
- * body, so the input rendered by the response is a different element and carries
- * no tag.
+ * Tags the live search input. The bar sits outside the list frame, so the
+ * input must survive every search with its tag. A response that replaced it
+ * would carry no tag.
  */
 async function markSearchInput(page: Page): Promise<void> {
     await page.locator(SEARCH_BOX).evaluate((element, attribute) => {
@@ -43,15 +43,15 @@ async function markSearchInput(page: Page): Promise<void> {
 
 /**
  * Waits for the debounced submit to have both committed to the address bar and
- * rendered. Sleeping past the debounce instead only buys a fixed margin for a
- * dev-mode round trip that has none, and typing resumed early goes into an input
- * Turbo is about to throw away — which is the very bug these tests describe.
+ * rendered, with the same input element still in the page. Sleeping past the
+ * debounce instead only buys a fixed margin for a dev-mode round trip that has
+ * none.
  */
 async function searchVisitLanded(page: Page, term: string): Promise<void> {
     await expect(page).toHaveURL(
         (url) => url.searchParams.get('search') === term,
     );
-    await expect(page.locator(`${SEARCH_BOX}:not([${STALE}])`)).toHaveCount(1);
+    await expect(page.locator(`${SEARCH_BOX}[${STALE}]`)).toHaveCount(1);
 }
 
 /**

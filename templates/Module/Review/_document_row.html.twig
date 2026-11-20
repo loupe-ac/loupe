@@ -65,7 +65,7 @@
            importer sees only names it can read as literals, and an icon it
            never imported renders as nothing in production. #}
         {% set archiveForm = document_archive_form(document, listQuery.routeParams) %}
-        {{ form_start(archiveForm, {attr: {class: 'lp-document-row__action-form'}}) }}
+        {{ form_start(archiveForm, {attr: {class: 'lp-document-row__action-form', 'data-turbo-frame': 'documents-list'}}) }}
             <button type="submit"
                     class="lp-document-row__action"
                     aria-label="{{ (archived ? 'review.dashboard.unarchive' : 'review.dashboard.archive')|trans({'%title%': document.title|reference_plain}) }}">

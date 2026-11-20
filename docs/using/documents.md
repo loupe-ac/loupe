@@ -12,6 +12,9 @@ Search and the status filter stay on one row, including on narrow screens.
 With enlarged text, the row scrolls horizontally when needed. Keyboard focus brings each control into view.
 Tag and series filters remain available when the project uses them.
 The filters sit on top of the table as one block.
+A search, a filter or a page change swaps only the list. The search box keeps its focus and the address bar follows, so the view stays linkable.
+**Clear** empties every filter and shows the full list.
+A live update of the list keeps the filter you chose.
 The Status column shows a draft as a dashed outline, so it stands out from a filled In review badge.
 
 ## Creating

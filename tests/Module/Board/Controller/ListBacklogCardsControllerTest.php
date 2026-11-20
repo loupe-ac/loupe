@@ -67,7 +67,7 @@ final class ListBacklogCardsControllerTest extends WebTestCase
         );
         self::assertSame($url.'?page=1&sort=type&dir=asc', $crawler->selectLink('Type')->attr('href'));
         self::assertSame($url.'?page=1&sort=created&dir=asc', $crawler->selectLink('Added')->attr('href'));
-        self::assertCount(0, $crawler->filter('form.lp-filter-form input[name="sort"]'));
+        self::assertCount(0, $crawler->filter('input[name="sort"][form="backlog-filter"]'));
 
         $crawler = $client->request(Request::METHOD_GET, $url.'?sort=type&dir=asc&epic=none');
 
@@ -78,8 +78,8 @@ final class ListBacklogCardsControllerTest extends WebTestCase
         );
         self::assertSame($url.'?page=1&epic=none&sort=type&dir=desc', $crawler->selectLink('Type')->attr('href'));
         self::assertSame($url.'?page=1&epic=none', $crawler->selectLink('Added')->attr('href'));
-        self::assertSame('type', $crawler->filter('form.lp-filter-form input[name="sort"]')->attr('value'));
-        self::assertSame('asc', $crawler->filter('form.lp-filter-form input[name="dir"]')->attr('value'));
+        self::assertSame('type', $crawler->filter('input[name="sort"][form="backlog-filter"]')->attr('value'));
+        self::assertSame('asc', $crawler->filter('input[name="dir"][form="backlog-filter"]')->attr('value'));
 
         $crawler = $client->request(Request::METHOD_GET, $url.'?sort=type&dir=desc');
         self::assertSame(['Otter feature', 'Otter bug'], $this->titles($crawler));
@@ -173,7 +173,7 @@ final class ListBacklogCardsControllerTest extends WebTestCase
         self::assertSame('1 of 3 cards', trim($crawler->filter('#backlog-filter-count')->text()));
         self::assertSame('bug', $crawler->filter('#backlog-type option[selected]')->attr('value'));
         self::assertSame($epicId, $crawler->filter('#backlog-epic option[selected]')->attr('value'));
-        self::assertSame('epic', $crawler->filter('form.lp-filter-form input[name="sort"]')->attr('value'));
+        self::assertSame('epic', $crawler->filter('input[name="sort"][form="backlog-filter"]')->attr('value'));
 
         $crawler = $client->request(Request::METHOD_GET, $url.'?epic=none');
         self::assertSame(['Loose feature', 'Loose bug'], $this->titles($crawler));
@@ -247,6 +247,30 @@ final class ListBacklogCardsControllerTest extends WebTestCase
         self::assertCount(1, $region->filter('form#backlog-bulk-form'));
     }
 
+    public function test_a_live_frame_read_sends_the_epic_options_again_for_the_select_outside_the_frame(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+
+        $owner = $this->user($em, 'backlog-epic-live@example.com');
+        $project = $this->project($em, $owner);
+        $epic = $this->typed($em, $this->card($em, $project, 'Fresh epic', 'next'), 'epic');
+        $this->childOf($em, $epic, $this->card($em, $project, 'Waiting', 'backlog', 0));
+        $url = $this->backlogUrl($project);
+        $em->clear();
+
+        $client->loginUser($owner);
+        $page = $client->request(Request::METHOD_GET, $url);
+        self::assertCount(0, $page->filter('turbo-stream'));
+
+        $frame = $client->request(Request::METHOD_GET, $url, server: ['HTTP_TURBO_FRAME' => 'backlog-live']);
+
+        self::assertResponseIsSuccessful();
+        $stream = $frame->filter('turbo-frame#backlog-live turbo-stream[action="replace"][method="morph"][target="backlog-epic"]');
+        self::assertCount(1, $stream);
+        self::assertStringContainsString('Fresh epic', $stream->filter('template')->html());
+    }
+
     public function test_a_later_page_reads_its_own_rows_with_the_moment_it_rendered(): void
     {
         $client = static::createClient();
@@ -272,6 +296,27 @@ final class ListBacklogCardsControllerTest extends WebTestCase
         self::assertCount(1, $region->filter('#backlog-live-band'));
         self::assertCount(1, $region->filter('[data-live-row]'));
         self::assertCount(1, $region->filter('form#backlog-bulk-form'));
+    }
+
+    public function test_a_later_page_read_sends_the_epic_options_again_for_the_select_outside_the_frame(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+
+        $owner = $this->user($em, 'backlog-epic-rows@example.com');
+        $project = $this->project($em, $owner);
+        $epic = $this->typed($em, $this->card($em, $project, 'Rows epic', 'next'), 'epic');
+        $shown = $this->childOf($em, $epic, $this->card($em, $project, 'Waiting', 'backlog', 0));
+        $url = $this->backlogUrl($project);
+        $em->clear();
+
+        $client->loginUser($owner);
+        $client->request(Request::METHOD_GET, $url.'/rows', ['since' => LiveCursor::format(new \DateTimeImmutable('-1 hour')), 'ids' => (string) $shown->id], server: ['HTTP_ACCEPT' => 'text/vnd.turbo-stream.html']);
+
+        self::assertResponseIsSuccessful();
+        $stream = new Crawler((string) $client->getResponse()->getContent())->filter('turbo-stream[action="replace"][method="morph"][target="backlog-epic"]');
+        self::assertCount(1, $stream);
+        self::assertStringContainsString('Rows epic', $stream->filter('template')->html());
     }
 
     public function test_a_title_opens_the_card_drawer_and_the_row_shows_no_source_tag(): void

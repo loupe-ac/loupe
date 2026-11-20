@@ -56,6 +56,8 @@ final class ListDocumentRowsController extends AppController
             'items' => $view->items,
             'removedIds' => $view->removedIds,
             'newerCount' => $view->newerCount,
+            'projectTags' => $view->projectTags,
+            'projectSeries' => $view->projectSeries,
         ]);
 
         return new Response($html, Response::HTTP_OK, ['Content-Type' => TurboBundle::STREAM_MEDIA_TYPE]);

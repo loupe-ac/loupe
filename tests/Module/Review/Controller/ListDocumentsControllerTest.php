@@ -476,7 +476,7 @@ final class ListDocumentsControllerTest extends WebTestCase
         // 21 match and 20 fit on the page: the count must be the match total,
         // or a filtered list reads as having matched only one page.
         self::assertCount(20, $crawler->filter('[data-document-id]'));
-        self::assertSelectorTextContains('.lp-filter-count', '21 of 21 documents');
+        self::assertSelectorTextContains('.lp-list-count', '21 of 21 documents');
     }
 
     public function test_out_of_range_page_redirects_to_the_last_page(): void
@@ -703,8 +703,8 @@ final class ListDocumentsControllerTest extends WebTestCase
         self::assertCount(1, $crawler->filter('[data-document-id="'.$hitId.'"]'));
         self::assertCount(0, $crawler->filter('[data-document-id="'.$missId.'"]'));
         self::assertSame('bucket', $crawler->filter('input[name="search"]')->attr('value'));
-        // The page no longer promises newest-first while results are ranked.
-        self::assertSelectorTextContains('.lp-workspace-desc', 'best matches first');
+        // The header sits outside the swapped list, so its line holds for every order.
+        self::assertSelectorTextNotContains('.lp-workspace-desc', 'newest first');
     }
 
     public function test_the_status_and_tag_filters_narrow_the_list(): void
@@ -777,8 +777,7 @@ final class ListDocumentsControllerTest extends WebTestCase
         self::assertSelectorTextContains('[data-document-id="'.$secondId.'"] .lp-series', 'Blog Series, item 2');
         // The select shows the stored spelling and stays on the chosen series.
         self::assertSame('Blog Series', $crawler->filter('#document-series option[selected]')->text());
-        // The default line promises newest-first, which this ordering is not.
-        self::assertSelectorTextContains('.lp-workspace-desc', 'in the order of the series');
+        self::assertSelectorTextNotContains('.lp-workspace-desc', 'newest first');
     }
 
     public function test_every_filter_survives_the_clamp_redirect_and_the_pagination_links(): void
