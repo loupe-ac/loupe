@@ -30,4 +30,15 @@ final class FlashMessagesTemplateTest extends KernelTestCase
 
         self::assertStringContainsString('&lt;b&gt;x&lt;/b&gt;', $html);
     }
+
+    public function test_the_flash_stream_prepends_one_flash_to_the_page(): void
+    {
+        self::bootKernel();
+
+        $html = static::getContainer()->get(Environment::class)->render('_flash.stream.html.twig', ['severity' => 'warning', 'message' => '<b>x</b> `loupe init`']);
+
+        self::assertStringContainsString('<turbo-stream action="prepend" target="main-content">', $html);
+        self::assertStringContainsString('lp-flash--warning', $html);
+        self::assertStringContainsString('&lt;b&gt;x&lt;/b&gt; <code>loupe init</code>', $html);
+    }
 }
