@@ -1,6 +1,6 @@
 /* stimulusFetch: 'lazy' */
 import { Controller } from '@hotwired/stimulus';
-import { morphElements } from '@hotwired/turbo';
+import { morphElements, renderStreamMessage } from '@hotwired/turbo';
 import { on } from '../lib/live.js';
 import { handleLostAccess, onLostAccess } from '../lib/live_fetch.js';
 
@@ -13,20 +13,34 @@ export const RETRY_MILLISECONDS = [1000, 3000, 9000];
 /** A read that answers nothing in this time stops, and counts as a failure. */
 export const READ_TIMEOUT_MILLISECONDS = 10000;
 
+/** The rows route reads at most this many asks, so a larger burst reads the whole view. */
+export const MAX_CHANGED_ROWS = 50;
+
 const VIEW_FRAME = 'inbox-view';
+
+/** The frame name that the route reads with no session write, as a visit does not. */
+const LIVE_FRAME = 'inbox-live';
+
+const STREAM_TYPE = 'text/vnd.turbo-stream.html';
 
 /**
  * Reads the view of the inbox page again when an ask of the project changes,
  * and after a reconnect, and morphs it in. A form with typed input keeps its
  * fields. When its item closed in the meantime, the typed values stay as an
  * unsent reply with a Discard button. An open
- * dialog holds the update until it closes.
+ * dialog holds the update until it closes. The detail pane that the address
+ * names stays as it is when the signal names other asks only. Then the list
+ * reads only the rows of those asks, as a stream.
  */
 export default class extends Controller {
+    static values = { rowsUrl: String };
+
     connect() {
         // A lost access ends the live part, as a disconnect does.
         this.removeLostListener = onLostAccess(() => this.disconnect());
         this.held = false;
+        this.askIds = new Set();
+        this.allAsks = false;
         // A dialog's close event does not bubble, so the listener captures it.
         this.onDialogClose = () => {
             if (this.held) {
@@ -56,6 +70,11 @@ export default class extends Controller {
         if (change.own) {
             return;
         }
+        const askIds = change.askIds ?? [];
+        if (askIds.length === 0) {
+            this.allAsks = true;
+        }
+        askIds.forEach((askId) => this.askIds.add(askId));
         this.schedule();
     }
 
@@ -88,6 +107,12 @@ export default class extends Controller {
         const pane = this.element.querySelector(
             '[data-inbox-ask-id], [data-inbox-item-number]',
         );
+        if (await this.refreshRows(pane, request)) {
+            return;
+        }
+        if (request.signal.aborted) {
+            return;
+        }
         const url = new URL(address);
         // A view with no ask in its address shows the first row, which a new ask can take over.
         const pinned =
@@ -105,7 +130,7 @@ export default class extends Controller {
         const headers = {
             Accept: 'text/html',
             'X-Loupe-Live-Refresh': '1',
-            'Turbo-Frame': VIEW_FRAME,
+            'Turbo-Frame': LIVE_FRAME,
         };
         if (pane?.dataset.inboxAskOpen === 'true') {
             headers['X-Loupe-Inbox-Watching'] = pane.dataset.inboxAskId;
@@ -165,9 +190,127 @@ export default class extends Controller {
         if (pinned) {
             keepUnpicked(fresh);
         }
+        const keepDetail = this.keepsDetail(address, pane);
+        this.allAsks = false;
+        this.askIds.clear();
         keepNotices(current, fresh);
         keepReplyDrafts(current, fresh);
-        this.morph(current, fresh);
+        this.morph(current, fresh, keepDetail);
+    }
+
+    /**
+     * Whether the signal names asks that the pane does not show, on the open
+     * side of an unsearched list. Then the pane stays, and the list changes
+     * only in the rows of those asks.
+     */
+    rowsOnly(pane) {
+        const askId = pane?.dataset.inboxAskId;
+        const params = new URL(window.location.href).searchParams;
+
+        return (
+            this.hasRowsUrlValue &&
+            !this.allAsks &&
+            this.askIds.size > 0 &&
+            this.askIds.size <= MAX_CHANGED_ROWS &&
+            askId !== undefined &&
+            !this.askIds.has(askId) &&
+            !params.has('q') &&
+            (params.get('side') ?? 'open') === 'open' &&
+            this.element.querySelector('[data-inbox-request]') !== null
+        );
+    }
+
+    /**
+     * Reads the rows of the changed asks as a stream, and plays it. The stream
+     * puts each row before the next row that the read did not change, so it
+     * gives the right order only when the unchanged rows on the page are the
+     * ones of the read, in the same order. Any other case, and any failure,
+     * returns false and leaves the full read to the caller.
+     */
+    async refreshRows(pane, request) {
+        if (!this.rowsOnly(pane)) {
+            return false;
+        }
+        const address = window.location.href;
+        const here = new URL(address).searchParams;
+        const url = new URL(this.rowsUrlValue, address);
+        ['side', 'type'].forEach((name) => {
+            if (here.has(name)) {
+                url.searchParams.set(name, here.get(name));
+            }
+        });
+        url.searchParams.set('ask', pane.dataset.inboxAskId);
+        const changed = [...this.askIds];
+        changed.forEach((id) => url.searchParams.append('changed[]', id));
+
+        let html;
+        let keys;
+        // A newer change aborts the request, and a slow read aborts only this read.
+        const read = new AbortController();
+        request.signal.addEventListener('abort', () => read.abort());
+        const timer = setTimeout(() => read.abort(), READ_TIMEOUT_MILLISECONDS);
+        try {
+            // eslint-disable-next-line no-restricted-syntax -- a read-only GET of the rows to play, not a mutation.
+            const response = await fetch(url.toString(), {
+                headers: { Accept: STREAM_TYPE, 'X-Loupe-Live-Refresh': '1' },
+                credentials: 'same-origin',
+                signal: read.signal,
+            });
+            if (handleLostAccess(response)) {
+                return true;
+            }
+            if (!response?.ok) {
+                return false;
+            }
+            keys = (response.headers?.get('X-Loupe-Inbox-Row-Keys') ?? '')
+                .split(',')
+                .filter((key) => key !== '');
+            html = await response.text();
+        } catch {
+            return request.signal.aborted;
+        } finally {
+            clearTimeout(timer);
+        }
+        if (request.signal.aborted || this.holding()) {
+            return true;
+        }
+        if (window.location.href !== address) {
+            this.schedule();
+
+            return true;
+        }
+        const unchanged = (list) =>
+            list.filter((key) => !changed.includes(key));
+        const shown = [
+            ...this.element.querySelectorAll('[data-inbox-request]'),
+        ].map((row) => row.dataset.inboxRequest);
+        if (
+            keys.length === 0 ||
+            unchanged(shown).join() !== unchanged(keys).join()
+        ) {
+            return false;
+        }
+        this.askIds.clear();
+        renderStreamMessage(html);
+
+        return true;
+    }
+
+    /**
+     * The pane shows the ask that the address names. A signal that names other
+     * asks leaves it alone, and a signal with no name, or one that comes with
+     * a read that went wrong before, reads it again.
+     */
+    keepsDetail(address, pane) {
+        const askId = pane?.dataset.inboxAskId;
+
+        return (
+            !this.allAsks &&
+            this.askIds.size > 0 &&
+            askId !== undefined &&
+            new URL(address).searchParams.get('ask') === askId &&
+            !this.askIds.has(askId)
+        );
     }
 
     holding() {
@@ -176,9 +319,17 @@ export default class extends Controller {
         return this.held;
     }
 
-    morph(current, fresh) {
+    morph(current, fresh, keepDetail = false) {
         const keepElement = (event) => {
             const target = event.target;
+            if (
+                keepDetail &&
+                target.classList?.contains('lp-inbox-request-detail')
+            ) {
+                event.preventDefault();
+
+                return;
+            }
             if (
                 target.classList?.contains('lp-flash') ||
                 target.hasAttribute?.('data-inbox-reply-draft') ||
@@ -239,10 +390,13 @@ function keepUnpicked(fresh) {
 /**
  * A status line says what the last action did, or why the open ask closed. The
  * fresh view has none of its own, so the lines the reader saw stay until the
- * reader moves to another view.
+ * reader moves to another view. They go inside the detail frame, so a row
+ * pick, which swaps only that frame, clears them.
  */
 function keepNotices(current, fresh) {
-    const detail = fresh.querySelector('.lp-inbox-request-detail');
+    const detail =
+        fresh.querySelector('turbo-frame#inbox-detail') ??
+        fresh.querySelector('.lp-inbox-request-detail');
     ['data-inbox-status', 'data-inbox-closed-notice'].forEach((marker) => {
         current.querySelectorAll(`[${marker}]`).forEach((notice) => {
             if (detail && !fresh.querySelector(`[${marker}]`)) {

@@ -297,6 +297,20 @@ final class InboxItemFormsControllerTest extends WebTestCase
         self::assertSelectorNotExists('.lp-flash');
     }
 
+    public function test_a_status_read_in_the_view_frame_is_not_shown_again_by_the_next_frame_read(): void
+    {
+        $first = $this->question($this->em, $this->project, 1);
+        $second = $this->question($this->em, $this->project, 2);
+        $ask = $this->askHolding($this->em, $this->project, [$first, $second]);
+
+        $this->post($second, 'answer', ['selectedOptions' => '0'], ask: (string) $ask->id);
+        $frame = ['HTTP_TURBO_FRAME' => 'inbox-view'];
+        $this->client->request(Request::METHOD_GET, $this->pageUrl().'?ask='.$ask->id, server: $frame);
+        self::assertSelectorTextContains('[data-inbox-status]', 'Answer sent.');
+        $this->client->request(Request::METHOD_GET, $this->pageUrl().'?ask='.$ask->id, server: $frame);
+        self::assertSelectorNotExists('[data-inbox-status]');
+    }
+
     public function test_the_page_form_answers_a_workflow_question_once(): void
     {
         $item = new InboxItem(project: $this->project, number: 6, kind: InboxItemKind::Workflow, title: 'Child 3 has no design', blocking: true, origin: InboxAskOrigin::Loupe, options: ['Link', 'Design', 'Detach']);
