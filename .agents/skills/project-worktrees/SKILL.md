@@ -20,7 +20,7 @@ The project runs on Docker Compose, with commands in a `justfile` (requires [jus
 3. The main app runs at `https://loupe.dev.localhost`, and PHP-FPM is on port 9000.
 4. The `worker` compose service consumes the `scheduler_default`, `card_eval`, `jobs` and `card_sweep` transports. Use `docker compose logs worker` to observe it, or `just worker` for a foreground consumer.
 5. Traefik TCP routing exposes Postgres at `db.loupe.dev.localhost:5432`. `.env` ships `127.0.0.1:5432` as a placeholder. On your host machine, set `DATABASE_URL="postgresql://app:!ChangeMe!@db.loupe.dev.localhost:5432/app?serverVersion=16&charset=utf8"` in `.env.local`. Inside the php-fpm container (`just shell`), `compose.yaml` sets `DATABASE_URL` to `database:5432`, so nothing is needed.
-6. The dev database runs without durability. The `database` service turns off `fsync`, `synchronous_commit` and `full_page_writes`, because dev and test data can be rebuilt. A Docker crash can corrupt it. `docs/contributing/development.md` says how to rebuild it.
+6. The dev database runs without durability. The `database` service turns off `fsync`, `synchronous_commit` and `full_page_writes`, because dev and test data can be rebuilt. A Docker crash can corrupt it. `docs/contributing/development.md` says how to rebuild it. It also sets `idle_session_timeout=60s`, because each php-fpm worker keeps a connection open for each worktree database it served, and a few active worktrees otherwise fill `max_connections`.
 
 ## Quick reference
 

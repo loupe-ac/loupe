@@ -178,7 +178,9 @@ services:
     restart: unless-stopped
     # Dev and test data can be rebuilt, so durability is off to save disk I/O.
     # A Docker crash can corrupt the database. `app:dev:seed` rebuilds it.
-    command: ["postgres", "-c", "fsync=off", "-c", "synchronous_commit=off", "-c", "full_page_writes=off"]
+    # The shared php-fpm keeps a connection per worktree database in each
+    # worker, so idle ones close after 60 s to stay under max_connections.
+    command: ["postgres", "-c", "fsync=off", "-c", "synchronous_commit=off", "-c", "full_page_writes=off", "-c", "idle_session_timeout=60s"]
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-app}
       # You should definitely change the password in production
