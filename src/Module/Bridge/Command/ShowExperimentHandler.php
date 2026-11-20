@@ -522,6 +522,9 @@ final readonly class ShowExperimentHandler
         $variants = array_unique(array_filter($variants, static fn (?string $variant): bool => null !== $variant));
         $plainCovered = array_filter($runs, static fn (CardRun $run): bool => !$run->isOf($experiment) && $run->isOfKind($covered));
 
+        // A run keeps its arrival to the second and rounds it, while the history start keeps microseconds.
+        $historyStart = $historyStart?->setTime((int) $historyStart->format('H'), (int) $historyStart->format('i'), (int) $historyStart->format('s'));
+
         $reasons = [];
         if ([] !== array_filter($experimentRuns, static fn (WorkerRun $run): bool => null !== $run->switchedFrom)) {
             $reasons[] = LeftOutReason::Switched;

@@ -50,6 +50,10 @@ final readonly class ListWorkerRunsHandler
         $paginator = $this->workerRuns->findPaginatedByProject($command->project, $page, $perPage, $listQuery);
         $total = \count($paginator);
         $totalPages = max(1, (int) ceil($total / $perPage));
+        $clampedPage = PageList::clampedPage($page, $total, $perPage);
+        if ($command->clampPage && null !== $clampedPage) {
+            return $this->__invoke(new ListWorkerRunsCommand($command->project, $listQuery->withPage($clampedPage), $command->perPage));
+        }
 
         /** @var list<WorkerRun> $runs */
         $runs = array_values(iterator_to_array($paginator, false));
@@ -80,7 +84,7 @@ final readonly class ListWorkerRunsHandler
             totalPages: $totalPages,
             pageList: PageList::build($page, $totalPages),
             bridgeIds: $bridgeIds,
-            clampedPage: PageList::clampedPage($page, $total, $perPage),
+            clampedPage: $clampedPage,
             page: $page,
             perPage: $perPage,
             bridgeLabels: $this->bridgeLabels->forOwner($command->project->owner, $bridgeIds),

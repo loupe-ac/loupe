@@ -349,7 +349,7 @@ test('a runs filter survives a live signal from another actor', async ({
     await watcher.goto(`/projects/${projectId}/worker-runs`);
     await expect(watcher.locator('[data-worker-run-id]')).toHaveCount(2);
     await watcher.locator('#worker-run-outcome').selectOption('open');
-    await expect(watcher).toHaveURL(/open/, LIVE);
+    await expect(watcher).toHaveURL(/open/);
     await expect(watcher.locator('[data-worker-run-id]')).toHaveCount(1);
 
     // The hub keeps no history, so a change made before the page connects is lost.
