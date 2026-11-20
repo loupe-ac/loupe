@@ -10,6 +10,7 @@ import {
 } from '../lib/live_fetch.js';
 
 const STREAM_TYPE = 'text/vnd.turbo-stream.html';
+const CONNECTED_ATTRIBUTE = 'data-live-region-connected';
 
 /**
  * Keeps one region of the page current. A signal of one of its types, which
@@ -56,6 +57,8 @@ export default class extends Controller {
             this.typesValue,
             (change) => this.changed(change),
             {
+                onOpen: () =>
+                    this.element.setAttribute(CONNECTED_ATTRIBUTE, ''),
                 onReconnect: () => this.reconnected(),
             },
         );
@@ -76,6 +79,7 @@ export default class extends Controller {
         this.fetcher?.stop();
         this.unsubscribe?.();
         this.unsubscribe = undefined;
+        this.element.removeAttribute(CONNECTED_ATTRIBUTE);
     }
 
     changed(change) {

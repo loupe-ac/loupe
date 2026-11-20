@@ -6,7 +6,7 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { mcpCards, signedInPage } from '../fixtures';
+import { expectLiveRegionConnected, mcpCards, signedInPage } from '../fixtures';
 
 const RUN = Date.now();
 const PASSWORD = 'E2eBacklogLive1!';
@@ -41,7 +41,7 @@ test('a card added elsewhere appears, a ticked row stays ticked, and a moved car
         watcher.locator('turbo-frame#backlog-list #backlog-live'),
     ).toBeVisible();
     // The hub keeps no history, so a change made before the page connects is lost.
-    await watcher.waitForTimeout(1_000);
+    await expectLiveRegionConnected(watcher);
     await watcher
         .getByRole('checkbox', { name: `Select card #${first.number}` })
         .check();
@@ -107,7 +107,7 @@ test('the first card of an empty Backlog shows the count and the filter bar', as
     await expect(watcher.locator('[data-backlog-card-id]')).toHaveCount(0);
     await expect(watcher.locator('#backlog-count')).toBeHidden();
     await expect(watcher.locator('#backlog-filter')).toHaveCount(0);
-    await watcher.waitForTimeout(1_000);
+    await expectLiveRegionConnected(watcher);
 
     const actor = await signedInPage(browser, email, PASSWORD);
     const create = await mcpCards(actor, projectId);

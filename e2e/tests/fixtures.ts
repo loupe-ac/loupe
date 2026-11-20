@@ -584,3 +584,13 @@ export async function mcpCards(
 
     return create;
 }
+
+/**
+ * Waits until a live region of the page holds the hub subscription. The hub
+ * keeps no history, so a change made before this point never reaches the page.
+ */
+export async function expectLiveRegionConnected(page: Page): Promise<void> {
+    await expect(
+        page.locator('[data-live-region-connected]').first(),
+    ).toBeAttached({ timeout: coverageScaled(20_000) });
+}

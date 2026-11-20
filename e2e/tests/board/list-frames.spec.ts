@@ -15,6 +15,7 @@ import {
 import {
     agentAccessToken,
     expectInPlace,
+    expectLiveRegionConnected,
     mcpCards,
     signedInPage,
     suppressToolbar,
@@ -68,7 +69,7 @@ test('a Backlog search swaps the list and a live signal keeps the filter', async
     await expect(search).toBeFocused();
 
     // The hub keeps no history, so a change made before the page connects is lost.
-    await watcher.waitForTimeout(1_000);
+    await expectLiveRegionConnected(watcher);
     await create('Otter second');
     await create('Heron second');
 
@@ -127,7 +128,7 @@ test('a documents search swaps the list and a live signal keeps the filter', asy
     });
 
     // The hub keeps no history, so a change made before the page connects is lost.
-    await watcher.waitForTimeout(1_000);
+    await expectLiveRegionConnected(watcher);
     const added = await actor.request.post('/dev/seed/document', {
         form: { title: 'Otter more', markdown: '# Otter more' },
     });
@@ -200,7 +201,7 @@ test('the done column pages inside its frame and keeps the page on a live signal
     });
 
     // The hub keeps no history, so a change made before the page connects is lost.
-    await watcher.waitForTimeout(1_000);
+    await expectLiveRegionConnected(watcher);
     await create('Finished later', { status: 'done' });
 
     await expect(watcher.locator('#terminal-total')).toContainText('28', LIVE);
@@ -246,7 +247,7 @@ test('the first page of the done column gains a new finish in place', async ({
     });
 
     // The hub keeps no history, so a change made before the page connects is lost.
-    await watcher.waitForTimeout(1_000);
+    await expectLiveRegionConnected(watcher);
     await expectInPlace(watcher, async () => {
         await create('Finished second', { status: 'done' });
         await expect(watcher.locator('.lp-done-row')).toHaveCount(2, LIVE);
@@ -361,7 +362,7 @@ test('an activity filter survives a live signal from another actor', async ({
         });
 
     // The hub keeps no history, so a change made before the page connects is lost.
-    await watcher.waitForTimeout(1_000);
+    await expectLiveRegionConnected(watcher);
     await actor.goto(`/projects/${projectId}/edit`);
     await actor
         .getByLabel('Project name', { exact: true })
@@ -452,7 +453,7 @@ test('a runs filter survives a live signal from another actor', async ({
     await expect(watcher.locator('[data-worker-run-id]')).toHaveCount(1);
 
     // The hub keeps no history, so a change made before the page connects is lost.
-    await watcher.waitForTimeout(1_000);
+    await expectLiveRegionConnected(watcher);
     await report({ state: 'queued' });
 
     await expect(watcher.locator('[data-worker-run-id]')).toHaveCount(2, LIVE);
@@ -495,7 +496,7 @@ test('a bucket rules range survives a live signal from another actor', async ({
     await expect(range).toHaveAttribute('data-kept', '');
 
     // The hub keeps no history, so a change made before the page connects is lost.
-    await watcher.waitForTimeout(1_000);
+    await expectLiveRegionConnected(watcher);
     await actor.goto(url);
     await actor.getByLabel('Pattern', { exact: true }).fill('make *');
     await actor.getByLabel('Bucket', { exact: true }).fill('build');
@@ -588,7 +589,7 @@ test('an experiments archived filter survives a live signal from another actor',
     await expect(watcher.locator('[data-experiment]')).toHaveCount(1);
 
     // The hub keeps no history, so a change made before the page connects is lost.
-    await watcher.waitForTimeout(1_000);
+    await expectLiveRegionConnected(watcher);
     await actor.goto(url);
     await actor.locator('[data-experiment-row-archive]').first().click();
 
@@ -629,7 +630,7 @@ test('an experiment cards variant filter survives a live signal from another act
     });
 
     // The hub keeps no history, so a change made before the page connects is lost.
-    await watcher.waitForTimeout(1_000);
+    await expectLiveRegionConnected(watcher);
     const third = await newCard('Another variant a card');
     await report(third, 'frame-cards', 'alpha');
     const fourth = await newCard('Another variant b card');

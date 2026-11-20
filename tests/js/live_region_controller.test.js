@@ -94,6 +94,19 @@ afterEach(async () => {
     vi.useRealTimers();
 });
 
+it('marks the region once the hub accepts the subscription', async () => {
+    await mount(STREAM);
+    const region = document.getElementById('region');
+    expect(region.hasAttribute('data-live-region-connected')).toBe(false);
+
+    subscription().options.onOpen();
+    expect(region.hasAttribute('data-live-region-connected')).toBe(true);
+
+    region.remove();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(region.hasAttribute('data-live-region-connected')).toBe(false);
+});
+
 it('listens for its types and stops on disconnect', async () => {
     await mount(
         `data-live-region-types-value='["artifact.changed","board.card_changed"]' data-live-region-url-value="/x" data-live-region-mode-value="stream"`,
