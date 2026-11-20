@@ -49,6 +49,7 @@ final class SavedGraphControllersTest extends WebTestCase
         self::assertStringContainsString('data-metrics-saved-link', $stream);
         self::assertStringContainsString('<turbo-stream action="replace" target="metrics-save">', $stream);
         self::assertStringContainsString('<turbo-stream action="replace" target="metrics-graph-field">', $stream);
+        self::assertStringContainsString('<turbo-stream action="live-region-drop-param" target="metrics-live" param="graph">', $stream);
         self::assertStringNotContainsString('data-edit-banner', $stream);
         self::assertStringNotContainsString('data-leave-guard-dirty-value', $stream);
         self::assertStringNotContainsString('name="graph"', $stream);
@@ -181,6 +182,7 @@ final class SavedGraphControllersTest extends WebTestCase
         self::assertStringContainsString('data-leave-guard-dirty-value="false"', $stream);
         self::assertStringContainsString('name="graph" value="'.$graphId.'"', $stream);
         self::assertStringNotContainsString('target="metrics-saved"', $stream);
+        self::assertStringNotContainsString('live-region-drop-param', $stream);
         $graphs = $this->stored($projectId);
         self::assertCount(1, $graphs);
         self::assertSame('Renamed', $graphs[0]->name);

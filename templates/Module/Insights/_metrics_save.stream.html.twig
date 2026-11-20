@@ -10,8 +10,9 @@
     </template>
 </turbo-stream>
 {% endif %}
-{# A new graph ends the edit of the old one, so the banner, the guard and the field of the controls all drop it together. #}
+{# A new graph ends the edit of the old one, so the banner, the guard, the field of the controls and the address of the live frame all drop it together. #}
 {% set editing = saved ? null : graph %}
+{% if saved %}<turbo-stream action="live-region-drop-param" target="metrics-live" param="graph"></turbo-stream>{% endif %}
 <turbo-stream action="update" target="metrics-edit-banner"><template>{% include '@Insights/_metrics_edit_banner.html.twig' with {project: project, graph: editing} only %}</template></turbo-stream>
 <turbo-stream action="replace" target="metrics-leave-guard"><template>{% include '@Insights/_metrics_leave_guard.html.twig' with {graph: editing, dirty: false} only %}</template></turbo-stream>
 <turbo-stream action="replace" target="metrics-graph-field"><template>{% include '@Insights/_metrics_graph_field.html.twig' with {graph: editing} only %}</template></turbo-stream>
