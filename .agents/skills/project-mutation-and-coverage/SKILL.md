@@ -263,10 +263,14 @@ raises the limit to 2G in the generated shard config only, and the recipes run
 `phpcov merge` of the four PHPUnit shard files runs under 12G. One shard file is
 about 750 MB, and the merge holds all four.
 
-`DevSeedRestoreTest` runs 37 tests of two full dev seeds each, in one ParaTest
-worker. It takes about 17 s per test, and about 91 minutes under coverage. A
-shard that holds it looks hung near the end, with one worker at full CPU and the
-rest idle. Read `junit-N.xml` for the slowest classes before you suspect a hang.
+The `DevSeedRestore*Test` classes run 37 tests of two full dev seeds each. That is
+about 17 s per test, and about 91 minutes under coverage, so they sit in four
+files that four shards run: ParaTest runs a file in one worker, and a shard
+takes every fourth file of a sorted list, so four neighbouring files land in four
+shards. Keep the four names next to each other in the sort order, and keep the
+classes balanced, or one shard looks hung near its end with one worker at full CPU
+and the rest idle. `CoverageShardScriptsTest` checks the spread. Read
+`junit-N.xml` for the slowest classes before you suspect a hang.
 
 This project does not use `--path-coverage`. Path coverage held 492 MB for 51
 tests and killed the container at about 250 of 2,262 tests, so it does not fit

@@ -85,6 +85,24 @@ final class CoverageShardScriptsTest extends TestCase
         self::assertSame('6G', $value->getAttribute('value'));
     }
 
+    public function test_the_dev_seed_restore_classes_run_in_four_different_shards(): void
+    {
+        $shardOf = [];
+        foreach ([1, 2, 3, 4] as $shard) {
+            $config = new \DOMDocument();
+            $config->load(trim($this->php(['bin/coverage-shard.php', 'phpunit-config', (string) $shard, '4'])));
+            foreach (new \DOMXPath($config)->query('//testsuite/file') ?: [] as $file) {
+                \assert($file instanceof \DOMElement);
+                if (str_contains($file->textContent, '/tests/DevSeed/DevSeedRestore')) {
+                    $shardOf[basename($file->textContent)] = $shard;
+                }
+            }
+        }
+
+        self::assertCount(4, $shardOf, 'Each class of the restore test is one file, so a shard runs it in one worker.');
+        self::assertCount(4, array_unique($shardOf), 'A shard takes every fourth file of a sorted list, so four neighbouring files land in four shards.');
+    }
+
     public function test_a_shard_number_beyond_the_shard_count_is_refused(): void
     {
         $process = new Process(['php', 'bin/coverage-shard.php', 'src-filter', '4', '3'], $this->root);

@@ -58,9 +58,11 @@ jobs:
       # Writes var/phpunit-coverage. Never var/coverage, which the e2e legs
       # below delete at the start of their own run. ParaTest runs four workers,
       # each restarting after 100 test files, so memory stays bounded per process.
-      # Shard 1 took 83, 97 and 137 minutes in three runs, and most of that is
-      # DevSeedRestoreTest, which seeds twice in each of 37 tests in one worker.
-      # The other shards took 12 to 21 minutes. 210 is 1.5 times the slowest.
+      # Shard 1 took 83, 97 and 137 minutes in three runs, and most of that was
+      # DevSeedRestoreTest, which seeded twice in each of 37 tests in one worker.
+      # It is now four classes that four shards run. The other shards took 12 to
+      # 21 minutes. 210 is 1.5 times the slowest of the old runs, and the first
+      # run after the split gives the number to set it from.
       - run: just phpunit-coverage-shard ${{ matrix.shard }} 4
         timeout-minutes: 210
 
