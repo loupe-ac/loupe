@@ -25,6 +25,7 @@ const { default: InboxReplyDraftController } =
 const {
     default: InboxLiveController,
     DEBOUNCE_MILLISECONDS,
+    MAX_CHANGED_ROWS,
     RETRY_MILLISECONDS,
 } = await import('../../assets/controllers/inbox_live_controller.js');
 
@@ -517,6 +518,18 @@ it('reads the whole view when the signal names no ask', async () => {
     changed({ askIds: [] });
     await settle();
 
+    expect(fetch.mock.calls[0][0]).not.toContain('/rows');
+});
+
+it('reads the whole view when a burst names more asks than the rows route reads', async () => {
+    await mount(rowsView(), ROWS_URL);
+    answer(rowsView());
+    changed({
+        askIds: Array.from({ length: MAX_CHANGED_ROWS + 1 }, (_, i) => `a${i}`),
+    });
+    await settle();
+
+    expect(fetch).toHaveBeenCalledTimes(1);
     expect(fetch.mock.calls[0][0]).not.toContain('/rows');
 });
 

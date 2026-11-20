@@ -10,6 +10,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Uid\Uuid;
 use Symfony\UX\Turbo\TurboBundle;
 
 final class ShowInboxRowsControllerTest extends WebTestCase
@@ -114,6 +115,20 @@ final class ShowInboxRowsControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(400);
         $this->streamRequest('/projects/'.$project->id.'/inbox/rows?q=csv');
         self::assertResponseStatusCodeSame(400);
+    }
+
+    public function test_a_burst_over_the_row_limit_is_refused_so_the_page_reads_the_whole_view(): void
+    {
+        $owner = $this->signedUpUser($this->em, 'inbox-rows-burst');
+        $project = $this->inboxProject($this->em, $owner);
+        $this->setInboxFlag(true);
+        $ids = array_map(static fn (): string => Uuid::v7()->toRfc4122(), range(1, ShowInboxRowsController::MAX_CHANGED + 1));
+
+        $this->client->loginUser($owner);
+        $this->streamRequest('/projects/'.$project->id.'/inbox/rows?changed[]='.implode('&changed[]=', $ids));
+        self::assertResponseStatusCodeSame(400);
+        $this->streamRequest('/projects/'.$project->id.'/inbox/rows?changed[]='.implode('&changed[]=', \array_slice($ids, 1)));
+        self::assertResponseIsSuccessful();
     }
 
     public function test_a_plain_visit_goes_to_the_page(): void

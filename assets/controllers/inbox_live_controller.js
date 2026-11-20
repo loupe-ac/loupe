@@ -13,6 +13,9 @@ export const RETRY_MILLISECONDS = [1000, 3000, 9000];
 /** A read that answers nothing in this time stops, and counts as a failure. */
 export const READ_TIMEOUT_MILLISECONDS = 10000;
 
+/** The rows route reads at most this many asks, so a larger burst reads the whole view. */
+export const MAX_CHANGED_ROWS = 50;
+
 const VIEW_FRAME = 'inbox-view';
 
 const STREAM_TYPE = 'text/vnd.turbo-stream.html';
@@ -205,6 +208,7 @@ export default class extends Controller {
             this.hasRowsUrlValue &&
             !this.allAsks &&
             this.askIds.size > 0 &&
+            this.askIds.size <= MAX_CHANGED_ROWS &&
             askId !== undefined &&
             !this.askIds.has(askId) &&
             !params.has('q') &&

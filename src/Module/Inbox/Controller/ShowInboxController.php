@@ -11,7 +11,6 @@ use App\Module\Inbox\Service\InboxAvailability;
 use App\Module\Inbox\View\InboxView;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
-use App\Session\ReadOnlyAwareSessionHandler;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -21,7 +20,6 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[Route(
     '/projects/{id:project}/inbox',
     name: 'app_project_inbox',
-    defaults: [ReadOnlyAwareSessionHandler::READ_ONLY => 'inbox-view'],
     methods: ['GET'],
 )]
 final class ShowInboxController extends AppController

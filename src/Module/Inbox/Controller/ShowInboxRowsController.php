@@ -60,8 +60,13 @@ final class ShowInboxRowsController extends AppController
             throw new BadRequestHttpException('Only the open side of the list reads by row.');
         }
 
+        $named = $request->query->all('changed');
+        if (\count($named) > self::MAX_CHANGED) {
+            throw new BadRequestHttpException('Too many changed asks to read by row.');
+        }
+
         $changed = [];
-        foreach (\array_slice($request->query->all('changed'), 0, self::MAX_CHANGED) as $id) {
+        foreach ($named as $id) {
             if (\is_string($id) && Uuid::isValid($id)) {
                 $changed[] = Uuid::fromString($id)->toRfc4122();
             }
