@@ -241,3 +241,36 @@ it('does not open again when the dialog is already open as the reopen value turn
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(dialog.showModal).not.toHaveBeenCalled();
 });
+
+it('closes the dialog before it renders a stream that marks a target inside it', async () => {
+    dialog.insertAdjacentHTML('beforeend', '<form id="inside"></form>');
+    controller.open();
+    const stream = document.createElement('turbo-stream');
+    stream.setAttribute('action', 'replace');
+    stream.setAttribute('target', 'inside');
+    stream.setAttribute('data-closes-dialog', '');
+    const render = vi.fn();
+    const event = new CustomEvent('turbo:before-stream-render', {
+        detail: { newStream: stream, render },
+    });
+    document.dispatchEvent(event);
+    event.detail.render(stream);
+    expect(render).not.toHaveBeenCalled();
+    await finish(1);
+    expect(dialog.close).toHaveBeenCalledOnce();
+    expect(render).toHaveBeenCalledOnce();
+});
+
+it('leaves a stream with no mark alone when its target is inside the dialog', () => {
+    dialog.insertAdjacentHTML('beforeend', '<form id="inside"></form>');
+    controller.open();
+    const stream = document.createElement('turbo-stream');
+    stream.setAttribute('action', 'replace');
+    stream.setAttribute('target', 'inside');
+    const render = vi.fn();
+    const event = new CustomEvent('turbo:before-stream-render', {
+        detail: { newStream: stream, render },
+    });
+    document.dispatchEvent(event);
+    expect(event.detail.render).toBe(render);
+});

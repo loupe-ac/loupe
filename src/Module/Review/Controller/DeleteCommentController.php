@@ -48,6 +48,17 @@ final class DeleteCommentController extends AppController
         try {
             ($this->deleteCommentHandler)(new DeleteCommentCommand(comment: $comment));
         } catch (DomainErrors $error) {
+            if (TurboBundle::STREAM_FORMAT === $request->getPreferredFormat()) {
+                $html = $this->renderView('@Review/_comment_added.stream.html.twig', [
+                    'comments' => ($this->listVersionComments)(new ListVersionCommentsCommand($version))->comments,
+                ]);
+                foreach ($error->errors as $translationKey) {
+                    $html .= $this->renderView('_flash.stream.html.twig', ['severity' => 'error', 'message' => $this->translator->trans($translationKey)]);
+                }
+
+                return new Response($html, Response::HTTP_OK, ['Content-Type' => TurboBundle::STREAM_MEDIA_TYPE]);
+            }
+
             foreach ($error->errors as $translationKey) {
                 $this->addFlash('error', $this->translator->trans($translationKey));
             }

@@ -1,0 +1,4 @@
+{# Props: document, submitReviewForm, signals, decisions, draftReviewLoop. Replaces the finish form with fresh guards and closes its sheet. #}
+<turbo-stream action="replace" target="finish-review-form" data-closes-dialog>
+    <template>{% include '@Review/_finish_review_form.html.twig' with {document: document, submitReviewForm: submitReviewForm, signals: signals, decisions: decisions, draftReviewLoop: draftReviewLoop} only %}</template>
+</turbo-stream>

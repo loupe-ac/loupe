@@ -6,6 +6,8 @@ namespace App\Module\Review\Controller;
 
 use App\Controller\AppController;
 use App\Exception\DomainErrors;
+use App\Module\Review\Command\ListVersionCommentsCommand;
+use App\Module\Review\Command\ListVersionCommentsHandler;
 use App\Module\Review\Command\RestoreCommentCommand;
 use App\Module\Review\Command\RestoreCommentHandler;
 use App\Module\Review\Entity\Comment;
@@ -19,6 +21,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Contracts\Translation\TranslatorInterface;
+use Symfony\UX\Turbo\TurboBundle;
 
 #[IsGranted(CommentVoter::RESTORE, subject: 'comment')]
 #[Route(
@@ -30,6 +33,7 @@ final class RestoreCommentController extends AppController
 {
     public function __construct(
         private readonly RestoreCommentHandler $restoreComment,
+        private readonly ListVersionCommentsHandler $listVersionComments,
         private readonly FormFactoryInterface $formFactory,
         private readonly TranslatorInterface $translator,
     ) {
@@ -55,7 +59,17 @@ final class RestoreCommentController extends AppController
         if ($form->isSubmitted() && $form->isValid() && null !== $data->deletionSequence) {
             try {
                 ($this->restoreComment)(new RestoreCommentCommand($comment, $data->deletionSequence));
-                $this->addFlash('success', $this->translator->trans('review.deleted_threads.flash.restored'));
+                $message = $this->translator->trans('review.deleted_threads.flash.restored');
+                if (TurboBundle::STREAM_FORMAT === $request->getPreferredFormat()) {
+                    $html = $this->renderView('@Review/_comment_added.stream.html.twig', [
+                        'comments' => ($this->listVersionComments)(new ListVersionCommentsCommand($comment->version))->comments,
+                    ]);
+                    $html .= $this->renderView('@Review/_comment_restored.stream.html.twig', ['severity' => 'success', 'message' => $message]);
+
+                    return new Response($html, Response::HTTP_OK, ['Content-Type' => TurboBundle::STREAM_MEDIA_TYPE]);
+                }
+
+                $this->addFlash('success', $message);
 
                 return $this->redirectToRoute('app_document_review_version', [
                     ...$parameters,
@@ -68,6 +82,15 @@ final class RestoreCommentController extends AppController
         }
 
         // No page renders this form, so a bound 422 re-render has nowhere to go.
+        if (TurboBundle::STREAM_FORMAT === $request->getPreferredFormat()) {
+            $html = '';
+            foreach ($errors as $translationKey) {
+                $html .= $this->renderView('_flash.stream.html.twig', ['severity' => 'error', 'message' => $this->translator->trans($translationKey)]);
+            }
+
+            return new Response($html, Response::HTTP_OK, ['Content-Type' => TurboBundle::STREAM_MEDIA_TYPE]);
+        }
+
         foreach ($errors as $translationKey) {
             $this->addFlash('error', $this->translator->trans($translationKey));
         }
