@@ -761,6 +761,22 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertSame('/projects/'.$project->id.'/inbox?side=closed', $search->filter('.lp-filter-clear')->attr('href'));
     }
 
+    public function test_the_search_form_sits_outside_the_view_frame(): void
+    {
+        $owner = $this->signedUpUser($this->em, 'inbox-search-outside');
+        $project = $this->inboxProject($this->em, $owner);
+        $this->indexed($this->question($this->em, $project, 1, title: 'Which export format?'));
+        $this->setInboxFlag(true);
+
+        $this->client->loginUser($owner);
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox?q=export');
+
+        self::assertCount(1, $crawler->filter('form[data-inbox-search-form] #inbox-search'));
+        self::assertCount(0, $crawler->filter('turbo-frame#inbox-view #inbox-search'));
+        self::assertCount(0, $crawler->filter('turbo-frame#inbox-view form[data-inbox-search-form]'));
+        self::assertCount(1, $crawler->filter('turbo-frame#inbox-view .lp-filter-clear'));
+    }
+
     public function test_nothing_needs_you_shows_an_icon_and_no_link(): void
     {
         $owner = $this->signedUpUser($this->em, 'inbox-nothing');
