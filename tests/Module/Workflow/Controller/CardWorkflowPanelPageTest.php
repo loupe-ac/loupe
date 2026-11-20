@@ -126,7 +126,8 @@ final class CardWorkflowPanelPageTest extends WebTestCase
         self::assertSame('Retry now', trim($button->text()));
         $form = $button->closest('form') ?? self::fail('The button sits in a form.');
         self::assertSame('/projects/'.$project->id.'/board/cards/'.$card->id.'/workflow-pauses/'.$paused?->id.'/release', $form->attr('action'));
-        self::assertSame('_top', $form->attr('data-turbo-frame'));
+        self::assertNull($form->attr('data-turbo-frame'));
+        self::assertSame('retry-paused-card', $form->attr('data-card-drawer-action'));
         self::assertNotEmpty($form->filter('input[name="_csrf_token"]')->attr('value'));
     }
 
