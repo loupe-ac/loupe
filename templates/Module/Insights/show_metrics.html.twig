@@ -34,7 +34,7 @@
         data-metric-formula-check-url-value="{{ path('app_project_analytics_formula_check', {id: project.id}) }}"
         data-metric-formula-default-metric-value="cost"
         data-metric-formula-open-value="{{ formulaOpen ? 'true' : 'false' }}">
-        {% if graph is not null %}<input type="hidden" name="graph" value="{{ graph.id }}">{% endif %}
+        {% include '@Insights/_metrics_graph_field.html.twig' with {graph: graph} only %}
         <div class="lp-metric-formula" data-metric-formula-target="panel"{{ formulaOpen ? '' : ' hidden' }}>
             <div class="lp-metric-formula__row lp-metric-formula__heads" aria-hidden="true">
                 <span></span>

@@ -48,6 +48,10 @@ final class SavedGraphControllersTest extends WebTestCase
         self::assertStringContainsString('<turbo-stream action="update" target="metrics-saved">', $stream);
         self::assertStringContainsString('data-metrics-saved-link', $stream);
         self::assertStringContainsString('<turbo-stream action="replace" target="metrics-save">', $stream);
+        self::assertStringContainsString('<turbo-stream action="replace" target="metrics-graph-field">', $stream);
+        self::assertStringNotContainsString('data-edit-banner', $stream);
+        self::assertStringNotContainsString('data-leave-guard-dirty-value', $stream);
+        self::assertStringNotContainsString('name="graph"', $stream);
         self::assertSame('My cost', $graphs[0]->name);
         self::assertSame(MetricChartType::Bars, $graphs[0]->chartType);
         self::assertSame(0, $graphs[0]->position);
@@ -175,6 +179,7 @@ final class SavedGraphControllersTest extends WebTestCase
         self::assertStringContainsString('<turbo-stream action="update" target="metrics-edit-banner">', $stream);
         self::assertStringContainsString('<turbo-stream action="replace" target="metrics-leave-guard">', $stream);
         self::assertStringContainsString('data-leave-guard-dirty-value="false"', $stream);
+        self::assertStringContainsString('name="graph" value="'.$graphId.'"', $stream);
         self::assertStringNotContainsString('target="metrics-saved"', $stream);
         $graphs = $this->stored($projectId);
         self::assertCount(1, $graphs);
