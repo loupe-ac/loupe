@@ -15,6 +15,8 @@ use App\Module\Bridge\Command\CancelBridgeCommandCommand;
 use App\Module\Bridge\Command\CancelBridgeCommandHandler;
 use App\Module\Bridge\Command\ExpireBridgeCommandsCommand;
 use App\Module\Bridge\Command\ExpireBridgeCommandsHandler;
+use App\Module\Bridge\Command\RecordBilledCostCommand;
+use App\Module\Bridge\Command\RecordBilledCostHandler;
 use App\Module\Bridge\Command\RecordBridgeHeartbeatCommand;
 use App\Module\Bridge\Command\RecordBridgeHeartbeatHandler;
 use App\Module\Bridge\Command\ReportBridgeRunsCommand;
@@ -28,6 +30,8 @@ use App\Module\Bridge\Command\RequestBridgeCommandCommand;
 use App\Module\Bridge\Command\RequestBridgeCommandHandler;
 use App\Module\Bridge\Command\SetBridgePauseCommand;
 use App\Module\Bridge\Command\SetBridgePauseHandler;
+use App\Module\Bridge\Command\WriteWorkerRunFactsCommand;
+use App\Module\Bridge\Command\WriteWorkerRunFactsHandler;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Repository\WorkerRunRepository;
@@ -35,6 +39,7 @@ use App\Module\Bridge\Scheduler\TimeOutQuietWorkerRunsTask;
 use App\Module\Bridge\Service\InteractiveRuns;
 use App\Module\Bridge\Service\SidebarCountsSignal;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
+use App\Module\Bridge\ValueObject\BilledCostState;
 use App\Module\Bridge\ValueObject\BridgeCommandKind;
 use App\Module\Bridge\ValueObject\BridgeCommandState;
 use App\Module\Bridge\ValueObject\HeldRunKey;
@@ -261,6 +266,32 @@ final class WorkerRunChangedPublisherTest extends KernelTestCase
 
         self::assertSame(0, $handler($command)->updated);
         $this->assertPublishedAtTerminate(1);
+    }
+
+    public function test_a_billed_cost_names_its_run_and_its_card(): void
+    {
+        $run = $this->seedRun($this->em(), $this->project, runKey: Uuid::v4());
+        $row = $this->seedBilledCost($this->em(), $run, BilledCostState::Pending, null);
+        $this->assertPublishedAtTerminate(0);
+
+        $this->service(RecordBilledCostHandler::class)(new RecordBilledCostCommand($row->runId, BilledCostState::Billed, costUsd: '0.036000', attempts: 1));
+
+        $this->assertPublishedAtTerminate(1);
+        $this->assertSignalsTheProject($this->published[0], 'usage', cardIds: [(string) $run->subjectId]);
+        self::assertSame([(string) $run->id], $this->payload($this->published[0])['runIds']);
+    }
+
+    public function test_a_fact_write_names_the_runs_it_wrote_and_their_cards(): void
+    {
+        $run = $this->seedRun($this->em(), $this->project);
+        $this->em()->getConnection()->executeStatement('DELETE FROM bridge_worker_run_facts WHERE run_id = ?', [(string) $run->id]);
+        $this->assertPublishedAtTerminate(0);
+
+        $this->service(WriteWorkerRunFactsHandler::class)(new WriteWorkerRunFactsCommand($this->project->requireId(), [$run->id ?? throw new \LogicException('The run has no id.')]));
+
+        $this->assertPublishedAtTerminate(1);
+        $this->assertSignalsTheProject($this->published[0], cardIds: [(string) $run->subjectId]);
+        self::assertSame([(string) $run->id], $this->payload($this->published[0])['runIds']);
     }
 
     /**

@@ -41,14 +41,18 @@ final readonly class WorkerRunChangedPublisher
      *
      * @param list<WorkerRun> $runs    the runs that changed; none when the change names no single run
      * @param list<Uuid>      $cardIds the cards that changed besides the cards of the runs
+     * @param list<Uuid>      $runIds  the runs that changed besides $runs, for a caller that holds only their ids
      */
-    public function runsChanged(Project $project, WorkerRunChangeKind $kind, array $runs = [], array $cardIds = []): void
+    public function runsChanged(Project $project, WorkerRunChangeKind $kind, array $runs = [], array $cardIds = [], array $runIds = []): void
     {
         $projectId = $project->id ?? throw new \LogicException('Project has no id.');
-        $runIds = [];
+        $named = [];
         $cards = [];
+        foreach ($runIds as $runId) {
+            $named[(string) $runId] = true;
+        }
         foreach ($runs as $run) {
-            $runIds[(string) $run->id] = true;
+            $named[(string) $run->id] = true;
             if (null !== $run->cardId()) {
                 $cards[(string) $run->cardId()] = true;
             }
@@ -57,12 +61,12 @@ final readonly class WorkerRunChangedPublisher
             $cards[(string) $cardId] = true;
         }
         // A change that names too many runs, or only cards, reads as a change to any run.
-        $named = [] !== $runIds && \count($runIds) <= self::MAX_NAMED_RUNS;
+        $isNamed = [] !== $named && \count($named) <= self::MAX_NAMED_RUNS;
         $this->publisher->queue($this->topics->forWorkerRuns($projectId), [
             'type' => self::TYPE,
             'kind' => $kind->value,
-            'runIds' => $named ? array_keys($runIds) : [],
-            'cardIds' => $named || [] === $runIds ? array_keys($cards) : [],
+            'runIds' => $isNamed ? array_keys($named) : [],
+            'cardIds' => $isNamed || [] === $named ? array_keys($cards) : [],
         ]);
         $this->sidebarCounts->mark($project);
     }
