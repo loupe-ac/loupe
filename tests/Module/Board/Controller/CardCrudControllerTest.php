@@ -106,6 +106,66 @@ final class CardCrudControllerTest extends WebTestCase
         }
     }
 
+    public function test_resolving_feedback_in_the_drawer_answers_a_stream_for_the_one_entry(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $owner = $this->user($em, 'card-feedback-stream@example.com');
+        $project = $this->project($em, $owner);
+        $card = $this->card($em, $project, 'Stream the capture');
+        $comment = new SiteReviewComment($project, 0, 'Streamed capture', 'https://example.com');
+        $link = new CardSiteReviewComment($card, $comment);
+        $em->persist($comment);
+        $em->persist($link);
+        $em->flush();
+        $em->clear();
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board/cards/'.$card->id.'?tab=feedback');
+        $actionUrl = '/board/feedback/'.$link->id.'/feedback/resolve';
+        $form = $crawler->filter('form[action="'.$actionUrl.'"]')->form();
+
+        $client->request(Request::METHOD_POST, $actionUrl, $form->getPhpValues(), [], ['HTTP_ACCEPT' => 'text/vnd.turbo-stream.html']);
+
+        self::assertResponseIsSuccessful();
+        self::assertStringStartsWith('text/vnd.turbo-stream.html', (string) $client->getResponse()->headers->get('Content-Type'));
+        $body = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('action="replace" target="feedback-'.$comment->id.'"', $body);
+        self::assertStringContainsString('Streamed capture', $body);
+        $em->clear();
+        $saved = $em->find(SiteReviewComment::class, $comment->id);
+        self::assertInstanceOf(SiteReviewComment::class, $saved);
+        self::assertSame('resolved', $saved->status->value);
+    }
+
+    public function test_deleting_a_card_from_the_drawer_answers_a_removal_stream(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $owner = $this->user($em, 'card-delete-stream@example.com');
+        $project = $this->project($em, $owner);
+        $card = $this->card($em, $project, 'Streamed away');
+        $cardId = $card->id;
+        $em->clear();
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board/cards/'.$cardId);
+        $form = $crawler->filter('form[action$="/delete"]');
+        self::assertNull($form->attr('data-turbo-frame'));
+        $values = $form->form()->getPhpValues();
+
+        $client->request(Request::METHOD_POST, '/projects/'.$project->id.'/board/cards/'.$cardId.'/delete', $values, [], [
+            'HTTP_ACCEPT' => 'text/vnd.turbo-stream.html',
+            'HTTP_TURBO_FRAME' => 'card-drawer-frame',
+        ]);
+
+        self::assertResponseIsSuccessful();
+        $body = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('target="board-card-'.$cardId.'"', $body);
+        self::assertStringContainsString('data-removed="1"', $body);
+        self::assertStringContainsString('lp-flash', $body);
+        $em->clear();
+        self::assertNull($em->find(Card::class, $cardId));
+    }
+
     public function test_a_feedback_url_that_is_not_http_renders_without_a_link(): void
     {
         $client = static::createClient();

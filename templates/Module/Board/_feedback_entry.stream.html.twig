@@ -1,0 +1,4 @@
+{#- Redraws one feedback note of the card drawer. Props: link (CardSiteReviewComment), surface (string), screenshotSizes (map of comment id to size). -#}
+<turbo-stream action="replace" target="feedback-{{ link.comment.id }}">
+    <template>{% include '@Board/_feedback_entry.html.twig' with {link: link, surface: surface, screenshotSizes: screenshotSizes} only %}</template>
+</turbo-stream>
