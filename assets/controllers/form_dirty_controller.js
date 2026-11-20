@@ -13,6 +13,25 @@ export default class extends Controller {
     connect() {
         this.form = this.element.querySelector('form');
         this.initial = this.serialize();
+        this.element.addEventListener('turbo:morph-element', this.#onMorph);
+    }
+
+    disconnect() {
+        this.element.removeEventListener('turbo:morph-element', this.#onMorph);
+    }
+
+    #onMorph = (event) => {
+        if (event.target === this.element) {
+            this.#rebase();
+        }
+    };
+
+    // A morph after a save renders the saved values, which become the clean baseline.
+    #rebase() {
+        this.form = this.element.querySelector('form');
+        if (!this.submittedValue) {
+            this.initial = this.serialize();
+        }
     }
 
     check() {

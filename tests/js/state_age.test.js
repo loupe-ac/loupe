@@ -101,3 +101,13 @@ it('picks the form of the largest whole unit', () => {
     expect(ageForm(3 * 86400)).toEqual(['days', 3]);
     expect(ageForm(-5)).toEqual(['now', 0]);
 });
+
+it('keeps counting from the server clock after a morph drops the offset', async () => {
+    await mount('ago', SERVER_NOW - 5 * 60);
+    const element = document.querySelector('#age');
+
+    element.removeAttribute('data-state-age-offset-value');
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(age()).toBe('6 minutes ago');
+});

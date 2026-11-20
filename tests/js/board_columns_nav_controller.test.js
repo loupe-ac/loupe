@@ -381,3 +381,14 @@ it('selects the column at the scroll position when a live switch drops the colum
     expect(selected()).toBe('c1');
     expect(prev().hidden).toBe(true);
 });
+
+it('selects the column on screen again after a page morph resets the tabs', async () => {
+    await start();
+    scrolledTo(100);
+    tabs()[0].setAttribute('aria-selected', 'true');
+    tabs()[1].setAttribute('aria-selected', 'false');
+    prev().hidden = true;
+    document.dispatchEvent(new Event('turbo:morph'));
+    expect(selected()).toBe('c2');
+    expect(prev().hidden).toBe(false);
+});

@@ -69,6 +69,14 @@ export default class extends Controller {
         // A re-rendered invalid submission arrives with the name already
         // filled; that value is the person's and must survive.
         this.recordEdit();
+        this.element.addEventListener('turbo:morph-element', this.recordEdit);
+    }
+
+    disconnect() {
+        this.element.removeEventListener(
+            'turbo:morph-element',
+            this.recordEdit,
+        );
     }
 
     suggest() {
@@ -82,7 +90,7 @@ export default class extends Controller {
         );
     }
 
-    recordEdit() {
+    recordEdit = () => {
         // Stimulus target getters throw when the element is absent, and connect()
         // runs on any form that declares the controller.
         if (!this.hasDisplayNameTarget) {
@@ -90,5 +98,5 @@ export default class extends Controller {
         }
 
         this.editedByHand = this.displayNameTarget.value !== '';
-    }
+    };
 }

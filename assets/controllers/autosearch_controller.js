@@ -9,7 +9,14 @@ export default class extends Controller {
         this.timeout = null;
         this.#updateClearButton();
         this.#resumeTyping();
+        this.element.addEventListener('turbo:morph-element', this.#onMorph);
     }
+
+    #onMorph = (event) => {
+        if (event.target === this.element) {
+            this.#updateClearButton();
+        }
+    };
 
     /**
      * Submitting is a full Turbo visit, which replaces the body and destroys the
@@ -33,6 +40,7 @@ export default class extends Controller {
 
     disconnect() {
         clearTimeout(this.timeout);
+        this.element.removeEventListener('turbo:morph-element', this.#onMorph);
     }
 
     revealField(event) {

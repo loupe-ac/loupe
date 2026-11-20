@@ -4,7 +4,7 @@
 
 {% block settings_content %}
 {% set previewState = previewState|default(null) %}
-<twig:Ds:Panel as="section" id="notification-preferences" data-testid="notification-preferences">
+<twig:Ds:Panel as="section" id="notification-preferences" data-morph-anchor data-testid="notification-preferences">
     <twig:Ds:SectionHeading :description="'notification.preferences.description'|trans">{{ 'notification.preferences.heading'|trans }}</twig:Ds:SectionHeading>
 
     {% if not view.available %}

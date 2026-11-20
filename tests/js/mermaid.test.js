@@ -226,3 +226,27 @@ it('keeps Show source working beside Expand', async () => {
     expect(pre.hidden).toBe(false);
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
 });
+
+it('draws the diagrams again after a page morph drops the hosts', async () => {
+    const mermaid = fakeMermaid();
+    const { controller } = await start(true, async () => mermaid);
+    for (const host of doc().querySelectorAll('.lp-mermaid')) host.remove();
+    for (const pre of mermaidPres()) pre.hidden = false;
+    document.dispatchEvent(new Event('turbo:morph'));
+    await controller.rendering;
+
+    const [rendered] = mermaidPres();
+    expect(doc().querySelectorAll('.lp-mermaid')).toHaveLength(2);
+    expect(rendered.hidden).toBe(true);
+    expect(hostAfter(rendered).shadowRoot.querySelector('svg')).not.toBeNull();
+});
+
+it('leaves drawn diagrams alone on a morph that kept the hosts', async () => {
+    const mermaid = fakeMermaid();
+    const { controller } = await start(true, async () => mermaid);
+    const host = hostAfter(mermaidPres()[0]);
+    document.dispatchEvent(new Event('turbo:morph'));
+    await controller.rendering;
+
+    expect(hostAfter(mermaidPres()[0])).toBe(host);
+});

@@ -78,7 +78,14 @@ export default class extends Controller {
         );
         this.removeLostListener = onLostAccess(() => this.halt());
         document.addEventListener('turbo:before-morph-element', keepLocalForm);
+        this.element.addEventListener('turbo:morph-element', this.rereadFlag);
     }
+
+    rereadFlag = (event) => {
+        if (event.target === this.element) {
+            this.threadsLiveFlag = this.threadsLiveValue;
+        }
+    };
 
     disconnect() {
         this.halt();
@@ -92,6 +99,10 @@ export default class extends Controller {
         this.threadFetcher?.stop();
         this.unsubscribe?.();
         this.unsubscribe = undefined;
+        this.element.removeEventListener(
+            'turbo:morph-element',
+            this.rereadFlag,
+        );
         document.removeEventListener(
             'turbo:before-morph-element',
             keepLocalForm,

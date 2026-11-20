@@ -279,3 +279,37 @@ it.each(['expectedReviewId', 'expectedUrl'])(
         expect(controller.element.querySelector('p').hidden).toBe(false);
     },
 );
+
+it('restores the draft, the notice and the identity after a morph', async () => {
+    const controller =
+        await mount(`<form data-controller="form-draft" data-form-draft-owner-value="${owner}" data-form-draft-key-value="document">
+        <input name="title" value="Original" data-form-draft-target="field">
+        <p data-form-draft-target="notice" hidden></p>
+    </form>`);
+    controller.fieldTargets[0].value = 'Typed title';
+    controller.remember();
+    const identity = controller.identity;
+    const form = controller.element;
+    delete form.dataset.formDraftIdentity;
+    controller.fieldTargets[0].value = 'Original';
+    controller.noticeTarget.hidden = true;
+    form.dispatchEvent(
+        new CustomEvent('turbo:morph-element', { bubbles: true }),
+    );
+    expect(controller.fieldTargets[0].value).toBe('Typed title');
+    expect(controller.noticeTarget.hidden).toBe(false);
+    expect(form.dataset.formDraftIdentity).toBe(identity);
+});
+
+it('takes the new server values as the baseline after a morph with no draft', async () => {
+    const controller =
+        await mount(`<form data-controller="form-draft" data-form-draft-owner-value="${owner}" data-form-draft-key-value="document">
+        <input name="title" value="Original" data-form-draft-target="field">
+    </form>`);
+    controller.fieldTargets[0].value = 'Server update';
+    controller.element.dispatchEvent(
+        new CustomEvent('turbo:morph-element', { bubbles: true }),
+    );
+    controller.remember();
+    expect(formDraft('document')).toBeUndefined();
+});

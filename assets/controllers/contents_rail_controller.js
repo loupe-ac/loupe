@@ -37,9 +37,17 @@ export default class extends Controller {
         this.alignObserver = null;
         this.#watchHeadings();
         this.#watchContentTop();
+        document.addEventListener('turbo:morph', this.#onMorph);
     }
 
+    // A morph resets the current marker and can bring in the first rows.
+    #onMorph = () => {
+        this.#unwatchHeadings();
+        this.#watchHeadings();
+    };
+
     disconnect() {
+        document.removeEventListener('turbo:morph', this.#onMorph);
         this.cancelScroll();
         this.alignObserver?.disconnect();
         this.alignObserver = null;

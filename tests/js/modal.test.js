@@ -179,3 +179,65 @@ it('slides a drawer sideways at 390px and 820px alike', () => {
         ]);
     }
 });
+
+function morphAttribute(attributeName, mutationType) {
+    const event = new CustomEvent('turbo:before-morph-attribute', {
+        bubbles: true,
+        cancelable: true,
+        detail: { attributeName, mutationType },
+    });
+    dialog.dispatchEvent(event);
+
+    return event;
+}
+
+it('keeps the open attribute when a morph removes it, then closes the dialog', async () => {
+    controller.open();
+    const event = morphAttribute('open', 'remove');
+    expect(event.defaultPrevented).toBe(true);
+    await finish(1);
+    expect(dialog.close).toHaveBeenCalledOnce();
+});
+
+it('keeps the dialog open when a morph removes open and the server asked for a reopen', async () => {
+    controller.reopenValue = true;
+    controller.open();
+    const event = morphAttribute('open', 'remove');
+    expect(event.defaultPrevented).toBe(true);
+    await Promise.resolve();
+    expect(dialog.close).not.toHaveBeenCalled();
+    expect(dialog.open).toBe(true);
+});
+
+it('leaves other morphed attributes alone', () => {
+    controller.open();
+    expect(morphAttribute('class', 'remove').defaultPrevented).toBe(false);
+    expect(morphAttribute('open', 'update').defaultPrevented).toBe(false);
+    expect(dialog.close).not.toHaveBeenCalled();
+});
+
+it('stops listening for morphs once the dialog target leaves', () => {
+    controller.dialogTargetDisconnected(dialog);
+    expect(morphAttribute('open', 'remove').defaultPrevented).toBe(false);
+});
+
+it('opens the dialog when a morph turns the reopen value on', async () => {
+    document.body.firstElementChild.setAttribute(
+        'data-modal-reopen-value',
+        'true',
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(dialog.showModal).toHaveBeenCalledOnce();
+    expect(dialog.open).toBe(true);
+});
+
+it('does not open again when the dialog is already open as the reopen value turns on', async () => {
+    controller.open();
+    dialog.showModal.mockClear();
+    document.body.firstElementChild.setAttribute(
+        'data-modal-reopen-value',
+        'true',
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(dialog.showModal).not.toHaveBeenCalled();
+});

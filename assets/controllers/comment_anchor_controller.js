@@ -199,6 +199,8 @@ export default class extends Controller {
             this.#scheduleLayout();
         };
         window.addEventListener('resize', this.onResize);
+        // A morph can change the text of a node, which no childList mutation reports.
+        document.addEventListener('turbo:morph', this.onResize);
 
         // Capture, so a scroll of the panel column or of the card moves it too.
         this.onViewportScroll = () => this.#schedulePlacement();
@@ -329,6 +331,7 @@ export default class extends Controller {
             this.onStreamRender,
         );
         window.removeEventListener('resize', this.onResize);
+        document.removeEventListener('turbo:morph', this.onResize);
         document.removeEventListener('scroll', this.onViewportScroll, true);
         this.element.removeEventListener('toggle', this.onToggle, true);
         if (this.placementFrame !== null) {

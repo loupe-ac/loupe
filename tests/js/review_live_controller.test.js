@@ -344,3 +344,23 @@ it('lets an untouched form morph', () => {
         ).defaultPrevented,
     ).toBe(false);
 });
+
+it('reads the threads flag again when a morph lands on the page', async () => {
+    await mount({ threadsLive: true });
+    answer();
+    signal({ type: 'review.version_published', versionNumber: 3 });
+    await settle();
+
+    document
+        .querySelector('#root')
+        .dispatchEvent(new CustomEvent('turbo:morph-element'));
+    answer();
+    signal({
+        type: 'review.thread_changed',
+        commentId: 'c-1',
+        scope: 'thread',
+    });
+    await settle();
+
+    expect(fetched().some((url) => url.includes('/review/threads'))).toBe(true);
+});

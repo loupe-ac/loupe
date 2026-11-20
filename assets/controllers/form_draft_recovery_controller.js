@@ -19,7 +19,16 @@ export default class extends Controller {
     connect() {
         useFormDraftOwner(this.ownerValue);
         this.render();
+        this.element.addEventListener('turbo:morph-element', this.onMorph);
     }
+
+    disconnect() {
+        this.element.removeEventListener('turbo:morph-element', this.onMorph);
+    }
+
+    onMorph = (event) => {
+        if (event.target === this.element) this.render();
+    };
 
     render() {
         const draft = formDraft(this.keyValue);

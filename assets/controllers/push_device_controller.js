@@ -36,8 +36,19 @@ export default class extends Controller {
     };
 
     connect() {
+        this.element.addEventListener('turbo:morph-element', this.#onMorph);
         this.refresh();
     }
+
+    disconnect() {
+        this.element.removeEventListener('turbo:morph-element', this.#onMorph);
+    }
+
+    #onMorph = (event) => {
+        if (event.target === this.element) {
+            this.refresh();
+        }
+    };
 
     async refresh() {
         this.clearError();
