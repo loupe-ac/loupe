@@ -1,0 +1,4 @@
+{# Props: document. Replaces the Finish review button of the history top bar after a verdict or an undo. #}
+<turbo-stream action="replace" target="history-topbar-actions">
+    <template>{% include '@Review/_history_topbar_actions.html.twig' with {document: document} only %}</template>
+</turbo-stream>
