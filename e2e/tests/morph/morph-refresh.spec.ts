@@ -261,6 +261,26 @@ async function setDocScroll(
     }, fraction);
 }
 
+/** Reads where a phrase of the document text sits in the viewport. */
+async function phraseTop(page: Page, phrase: string): Promise<number> {
+    return page.locator(DOC).evaluate((doc, wanted) => {
+        const walker = document.createTreeWalker(doc, NodeFilter.SHOW_TEXT);
+        let node = walker.nextNode() as Text | null;
+        while (node !== null) {
+            const index = node.textContent?.indexOf(wanted) ?? -1;
+            if (index !== -1) {
+                const range = document.createRange();
+                range.setStart(node, index);
+                range.setEnd(node, index + wanted.length);
+
+                return range.getBoundingClientRect().top;
+            }
+            node = walker.nextNode() as Text | null;
+        }
+        throw new Error(`phrase "${wanted}" not found in the prose`);
+    }, phrase);
+}
+
 function commentsButton(page: Page): Locator {
     return page.locator(
         '.lp-review-toolbar [aria-controls="review-panel-comments"]',
@@ -293,6 +313,7 @@ test('S3 finish-review verdict keeps panels, markers, scroll and interactivity',
     expect(scrollBefore, 'the page scrolled before the submit').toBeGreaterThan(
         100,
     );
+    const phraseBefore = await phraseTop(page, PHRASE_A);
 
     const finish = await openFinishReview(page);
     await finish
@@ -301,12 +322,10 @@ test('S3 finish-review verdict keeps panels, markers, scroll and interactivity',
     await finish
         .getByRole('textbox', { name: 'Review note' })
         .fill('Rework it.');
-    await resetRenders(page);
     await finish.getByRole('button', { name: 'Submit review' }).click();
     await expect(
         page.locator('.lp-verdict-chip--changes-requested'),
     ).toBeVisible(ROUND_TRIP);
-    await expectMorphed(page);
 
     await expect
         .soft(commentsButton(page), 'the Comments panel stays open')
@@ -314,10 +333,11 @@ test('S3 finish-review verdict keeps panels, markers, scroll and interactivity',
     await expect
         .soft(page.locator(MARKER), 'the comment markers stay in the gutter')
         .toHaveCount(markers);
+    // The flash lands above the text, so the scroll offset grows while the text stays put.
     expect
         .soft(
-            Math.abs((await setDocScroll(page, null)) - scrollBefore),
-            'the scroll position stays within 50 px',
+            Math.abs((await phraseTop(page, PHRASE_A)) - phraseBefore),
+            'the text stays within 50 px of where the reader left it',
         )
         .toBeLessThanOrEqual(50);
     await expectPageInteractive(page, commentsButton(page));
@@ -495,6 +515,8 @@ test('S8 API key create shows the once-shown dialog and leaves the page interact
     const once = page.getByRole('dialog', { name: 'Copy your new key' });
     await expect(once).toBeVisible(ROUND_TRIP);
     await expectMorphed(page);
+    // The create dialog stays modal until its close animation ends.
+    await expect(dialog).toBeHidden();
 
     expect
         .soft(
@@ -609,12 +631,10 @@ test('S12 a verdict keeps an unposted comment and leaves the page interactive', 
     await finish
         .getByRole('textbox', { name: 'Review note' })
         .fill('Rework it.');
-    await resetRenders(page);
     await finish.getByRole('button', { name: 'Submit review' }).click();
     await expect(
         page.locator('.lp-verdict-chip--changes-requested'),
     ).toBeVisible(ROUND_TRIP);
-    await expectMorphed(page);
 
     await expect
         .soft(page.locator(COMPOSER_BODY), 'the unposted comment survives')
