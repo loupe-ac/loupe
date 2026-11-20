@@ -3,6 +3,12 @@ import { Application } from '@hotwired/stimulus';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 const live = vi.hoisted(() => ({ subscriptions: [] }));
+const turbo = vi.hoisted(() => ({ played: [] }));
+
+vi.mock('@hotwired/turbo', async (importOriginal) => ({
+    ...(await importOriginal()),
+    renderStreamMessage: (html) => turbo.played.push(html),
+}));
 
 vi.mock('../../assets/lib/live.js', () => ({
     on: (types, handler, options) => {
@@ -19,6 +25,7 @@ const { default: InboxReplyDraftController } =
 const {
     default: InboxLiveController,
     DEBOUNCE_MILLISECONDS,
+    MAX_CHANGED_ROWS,
     RETRY_MILLISECONDS,
 } = await import('../../assets/controllers/inbox_live_controller.js');
 
@@ -53,7 +60,7 @@ function view({
     number = 1,
     actions = true,
 } = {}) {
-    return `<turbo-frame id="inbox-view"><div class="lp-inbox-rows">${rows.join('')}</div><div class="lp-inbox-request-detail">${status}${notice}<section class="lp-inbox-ask" data-inbox-ask-id="${ASK}" data-inbox-ask-open="${open}">${item({ open, note, number, actions })}</section></div></turbo-frame>`;
+    return `<turbo-frame id="inbox-view"><div class="lp-inbox-rows">${rows.join('')}</div><div class="lp-inbox-request-detail"><turbo-frame id="inbox-detail">${status}${notice}<section class="lp-inbox-ask" data-inbox-ask-id="${ASK}" data-inbox-ask-open="${open}">${item({ open, note, number, actions })}</section></turbo-frame></div></turbo-frame>`;
 }
 
 function page(html) {
@@ -64,8 +71,9 @@ function answer(html, ok = true, status = ok ? 200 : 500) {
     responses.push({ ok, status, text: async () => page(html) });
 }
 
-async function mount(html = view()) {
-    document.body.innerHTML = `<main><div data-controller="inbox-live">${html}</div></main>`;
+async function mount(html = view(), rowsUrl = null) {
+    const rows = rowsUrl ? ` data-inbox-live-rows-url-value="${rowsUrl}"` : '';
+    document.body.innerHTML = `<main><div data-controller="inbox-live"${rows}>${html}</div></main>`;
     await vi.advanceTimersByTimeAsync(0);
 }
 
@@ -95,6 +103,7 @@ function typeNote(text) {
 }
 
 beforeEach(() => {
+    turbo.played = [];
     vi.useFakeTimers();
     live.subscriptions = [];
     responses = [];
@@ -148,7 +157,7 @@ it('reads the view once for a burst of changes, with the frame and the watched a
     const [url, options] = fetch.mock.calls[0];
     expect(new URL(url).searchParams.get('ask')).toBe(ASK);
     expect(options.headers).toMatchObject({
-        'Turbo-Frame': 'inbox-view',
+        'Turbo-Frame': 'inbox-live',
         'X-Loupe-Live-Refresh': '1',
         'X-Loupe-Inbox-Watching': ASK,
     });
@@ -200,6 +209,28 @@ it('shows the typed reply with a Discard button when the item closed', async () 
     expect(draft.dataset.inboxReplyDraftKeyValue).toBe('item-1');
     expect(document.querySelector('form')).toBeNull();
     expect(document.querySelector('[data-inbox-closed-notice]')).not.toBeNull();
+});
+
+it('keeps a closed notice inside the detail frame', async () => {
+    await mount();
+    answer(view({ open: false }));
+    changed();
+    await settle();
+    answer(
+        view({
+            open: false,
+            notice: '<p class="lp-inbox-status" data-inbox-closed-notice="withdrawn">Withdrawn by the agent.</p>',
+        }),
+    );
+    changed();
+    await settle();
+    answer(view({ open: false }));
+    changed();
+    await settle();
+
+    const notice = document.querySelector('[data-inbox-closed-notice]');
+    expect(notice).not.toBeNull();
+    expect(notice.closest('turbo-frame#inbox-detail')).not.toBeNull();
 });
 
 it('keeps the unsent reply through the next read', async () => {
@@ -368,4 +399,185 @@ it('keeps a view picked when its address names the ask', async () => {
     } finally {
         window.history.replaceState(null, '', '/');
     }
+});
+
+function detailText() {
+    return document.querySelector('.lp-inbox-request-detail').textContent;
+}
+
+function viewWithTitle(title) {
+    return view().replaceAll('Which column?', title);
+}
+
+it('leaves the pane alone when a signal names other asks', async () => {
+    history.replaceState(null, '', `/inbox?ask=${ASK}`);
+    await mount();
+    answer(
+        viewWithTitle('Renamed').replace(
+            '<div class="lp-inbox-rows">',
+            '<div class="lp-inbox-rows"><a class="lp-list-row" data-inbox-request="new" href="/inbox?ask=new">A new ask</a>',
+        ),
+    );
+    changed({ askIds: ['0199aaaa-0000-7000-8000-000000000002'] });
+    await settle();
+
+    expect(document.querySelector('[data-inbox-request="new"]')).not.toBeNull();
+    expect(detailText()).toContain('Which column?');
+    expect(detailText()).not.toContain('Renamed');
+    history.replaceState(null, '', '/');
+});
+
+it('reads the pane again when a signal names its ask', async () => {
+    history.replaceState(null, '', `/inbox?ask=${ASK}`);
+    await mount();
+    answer(viewWithTitle('Renamed'));
+    changed({ askIds: [ASK] });
+    await settle();
+
+    expect(detailText()).toContain('Renamed');
+    history.replaceState(null, '', '/');
+});
+
+it('reads the pane again when a signal names no ask', async () => {
+    history.replaceState(null, '', `/inbox?ask=${ASK}`);
+    await mount();
+    answer(viewWithTitle('Renamed'));
+    changed({ askIds: [] });
+    await settle();
+
+    expect(detailText()).toContain('Renamed');
+    history.replaceState(null, '', '/');
+});
+
+it('reads the pane again when one signal of a burst names no ask', async () => {
+    history.replaceState(null, '', `/inbox?ask=${ASK}`);
+    await mount();
+    answer(viewWithTitle('Renamed'));
+    changed({ askIds: ['0199aaaa-0000-7000-8000-000000000002'] });
+    changed({ askIds: [] });
+    await settle();
+
+    expect(detailText()).toContain('Renamed');
+    history.replaceState(null, '', '/');
+});
+
+const OTHER = '0199aaaa-0000-7000-8000-000000000002';
+const THIRD = '0199aaaa-0000-7000-8000-000000000003';
+const ROWS_URL = '/projects/p/inbox/rows';
+
+function answerRows(keys, html = '<turbo-stream></turbo-stream>') {
+    responses.push({
+        ok: true,
+        status: 200,
+        headers: { get: () => keys.join(',') },
+        text: async () => html,
+    });
+}
+
+function rowsView() {
+    return view({
+        rows: [row(ASK, 'Shown'), row(OTHER, 'Other'), row(THIRD, 'Third')],
+    });
+}
+
+it('reads only the rows of the asks a signal names, and plays the stream', async () => {
+    await mount(rowsView(), ROWS_URL);
+    answerRows(
+        [ASK, THIRD, OTHER],
+        '<turbo-stream action="remove"></turbo-stream>',
+    );
+    changed({ askIds: [OTHER] });
+    await settle();
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const [url, options] = fetch.mock.calls[0];
+    const address = new URL(url, 'http://localhost');
+    expect(address.pathname).toBe(ROWS_URL);
+    expect(address.searchParams.get('ask')).toBe(ASK);
+    expect(address.searchParams.getAll('changed[]')).toEqual([OTHER]);
+    expect(options.headers.Accept).toBe('text/vnd.turbo-stream.html');
+    expect(turbo.played).toEqual([
+        '<turbo-stream action="remove"></turbo-stream>',
+    ]);
+});
+
+it('reads the whole view when the signal names the shown ask', async () => {
+    await mount(rowsView(), ROWS_URL);
+    answer(rowsView());
+    changed({ askIds: [ASK] });
+    await settle();
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch.mock.calls[0][0]).not.toContain('/rows');
+    expect(turbo.played).toEqual([]);
+});
+
+it('reads the whole view when the signal names no ask', async () => {
+    await mount(rowsView(), ROWS_URL);
+    answer(rowsView());
+    changed({ askIds: [] });
+    await settle();
+
+    expect(fetch.mock.calls[0][0]).not.toContain('/rows');
+});
+
+it('reads the whole view when a burst names more asks than the rows route reads', async () => {
+    await mount(rowsView(), ROWS_URL);
+    answer(rowsView());
+    changed({
+        askIds: Array.from({ length: MAX_CHANGED_ROWS + 1 }, (_, i) => `a${i}`),
+    });
+    await settle();
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch.mock.calls[0][0]).not.toContain('/rows');
+});
+
+it('reads the whole view with no rows address', async () => {
+    await mount(rowsView());
+    answer(rowsView());
+    changed({ askIds: [OTHER] });
+    await settle();
+
+    expect(fetch.mock.calls[0][0]).not.toContain('/rows');
+});
+
+it.each(['side=closed', 'q=csv'])(
+    'reads the whole view for the address %s',
+    async (query) => {
+        window.history.pushState({}, '', `/inbox?${query}`);
+        await mount(rowsView(), ROWS_URL);
+        answer(rowsView());
+        changed({ askIds: [OTHER] });
+        await settle();
+        window.history.pushState({}, '', '/');
+
+        expect(fetch.mock.calls[0][0]).not.toContain('/rows');
+    },
+);
+
+it('reads the whole view when the unchanged rows differ from the read', async () => {
+    await mount(rowsView(), ROWS_URL);
+    answerRows([THIRD, ASK, OTHER]);
+    answer(rowsView());
+    changed({ askIds: [OTHER] });
+    await settle();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch.mock.calls[1][0]).not.toContain('/rows');
+    expect(turbo.played).toEqual([]);
+});
+
+it('reads the whole view when the rows read fails', async () => {
+    await mount(rowsView(), ROWS_URL);
+    answer('', false, 500);
+    answer(rowsView());
+    changed({ askIds: [OTHER] });
+    await settle();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch.mock.calls[1][0]).not.toContain('/rows');
+    expect(turbo.played).toEqual([]);
 });

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Insights\Controller;
 
+use App\Module\Insights\Command\ListReportsHandler;
 use App\Module\Insights\Entity\Analysis;
 use App\Module\Insights\Entity\AnalysisState;
 use App\Module\Insights\Entity\AnalysisTopic;
@@ -16,7 +17,7 @@ final class StartAnalysisControllerTest extends WebTestCase
 {
     use InsightsScenario;
 
-    public function test_the_form_starts_an_analysis_and_redirects_back_with_a_flash(): void
+    public function test_the_form_starts_an_analysis_and_answers_a_flash_stream(): void
     {
         $client = static::createClient();
         $project = $this->scenarioProject('start-analysis');
@@ -32,16 +33,43 @@ final class StartAnalysisControllerTest extends WebTestCase
             'start_analysis_form[effort]' => 'high',
         ]);
 
-        self::assertResponseRedirects('/projects/'.$projectId.'/analytics/reports');
-        $crawler = $client->followRedirect();
-        self::assertStringContainsString('The analysis waits for a bridge.', $crawler->filter('body')->text());
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('The analysis waits for a bridge.', (string) $client->getResponse()->getContent());
+        self::assertStringContainsString('action="prepend" target="main-content"', (string) $client->getResponse()->getContent());
         $analyses = $this->analyses($projectId);
         self::assertCount(1, $analyses);
+        self::assertStringContainsString('target="analysis-list"', (string) $client->getResponse()->getContent());
+        self::assertStringContainsString('id="analysis-'.$analyses[0]->id.'"', (string) $client->getResponse()->getContent());
         self::assertSame('opus', $analyses[0]->model);
         self::assertSame('high', $analyses[0]->effort);
         self::assertSame('ninety-days', $analyses[0]->scope->range->value);
         self::assertSame(AnalysisState::Waiting, $analyses[0]->state);
         self::assertNotNull($analyses[0]->workRequestId);
+    }
+
+    public function test_the_start_stream_adds_the_link_to_a_new_page_at_the_page_boundary(): void
+    {
+        $client = static::createClient();
+        $project = $this->scenarioProject('start-analysis-boundary');
+        $projectId = (string) $project->id;
+        $em = $this->em();
+        for ($i = 0; $i < ListReportsHandler::LIMIT; ++$i) {
+            $this->seedAnalysis($em, $project);
+        }
+        $em->flush();
+        $em->clear();
+
+        $client->loginUser($project->owner);
+        $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/analytics/reports');
+        $client->submitForm('Analyse', [
+            'start_analysis_form[topic]' => 'cost',
+            'start_analysis_form[range]' => 'ninety-days',
+        ]);
+
+        self::assertResponseIsSuccessful();
+        $content = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('target="analysis-pagination"', $content);
+        self::assertStringContainsString('page=2', $content);
     }
 
     public function test_the_time_topic_starts_an_analysis(): void
@@ -58,7 +86,7 @@ final class StartAnalysisControllerTest extends WebTestCase
             'start_analysis_form[range]' => 'thirty-days',
         ]);
 
-        self::assertResponseRedirects('/projects/'.$projectId.'/analytics/reports');
+        self::assertResponseIsSuccessful();
         $analyses = $this->analyses($projectId);
         self::assertCount(1, $analyses);
         self::assertSame('time', $analyses[0]->topic->value);
@@ -79,7 +107,7 @@ final class StartAnalysisControllerTest extends WebTestCase
             'start_analysis_form[range]' => 'thirty-days',
         ]);
 
-        self::assertResponseRedirects('/projects/'.$projectId.'/analytics/reports');
+        self::assertResponseIsSuccessful();
         $analyses = $this->analyses($projectId);
         self::assertCount(1, $analyses);
         self::assertSame(AnalysisTopic::Host, $analyses[0]->topic);
@@ -98,7 +126,7 @@ final class StartAnalysisControllerTest extends WebTestCase
             'start_analysis_form' => ['topic' => 'cost', 'range' => 'thirty-days', 'model' => '', 'effort' => '', '_token' => 'csrf-token'],
         ], [], ['HTTP_REFERER' => 'http://localhost/']);
 
-        self::assertResponseRedirects('/projects/'.$projectId.'/analytics/reports');
+        self::assertResponseIsSuccessful();
         $analyses = $this->analyses($projectId);
         self::assertSame(['sonnet', 'medium'], [$analyses[0]->model, $analyses[0]->effort]);
     }
@@ -136,7 +164,7 @@ final class StartAnalysisControllerTest extends WebTestCase
             'start_analysis_form[range]' => 'all',
         ]);
 
-        self::assertResponseRedirects('/projects/'.$projectId.'/analytics/reports');
+        self::assertResponseIsSuccessful();
         $analyses = $this->analyses($projectId);
         self::assertCount(1, $analyses);
         self::assertSame('experiment', $analyses[0]->topic->value);

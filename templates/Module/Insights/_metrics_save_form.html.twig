@@ -1,0 +1,23 @@
+{# The save form of the graph on the Metrics tab. Props: project (Project), graph (InsightsSavedGraph or null), saveForm (FormView), capReached (bool), capLimit (int). #}
+{# One form serves both saves. Save changes posts to the update route through formaction. A save leaves the frame, and its answer is a Turbo Stream with a message. #}
+<div id="metrics-save" class="contents">
+{{ form_start(saveForm, {attr: {class: 'lp-metric-save', 'data-save-graph': '', 'data-turbo-frame': '_top'}}) }}
+    {% if capReached %}
+    <span class="lp-metric-save__cap" data-save-cap>{{ 'analytics.metrics.save.cap_reached'|trans({'%limit%': capLimit}) }}</span>
+    {% endif %}
+    {% if graph is null %}
+    <div class="lp-metric-save__name">
+        {{ form_label(saveForm.name, null, {label_attr: {class: 'sr-only'}}) }}
+        {{ form_widget(saveForm.name, {attr: {class: ds_input_class(null, false, true)}}) }}
+    </div>
+    <twig:Ds:Button variant="primary" size="sm" type="submit" data-save-new :disabled="capReached ? 'disabled' : null">
+        <twig:ux:icon name="lucide:bookmark" class="lp-icon lp-icon--sm" />
+        {{ 'analytics.metrics.save.button'|trans }}
+    </twig:Ds:Button>
+    {% else %}
+    {% do saveForm.name.setRendered %}
+    <twig:Ds:Button variant="outline" size="sm" type="submit" data-save-new :disabled="capReached ? 'disabled' : null">{{ 'analytics.metrics.edit.save_new'|trans }}</twig:Ds:Button>
+    <twig:Ds:Button variant="primary" size="sm" type="submit" data-save-update formaction="{{ path('app_project_analytics_update_graph', {id: project.id, graphId: graph.id}) }}">{{ 'analytics.metrics.edit.save'|trans }}</twig:Ds:Button>
+    {% endif %}
+{{ form_end(saveForm) }}
+</div>

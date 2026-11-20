@@ -96,9 +96,10 @@ shows the same view. The page reads these values from the query string:
 A value that does not parse falls back to its default. An `ask` of another
 project selects nothing.
 
-A click on a row, the switch, a filter, the search or the pager reloads the
-list and the selected ask without reloading the page, and it adds a step to
-the browser history. The back button returns to the view before. Each visit
+A click on a row replaces only the selected ask, so the list keeps its place and
+its scroll. The switch, a filter, the search and the pager reload the list and
+the selected ask. None of them reloads the page, and each adds a step to the
+browser history. The back button returns to the view before. Each visit
 from the sidebar starts on **Open** with every type and no search.
 
 An old link of the form `#inbox-item-12` still works. The page turns it into
@@ -170,7 +171,11 @@ The page reads the inbox again when an agent, Loupe or another person changes an
 ask while the page is open. Every member who can open the page gets this, not
 only the project owner. A new ask appears in the list, an ask that closes leaves the **Open**
 side, and the counts follow. The page keeps the ask you have open, so a new
-blocking ask never takes its place.
+blocking ask never takes its place. A change to other asks leaves the ask you
+have open as it is, and updates only the rows of those asks in the **Open**
+list. A row moves to its new place in the list, and the **Open** count follows.
+A change to the ask you have open, the **Closed** side and a search read the
+view again.
 
 A response you were typing stays in the form. When the agent withdraws the ask
 you have open, or Loupe closes it because it is no longer needed, the ask stays
@@ -256,6 +261,10 @@ The page opens the next ask. It takes the first ask below the one you closed,
 in the list you looked at. When the closed ask was the last one, it takes the
 ask above it. The filter you used still applies. An ask that still holds an open
 item stays open on the right, so you can answer the next item.
+
+The page does not reload when you send a response. Only the list and the ask
+change, so the sidebar and the scroll of the list stay where they were. The
+count in the sidebar follows the next live update.
 
 A line above the ask says what happened. It names the ask that closed, such as
 "Answer sent. Which format? is closed.", and links to it with **View it**. When
