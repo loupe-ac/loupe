@@ -95,7 +95,7 @@ final class ShowWorkflowSettingsControllerTest extends WebTestCase
         $region = $crawler->filter('turbo-frame#workflow-live[data-controller="live-region"]');
         self::assertCount(1, $region);
         self::assertSame('["board.columns_changed"]', $region->attr('data-live-region-types-value'));
-        self::assertSame('/projects/'.$project->id.'/workflow', $region->attr('data-live-region-url-value'));
+        self::assertSame('/projects/'.$project->id.'/workflow/frame', $region->attr('data-live-region-url-value'));
         self::assertCount(1, $region->filter('[data-workflow-template]'));
         $topics = self::getContainer()->get(ProjectTopicBuilder::class);
         self::assertInstanceOf(ProjectTopicBuilder::class, $topics);
@@ -103,6 +103,33 @@ final class ShowWorkflowSettingsControllerTest extends WebTestCase
             $topics->forBoard($project->id ?? throw new \LogicException('Project has no id.')),
             $crawler->filter('form#mercure-subscriptions input[data-mercure-topic]')->each(static fn (Crawler $input): ?string => $input->attr('value')),
         );
+    }
+
+    public function test_the_frame_route_answers_the_frame_alone(): void
+    {
+        $project = $this->workflowProject('workflow-frame-route');
+        $this->bindLifecycle($project);
+        $owner = $this->stampedOwner($project);
+
+        $this->client->loginUser($owner);
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/workflow/frame');
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $crawler->filter('turbo-frame#workflow-live'));
+        self::assertCount(1, $crawler->filter('[data-workflow-template]'));
+        self::assertCount(0, $crawler->filter('form#mercure-subscriptions'));
+    }
+
+    public function test_the_frame_route_refuses_a_stranger(): void
+    {
+        $project = $this->workflowProject('workflow-frame-stranger');
+        $this->bindLifecycle($project);
+        $stranger = $this->stampedOwner($this->workflowProject('workflow-frame-other'));
+
+        $this->client->loginUser($stranger);
+        $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/workflow/frame');
+
+        self::assertResponseStatusCodeSame(403);
     }
 
     public function test_a_deleted_column_reads_as_not_linked(): void
