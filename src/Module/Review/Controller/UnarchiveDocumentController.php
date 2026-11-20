@@ -74,6 +74,11 @@ final class UnarchiveDocumentController extends AppController
 
         $this->addFlash($severity, $message);
 
+        // A list row always carries its page in the query, and the review band carries none.
+        if ($request->query->has('page')) {
+            return $this->redirectToRoute('app_project_documents', ['id' => $projectId, ...$listParams]);
+        }
+
         return $this->redirectToRoute('app_document_review', [
             'projectId' => $projectId,
             'documentId' => (string) $document->id,
