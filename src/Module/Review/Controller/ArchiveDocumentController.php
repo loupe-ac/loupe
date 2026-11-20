@@ -19,6 +19,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Contracts\Translation\TranslatorInterface;
+use Symfony\UX\Turbo\TurboBundle;
 
 #[IsGranted(DocumentVoter::MANAGE, subject: 'document')]
 #[Route(
@@ -50,17 +51,34 @@ final class ArchiveDocumentController extends AppController
         if ($form->isSubmitted() && $form->isValid()) {
             ($this->archiveDocument)(new ArchiveDocumentCommand($document));
 
-            $this->addFlash('success', $this->translator->trans('review.archive.flash.archived', ['%title%' => $document->title]));
+            $severity = 'success';
+            $message = $this->translator->trans('review.archive.flash.archived', ['%title%' => $document->title]);
         } else {
             // The form has no fields, so a failure is a stale or forged token
             // rather than a mistake the reader could correct. Say so on the list
             // instead of re-rendering a form they never filled in.
-            $this->addFlash('error', $this->translator->trans('review.archive.flash.rejected'));
+            $severity = 'error';
+            $message = $this->translator->trans('review.archive.flash.rejected');
         }
 
-        return $this->redirectToRoute('app_project_documents', [
-            'id' => (string) $document->project->id,
-            ...DocumentListQuery::fromQuery($request->query)->routeParams(),
-        ]);
+        $listParams = DocumentListQuery::fromQuery($request->query)->routeParams();
+        $projectId = (string) $document->project->id;
+
+        // The row form posts inside the list frame, and the session flash renders outside it, so the answer carries its own flash and reloads the frame.
+        if (TurboBundle::STREAM_FORMAT === $request->getPreferredFormat()) {
+            return new Response(
+                $this->renderView('@Review/_document_archive.stream.html.twig', [
+                    'severity' => $severity,
+                    'message' => $message,
+                    'listUrl' => $this->generateUrl('app_project_documents', ['id' => $projectId, ...$listParams]),
+                ]),
+                Response::HTTP_OK,
+                ['Content-Type' => TurboBundle::STREAM_MEDIA_TYPE],
+            );
+        }
+
+        $this->addFlash($severity, $message);
+
+        return $this->redirectToRoute('app_project_documents', ['id' => $projectId, ...$listParams]);
     }
 }

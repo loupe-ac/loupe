@@ -24,7 +24,7 @@
 {# "No documents yet" is wrong once a filter is on — the project may be full
    of documents that simply did not match. #}
 <twig:Ds:EmptyState icon="lucide:search-x" iconSize="xl" :title="'review.dashboard.empty_filtered.title'|trans">
-    <twig:Ds:Button href="{{ path('app_project_documents', {id: project.id}) }}">{{ 'review.dashboard.filter.clear_filters'|trans }}</twig:Ds:Button>
+    <twig:Ds:Button href="{{ path('app_project_documents', {id: project.id}) }}" data-clear-filter-form="documents-filter">{{ 'review.dashboard.filter.clear_filters'|trans }}</twig:Ds:Button>
 </twig:Ds:EmptyState>
 {% else %}
 {# A project holds no credential any more, so the page cannot tell a

@@ -10,6 +10,7 @@
     :action="path('app_project_documents', {id: project.id})"
     :search="{id: 'document-search', name: 'search', value: listQuery.search, label: 'review.dashboard.filter.search_label'|trans, placeholder: 'review.dashboard.filter.search_placeholder'|trans}"
     :frame="'documents-list'"
+    :formAttributes="{id: 'documents-filter'}"
     :switch="{name: 'archived', label: 'review.dashboard.filter.show_archived'|trans, checked: listQuery.includeArchived}"
     :clearHref="path('app_project_documents', {id: project.id})"
     :clearLabel="'review.dashboard.filter.clear'|trans">

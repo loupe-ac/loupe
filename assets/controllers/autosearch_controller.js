@@ -9,6 +9,17 @@ export default class extends Controller {
         this.timeout = null;
         this.#updateClearButton();
         this.#resumeTyping();
+        this.clearFromOutside = (event) => {
+            const proxy = event.target.closest?.('[data-clear-filter-form]');
+            if (
+                proxy &&
+                this.element.id &&
+                proxy.dataset.clearFilterForm === this.element.id
+            ) {
+                this.clear(event);
+            }
+        };
+        document.addEventListener('click', this.clearFromOutside);
     }
 
     /**
@@ -32,6 +43,7 @@ export default class extends Controller {
     }
 
     disconnect() {
+        document.removeEventListener('click', this.clearFromOutside);
         clearTimeout(this.timeout);
     }
 
