@@ -50,3 +50,41 @@ it('lets an untouched form morph', () => {
     document.body.innerHTML = '<form id="f"><textarea></textarea></form>';
     expect(morph(document.getElementById('f'))).toBe(false);
 });
+
+function submitEnd(form, fetchResponse) {
+    form.dispatchEvent(
+        new CustomEvent('turbo:submit-start', { bubbles: true }),
+    );
+    form.dispatchEvent(
+        new CustomEvent('turbo:submit-end', {
+            bubbles: true,
+            detail: { fetchResponse },
+        }),
+    );
+}
+
+it('keeps the form again after a Turbo Stream answer', () => {
+    document.body.innerHTML = '<form id="f"><textarea></textarea></form>';
+    const form = document.getElementById('f');
+    form.querySelector('textarea').value = 'typed';
+    submitEnd(form, {
+        header: () => 'text/vnd.turbo-stream.html; charset=utf-8',
+    });
+    expect(morph(form)).toBe(true);
+});
+
+it('keeps the form again after a failed request', () => {
+    document.body.innerHTML = '<form id="f"><textarea></textarea></form>';
+    const form = document.getElementById('f');
+    form.querySelector('textarea').value = 'typed';
+    submitEnd(form, undefined);
+    expect(morph(form)).toBe(true);
+});
+
+it('lets the form take an HTML answer that ends the request', () => {
+    document.body.innerHTML = '<form id="f"><textarea></textarea></form>';
+    const form = document.getElementById('f');
+    form.querySelector('textarea').value = 'typed';
+    submitEnd(form, { header: () => 'text/html; charset=utf-8' });
+    expect(morph(form)).toBe(false);
+});

@@ -31,6 +31,13 @@ export function keepTypedForm(event) {
 document.addEventListener('turbo:submit-start', (event) => {
     submitted = event.target;
 });
+document.addEventListener('turbo:submit-end', (event) => {
+    const response = event.detail.fetchResponse;
+    const type = response?.header?.('Content-Type') ?? '';
+    if (!response || type.includes('turbo-stream')) {
+        submitted = null;
+    }
+});
 document.addEventListener('turbo:render', () => {
     submitted = null;
 });
