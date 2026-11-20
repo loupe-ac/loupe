@@ -39,7 +39,7 @@ final class WorkerRunCommandControllersTest extends WebTestCase
         $this->post($client, $url);
 
         self::assertResponseStatusCodeSame(303);
-        self::assertResponseRedirects('/projects/'.$project->id.'/worker-runs?search='.$run->id);
+        self::assertResponseRedirects('/projects/'.$project->id.'/worker-runs?page=1');
         $command = $this->onlyCommand();
         self::assertSame(BridgeCommandKind::StopRun, $command->kind);
         self::assertSame(BridgeCommandState::Pending, $command->state);
@@ -60,7 +60,7 @@ final class WorkerRunCommandControllersTest extends WebTestCase
         $this->post($client, $url);
 
         self::assertSame([], $this->flashes($client, 'worker-run-command'));
-        self::assertResponseRedirects('/projects/'.$project->id.'/worker-runs?search='.$run->id);
+        self::assertResponseRedirects('/projects/'.$project->id.'/worker-runs?page=1');
         $command = $this->onlyCommand();
         self::assertSame(BridgeCommandKind::ResumeRun, $command->kind);
         self::assertNull($command->reason);
@@ -78,7 +78,7 @@ final class WorkerRunCommandControllersTest extends WebTestCase
         $this->post($client, $url);
 
         self::assertSame([], $this->flashes($client, 'worker-run-command'));
-        self::assertResponseRedirects('/projects/'.$project->id.'/worker-runs?search='.$run->id);
+        self::assertResponseRedirects('/projects/'.$project->id.'/worker-runs?page=1');
         $command = $this->onlyCommand();
         self::assertSame(BridgeCommandKind::RerunCommand, $command->kind);
         self::assertSame(BridgeCommandState::Pending, $command->state);
@@ -97,7 +97,7 @@ final class WorkerRunCommandControllersTest extends WebTestCase
         $client->loginUser($owner);
         $this->post($client, $url);
 
-        self::assertResponseRedirects('/projects/'.$project->id.'/worker-runs?search='.$run->id);
+        self::assertResponseRedirects('/projects/'.$project->id.'/worker-runs?page=1');
         self::assertSame(['Only a command run can run again.'], $this->flashes($client, 'worker-run-command'));
         self::assertSame(0, $this->countCommands($this->em()));
     }
@@ -145,6 +145,70 @@ final class WorkerRunCommandControllersTest extends WebTestCase
         self::assertSame(0, $this->countCommands($this->em()));
     }
 
+    public function test_a_stop_keeps_the_list_the_person_had(): void
+    {
+        $client = static::createClient();
+        [$owner, $project, $run] = $this->scenario('keep-list', WorkerRunState::Running);
+        $url = $this->url($project, $run, 'stop').'?page=2&outcome=failed&search=design';
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $this->post($client, $url);
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/worker-runs?page=2&search=design&outcome=failed');
+    }
+
+    public function test_a_turbo_stop_answers_the_list_stream_and_keeps_the_filter(): void
+    {
+        $client = static::createClient();
+        [$owner, $project, $run] = $this->scenario('stream-stop', WorkerRunState::Running);
+        $url = $this->url($project, $run, 'stop').'?outcome=open';
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $this->post($client, $url, ['HTTP_ACCEPT' => 'text/vnd.turbo-stream.html, text/html']);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertResponseHeaderSame('Content-Type', 'text/vnd.turbo-stream.html; charset=UTF-8');
+        $body = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('<turbo-stream action="update" target="worker-runs-frame">', $body);
+        self::assertStringContainsString('<turbo-stream action="update" target="worker-runs-shown">', $body);
+        self::assertStringContainsString('data-worker-run-id="'.$run->id.'"', $body);
+        self::assertStringContainsString('outcome=open', $body);
+        self::assertSame(BridgeCommandKind::StopRun, $this->onlyCommand()->kind);
+    }
+
+    public function test_a_refused_turbo_resume_shows_the_reason_as_a_flash_stream(): void
+    {
+        $client = static::createClient();
+        [$owner, $project, $run] = $this->scenario('stream-refused', WorkerRunState::Running);
+        $url = $this->url($project, $run, 'resume');
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $this->post($client, $url, ['HTTP_ACCEPT' => 'text/vnd.turbo-stream.html, text/html']);
+
+        self::assertResponseStatusCodeSame(200);
+        $body = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('<turbo-stream action="prepend" target="main-content">', $body);
+        self::assertStringContainsString('Only an ended run can resume.', $body);
+        self::assertSame([], $this->flashes($client, 'worker-run-command'));
+        self::assertSame(0, $this->countCommands($this->em()));
+    }
+
+    public function test_a_turbo_request_from_the_card_frame_still_redirects_to_the_frame(): void
+    {
+        $client = static::createClient();
+        [$owner, $project, $run] = $this->scenario('stream-card', WorkerRunState::Running);
+        $url = $this->url($project, $run, 'stop');
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $this->post($client, $url, ['HTTP_TURBO_FRAME' => 'card-worker-runs', 'HTTP_ACCEPT' => 'text/vnd.turbo-stream.html, text/html']);
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/worker-runs/card/'.$run->subjectId);
+    }
+
     public function test_a_request_from_the_card_frame_returns_to_the_frame(): void
     {
         $client = static::createClient();
@@ -171,7 +235,7 @@ final class WorkerRunCommandControllersTest extends WebTestCase
         $client->loginUser($owner);
         $this->post($client, $url);
 
-        self::assertResponseRedirects('/projects/'.$project->id.'/worker-runs?search='.$run->id);
+        self::assertResponseRedirects('/projects/'.$project->id.'/worker-runs?page=1');
         self::assertSame(BridgeCommandState::Cancelled, $this->em()->find(BridgeCommand::class, $pendingId)?->state);
     }
 
@@ -201,7 +265,7 @@ final class WorkerRunCommandControllersTest extends WebTestCase
         $client->loginUser($owner);
         $this->post($client, $url);
 
-        self::assertResponseRedirects('/projects/'.$project->id.'/worker-runs?search='.$run->id);
+        self::assertResponseRedirects('/projects/'.$project->id.'/worker-runs?page=1');
         self::assertSame(['This run has no command that waits.'], $this->flashes($client, 'worker-run-command'));
     }
 

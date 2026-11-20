@@ -19,38 +19,19 @@
     {% include '@Insights/_experiment_tabs.html.twig' with {project: project, experiment: report.experiment, active: 'cards', archived: report.archived, liveUrl: path('app_project_analytics_experiment_cards', routeParams|merge(query.routeParams))} only %}
 
 
-    {% set pagination %}
-        <twig:Ds:Pagination route="app_project_analytics_experiment_cards" :page="report.page" :totalPages="report.totalPages" :pageList="report.pageList" :routeParams="routeParams|merge(query.routeParams)" frame="experiment-cards-list" />
-    {% endset %}
-    {# One frame on every page, so a filter or a page swaps only the list. The live region sits inside it, so each swap brings the address of the new filter and page. #}
+    {# One frame on every page, so a filter or a page swaps only the list. The live region sits inside it, so each swap brings the address of the new filter and page. A signal reads the rows by id, so a card that runs again never moves a row. #}
     <turbo-frame id="experiment-cards-list" target="_top">
-    {% if report.page == 1 %}
-    {# Page 1 morphs as a whole. A later page reads its own rows by id, so a card that runs again never moves them. #}
-    <turbo-frame id="analytics-experiment-cards" refresh="morph" target="_top" class="lp-live-frame"
-                 data-controller="live-region"
-                 data-live-region-types-value="{{ ['analytics.changed', 'worker_run.changed']|json_encode }}"
-                 data-live-region-match-type-value="{{ {'analytics.changed': {area: 'experiments'}}|json_encode }}"
-                 data-live-region-url-value="{{ path('app_project_analytics_experiment_cards', routeParams|merge(query.routeParams)) }}"
-                 data-live-region-mode-value="frame"
-                 data-live-content>
-        {% include '@Insights/_experiment_cards_filter.html.twig' with {report: report, query: query, routeParams: routeParams} only %}
-        {% include '@Insights/_experiment_cards_list.html.twig' with {report: report, project: project} only %}
-        {% if report.cards is not empty %}{{ pagination }}{% endif %}
-    </turbo-frame>
-    {% else %}
     {% include '@Insights/_experiment_cards_filter.html.twig' with {report: report, query: query, routeParams: routeParams} only %}
     <div data-controller="live-region"
          data-live-region-types-value="{{ ['analytics.changed', 'worker_run.changed']|json_encode }}"
          data-live-region-match-type-value="{{ {'analytics.changed': {area: 'experiments'}}|json_encode }}"
-         data-live-region-url-value="{{ path('app_project_analytics_experiment_cards_rows', routeParams|merge(query.withPage(1).routeParams)) }}"
+         data-live-region-url-value="{{ path('app_project_analytics_experiment_cards_rows', routeParams|merge(query.routeParams)) }}"
          data-live-region-mode-value="rows"
-         data-live-since="{{ since|date('Y-m-d\\TH:i:s.vP') }}"
+         {% if report.page > 1 %}data-live-since="{{ since|date('Y-m-d\\TH:i:s.vP') }}"{% endif %}
          data-live-content>
-        <div id="experiment-cards-newer" data-experiment-cards-newer></div>
-        {% include '@Insights/_experiment_cards_list.html.twig' with {report: report, project: project} only %}
+        {% if report.page > 1 %}<div id="experiment-cards-newer" data-experiment-cards-newer></div>{% endif %}
+        {% include '@Insights/_experiment_cards_results.html.twig' with {report: report, project: project, query: query, routeParams: routeParams} only %}
     </div>
-    {% if report.cards is not empty %}{{ pagination }}{% endif %}
-    {% endif %}
     </turbo-frame>
 </twig:Ds:Workspace>
 {% endblock %}

@@ -40,7 +40,7 @@ final class DocumentsLiveListTest extends WebTestCase
         $this->client->loginUser($this->owner);
     }
 
-    public function test_page_one_is_a_morphing_frame_with_a_row_id_on_each_row(): void
+    public function test_page_one_is_a_rows_region_with_a_row_id_on_each_row_and_no_cursor(): void
     {
         $first = $this->create('First');
         $second = $this->create('Second');
@@ -48,32 +48,110 @@ final class DocumentsLiveListTest extends WebTestCase
         $crawler = $this->client->request(Request::METHOD_GET, $this->list());
 
         self::assertResponseIsSuccessful();
-        $frame = $crawler->filter('turbo-frame#documents-live');
-        self::assertCount(1, $frame);
-        self::assertSame('morph', $frame->attr('refresh'));
-        self::assertSame('_top', $frame->attr('target'));
-        self::assertSame('frame', $frame->attr('data-live-region-mode-value'));
-        self::assertSame(['documents.changed'], json_decode((string) $frame->attr('data-live-region-types-value'), true));
-        self::assertSame($this->list().'?page=1', $frame->attr('data-live-region-url-value'));
-        $rows = $frame->filter('[data-live-row]')->each(static fn (Crawler $row): ?string => $row->attr('data-live-row'));
+        self::assertCount(0, $crawler->filter('turbo-frame#documents-live'));
+        $region = $crawler->filter('turbo-frame#documents-list div#documents-live');
+        self::assertCount(1, $region);
+        self::assertSame('rows', $region->attr('data-live-region-mode-value'));
+        self::assertSame(['documents.changed'], json_decode((string) $region->attr('data-live-region-types-value'), true));
+        self::assertSame($this->list().'/live-rows?page=1', $region->attr('data-live-region-url-value'));
+        $rows = $region->filter('[data-live-row]')->each(static fn (Crawler $row): ?string => $row->attr('data-live-row'));
         self::assertEqualsCanonicalizing([(string) $first->id, (string) $second->id], $rows);
-        self::assertCount(2, $frame->filter('[data-live-fade]'));
-        self::assertCount(1, $frame->filter('#document-row-'.$first->id));
-        self::assertCount(0, $crawler->filter('[data-live-since]'));
+        self::assertCount(2, $region->filter('[data-live-fade]'));
+        self::assertCount(1, $region->filter('#document-row-'.$first->id));
+        self::assertCount(1, $region->filter('#documents-rows'));
+        self::assertCount(1, $region->filter('#documents-count'));
+        self::assertCount(1, $region->filter('#documents-pagination'));
+        self::assertCount(0, $crawler->filter('[data-live-since], [data-live-known], [data-live-total], #documents-live-band'));
     }
 
-    public function test_a_live_frame_read_sends_the_tag_and_series_options_again_for_the_selects_outside_the_frame(): void
+    public function test_the_list_page_is_not_a_frame_read_any_more(): void
     {
         $this->create('First');
 
-        $page = $this->client->request(Request::METHOD_GET, $this->list());
-        self::assertCount(0, $page->filter('turbo-stream'));
-
-        $frame = $this->client->request(Request::METHOD_GET, $this->list(), server: ['HTTP_TURBO_FRAME' => 'documents-live']);
+        $this->client->request(Request::METHOD_GET, $this->list(), server: ['HTTP_TURBO_FRAME' => 'documents-live']);
 
         self::assertResponseIsSuccessful();
-        self::assertCount(1, $frame->filter('turbo-frame#documents-live turbo-stream[action="replace"][method="morph"][target="documents-filter-choices"]'));
-        self::assertCount(1, $page->filter('#documents-filter-choices'));
+        self::assertStringNotContainsString('<turbo-stream', (string) $this->client->getResponse()->getContent());
+    }
+
+    public function test_page_one_morphs_a_kept_row_removes_a_left_row_and_inserts_a_new_row_before_the_row_that_follows_it(): void
+    {
+        $older = $this->create('Older');
+        $left = $this->create('Left');
+        $left->archivedAt = new \DateTimeImmutable();
+        $this->create('Newer');
+        $this->em->flush();
+
+        $this->rows([$older, $left], time() - 3600, page: 1);
+
+        self::assertResponseIsSuccessful();
+        $streams = $this->streams();
+        $byTarget = array_column(array_filter($streams, static fn (array $stream): bool => 'before' !== $stream['action']), null, 'target');
+        self::assertSame(['replace', 'morph'], [$byTarget['document-row-'.$older->id]['action'], $byTarget['document-row-'.$older->id]['method']]);
+        self::assertSame('remove', $byTarget['document-row-'.$left->id]['action']);
+        $insert = array_values(array_filter($streams, static fn (array $stream): bool => 'before' === $stream['action']));
+        self::assertCount(1, $insert);
+        self::assertSame('document-row-'.$older->id, $insert[0]['target']);
+        self::assertStringContainsString('Newer', $insert[0]['content']->text());
+        self::assertContains('documents-count', array_column($streams, 'target'));
+        self::assertContains('documents-pagination', array_column($streams, 'target'));
+        self::assertNotContains('documents-live-band', array_column($streams, 'target'));
+    }
+
+    public function test_page_one_appends_a_row_that_is_last_and_inserts_the_rows_in_page_order(): void
+    {
+        $oldest = $this->create('Oldest');
+        $this->create('Middle');
+        $newest = $this->create('Newest');
+
+        $this->rows([$newest], time() - 3600, page: 1);
+
+        $streams = array_values(array_filter($this->streams(), static fn (array $stream): bool => \in_array($stream['action'], ['before', 'append'], true)));
+        self::assertSame(
+            [['append', 'documents-rows'], ['before', 'document-row-'.$oldest->id]],
+            array_map(static fn (array $stream): array => [$stream['action'], $stream['target']], $streams),
+            'the last row is appended first, so the row before it finds its follower in place',
+        );
+        self::assertStringContainsString('Oldest', $streams[0]['content']->text());
+        self::assertStringContainsString('Middle', $streams[1]['content']->text());
+    }
+
+    public function test_page_one_replaces_the_list_when_the_screen_was_empty_and_the_page_is_not(): void
+    {
+        $this->create('Arrived');
+
+        $this->rows([], time() - 3600, page: 1);
+
+        $streams = array_column($this->streams(), null, 'target');
+        self::assertSame('update', $streams['documents-results']['action']);
+        self::assertStringContainsString('Arrived', $streams['documents-results']['content']->text());
+        self::assertArrayNotHasKey('documents-pagination', $streams);
+    }
+
+    public function test_page_one_replaces_the_list_when_the_page_empties(): void
+    {
+        $gone = $this->create('Gone');
+        $gone->archivedAt = new \DateTimeImmutable();
+        $this->em->flush();
+
+        $this->rows([$gone], time() - 3600, page: 1);
+
+        $streams = array_column($this->streams(), null, 'target');
+        self::assertSame('update', $streams['documents-results']['action']);
+        self::assertCount(0, $streams['documents-results']['content']->filter('[data-live-row]'));
+    }
+
+    public function test_page_one_follows_the_filters_and_still_sends_the_filter_choices(): void
+    {
+        $shown = $this->create('Shown');
+        $shown->status = DocumentStatus::Approved;
+        $this->em->flush();
+
+        $this->rows([$shown], time() - 3600, query: ['status' => 'in-review'], page: 1);
+
+        $streams = array_column($this->streams(), null, 'target');
+        self::assertSame('update', $streams['documents-results']['action']);
+        self::assertArrayHasKey('documents-filter-choices', $streams);
     }
 
     public function test_the_page_subscribes_to_the_documents_topic(): void
@@ -321,10 +399,10 @@ final class DocumentsLiveListTest extends WebTestCase
      * @param array<string, string> $query
      * @param list<string>|null     $known
      */
-    private function rows(array $shown, int $since, string $extraId = '', array $query = [], string $sinceId = '', ?int $total = null, ?array $known = null): void
+    private function rows(array $shown, int $since, string $extraId = '', array $query = [], string $sinceId = '', ?int $total = null, ?array $known = null, int $page = 2): void
     {
         $ids = implode(',', array_filter([...array_map(static fn (Document $d): string => (string) $d->id, $shown), $extraId]));
-        $parameters = ['ids' => $ids, 'since' => $since, 'sinceId' => $sinceId, ...(null === $total ? [] : ['total' => $total]), ...$query];
+        $parameters = ['ids' => $ids, 'page' => $page, 'since' => $since, 'sinceId' => $sinceId, ...(null === $total ? [] : ['total' => $total]), ...$query];
         $server = ['HTTP_X_LOUPE_LIVE_REFRESH' => '1', 'HTTP_ACCEPT' => 'text/vnd.turbo-stream.html'];
         if (null === $known) {
             $this->client->request(Request::METHOD_GET, $this->list().'/live-rows', $parameters, server: $server);

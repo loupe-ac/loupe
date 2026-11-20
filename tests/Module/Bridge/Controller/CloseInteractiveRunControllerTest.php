@@ -60,7 +60,7 @@ final class CloseInteractiveRunControllerTest extends WebTestCase
         self::assertSame(WorkerRunState::Closed, $em->find(WorkerRun::class, $runId)?->state);
     }
 
-    public function test_a_close_from_the_drawer_reloads_the_list_on_that_run(): void
+    public function test_a_close_from_the_drawer_returns_to_the_list_the_person_had(): void
     {
         $client = static::createClient();
         $em = $this->em();
@@ -68,14 +68,35 @@ final class CloseInteractiveRunControllerTest extends WebTestCase
         $owner = $this->user($em, 'close-run-drawer@example.com');
         $project = $this->project($em, $owner, 'Close run drawer');
         $run = $this->seedRun($em, $project, state: WorkerRunState::Running, kind: WorkerRunKind::Interactive);
-        $url = $this->closeUrl((string) $project->id, (string) $run->id);
-        $runId = (string) $run->id;
+        $url = $this->closeUrl((string) $project->id, (string) $run->id).'?outcome=open';
         $em->clear();
 
         $client->loginUser($owner);
         $this->post($client, $url);
 
-        self::assertResponseRedirects('/projects/'.$project->id.'/worker-runs?search='.$runId);
+        self::assertResponseRedirects('/projects/'.$project->id.'/worker-runs?page=1&outcome=open');
+    }
+
+    public function test_a_turbo_close_answers_the_list_stream(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+
+        $owner = $this->user($em, 'close-run-stream@example.com');
+        $project = $this->project($em, $owner, 'Close run stream');
+        $run = $this->seedRun($em, $project, state: WorkerRunState::Running, kind: WorkerRunKind::Interactive);
+        $url = $this->closeUrl((string) $project->id, (string) $run->id).'?outcome=open';
+        $runId = $run->id;
+        $em->clear();
+
+        $client->loginUser($owner);
+        $this->post($client, $url, 'worker-runs-frame', 'text/vnd.turbo-stream.html, text/html');
+
+        self::assertResponseStatusCodeSame(200);
+        $body = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('<turbo-stream action="update" target="worker-runs-frame">', $body);
+        self::assertStringContainsString('<turbo-stream action="update" target="worker-runs-shown">', $body);
+        self::assertSame(WorkerRunState::Closed, $em->find(WorkerRun::class, $runId)?->state);
     }
 
     public function test_a_request_without_a_valid_csrf_token_is_refused(): void
@@ -162,9 +183,12 @@ final class CloseInteractiveRunControllerTest extends WebTestCase
     }
 
     /** The same-origin sentinel passes the CSRF check, so a refusal is the voter's or the lookup's. */
-    private function post(KernelBrowser $client, string $url, ?string $frame = null): void
+    private function post(KernelBrowser $client, string $url, ?string $frame = null, ?string $accept = null): void
     {
         $server = ['HTTP_REFERER' => 'http://localhost'.$url];
+        if (null !== $accept) {
+            $server['HTTP_ACCEPT'] = $accept;
+        }
         if (null !== $frame) {
             $server['HTTP_TURBO_FRAME'] = $frame;
         }

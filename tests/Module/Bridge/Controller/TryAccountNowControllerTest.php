@@ -219,6 +219,24 @@ final class TryAccountNowControllerTest extends WebTestCase
         self::assertSame(0, $this->rowsIn('bridge_commands'));
     }
 
+    public function test_a_turbo_press_answers_the_connection_card_and_the_reason_as_a_flash(): void
+    {
+        $client = static::createClient();
+        [$owner, $project, $bridge] = $this->scenario('stream');
+        $bridgeId = $bridge->id;
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $url = $this->url($project, $bridgeId, 'ghost');
+        $client->request(Request::METHOD_POST, $url, ['_csrf_token' => 'csrf-token'], [], ['HTTP_REFERER' => 'http://localhost'.$url, 'HTTP_ACCEPT' => 'text/vnd.turbo-stream.html, text/html']);
+
+        self::assertResponseStatusCodeSame(200);
+        $body = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('<turbo-stream action="replace" target="agent-connection-'.$bridgeId.'">', $body);
+        self::assertStringContainsString('<turbo-stream action="prepend" target="main-content">', $body);
+        self::assertSame(0, $this->rowsIn('bridge_commands'));
+    }
+
     public function test_a_bridge_that_does_not_report_the_try_now_capability_stores_nothing(): void
     {
         $client = static::createClient();

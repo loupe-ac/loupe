@@ -190,6 +190,18 @@ final class ShowExperimentHandlerTest extends KernelTestCase
         self::assertSame([1, 0], array_map(static fn (ExperimentVariant $variant): int => $variant->cards, $view->variants));
     }
 
+    public function test_a_run_that_rounds_to_the_second_of_the_history_start_has_history(): void
+    {
+        $this->historyStart = $this->start->modify('+400 milliseconds');
+        $card = Uuid::v7();
+        $this->experimentRun($card, 'a', at: '+0 seconds');
+
+        $view = $this->show();
+
+        self::assertNotNull($view);
+        self::assertSame([], $view->cards[0]->leftOut);
+    }
+
     public function test_a_card_has_no_history_when_the_project_has_none(): void
     {
         $this->historyStart = null;

@@ -467,10 +467,8 @@ test('S7 pausing a bridge keeps the pools disclosure open', async ({
     await expect(pools).toHaveAttribute('open', '');
 
     await card.getByRole('button', { name: 'Bridge actions' }).click();
-    await resetRenders(page);
     await card.getByRole('button', { name: 'Pause new work' }).click();
     await expect(card.locator('[data-agent-paused]')).toBeVisible(ROUND_TRIP);
-    await expectMorphed(page);
 
     await expect(pools, 'the pools disclosure stays open').toHaveAttribute(
         'open',
@@ -487,10 +485,8 @@ test('S13 pausing a bridge on a short window keeps its card in view', async ({
     const actions = card.getByRole('button', { name: 'Bridge actions' });
     await actions.scrollIntoViewIfNeeded();
     await actions.click();
-    await resetRenders(page);
     await card.getByRole('button', { name: 'Pause new work' }).click();
     await expect(card.locator('[data-agent-paused]')).toBeVisible(ROUND_TRIP);
-    await expectMorphed(page);
 
     await expect(card, 'the agent card is in view').toBeInViewport();
 });

@@ -1,12 +1,10 @@
 {# The rows, the count and the paging of the documents list, inside the swapped frame. The filter bar lives in `_documents_filter.html.twig`, outside it. Props: project, listQuery, totalDocuments, items, filteredTotal, page, totalPages, pageList. #}
 
-{% if totalDocuments > 0 and not listQuery.includeArchived %}
-<p class="lp-list-count">{{ 'review.dashboard.filter.count'|trans({'%matching%': filteredTotal, '%total%': totalDocuments}) }}</p>
-{% endif %}
+{% include '@Review/_documents_count.html.twig' with {listQuery: listQuery, totalDocuments: totalDocuments, filteredTotal: filteredTotal} only %}
 
 {% if items|length > 0 %}
 {% set cardLinkMap = document_card_link_map(items) %}
-<twig:Ds:DataTable modifier="documents" :label="'review.dashboard.table.label'|trans" :columns="[
+<twig:Ds:DataTable id="documents-rows" modifier="documents" :label="'review.dashboard.table.label'|trans" :columns="[
     {label: 'review.dashboard.table.document'|trans},
     {label: 'review.dashboard.table.status'|trans},
     {label: 'review.dashboard.table.author'|trans},
@@ -19,7 +17,7 @@
     {% endfor %}
 </twig:Ds:DataTable>
 
-<twig:Ds:Pagination route="app_project_documents" :page="page" :totalPages="totalPages" :pageList="pageList" :routeParams="{id: project.id}|merge(listQuery.routeParams)" frame="documents-list" />
+{% include '@Review/_documents_pagination.html.twig' with {project: project, listQuery: listQuery, page: page, totalPages: totalPages, pageList: pageList} only %}
 {% elseif listQuery.isNarrowed %}
 {# "No documents yet" is wrong once a filter is on — the project may be full
    of documents that simply did not match. #}

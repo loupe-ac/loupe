@@ -1,9 +1,10 @@
 {# The count, the rows and the paging of the activity list, inside the swapped frame. The filter bar lives in `_activity_filters.html.twig`, outside it. Props: project, listQuery, entries, filtered, filteredTotal, page, totalPages, pageList. #}
+<div id="activity-results" class="lp-live-frame">
 {% if filtered %}
 <p class="lp-list-count"><span data-activity-count>{{ 'activity.count'|trans({'%count%': filteredTotal}) }}</span></p>
 {% endif %}
 {% if entries|length > 0 %}
-<twig:Ds:DataTable modifier="events" :label="'activity.table.label'|trans" :columns="[
+<twig:Ds:DataTable id="activity-rows" modifier="events" :label="'activity.table.label'|trans" :columns="[
     {label: 'activity.column.event'|trans},
     {label: 'activity.column.delivery'|trans},
     {label: 'activity.column.family'|trans},
@@ -15,7 +16,7 @@
     {% endfor %}
 </twig:Ds:DataTable>
 
-<twig:Ds:Pagination route="app_project_activity" :page="page" :totalPages="totalPages" :pageList="pageList" :routeParams="{id: project.id}|merge(listQuery.routeParams)" frame="activity-list" />
+<div id="activity-pagination" class="lp-live-frame">{% include 'outbox/_activity_pagination.html.twig' with {project: project, listQuery: listQuery, page: page, totalPages: totalPages, pageList: pageList} only %}</div>
 {% elseif listQuery.isNarrowed %}
 <twig:Ds:EmptyState icon="lucide:search-x" :title="'activity.filter.empty'|trans" data-activity-filtered-empty>
     <twig:Ds:Button href="{{ path('app_project_activity', {id: project.id}) }}" data-clear-filter-form="activity-filter">{{ 'activity.filter.clear'|trans }}</twig:Ds:Button>
@@ -25,3 +26,4 @@
     <p>{{ 'activity.empty.description'|trans }}</p>
 </twig:Ds:EmptyState>
 {% endif %}
+</div>

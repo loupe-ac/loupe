@@ -1,22 +1,45 @@
-{# Props: project, listQuery, items (list<DocumentListItem>), removedIds (list<string>), newerCount (int), projectTags, projectSeries.
-   The answer to a later page of the documents list: a row that still matches
-   morphs, a row that no longer matches goes, and the band counts new documents. #}
-{% set cardLinkMap = document_card_link_map(items) %}
-{% for item in items %}
+{# Props: project, listQuery, view (ListDocumentRowsView).
+   The answer to the open page of the documents list. Page one draws its own rows: a row that stays
+   morphs, a row that left goes, a row that entered is inserted where the page puts it. A later page
+   keeps its rows in place, and the band counts new documents. #}
+{% set firstPage = view.page %}
+{% if view.changes is not null %}
+    {% if view.changes.replaceAll %}
+<turbo-stream action="update" target="documents-results"><template>{% include '@Review/_documents_list.html.twig' with {project: project, listQuery: listQuery, totalDocuments: project_document_count(project), items: firstPage.items, filteredTotal: firstPage.filteredTotal, page: listQuery.page, totalPages: firstPage.totalPages, pageList: firstPage.pageList} only %}</template></turbo-stream>
+    {% else %}
+{% set cardLinkMap = document_card_link_map(firstPage.items) %}
+        {% for item in view.changes.kept %}
+<turbo-stream action="replace" method="morph" target="document-row-{{ item.document.id }}">
+    <template>{% include '@Review/_document_row.html.twig' with {item: item, project: project, listQuery: listQuery, cardLinks: cardLinkMap[item.document.id ~ '']|default([])} only %}</template>
+</turbo-stream>
+        {% endfor %}
+        {% for id in view.changes.goneIds %}
+<turbo-stream action="remove" target="document-row-{{ id }}"></turbo-stream>
+        {% endfor %}
+        {% for insert in view.changes.inserts %}
+            {% set item = insert.item %}
+<turbo-stream action="{{ insert.beforeId is null ? 'append' : 'before' }}" target="{{ insert.beforeId is null ? 'documents-rows' : 'document-row-' ~ insert.beforeId }}">
+    <template>{% include '@Review/_document_row.html.twig' with {item: item, project: project, listQuery: listQuery, cardLinks: cardLinkMap[item.document.id ~ '']|default([])} only %}</template>
+</turbo-stream>
+        {% endfor %}
+<turbo-stream action="replace" target="documents-count"><template>{% include '@Review/_documents_count.html.twig' with {listQuery: listQuery, totalDocuments: project_document_count(project), filteredTotal: firstPage.filteredTotal} only %}</template></turbo-stream>
+<turbo-stream action="replace" target="documents-pagination"><template>{% include '@Review/_documents_pagination.html.twig' with {project: project, listQuery: listQuery, page: listQuery.page, totalPages: firstPage.totalPages, pageList: firstPage.pageList} only %}</template></turbo-stream>
+    {% endif %}
+{% else %}
+{% set cardLinkMap = document_card_link_map(view.items) %}
+{% for item in view.items %}
 <turbo-stream action="replace" method="morph" target="document-row-{{ item.document.id }}">
     <template>{% include '@Review/_document_row.html.twig' with {item: item, project: project, listQuery: listQuery, cardLinks: cardLinkMap[item.document.id ~ '']|default([])} only %}</template>
 </turbo-stream>
 {% endfor %}
-{# The tag and series selects sit outside the list, so a live change sends their options again. #}
-<turbo-stream action="replace" method="morph" target="documents-filter-choices"><template>{% include '@Review/_documents_filter_choices.html.twig' with {listQuery: listQuery, projectTags: projectTags, projectSeries: projectSeries} only %}</template></turbo-stream>
-{% for id in removedIds %}
+{% for id in view.removedIds %}
 <turbo-stream action="remove" target="document-row-{{ id }}"></turbo-stream>
 {% endfor %}
 <turbo-stream action="update" target="documents-live-band">
     <template>
-        {% if newerCount > 0 %}
+        {% if view.newerCount > 0 %}
         <twig:Ds:Flash severity="info">
-            {{ 'review.live.newer_documents'|trans({'%count%': newerCount}) }}
+            {{ 'review.live.newer_documents'|trans({'%count%': view.newerCount}) }}
             <twig:block name="actions">
                 <a href="{{ path('app_project_documents', {id: project.id}|merge(listQuery.withPage(1).routeParams)) }}">{{ 'review.live.show_first_page'|trans }}</a>
             </twig:block>
@@ -24,3 +47,6 @@
         {% endif %}
     </template>
 </turbo-stream>
+{% endif %}
+{# The tag and series selects sit outside the list, so a live change sends their options again. #}
+<turbo-stream action="replace" method="morph" target="documents-filter-choices"><template>{% include '@Review/_documents_filter_choices.html.twig' with {listQuery: listQuery, projectTags: view.projectTags, projectSeries: view.projectSeries} only %}</template></turbo-stream>

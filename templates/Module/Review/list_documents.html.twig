@@ -24,32 +24,20 @@
     {% include '@Review/_documents_filter.html.twig' with {project: project, listQuery: listQuery, totalDocuments: totalDocuments, statuses: statuses, projectTags: projectTags, projectSeries: projectSeries} only %}
     {# One frame on every page, so a filter, a sort or a page swaps only the list. The live region sits inside it, so each swap brings the address of the new filter and page. #}
     <turbo-frame id="documents-list" target="_top">
-    {% if page == 1 %}
-    <turbo-frame id="documents-live" refresh="morph" target="_top"
-                 data-controller="live-region"
-                 data-live-region-mode-value="frame"
-                 data-live-region-types-value="{{ ['documents.changed']|json_encode|e('html_attr') }}"
-                 data-live-region-url-value="{{ path('app_project_documents', {id: project.id}|merge(listQuery.routeParams)) }}">
-        {% include '@Review/_documents_list.html.twig' with {project: project, listQuery: listQuery, totalDocuments: totalDocuments, items: items, filteredTotal: filteredTotal, page: page, totalPages: totalPages, pageList: pageList} only %}
-        {# The selects sit outside this frame, so a live refresh sends their options again. #}
-        {% if app.request.headers.get('Turbo-Frame') == 'documents-live' %}
-        <turbo-stream action="replace" method="morph" target="documents-filter-choices"><template>{% include '@Review/_documents_filter_choices.html.twig' with {listQuery: listQuery, projectTags: projectTags, projectSeries: projectSeries} only %}</template></turbo-stream>
-        {% endif %}
-    </turbo-frame>
-    {% else %}
     <div id="documents-live"
          data-controller="live-region"
          data-live-region-mode-value="rows"
          data-live-region-types-value="{{ ['documents.changed']|json_encode|e('html_attr') }}"
-         data-live-region-url-value="{{ path('app_project_documents_live_rows', {id: project.id}|merge(listQuery.routeParams)) }}"
+         data-live-region-url-value="{{ path('app_project_documents_live_rows', {id: project.id}|merge(listQuery.routeParams)) }}"{% if page > 1 %}
          data-live-since="{{ newest ? newest.createdAt|date('U') : 0 }}"
          data-live-since-id="{{ newest ? newest.id : '' }}"
          data-live-total="{{ filteredTotal }}"{% if knownIds is not null %}
-         data-live-known="{{ knownIds|json_encode|e('html_attr') }}"{% endif %}>
-        <div id="documents-live-band"></div>
-        {% include '@Review/_documents_list.html.twig' with {project: project, listQuery: listQuery, totalDocuments: totalDocuments, items: items, filteredTotal: filteredTotal, page: page, totalPages: totalPages, pageList: pageList} only %}
+         data-live-known="{{ knownIds|json_encode|e('html_attr') }}"{% endif %}{% endif %}>
+        {% if page > 1 %}<div id="documents-live-band"></div>{% endif %}
+        <div id="documents-results">
+            {% include '@Review/_documents_list.html.twig' with {project: project, listQuery: listQuery, totalDocuments: totalDocuments, items: items, filteredTotal: filteredTotal, page: page, totalPages: totalPages, pageList: pageList} only %}
+        </div>
     </div>
-    {% endif %}
     </turbo-frame>
 </twig:Ds:Workspace>
 {% endblock %}

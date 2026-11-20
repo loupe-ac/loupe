@@ -13,6 +13,8 @@ final readonly class ListWorkerRunsCommand
         public Project $project,
         public WorkerRunListQuery $listQuery,
         public int $perPage = ListWorkerRunsHandler::PER_PAGE,
+        /** A page past the end reads the last page, for an answer that cannot redirect. */
+        public bool $clampPage = false,
     ) {
     }
 }

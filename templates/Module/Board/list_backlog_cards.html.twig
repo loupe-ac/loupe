@@ -17,58 +17,34 @@
 
     <div id="backlog-confirmation" aria-live="polite"></div>
 
-    {% if view.total > 0 or listQuery.isNarrowed %}
-    {# A GET form outside the swapped frame, so the field keeps its focus while the list changes. `page` is not a field, so a changed filter starts at page one. #}
-    <twig:Ds:FilterBar
-        :action="backlogPath"
-        :frame="'backlog-list'"
-        :formAttributes="{id: 'backlog-filter'}"
-        :search="{id: 'backlog-search', name: 'search', value: listQuery.search, label: 'board.backlog.filter.search_label'|trans, placeholder: 'board.backlog.filter.search_placeholder'|trans}"
-        :clearHref="backlogPath"
-        :clearLabel="'board.backlog.filter.clear'|trans">
-        <label class="sr-only" for="backlog-type">{{ 'board.backlog.filter.type_label'|trans }}</label>
-        <twig:Ds:Select id="backlog-type" name="type" data-action="change->autosearch#search">
-            <option value="">{{ 'board.backlog.filter.all_types'|trans }}</option>
-            {% for type in types %}
-            <option value="{{ type.key }}"{{ listQuery.type == type.key ? ' selected' : '' }}>{{ type.label|trans }}</option>
-            {% endfor %}
-        </twig:Ds:Select>
-
-        <label class="sr-only" for="backlog-epic">{{ 'board.backlog.filter.epic_label'|trans }}</label>
-        {% include '@Board/_backlog_epic_select.html.twig' with {view: view, listQuery: listQuery} only %}
-    </twig:Ds:FilterBar>
-    {% endif %}
+    {# A GET form outside the swapped frame, so the field keeps its focus while the list changes. The slot stays when the list is empty, so a live read can fill it. #}
+    <div id="backlog-filter-slot">{% include '@Board/_backlog_filter.html.twig' with {project: project, view: view, listQuery: listQuery, types: types} only %}</div>
 
     {# One frame on every page, so a filter, a sort or a page swaps only the list. The live region sits inside it, so each swap brings the address of the new filter, sort and page. #}
     <turbo-frame id="backlog-list" target="_top">
     {% set liveRows = listQuery.page > 1 %}
-    {% set liveTag = liveRows ? 'div' : 'turbo-frame' %}
-    <{{ liveTag }} id="backlog-live"{{ liveRows ? '' : ' target="_top"' }}
+    <div id="backlog-live"
         data-controller="live-region"
         data-live-region-types-value="{{ ['board.card_changed', 'board.columns_changed']|json_encode }}"
-        data-live-region-mode-value="{{ liveRows ? 'rows' : 'frame' }}"
-        data-live-region-url-value="{{ path(liveRows ? 'app_project_board_backlog_rows' : 'app_project_board_backlog', {projectId: project.id}|merge(listQuery.routeParams)) }}"
+        data-live-region-mode-value="rows"
+        data-live-region-url-value="{{ path('app_project_board_backlog_rows', {projectId: project.id}|merge(listQuery.routeParams)) }}"
         {% if liveRows %}data-live-since="{{ since }}"{% endif %}>
     {% if liveRows %}<div id="backlog-live-band" aria-live="polite"></div>{% endif %}
-    {# The epic select sits outside this frame, so a live refresh sends its options again. #}
-    {% if not liveRows and (view.total > 0 or listQuery.isNarrowed) and app.request.headers.get('Turbo-Frame') == 'backlog-live' %}
-    <turbo-stream action="replace" method="morph" target="backlog-epic"><template>{% include '@Board/_backlog_epic_select.html.twig' with {view: view, listQuery: listQuery} only %}</template></turbo-stream>
-    {% endif %}
     {% if view.total > 0 or listQuery.isNarrowed %}
     {# A filter change keeps the order the column headers chose. These fields sit in the swapped frame and join the filter form, so the sort of the new address reaches the next filter. #}
     {% if listQuery.routeParams.sort is defined %}
     <input type="hidden" name="sort" value="{{ listQuery.sort.value }}" form="backlog-filter">
     <input type="hidden" name="dir" value="{{ listQuery.dir.value }}" form="backlog-filter">
     {% endif %}
-    <p class="lp-list-count"><span id="backlog-filter-count">{% include '@Board/_backlog_count.html.twig' with {view: view, listQuery: listQuery} only %}</span></p>
     {% endif %}
+    {% include '@Board/_backlog_count_line.html.twig' with {view: view, listQuery: listQuery} only %}
 
     <div id="backlog-results">
         {% include '@Board/_backlog_results.html.twig' with {project: project, view: view, listQuery: listQuery} only %}
     </div>
 
     {% include '@Board/_backlog_bulk.html.twig' with {project: project, listQuery: listQuery, nextColumn: view.nextColumn, boardColumns: view.boardColumns} only %}
-    </{{ liveTag }}>
+    </div>
     </turbo-frame>
 
     {% include '@Board/_card_drawer.html.twig' with {project: project} only %}

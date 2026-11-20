@@ -27,32 +27,15 @@ final class ProjectsLiveFragmentsTest extends WebTestCase
         $this->em = $em;
     }
 
-    public function test_the_frame_holds_the_first_page_of_the_projects_of_the_signed_in_owner(): void
-    {
-        $owner = $this->user('frame-owner@example.com');
-        $other = $this->user('frame-other@example.com');
-        $mine = $this->project($owner, 'frame-mine');
-        $theirs = $this->project($other, 'frame-theirs');
-        $this->em->flush();
-
-        $this->client->loginUser($owner);
-        $crawler = $this->client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, '/projects-live/frame', server: ['HTTP_X_LOUPE_LIVE_REFRESH' => '1']);
-
-        self::assertResponseIsSuccessful();
-        self::assertCount(1, $crawler->filter('turbo-frame#projects-frame[refresh="morph"]'));
-        self::assertCount(1, $crawler->filter('[data-live-row="'.$mine->id.'"]'));
-        self::assertCount(0, $crawler->filter('[data-live-row="'.$theirs->id.'"]'));
-    }
-
     public function test_a_live_read_with_no_session_answers_401_with_the_cause(): void
     {
-        $this->client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, '/projects-live/frame', server: ['HTTP_X_LOUPE_LIVE_REFRESH' => '1']);
+        $this->client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, '/projects-live/rows', server: ['HTTP_X_LOUPE_LIVE_REFRESH' => '1']);
 
         self::assertResponseStatusCodeSame(401);
         self::assertResponseHeaderSame('X-Loupe-Live-Lost', 'signed-out');
     }
 
-    public function test_the_first_page_is_the_frame_and_a_later_page_is_the_rows_region(): void
+    public function test_every_page_is_a_rows_region_and_only_a_later_page_has_the_band_and_the_cursor(): void
     {
         $owner = $this->user('page-owner@example.com');
         foreach (range(1, ListProjectsHandler::PER_PAGE + 1) as $number) {
@@ -62,15 +45,69 @@ final class ProjectsLiveFragmentsTest extends WebTestCase
         $this->client->loginUser($owner);
 
         $first = $this->client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, '/projects');
-        self::assertCount(1, $first->filter('turbo-frame#projects-frame'));
-        self::assertCount(0, $first->filter('[data-live-region-mode-value="rows"]'));
+        $region = $first->filter('[data-live-region-mode-value="rows"]');
+        self::assertCount(1, $region);
+        self::assertSame('/projects-live/rows?page=1', $region->attr('data-live-region-url-value'));
+        self::assertNull($region->attr('data-live-since'));
+        self::assertCount(0, $first->filter('#projects-live-band'));
+        self::assertCount(0, $first->filter('turbo-frame#projects-frame'));
+        self::assertCount(ListProjectsHandler::PER_PAGE, $first->filter('#projects-grid [data-live-row]'));
+        self::assertCount(1, $first->filter('#projects-grid #projects-new-tile'));
+        self::assertCount(1, $first->filter('#projects-pagination .lp-pagination'));
 
         $second = $this->client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, '/projects?page=2');
-        self::assertCount(0, $second->filter('turbo-frame#projects-frame'));
         $region = $second->filter('[data-live-region-mode-value="rows"]');
         self::assertCount(1, $region);
+        self::assertSame('/projects-live/rows?page=2', $region->attr('data-live-region-url-value'));
         self::assertNotSame('', (string) $region->attr('data-live-since'));
+        self::assertCount(1, $second->filter('#projects-live-band'));
         self::assertCount(1, $second->filter('[data-live-row]'));
+    }
+
+    public function test_the_first_page_answer_morphs_a_shown_row_and_inserts_a_new_one_before_the_row_that_follows_it(): void
+    {
+        $owner = $this->user('first-rows-owner@example.com');
+        $other = $this->user('first-rows-other@example.com');
+        $older = $this->project($owner, 'first-older');
+        $foreign = $this->project($other, 'first-foreign');
+        $this->em->flush();
+        $newer = $this->project($owner, 'first-newer');
+        $this->em->flush();
+        $gone = '0197c8a0-0000-7000-8000-000000000000';
+
+        $this->client->loginUser($owner);
+        $this->client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, '/projects-live/rows', [
+            'page' => 1,
+            'ids' => $older->id.','.$foreign->id.','.$gone,
+        ], server: ['HTTP_X_LOUPE_LIVE_REFRESH' => '1']);
+
+        self::assertResponseIsSuccessful();
+        $body = (string) $this->client->getResponse()->getContent();
+        self::assertStringContainsString('<turbo-stream action="replace" method="morph" target="project-row-'.$older->id.'">', $body);
+        self::assertStringContainsString('<turbo-stream action="before" target="project-row-'.$older->id.'">', $body);
+        self::assertStringContainsString('data-live-row="'.$newer->id.'"', $body);
+        self::assertStringContainsString('<turbo-stream action="remove" target="project-row-'.$gone.'">', $body);
+        self::assertStringContainsString('<turbo-stream action="remove" target="project-row-'.$foreign->id.'">', $body);
+        self::assertStringNotContainsString('first-foreign', $body);
+        self::assertStringNotContainsString('projects-live-band', $body);
+        self::assertStringNotContainsString('projects-newer-band', $body);
+        self::assertStringContainsString('target="projects-pagination"', $body);
+    }
+
+    public function test_the_first_page_answer_puts_the_last_new_row_before_the_new_project_tile(): void
+    {
+        $owner = $this->user('first-rows-last@example.com');
+        $project = $this->project($owner, 'first-last');
+        $this->em->flush();
+
+        $this->client->loginUser($owner);
+        $this->client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, '/projects-live/rows', ['page' => 1]);
+
+        self::assertResponseIsSuccessful();
+        $body = (string) $this->client->getResponse()->getContent();
+        self::assertStringContainsString('<turbo-stream action="before" target="projects-new-tile">', $body);
+        self::assertStringContainsString('data-live-row="'.$project->id.'"', $body);
+        self::assertStringNotContainsString('action="replace"', $body);
     }
 
     public function test_the_rows_answer_replaces_each_shown_row_removes_the_gone_ones_and_counts_the_newer_ones(): void
@@ -87,6 +124,7 @@ final class ProjectsLiveFragmentsTest extends WebTestCase
 
         $this->client->loginUser($owner);
         $this->client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, '/projects-live/rows', [
+            'page' => 2,
             'ids' => $shown->id.','.$foreign->id.','.$gone,
             'since' => $since,
         ], server: ['HTTP_X_LOUPE_LIVE_REFRESH' => '1']);
@@ -109,7 +147,7 @@ final class ProjectsLiveFragmentsTest extends WebTestCase
         $this->em->flush();
 
         $this->client->loginUser($owner);
-        $this->client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, '/projects-live/rows', ['ids' => (string) $shown->id, 'since' => ProjectCursor::of($shown)->toString()]);
+        $this->client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, '/projects-live/rows', ['page' => 2, 'ids' => (string) $shown->id, 'since' => ProjectCursor::of($shown)->toString()]);
 
         self::assertResponseIsSuccessful();
         $body = (string) $this->client->getResponse()->getContent();

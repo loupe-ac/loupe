@@ -157,7 +157,7 @@ final class ActivityPageTest extends WebTestCase
         $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/activity');
         self::assertResponseIsSuccessful();
         self::assertSame(array_slice($ids, 0, 20), $this->rowIds($crawler));
-        self::assertCount(1, $crawler->filter('turbo-frame#activity-frame .lp-pagination'));
+        self::assertCount(1, $crawler->filter('#activity-results .lp-pagination'));
 
         $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/activity?page=2');
         self::assertResponseIsSuccessful();
@@ -275,7 +275,7 @@ final class ActivityPageTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertCount(0, $crawler->filter('.lp-list-filters'));
         self::assertCount(0, $crawler->filter('.lp-data-table'));
-        self::assertSame('No recorded activity', trim($crawler->filter('turbo-frame#activity-frame [data-activity-empty] .lp-empty-state__title')->text()));
+        self::assertSame('No recorded activity', trim($crawler->filter('#activity-results [data-activity-empty] .lp-empty-state__title')->text()));
         self::assertCount(0, $crawler->filter('[data-activity-filtered-empty]'));
     }
 
@@ -295,34 +295,16 @@ final class ActivityPageTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertCount(1, $crawler->filter('.lp-list-filters #activity-search'));
-        self::assertSame('No activity matches these filters.', trim($crawler->filter('turbo-frame#activity-frame [data-activity-filtered-empty] .lp-empty-state__title')->text()));
+        self::assertSame('No activity matches these filters.', trim($crawler->filter('#activity-results [data-activity-filtered-empty] .lp-empty-state__title')->text()));
         self::assertCount(0, $crawler->filter('[data-activity-empty]'));
     }
 
-    public function test_the_frame_sends_its_links_to_the_top_page(): void
+    public function test_page_one_refreshes_its_rows_by_id_with_no_frame_of_its_own(): void
     {
         $client = static::createClient();
         $em = $this->em();
-        $owner = $this->user($em, 'activity-frame@example.com');
-        $project = new Project($owner, 'Frame');
-        $em->persist($project);
-        $em->persist(new OutboxEvent($project, 'board.card_moved', 'topic', '{}'));
-        $em->flush();
-        $em->clear();
-
-        $client->loginUser($owner);
-        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/activity', server: ['HTTP_TURBO_FRAME' => 'activity-frame']);
-
-        self::assertResponseIsSuccessful();
-        self::assertCount(1, $crawler->filter('turbo-frame#activity-frame[target="_top"] [data-activity-event-id]'));
-    }
-
-    public function test_the_frame_the_live_refresh_reloads_keeps_the_session_read_only(): void
-    {
-        $client = static::createClient();
-        $em = $this->em();
-        $owner = $this->user($em, 'activity-read-only-frames@example.com');
-        $project = new Project($owner, 'Read-only frames');
+        $owner = $this->user($em, 'activity-first-page-rows@example.com');
+        $project = new Project($owner, 'First page rows');
         $em->persist($project);
         $em->persist(new OutboxEvent($project, 'board.card_moved', 'topic', '{}'));
         $em->flush();
@@ -330,15 +312,23 @@ final class ActivityPageTest extends WebTestCase
 
         $client->loginUser($owner);
         $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/activity');
-        $region = $crawler->filter('turbo-frame#activity-frame[data-controller="live-region"]');
+
+        self::assertResponseIsSuccessful();
+        $region = $crawler->filter('turbo-frame#activity-list [data-controller="live-region"]');
         self::assertCount(1, $region);
-        self::assertSame('frame', $region->attr('data-live-region-mode-value'));
+        self::assertSame('rows', $region->attr('data-live-region-mode-value'));
         self::assertSame('["activity.changed"]', $region->attr('data-live-region-types-value'));
+        self::assertStringContainsString('/projects/'.$project->id.'/activity/rows?page=1', (string) $region->attr('data-live-region-url-value'));
+        self::assertNull($region->attr('data-live-since'));
+        self::assertCount(1, $region->filter('[data-activity-event-id][data-live-row]'));
+        self::assertCount(0, $region->filter('#activity-live-band'));
+        self::assertCount(1, $region->filter('#activity-results #activity-rows'));
+        self::assertCount(0, $crawler->filter('turbo-frame#activity-frame'));
         self::assertCount(0, $crawler->filter('[data-controller="worker-run-refresh"]'));
 
         $route = static::getContainer()->get('router')->getRouteCollection()->get('app_project_activity');
         self::assertNotNull($route);
-        self::assertSame('activity-frame', $route->getDefault(ReadOnlyAwareSessionHandler::READ_ONLY));
+        self::assertNull($route->getDefault(ReadOnlyAwareSessionHandler::READ_ONLY));
     }
 
     public function test_a_later_page_refreshes_its_rows_by_id(): void
@@ -367,7 +357,7 @@ final class ActivityPageTest extends WebTestCase
         self::assertStringContainsString('/projects/'.$project->id.'/activity/rows', (string) $region->attr('data-live-region-url-value'));
         self::assertGreaterThan(0, (int) $region->attr('data-live-since'));
         self::assertCount(1, $region->filter('#activity-live-band'));
-        self::assertCount(0, $crawler->filter('turbo-frame#activity-frame[data-controller="live-region"]'));
+        self::assertCount(1, $crawler->filter('turbo-frame#activity-list [data-controller="live-region"]'));
         self::assertCount(0, $crawler->filter('[data-controller="worker-run-refresh"]'));
     }
 

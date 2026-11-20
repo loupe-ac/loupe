@@ -1,0 +1,5 @@
+{# The card table and the paging of the Cards tab, which a live read replaces as a whole when the list goes from empty to rows or back. Props: report, project, query, routeParams. #}
+<div id="experiment-cards-results" class="lp-live-frame">
+    {% include '@Insights/_experiment_cards_list.html.twig' with {report: report, project: project} only %}
+    <div id="experiment-cards-pagination" class="lp-live-frame">{% if report.cards is not empty %}{% include '@Insights/_experiment_cards_pagination.html.twig' with {report: report, query: query, routeParams: routeParams} only %}{% endif %}</div>
+</div>

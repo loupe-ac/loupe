@@ -1,0 +1,4 @@
+{#- One connection card, after a pause or a try now. Props: project, connection (AgentConnection). -#}
+<turbo-stream action="replace" target="agent-connection-{{ connection.bridge.id }}">
+    <template>{% include '@Bridge/_agent_connection.html.twig' with {project: project, connection: connection, canManage: true} only %}</template>
+</turbo-stream>
