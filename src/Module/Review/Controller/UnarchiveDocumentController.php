@@ -59,8 +59,8 @@ final class UnarchiveDocumentController extends AppController
         $listParams = DocumentListQuery::fromQuery($request->query)->routeParams();
         $projectId = (string) $document->project->id;
 
-        // The row form posts inside the list frame, and the session flash renders outside it, so the answer carries its own flash and reloads the frame.
-        if (TurboBundle::STREAM_FORMAT === $request->getPreferredFormat()) {
+        // The row form posts inside the list frame, and the session flash renders outside it, so the answer carries its own flash and reloads the frame. Other pages post a plain redirect.
+        if (TurboBundle::STREAM_FORMAT === $request->getPreferredFormat() && 'documents-list' === $request->headers->get('Turbo-Frame')) {
             return new Response(
                 $this->renderView('@Review/_document_archive.stream.html.twig', [
                     'severity' => $severity,

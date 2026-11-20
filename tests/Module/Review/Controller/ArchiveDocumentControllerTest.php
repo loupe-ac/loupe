@@ -98,7 +98,7 @@ final class ArchiveDocumentControllerTest extends WebTestCase
 
         $client->loginUser($alice);
         $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/documents?page=1');
-        $client->submit($crawler->filter('[data-document-id="'.$documentId.'"] form')->form(), [], ['HTTP_ACCEPT' => 'text/vnd.turbo-stream.html']);
+        $client->submit($crawler->filter('[data-document-id="'.$documentId.'"] form')->form(), [], ['HTTP_ACCEPT' => 'text/vnd.turbo-stream.html', 'HTTP_TURBO_FRAME' => 'documents-list']);
 
         self::assertResponseIsSuccessful();
         self::assertStringContainsString('text/vnd.turbo-stream.html', (string) $client->getResponse()->headers->get('Content-Type'));
@@ -107,6 +107,32 @@ final class ArchiveDocumentControllerTest extends WebTestCase
         self::assertStringContainsString('Say so', $body);
         self::assertStringContainsString('<turbo-stream action="replace" target="documents-list">', $body);
         self::assertStringContainsString('src="/projects/'.$projectId.'/documents?page=1"', $body);
+    }
+
+    public function test_unarchiving_from_the_review_page_redirects_to_the_list_even_for_a_turbo_request(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+
+        $alice = $this->createUser($em, 'alice-unarch-review', 'alice-unarch-review@example.com');
+        $project = $this->project($em, $alice);
+        $document = $this->document($em, $alice, $project, 'Restore from review');
+        $document->archivedAt = new \DateTimeImmutable();
+        $em->flush();
+        $projectId = (string) $project->id;
+        $documentId = (string) $document->id;
+        $em->clear();
+
+        $client->loginUser($alice);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/documents/'.$documentId.'/review');
+        $client->submit($crawler->filter('[data-live-band="archived"] form')->form(), [], ['HTTP_ACCEPT' => 'text/vnd.turbo-stream.html']);
+
+        self::assertResponseRedirects('/projects/'.$projectId.'/documents?page=1');
+
+        $em->clear();
+        $fresh = $em->find(Document::class, $document->id);
+        self::assertInstanceOf(Document::class, $fresh);
+        self::assertNull($fresh->archivedAt);
     }
 
     public function test_unarchiving_puts_the_document_back_in_the_list(): void
