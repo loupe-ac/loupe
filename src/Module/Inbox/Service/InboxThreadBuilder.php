@@ -8,6 +8,7 @@ use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
+use App\Module\Inbox\View\InboxActionStatus;
 use App\Module\Inbox\View\InboxThreadClosing;
 use App\Module\Inbox\View\InboxThreadReply;
 use App\Module\Inbox\View\InboxThreadView;
@@ -30,8 +31,9 @@ final readonly class InboxThreadBuilder
     {
         $watch = $this->watches->forItem($item);
         $statuses = $this->preload->statusesOf($item) ?? $this->actionStatuses->forItems([$item])[(string) $item->id] ?? [];
-        $last = array_last($statuses);
+        $last = array_last(array_filter($statuses, static fn (InboxActionStatus $status): bool => $status->action->kind->answersWait()));
         // An action under way answers the wait, so the card stays away until it expires, is refused or is cancelled.
+        // A session only investigates, so the newest action that can answer decides.
         $answering = null !== $last && $last->answers($watch->waits ?? []);
 
         $closed = InboxItemState::Open !== $item->state;
