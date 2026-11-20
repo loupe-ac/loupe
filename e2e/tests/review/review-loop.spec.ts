@@ -16,7 +16,6 @@ import {
     suppressToolbar,
     suppressWidget,
 } from '../fixtures';
-import { submitRedirectingForm } from '../helpers';
 import { coverageScaled } from '../timeouts';
 import { showPanel, toggleOn } from './panels';
 
@@ -821,11 +820,7 @@ test('a stale withdrawal preserves the verdict from another tab', async ({
         .getByRole('button', { name: 'Finish review', exact: true })
         .click();
     await page.getByRole('radio', { name: 'Approve', exact: true }).check();
-    await submitRedirectingForm(
-        page,
-        page.getByRole('button', { name: 'Submit review' }),
-        `${review.reviewUrl}/submit`,
-    );
+    await page.getByRole('button', { name: 'Submit review' }).click();
     await expect(page.locator('.lp-verdict-chip--approved')).toBeVisible();
 
     const current = await context.newPage();
@@ -834,13 +829,10 @@ test('a stale withdrawal preserves the verdict from another tab', async ({
     await current.goto(review.reviewUrl);
     // Undo and Change verdict wait in the dropdown the verdict chip opens.
     await current.locator('.lp-verdict-chip__trigger').click();
-    await submitRedirectingForm(
-        current,
-        current
-            .locator('.lp-verdict-chip__undo')
-            .getByRole('button', { name: 'Undo', exact: true }),
-        `${review.reviewUrl}/undo`,
-    );
+    await current
+        .locator('.lp-verdict-chip__undo')
+        .getByRole('button', { name: 'Undo', exact: true })
+        .click();
     await expect(current.locator('.lp-flash--success')).toContainText(
         'Your verdict has been withdrawn.',
     );
@@ -853,11 +845,7 @@ test('a stale withdrawal preserves the verdict from another tab', async ({
     await current
         .getByRole('textbox', { name: 'Review note' })
         .fill('Clarify the retry policy.');
-    await submitRedirectingForm(
-        current,
-        current.getByRole('button', { name: 'Submit review' }),
-        `${review.reviewUrl}/submit`,
-    );
+    await current.getByRole('button', { name: 'Submit review' }).click();
     await expect(
         current.locator('.lp-verdict-chip .lp-menu__panel'),
     ).toContainText('Clarify the retry policy.');
@@ -878,13 +866,10 @@ test('a stale withdrawal preserves the verdict from another tab', async ({
         page.locator('.lp-verdict-chip .lp-menu__panel'),
     ).toContainText('Clarify the retry policy.');
     await page.locator('.lp-verdict-chip__trigger').click();
-    await submitRedirectingForm(
-        page,
-        page
-            .locator('.lp-verdict-chip__undo')
-            .getByRole('button', { name: 'Undo', exact: true }),
-        `${review.reviewUrl}/undo`,
-    );
+    await page
+        .locator('.lp-verdict-chip__undo')
+        .getByRole('button', { name: 'Undo', exact: true })
+        .click();
     await expect(page.locator('.lp-flash--success')).toContainText(
         'Your verdict has been withdrawn.',
     );
@@ -906,11 +891,7 @@ test('a standing verdict changes in one step', async ({ page, review }) => {
     await page
         .getByRole('textbox', { name: 'Review note' })
         .fill('Clarify the retry policy.');
-    await submitRedirectingForm(
-        page,
-        page.getByRole('button', { name: 'Submit review' }),
-        `${review.reviewUrl}/submit`,
-    );
+    await page.getByRole('button', { name: 'Submit review' }).click();
     await expect(
         page.locator('.lp-verdict-chip--changes-requested'),
     ).toBeVisible();
@@ -922,11 +903,7 @@ test('a standing verdict changes in one step', async ({ page, review }) => {
         .click();
     const dialog = page.getByRole('dialog', { name: 'Finish review' });
     await dialog.getByRole('radio', { name: 'Approve', exact: true }).check();
-    await submitRedirectingForm(
-        page,
-        dialog.getByRole('button', { name: 'Submit review' }),
-        `${review.reviewUrl}/submit`,
-    );
+    await dialog.getByRole('button', { name: 'Submit review' }).click();
     await expect(page.locator('.lp-verdict-chip--approved')).toBeVisible();
     await expect(page.locator('.lp-verdict-chip')).toContainText('Approved');
 });
