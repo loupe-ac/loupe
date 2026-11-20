@@ -10,6 +10,7 @@ import {
 } from '../lib/live_fetch.js';
 
 const STREAM_TYPE = 'text/vnd.turbo-stream.html';
+const CONNECTED_ATTRIBUTE = 'data-live-region-connected';
 
 /**
  * Keeps one region of the page current. A signal of one of its types, which
@@ -20,7 +21,7 @@ const STREAM_TYPE = 'text/vnd.turbo-stream.html';
  *
  * - frame: the region is a turbo-frame, and the answer morphs into it.
  * - stream: the answer is a Turbo Stream.
- * - rows: like stream, and the read names the shown rows and the cursor.
+ * - rows: like stream, and the read names the shown rows and, on a later page, the cursor.
  * - band: no read. The region unhides its band, and a reconnect compares the
  *   fingerprint of the region with the answer of the url.
  */
@@ -56,6 +57,8 @@ export default class extends Controller {
             this.typesValue,
             (change) => this.changed(change),
             {
+                onOpen: () =>
+                    this.element.setAttribute(CONNECTED_ATTRIBUTE, ''),
                 onReconnect: () => this.reconnected(),
             },
         );
@@ -76,6 +79,7 @@ export default class extends Controller {
         this.fetcher?.stop();
         this.unsubscribe?.();
         this.unsubscribe = undefined;
+        this.element.removeAttribute(CONNECTED_ATTRIBUTE);
     }
 
     changed(change) {
@@ -144,13 +148,13 @@ export default class extends Controller {
         }
         if (this.modeValue === 'rows') {
             url.searchParams.set('ids', this.rowIds().join(','));
-            url.searchParams.set('since', this.element.dataset.liveSince ?? '');
-            url.searchParams.set(
-                'sinceId',
-                this.element.dataset.liveSinceId ?? '',
-            );
-            if (this.element.dataset.liveTotal !== undefined) {
-                url.searchParams.set('total', this.element.dataset.liveTotal);
+            const { liveSince, liveSinceId, liveTotal } = this.element.dataset;
+            if (liveSince !== undefined) {
+                url.searchParams.set('since', liveSince);
+                url.searchParams.set('sinceId', liveSinceId ?? '');
+            }
+            if (liveTotal !== undefined) {
+                url.searchParams.set('total', liveTotal);
             }
         }
 

@@ -1,7 +1,7 @@
 {#- The Backlog rows and their paging, or the empty state. Props: project (Project), view (ListBacklogCardsView), listQuery (BacklogListQuery). -#}
 {% set backlogPath = path('app_project_board_backlog', {projectId: project.id}) %}
 {% if view.items|length > 0 %}
-<twig:Ds:DataTable modifier="backlog" :label="'board.backlog.table.label'|trans">
+<twig:Ds:DataTable id="backlog-rows" modifier="backlog" :label="'board.backlog.table.label'|trans">
     <twig:block name="header">
         <span class="lp-data-table__cell" role="columnheader"><input type="checkbox" class="lp-backlog-check lp-touch-check" aria-label="{{ 'board.backlog.select_all'|trans }}" data-backlog-select-target="all" data-action="backlog-select#toggleAll"></span>
         <span class="lp-data-table__cell" role="columnheader">{{ 'board.backlog.table.card'|trans }}</span>
@@ -16,7 +16,7 @@
         {% endfor %}
 </twig:Ds:DataTable>
 
-<twig:Ds:Pagination route="app_project_board_backlog" :page="listQuery.page" :totalPages="view.totalPages" :pageList="view.pageList" :routeParams="{projectId: project.id}|merge(listQuery.routeParams)" frame="backlog-list" />
+{% include '@Board/_backlog_pagination.html.twig' with {project: project, view: view, listQuery: listQuery} only %}
 {% elseif listQuery.isNarrowed %}
 <twig:Ds:EmptyState icon="lucide:search-x" iconSize="xl" :title="'board.backlog.empty_filtered.title'|trans" :body="'board.backlog.empty_filtered.body'|trans">
     <twig:Ds:Button href="{{ backlogPath }}" data-clear-filter-form="backlog-filter">{{ 'board.backlog.filter.clear_filters'|trans }}</twig:Ds:Button>

@@ -215,7 +215,7 @@ final class ListBacklogCardsControllerTest extends WebTestCase
         self::assertResponseRedirects($url.'?page=1&type=feature&sort=epic&dir=asc');
     }
 
-    public function test_the_first_page_is_a_live_frame_on_the_board_topic(): void
+    public function test_the_first_page_is_a_rows_region_on_the_board_topic(): void
     {
         $client = static::createClient();
         $em = static::getContainer()->get(EntityManagerInterface::class);
@@ -237,17 +237,22 @@ final class ListBacklogCardsControllerTest extends WebTestCase
         $subscribed = $crawler->filter('form#mercure-subscriptions input[data-mercure-topic]')->each(static fn (Crawler $input): ?string => $input->attr('value'));
         self::assertContains($topics->forBoard($projectId), $subscribed);
         self::assertContains($topics->forWorkerRuns($projectId), $subscribed);
-        $region = $crawler->filter('turbo-frame#backlog-live[data-controller="live-region"]');
+        self::assertCount(0, $crawler->filter('turbo-frame#backlog-live'));
+        $region = $crawler->filter('turbo-frame#backlog-list div#backlog-live[data-controller="live-region"]');
         self::assertCount(1, $region);
-        self::assertSame('frame', $region->attr('data-live-region-mode-value'));
+        self::assertSame('rows', $region->attr('data-live-region-mode-value'));
         self::assertSame('["board.card_changed","board.columns_changed"]', $region->attr('data-live-region-types-value'));
-        self::assertSame($url.'?page=1&type=feature', $region->attr('data-live-region-url-value'));
+        self::assertSame($url.'/rows?page=1&type=feature', $region->attr('data-live-region-url-value'));
+        self::assertNull($region->attr('data-live-since'));
+        self::assertCount(0, $region->filter('#backlog-live-band'));
+        self::assertCount(1, $region->filter('#backlog-rows'));
+        self::assertCount(1, $region->filter('#backlog-pagination'));
         self::assertCount(1, $region->filter('#backlog-row-'.$card->id.'[data-live-row="'.$card->id.'"][data-live-fade]'));
         self::assertCount(0, $crawler->filter('[data-backlog-live-target]'));
         self::assertCount(1, $region->filter('form#backlog-bulk-form'));
     }
 
-    public function test_a_live_frame_read_sends_the_epic_options_again_for_the_select_outside_the_frame(): void
+    public function test_a_frame_read_of_the_first_page_carries_no_live_stream(): void
     {
         $client = static::createClient();
         $em = static::getContainer()->get(EntityManagerInterface::class);
@@ -260,15 +265,10 @@ final class ListBacklogCardsControllerTest extends WebTestCase
         $em->clear();
 
         $client->loginUser($owner);
-        $page = $client->request(Request::METHOD_GET, $url);
-        self::assertCount(0, $page->filter('turbo-stream'));
-
-        $frame = $client->request(Request::METHOD_GET, $url, server: ['HTTP_TURBO_FRAME' => 'backlog-live']);
+        $client->request(Request::METHOD_GET, $url, server: ['HTTP_TURBO_FRAME' => 'backlog-live']);
 
         self::assertResponseIsSuccessful();
-        $stream = $frame->filter('turbo-frame#backlog-live turbo-stream[action="replace"][method="morph"][target="backlog-epic"]');
-        self::assertCount(1, $stream);
-        self::assertStringContainsString('Fresh epic', $stream->filter('template')->html());
+        self::assertStringNotContainsString('<turbo-stream', (string) $client->getResponse()->getContent());
     }
 
     public function test_a_later_page_reads_its_own_rows_with_the_moment_it_rendered(): void
@@ -314,7 +314,7 @@ final class ListBacklogCardsControllerTest extends WebTestCase
         $client->request(Request::METHOD_GET, $url.'/rows', ['since' => LiveCursor::format(new \DateTimeImmutable('-1 hour')), 'ids' => (string) $shown->id], server: ['HTTP_ACCEPT' => 'text/vnd.turbo-stream.html']);
 
         self::assertResponseIsSuccessful();
-        $stream = new Crawler((string) $client->getResponse()->getContent())->filter('turbo-stream[action="replace"][method="morph"][target="backlog-epic"]');
+        $stream = new Crawler((string) $client->getResponse()->getContent())->filter('turbo-stream[action="replace"][method="morph"][target="backlog-filter-slot"]');
         self::assertCount(1, $stream);
         self::assertStringContainsString('Rows epic', $stream->filter('template')->html());
     }

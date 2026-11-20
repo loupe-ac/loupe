@@ -15,6 +15,7 @@ The filters sit on top of the table as one block.
 A search, a filter or a page change swaps only the list. The search box keeps its focus and the address bar follows, so the view stays linkable.
 **Clear** empties every filter and shows the full list.
 A live update of the list keeps the filter you chose.
+On page 1 the update works by row: a changed document updates in place, a new match joins the list at its place, and a document that no longer matches goes. The rows you see keep their order.
 The Status column shows a draft as a dashed outline, so it stands out from a filled In review badge.
 
 ## Creating

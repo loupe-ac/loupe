@@ -13,13 +13,14 @@ use App\Module\Insights\Service\LiveRowsQuery;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
 use App\Session\ReadOnlyAwareSessionHandler;
+use App\Utils\RowChanges;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\UX\Turbo\TurboBundle;
 
-/** The rows of a later page of the Cards tab, as a Turbo Stream: each shown card that still matches the filter morphs in place, the others go, the band counts the newer ones, and the count and variant links refresh. */
+/** The rows of a page of the Cards tab, as a Turbo Stream. Page one reads its page again and inserts the cards it gained. A later page: each shown card that still matches the filter morphs in place, the others go, the band counts the newer ones, and the count and variant links refresh. */
 #[IsGranted(ProjectVoter::VIEW, subject: 'project')]
 #[Route(
     '/projects/{id:project}/analytics/experiments/{experiment}/cards/rows',
@@ -39,6 +40,29 @@ class ListExperimentCardRowsController extends AppController
     {
         $rowsQuery = LiveRowsQuery::fromQuery($request->query);
         $query = ExperimentCardsQuery::fromQuery($request->query);
+        $routeParams = ['id' => $project->id, 'experiment' => $experiment];
+        if (1 === $query->page) {
+            $first = ($this->showExperiment)(new ShowExperimentCommand($project, $experiment, 1, $query->variant, $query->leftOutOnly, withMetrics: false))
+                ?? throw $this->createNotFoundException('No run and no pin name this experiment.');
+            $changes = RowChanges::between(
+                $first->cards,
+                static fn ($card): string => $card->cardId->toRfc4122(),
+                array_map(static fn ($id): string => $id->toRfc4122(), $rowsQuery->ids),
+            );
+
+            return new Response(
+                $this->renderView('@Insights/_experiment_cards_first_page_rows.stream.html.twig', [
+                    'project' => $project,
+                    'report' => $first,
+                    'query' => $query,
+                    'routeParams' => $routeParams,
+                    'changes' => $changes,
+                ]),
+                Response::HTTP_OK,
+                ['Content-Type' => TurboBundle::STREAM_MEDIA_TYPE],
+            );
+        }
+
         $report = ($this->showExperiment)(new ShowExperimentCommand(
             $project,
             $experiment,
@@ -68,7 +92,7 @@ class ListExperimentCardRowsController extends AppController
             'newer' => $report->newerCards,
             'report' => $whole,
             'query' => $query,
-            'routeParams' => ['id' => $project->id, 'experiment' => $experiment],
+            'routeParams' => $routeParams,
             'firstPage' => $this->generateUrl('app_project_analytics_experiment_cards', [
                 'id' => (string) $project->id,
                 'experiment' => $experiment,

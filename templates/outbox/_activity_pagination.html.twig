@@ -1,0 +1,2 @@
+{# The paging links of the activity list. Props: project, listQuery, page, totalPages, pageList. #}
+<twig:Ds:Pagination route="app_project_activity" :page="page" :totalPages="totalPages" :pageList="pageList" :routeParams="{id: project.id}|merge(listQuery.routeParams)" frame="activity-list" />

@@ -20,28 +20,17 @@
     {% if not app.request.headers.has('Turbo-Frame') %}{% do mercure_subscribe(activity_topic(project)) %}{% endif %}
     {% set rowsUrl = path('app_project_activity_rows', {id: project.id}|merge(listQuery.routeParams)) %}
     {# The filter bar stays outside the swapped frame, so a search keeps its field and focus. #}
-    {% if filtered %}{% include 'outbox/_activity_filters.html.twig' with {project: project, listQuery: listQuery, families: families} only %}{% endif %}
-    {# One frame on every page, so a filter or a page swaps only the list. The live region sits inside it, so each swap brings the address of the new filter and page. #}
+    <div id="activity-filters" class="lp-live-frame">{% if filtered %}{% include 'outbox/_activity_filters.html.twig' with {project: project, listQuery: listQuery, families: families} only %}{% endif %}</div>
+    {# One frame on every page, so a filter or a page swaps only the list. The live region sits inside it, so each swap brings the address of the new filter and page. A signal reads the rows by id, so a new event never moves a row. #}
     <turbo-frame id="activity-list" target="_top">
-    {# Page one morphs as a frame. A later page refreshes its rows by id, so a new event never moves them. #}
-    {% if page == 1 %}
-    <turbo-frame id="activity-frame" class="lp-live-frame" target="_top" refresh="morph" data-live-content
-         data-controller="live-region"
-         data-live-region-types-value="{{ ['activity.changed']|json_encode }}"
-         data-live-region-mode-value="frame"
-         data-live-region-url-value="{{ app.request.requestUri }}">
-        {% include 'outbox/_activity_results.html.twig' with {project: project, listQuery: listQuery, entries: entries, filtered: filtered, filteredTotal: filteredTotal, page: page, totalPages: totalPages, pageList: pageList} only %}
-    </turbo-frame>
-    {% else %}
     <div class="lp-live-frame" data-controller="live-region" data-live-content
          data-live-region-types-value="{{ ['activity.changed']|json_encode }}"
          data-live-region-mode-value="rows"
          data-live-region-url-value="{{ rowsUrl }}"
-         data-live-since="{{ highestSequence }}">
-        <div id="activity-live-band"></div>
+         {% if page > 1 %}data-live-since="{{ highestSequence }}"{% endif %}>
+        {% if page > 1 %}<div id="activity-live-band"></div>{% endif %}
         {% include 'outbox/_activity_results.html.twig' with {project: project, listQuery: listQuery, entries: entries, filtered: filtered, filteredTotal: filteredTotal, page: page, totalPages: totalPages, pageList: pageList} only %}
     </div>
-    {% endif %}
     </turbo-frame>
 </twig:Ds:Workspace>
 {% endblock %}

@@ -1,0 +1,4 @@
+{#- The paging of a terminal column. The wrapper stays when there is one page. Props: page (int), totalPages (int), pageList (list<int|null>), routeParams (array). -#}
+<div id="terminal-pagination">
+    <twig:Ds:Pagination route="app_project_board_terminal_column" :page="page" :totalPages="totalPages" :pageList="pageList" :routeParams="routeParams" frame="terminal-list" />
+</div>

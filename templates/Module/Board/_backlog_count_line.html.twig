@@ -1,0 +1,2 @@
+{#- The Backlog count line, hidden while the list is empty. Props: view (ListBacklogCardsView), listQuery (BacklogListQuery). -#}
+<p id="backlog-count" class="lp-list-count"{{ view.total > 0 or listQuery.isNarrowed ? '' : ' hidden' }}><span id="backlog-filter-count">{% include '@Board/_backlog_count.html.twig' with {view: view, listQuery: listQuery} only %}</span></p>

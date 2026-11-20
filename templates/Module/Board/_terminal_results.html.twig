@@ -1,0 +1,14 @@
+{#- The rows of a terminal column page and their paging, or the empty state. Props: project (Project), items (list<Card>), page (int), totalPages (int), pageList (list<int|null>), routeParams (array). -#}
+{% if items|length > 0 %}
+<div id="terminal-rows" class="lp-done-list">
+    {% for card in items %}
+    {% include '@Board/_terminal_row.html.twig' with {project: project, card: card} only %}
+    {% endfor %}
+</div>
+
+{% include '@Board/_terminal_pagination.html.twig' with {page: page, totalPages: totalPages, pageList: pageList, routeParams: routeParams} only %}
+{% else %}
+<twig:Ds:EmptyState icon="lucide:square-check-big" :title="'board.terminal.empty.title'|trans" :body="'board.terminal.empty.body'|trans">
+    <twig:Ds:Button href="{{ path('app_project_board', {id: project.id}) }}">{{ 'board.terminal.empty.action'|trans }}</twig:Ds:Button>
+</twig:Ds:EmptyState>
+{% endif %}

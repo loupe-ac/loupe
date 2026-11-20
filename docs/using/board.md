@@ -199,7 +199,7 @@ from 1 to 30 days under **Finished work on the board** in board settings.
 through, however old it is.
 
 The history page of a terminal column updates on its own when a card changes.
-Page 1 shows a card that finishes in its place. On page 2 and later, the rows
+Page 1 updates by row: a card that finishes appears at its place, and a card that leaves goes. The rows you see do not move. On page 2 and later, the rows
 keep their order, a card that leaves the column fades out, and a band counts
 the cards that finished since you opened the page, with a link to the first page.
 
@@ -387,9 +387,10 @@ An empty Backlog shows **The Backlog is empty**. Filters that match no card
 show **No card matches** and a **Clear filters** button.
 
 The page updates on its own when someone else changes a card or the columns
-of the board, also outside the Backlog. On page 1, rows move into their sorted
-place and unchanged rows stay as they are. A row that you ticked stays ticked,
-and an open menu holds the update until it closes. On page 2 and later, the
+of the board, also outside the Backlog. On page 1, the update works by row. A
+changed row updates in place, a row that left goes, and a card that moves up
+from page 2 joins at the end. The rows you see keep their order. A row that you
+ticked stays ticked, and an open menu holds the update until it closes. On page 2 and later, the
 rows keep their order. A row that left the Backlog or no longer matches a
 filter fades out. A band shows how many new cards match the filters, with a
 link to the first page. The count of cards updates too. A change made on this

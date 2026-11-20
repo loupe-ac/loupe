@@ -14,8 +14,8 @@ final readonly class ListBacklogRowsCommand
         public BacklogListQuery $listQuery,
         /** @var list<string> the card ids of the rows the page shows */
         public array $ids,
-        /** The moment the page rendered. */
-        public \DateTimeImmutable $since,
+        /** The moment the page rendered. Page one reads its own page, so it needs none. */
+        public ?\DateTimeImmutable $since,
     ) {
     }
 }

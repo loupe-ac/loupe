@@ -14,7 +14,6 @@ use App\Module\Review\Entity\DocumentStatus;
 use App\Module\Review\Form\CreateDocumentFormType;
 use App\Module\Review\Form\CreateDocumentRequest;
 use App\Module\Review\View\DocumentListQuery;
-use App\Session\ReadOnlyAwareSessionHandler;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -25,7 +24,6 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[Route(
     '/projects/{id:project}/documents',
     name: 'app_project_documents',
-    defaults: [ReadOnlyAwareSessionHandler::READ_ONLY => 'documents-live'],
     methods: ['GET'],
 )]
 class ListDocumentsController extends AppController
