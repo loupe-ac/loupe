@@ -11,7 +11,6 @@ use App\Module\Review\Entity\Document;
 use App\Module\Review\Form\ArchiveDocumentFormType;
 use App\Module\Review\Security\DocumentVoter;
 use App\Module\Review\Twig\ReviewExtension;
-use App\Module\Review\View\DocumentListQuery;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\HttpFoundation\Request;
@@ -53,9 +52,9 @@ final class UnarchiveDocumentController extends AppController
             $this->addFlash('error', $this->translator->trans('review.archive.flash.rejected'));
         }
 
-        return $this->redirectToRoute('app_project_documents', [
-            'id' => (string) $document->project->id,
-            ...DocumentListQuery::fromQuery($request->query)->routeParams(),
+        return $this->redirectToRoute('app_document_review', [
+            'projectId' => (string) $document->project->id,
+            'documentId' => (string) $document->id,
         ]);
     }
 }

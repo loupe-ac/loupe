@@ -97,6 +97,8 @@ Threads carry a status: pending, addressed, or resolved.
 Select **Finish review** in the top bar, or in the review bar on a narrow screen, to approve the version or request changes.
 A request for changes needs a review note only when the version has no open comment.
 An open comment is a thread that is pending or addressed. An approval can include a note.
+A verdict, **Undo** and **Publish** change the page where you stand. The page keeps its place, the **Finish review** sheet closes, and the top bar, the draft band and a message show the new state. A refused action shows its message in the same way.
+Restoring a deleted thread and unarchiving a document also keep you on the document. **Unarchive** on the review page returns to that document.
 After a verdict, the top bar shows the verdict as a button.
 Select it to see the reviewer, version, time and note, with **Change verdict** and **Undo**.
 **Undo** on an approval of a design can move the card back to the stage of that design. See [Undoing a design](workflows.md#undoing-a-design).

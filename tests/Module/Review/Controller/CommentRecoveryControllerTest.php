@@ -149,6 +149,34 @@ final class CommentRecoveryControllerTest extends WebTestCase
         self::assertNull($restored->deletedAt);
     }
 
+    public function test_restore_answers_a_stream_that_refreshes_the_threads_and_clears_the_notice(): void
+    {
+        $rootId = (string) $this->root->id;
+        $this->submitRecovery($rootId, 2, ['HTTP_ACCEPT' => 'text/vnd.turbo-stream.html']);
+
+        self::assertResponseIsSuccessful();
+        $body = (string) $this->client->getResponse()->getContent();
+        self::assertStringContainsString('target="comment-threads"', $body);
+        self::assertStringContainsString('<turbo-stream action="update" target="comment-recovery">', $body);
+        self::assertStringContainsString('target="main-content"', $body);
+        $this->em->clear();
+        $root = $this->em->find(Comment::class, $rootId);
+        self::assertInstanceOf(Comment::class, $root);
+        self::assertNull($root->deletedAt);
+    }
+
+    public function test_a_refused_restore_answers_a_stream_with_the_error_and_no_redirect(): void
+    {
+        $this->submitRecovery((string) $this->root->id, 1, ['HTTP_ACCEPT' => 'text/vnd.turbo-stream.html']);
+
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('The deletion state has changed.', (string) $this->client->getResponse()->getContent());
+        $this->em->clear();
+        $root = $this->em->find(Comment::class, $this->root->id);
+        self::assertInstanceOf(Comment::class, $root);
+        self::assertNotNull($root->deletedAt);
+    }
+
     /** @return iterable<string, array{string}> */
     public static function deleteFormats(): iterable
     {
@@ -167,12 +195,13 @@ final class CommentRecoveryControllerTest extends WebTestCase
      * The GET seeds the CSRF cookie the same-origin manager wants. The sequence
      * goes as a string, because IntegerType's transformer refuses anything else.
      */
-    private function submitRecovery(string $commentId, ?int $sequence): void
+    /** @param array<string, string> $server */
+    private function submitRecovery(string $commentId, ?int $sequence, array $server = []): void
     {
         $this->client->request(Request::METHOD_GET, $this->reviewUrl);
         $name = 'restore_comment_'.Uuid::fromString($commentId)->toBase32();
         $this->client->request(Request::METHOD_POST, '/comments/'.$commentId.'/restore', [
             $name => ['deletionSequence' => null === $sequence ? '' : (string) $sequence, '_token' => 'csrf-token'],
-        ]);
+        ], [], $server);
     }
 }

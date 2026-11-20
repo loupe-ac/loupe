@@ -104,7 +104,7 @@ final class ArchiveDocumentControllerTest extends WebTestCase
 
         $client->submit($crawler->filter('[data-document-id="'.$documentId.'"] form')->form());
 
-        self::assertResponseRedirects('/projects/'.$projectId.'/documents?page=1&archived=1');
+        self::assertResponseRedirects('/projects/'.$projectId.'/documents/'.$documentId.'/review');
 
         $em->clear();
         $fresh = $em->find(Document::class, $document->id);
