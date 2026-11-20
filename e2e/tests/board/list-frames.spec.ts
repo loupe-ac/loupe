@@ -1,5 +1,5 @@
 /**
- * The documents list, the Backlog and the activity list filter inside their frame: a search swaps
+ * The documents list, the Backlog, the activity list, the runs, the artifacts and the bucket rules filter inside their frame: a search swaps
  * only the list, the address bar follows, and a live signal that another actor
  * sends keeps the filter instead of bringing the old list back. The done
  * column pages inside its frame the same way. The hub delivers the signal, so
@@ -8,6 +8,7 @@
 
 import { test, expect } from '@playwright/test';
 import {
+    agentAccessToken,
     expectInPlace,
     mcpCards,
     signedInPage,
@@ -237,4 +238,227 @@ test('an activity search and a page change swap the list and keep the filter', a
     });
     await expect(watcher).toHaveURL(/search=renamed/);
     await expect(search).toHaveValue('renamed');
+});
+
+test('an activity filter survives a live signal from another actor', async ({
+    browser,
+    request,
+}) => {
+    const email = `e2e+listframes+activitylive+${RUN}@example.com`;
+    const registered = await request.post('/dev/register-and-verify', {
+        form: { fullName: 'E2E List Frames', email, password: PASSWORD },
+    });
+    expect(registered.status()).toBe(200);
+
+    const watcher = await signedInPage(browser, email, PASSWORD);
+    const seeded = await watcher.request.post('/dev/seed/activity-events', {
+        form: { name: `Signal ${RUN}`, published: 25, unsent: 0 },
+    });
+    expect(seeded.status()).toBe(201);
+    const projectId = ((await seeded.json()) as { projectId: string })
+        .projectId;
+    const actor = await signedInPage(browser, email, PASSWORD);
+
+    await suppressToolbar(watcher);
+    await suppressWidget(watcher);
+    await watcher.goto(`/projects/${projectId}/activity`);
+    const search = watcher.locator('#activity-search');
+    await search.click();
+    await watcher.keyboard.type('renamed');
+    await expect(watcher).toHaveURL(/search=renamed/, LIVE);
+    await expect(watcher.locator('.lp-list-count')).toHaveText('25 events');
+
+    // The hub keeps no history, so a change made before the page connects is lost.
+    await watcher.waitForTimeout(1_000);
+    await actor.goto(`/projects/${projectId}/edit`);
+    await actor
+        .getByLabel('Project name', { exact: true })
+        .fill(`Signal ${RUN} renamed`);
+    await actor
+        .getByRole('button', { name: 'Save changes', exact: true })
+        .click();
+
+    await expect(watcher.locator('.lp-list-count')).toHaveText(
+        '26 events',
+        LIVE,
+    );
+    await expect(watcher).toHaveURL(/search=renamed/);
+    await expect(search).toHaveValue('renamed');
+});
+
+test('a runs filter survives a live signal from another actor', async ({
+    browser,
+    request,
+}) => {
+    const email = `e2e+listframes+runs+${RUN}@example.com`;
+    const registered = await request.post('/dev/register-and-verify', {
+        form: { fullName: 'E2E List Frames', email, password: PASSWORD },
+    });
+    expect(registered.status()).toBe(200);
+
+    const watcher = await signedInPage(browser, email, PASSWORD);
+    const seeded = await watcher.request.post('/dev/seed/document', {
+        form: { title: 'E2E Runs Frames', markdown: '# Runs' },
+    });
+    expect(seeded.status()).toBe(201);
+    const projectId = ((await seeded.json()) as { projectId: string })
+        .projectId;
+    const actor = await signedInPage(browser, email, PASSWORD);
+    const token = await agentAccessToken(actor);
+    const bridgeId = crypto.randomUUID();
+    const card = await (await mcpCards(actor, projectId))('Runs frame card');
+    const report = async (data: Record<string, unknown>): Promise<string> => {
+        const response = await actor.request.put(
+            `/api/v1/bridge/projects/${projectId}/worker-runs/${crypto.randomUUID()}`,
+            {
+                headers: { Authorization: `Bearer ${token}` },
+                data: {
+                    bridgeId,
+                    at: new Date().toISOString(),
+                    workKind: 'implement',
+                    subjectType: 'card',
+                    subjectId: card.id,
+                    cardNumber: card.number,
+                    ...data,
+                },
+            },
+        );
+        expect(response.status()).toBe(201);
+
+        return ((await response.json()) as { id: string }).id;
+    };
+    const finished = await report({
+        state: 'unfinished',
+        sessionId: crypto.randomUUID(),
+        startedAt: '2026-09-23T10:00:00+00:00',
+        endedAt: '2026-09-23T10:05:00+00:00',
+        exitCode: 0,
+        hasResult: true,
+        resultStatus: 'unfinished',
+        output: 'CI still runs',
+    });
+    await report({ state: 'queued' });
+
+    await suppressToolbar(watcher);
+    await suppressWidget(watcher);
+    await watcher.goto(`/projects/${projectId}/worker-runs`);
+    await expect(watcher.locator('[data-worker-run-id]')).toHaveCount(2);
+    await watcher.locator('#worker-run-outcome').selectOption('open');
+    await expect(watcher).toHaveURL(/open/, LIVE);
+    await expect(watcher.locator('[data-worker-run-id]')).toHaveCount(1);
+
+    // The hub keeps no history, so a change made before the page connects is lost.
+    await watcher.waitForTimeout(1_000);
+    await report({ state: 'queued' });
+
+    await expect(watcher.locator('[data-worker-run-id]')).toHaveCount(2, LIVE);
+    await expect(
+        watcher.locator(`[data-worker-run-id="${finished}"]`),
+    ).toHaveCount(0);
+    await expect(watcher).toHaveURL(/open/);
+    await expect(watcher.locator('#worker-run-outcome')).toHaveValue('open');
+});
+
+test('an artifacts archived filter survives a live signal from another actor', async ({
+    browser,
+    request,
+}) => {
+    const email = `e2e+listframes+artifacts+${RUN}@example.com`;
+    const registered = await request.post('/dev/register-and-verify', {
+        form: { fullName: 'E2E List Frames', email, password: PASSWORD },
+    });
+    expect(registered.status()).toBe(200);
+    const flag = await request.post('/dev/e2e/feature-flag', {
+        form: { name: 'artifacts.enabled', enabled: 1 },
+    });
+    expect(flag.ok()).toBeTruthy();
+
+    const watcher = await signedInPage(browser, email, PASSWORD);
+    const seeded = await watcher.request.post('/dev/seed/document', {
+        form: { title: 'E2E Artifacts Frames', markdown: '# Artifacts' },
+    });
+    expect(seeded.status()).toBe(201);
+    const projectId = ((await seeded.json()) as { projectId: string })
+        .projectId;
+    const actor = await signedInPage(browser, email, PASSWORD);
+    const token = await agentAccessToken(actor);
+    const store = async (name: string): Promise<void> => {
+        const stored = await actor.request.post(
+            `/api/v1/bridge/projects/${projectId}/artifacts`,
+            {
+                headers: { Authorization: `Bearer ${token}` },
+                multipart: {
+                    name,
+                    'paths[0]': 'index.html',
+                    'files[0]': {
+                        name: 'index.html',
+                        mimeType: 'text/html',
+                        buffer: Buffer.from(`<h1>${name}</h1>`),
+                    },
+                },
+            },
+        );
+        expect(stored.status()).toBe(201);
+    };
+    await store('First artifact');
+    await store('Kept artifact');
+
+    await suppressToolbar(watcher);
+    await suppressWidget(watcher);
+    await watcher.goto(`/projects/${projectId}/artifacts`);
+    await watcher.locator('[data-artifact-row-archive]').click();
+    await expect(watcher.locator('[data-artifact-id]')).toHaveCount(1, LIVE);
+    const toggle = watcher.locator('[data-artifact-archived-toggle]');
+    await toggle.click();
+    await expect(watcher).toHaveURL(/archived=1/, LIVE);
+    await expect(watcher.locator('[data-artifact-id]')).toHaveCount(2);
+
+    // The hub keeps no history, so a change made before the page connects is lost.
+    await watcher.waitForTimeout(1_000);
+    await store('Second artifact');
+
+    await expect(watcher.locator('[data-artifact-id]')).toHaveCount(3, LIVE);
+    await expect(watcher.locator('[data-artifact-archived]')).toHaveCount(1);
+    await expect(watcher).toHaveURL(/archived=1/);
+});
+
+test('a bucket rules range survives a live signal from another actor', async ({
+    browser,
+    request,
+}) => {
+    const email = `e2e+listframes+buckets+${RUN}@example.com`;
+    const registered = await request.post('/dev/register-and-verify', {
+        form: { fullName: 'E2E List Frames', email, password: PASSWORD },
+    });
+    expect(registered.status()).toBe(200);
+
+    const watcher = await signedInPage(browser, email, PASSWORD);
+    const seeded = await watcher.request.post('/dev/seed/document', {
+        form: { title: 'E2E Buckets Frames', markdown: '# Buckets' },
+    });
+    expect(seeded.status()).toBe(201);
+    const projectId = ((await seeded.json()) as { projectId: string })
+        .projectId;
+    const actor = await signedInPage(browser, email, PASSWORD);
+    const url = `/projects/${projectId}/analytics/time-buckets`;
+
+    await suppressToolbar(watcher);
+    await suppressWidget(watcher);
+    await watcher.goto(url);
+    const range = watcher.locator('#bucket-summary-range');
+    await range.selectOption('seven-days');
+    await expect(watcher).toHaveURL(/range=seven-days/, LIVE);
+    await expect(range).toHaveValue('seven-days');
+
+    // The hub keeps no history, so a change made before the page connects is lost.
+    await watcher.waitForTimeout(1_000);
+    await actor.goto(url);
+    await actor.getByLabel('Pattern', { exact: true }).fill('make *');
+    await actor.getByLabel('Bucket', { exact: true }).fill('build');
+    await actor.getByRole('button', { name: 'Add the rule' }).click();
+    await expect(actor.locator('[data-bucket-rule]')).toHaveCount(1);
+
+    await expect(watcher.locator('[data-bucket-rule]')).toHaveCount(1, LIVE);
+    await expect(watcher).toHaveURL(/range=seven-days/);
+    await expect(range).toHaveValue('seven-days');
 });
