@@ -8,6 +8,7 @@ use App\Module\Bridge\Event\BridgeReported;
 use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\Service\BridgeLiveness;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
+use App\Module\Bridge\ValueObject\WorkerRunChangeKind;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
 use Psr\Clock\ClockInterface;
@@ -51,7 +52,7 @@ final readonly class AnnounceQuietBridgesHandler
             }
         }
         foreach ($told as $project) {
-            $this->publisher->runsChanged($project);
+            $this->publisher->runsChanged($project, WorkerRunChangeKind::State);
         }
         if ([] !== $reported) {
             $this->events->dispatch(new BridgeReported(array_keys($reported)));
