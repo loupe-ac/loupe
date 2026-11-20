@@ -167,7 +167,7 @@ final readonly class WorkTakers
         $workKind = Bridge::workKindOf($request->subjectType, $request->kind);
         $limits = [];
         foreach ($bridge->accounts ?? [] as $row) {
-            if (!\in_array($workKind, $row['kinds'] ?? [], true)) {
+            if (!Bridge::accountLists($row, $workKind)) {
                 continue;
             }
             if (!isset($blocked[$row['name']])) {

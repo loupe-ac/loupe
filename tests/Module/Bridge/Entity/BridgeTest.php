@@ -7,6 +7,7 @@ namespace App\Tests\Module\Bridge\Entity;
 use App\Module\Account\Entity\User;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\WorkRequest;
+use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Project\Entity\Project;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -133,6 +134,49 @@ final class BridgeTest extends TestCase
         self::assertTrue($bridge->failsProjectFor('p1', 'discovery'));
         self::assertFalse($bridge->failsProjectFor('p1', 'implement'));
         self::assertFalse($bridge->failsProjectFor('p2', 'discovery'));
+    }
+
+    public function test_an_account_that_lists_the_card_session_runs_the_session_of_an_inbox_item(): void
+    {
+        $bridge = $this->bridgeWithSession(['claude' => [WorkRequest::SESSION_KIND], 'other' => ['implement']]);
+        $inboxSession = Bridge::workKindOf(InboxItem::SUBJECT_TYPE, WorkRequest::SESSION_KIND);
+
+        self::assertTrue($bridge->accountRuns('claude', $inboxSession));
+        self::assertFalse($bridge->accountRuns('other', $inboxSession));
+        self::assertFalse($bridge->runsOnNoAccount($inboxSession));
+        self::assertTrue($bridge->failsProjectFor('p1', $inboxSession));
+        self::assertFalse($bridge->failsProjectFor('p2', $inboxSession));
+    }
+
+    public function test_the_card_session_alias_covers_the_inbox_item_session_alone(): void
+    {
+        $bridge = $this->bridgeWithSession(['claude' => [WorkRequest::SESSION_KIND]]);
+
+        self::assertFalse($bridge->accountRuns('claude', 'document:session'));
+        self::assertFalse($bridge->accountRuns('claude', Bridge::workKindOf(InboxItem::SUBJECT_TYPE, 'review')));
+    }
+
+    public function test_an_account_that_lists_the_inbox_item_session_runs_it(): void
+    {
+        $inboxSession = Bridge::workKindOf(InboxItem::SUBJECT_TYPE, WorkRequest::SESSION_KIND);
+        $bridge = $this->bridgeWithSession(['claude' => [WorkRequest::SESSION_KIND, $inboxSession]]);
+
+        self::assertTrue($bridge->accountRuns('claude', $inboxSession));
+        self::assertFalse($bridge->accountRuns('claude', 'implement'));
+    }
+
+    /** @param array<string, list<string>> $kinds */
+    private function bridgeWithSession(array $kinds): Bridge
+    {
+        $bridge = $this->bridge('0199a3c4-0000-7000-8000-0123456789ab');
+        $bridge->workKinds = ['implement', 'document:session', 'inbox-item:review', WorkRequest::SESSION_KIND, Bridge::workKindOf(InboxItem::SUBJECT_TYPE, WorkRequest::SESSION_KIND)];
+        $bridge->accounts = array_map(
+            static fn (string $name, array $listed): array => ['name' => $name, 'harness' => 'claude', 'state' => 'ready', 'reason' => null, 'kinds' => $listed, 'failedProjects' => [['projectId' => 'p1', 'reason' => 'The login expired.']]],
+            array_keys($kinds),
+            array_values($kinds),
+        );
+
+        return $bridge;
     }
 
     /** @param list<array{projectId: string, reason: string}> $failedProjects */
