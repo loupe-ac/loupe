@@ -10,8 +10,9 @@ use App\Module\SiteReview\Repository\SiteReviewScreenshotRepository;
 /** The screenshot size of one feedback note, which its entry draws. */
 final readonly class ShowCardFeedbackSizesHandler
 {
-    public function __construct(private SiteReviewScreenshotRepository $siteReviewScreenshots)
-    {
+    public function __construct(
+        private SiteReviewScreenshotRepository $siteReviewScreenshots,
+    ) {
     }
 
     /**
