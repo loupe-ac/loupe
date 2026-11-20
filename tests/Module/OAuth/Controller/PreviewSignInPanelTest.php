@@ -41,7 +41,7 @@ final class PreviewSignInPanelTest extends WebTestCase
         self::assertSelectorTextContains($token.' .lp-status-chip--ok', 'Active');
         self::assertSelectorTextContains($token, 'In 14 days');
         self::assertSelectorTextContains($token, '2h ago');
-        self::assertSelectorExists($panel.' > .lp-section-heading form[action$="/preview-tokens/'.$id.'/revoke/to-card"]');
+        self::assertSelectorExists($panel.' > .lp-section-heading form[action*="/preview-tokens/'.$id.'/revoke/to-card"]');
         self::assertSelectorExists($panel.' a[href="/account/connected-apps"]');
     }
 
@@ -65,7 +65,7 @@ final class PreviewSignInPanelTest extends WebTestCase
         foreach (['pr-12' => $first, 'pr-13' => $second] as $label => $id) {
             $token = '[data-preview-sign-in] [data-preview-sign-in-token="'.$id.'"]';
             self::assertSelectorTextContains($token, $label);
-            self::assertCount(1, $crawler->filter($token.' form[action$="/preview-tokens/'.$id.'/revoke/to-card"]'));
+            self::assertCount(1, $crawler->filter($token.' form[action*="/preview-tokens/'.$id.'/revoke/to-card"]'));
         }
         self::assertSelectorTextContains('[data-preview-sign-in-token="'.$first.'"]', 'In 14 days');
         self::assertSelectorTextContains('[data-preview-sign-in-token="'.$second.'"]', 'In less than a day');
@@ -90,13 +90,27 @@ final class PreviewSignInPanelTest extends WebTestCase
         $id = $this->mint('pr-12', $cardId);
 
         $crawler = $this->showCard($cardId);
-        $this->client->submit($crawler->filter('[data-preview-sign-in] form[action$="/preview-tokens/'.$id.'/revoke/to-card"]')->form());
+        $this->client->submit($crawler->filter('[data-preview-sign-in] form[action*="/preview-tokens/'.$id.'/revoke/to-card"]')->form());
 
         self::assertResponseRedirects('/projects/'.$this->project->id.'/board/cards/'.$cardId);
         self::assertTrue($this->isRevoked($id));
         $this->client->followRedirect();
         self::assertSelectorTextContains('body', 'The preview token no longer works.');
         self::assertSelectorTextContains('[data-preview-sign-in]', 'No live preview tokens.');
+    }
+
+    public function test_revoking_a_token_that_is_already_gone_returns_to_the_card_so_the_drawer_frame_survives(): void
+    {
+        $cardId = $this->cardOf($this->project);
+        $id = $this->mint('pr-13', $cardId);
+
+        $crawler = $this->showCard($cardId);
+        $form = $crawler->filter('[data-preview-sign-in] form[action$="/revoke/to-card?projectId='.$this->project->id.'&cardId='.$cardId.'"]')->form();
+        $this->client->submit($form);
+        $this->client->submit($form);
+
+        self::assertResponseRedirects('/projects/'.$this->project->id.'/board/cards/'.$cardId);
+        self::assertTrue($this->isRevoked($id));
     }
 
     private function showCard(Uuid $cardId): Crawler
