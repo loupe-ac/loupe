@@ -1,6 +1,6 @@
 /* stimulusFetch: 'lazy' */
 import { Controller } from '@hotwired/stimulus';
-import { morphElements } from '@hotwired/turbo';
+import { morphElements, renderStreamMessage } from '@hotwired/turbo';
 import { on } from '../lib/live.js';
 import { handleLostAccess, onLostAccess } from '../lib/live_fetch.js';
 
@@ -15,15 +15,20 @@ export const READ_TIMEOUT_MILLISECONDS = 10000;
 
 const VIEW_FRAME = 'inbox-view';
 
+const STREAM_TYPE = 'text/vnd.turbo-stream.html';
+
 /**
  * Reads the view of the inbox page again when an ask of the project changes,
  * and after a reconnect, and morphs it in. A form with typed input keeps its
  * fields. When its item closed in the meantime, the typed values stay as an
  * unsent reply with a Discard button. An open
  * dialog holds the update until it closes. The detail pane that the address
- * names stays as it is when the signal names other asks only.
+ * names stays as it is when the signal names other asks only. Then the list
+ * reads only the rows of those asks, as a stream.
  */
 export default class extends Controller {
+    static values = { rowsUrl: String };
+
     connect() {
         // A lost access ends the live part, as a disconnect does.
         this.removeLostListener = onLostAccess(() => this.disconnect());
@@ -96,6 +101,12 @@ export default class extends Controller {
         const pane = this.element.querySelector(
             '[data-inbox-ask-id], [data-inbox-item-number]',
         );
+        if (await this.refreshRows(pane, request)) {
+            return;
+        }
+        if (request.signal.aborted) {
+            return;
+        }
         const url = new URL(address);
         // A view with no ask in its address shows the first row, which a new ask can take over.
         const pinned =
@@ -179,6 +190,103 @@ export default class extends Controller {
         keepNotices(current, fresh);
         keepReplyDrafts(current, fresh);
         this.morph(current, fresh, keepDetail);
+    }
+
+    /**
+     * Whether the signal names asks that the pane does not show, on the open
+     * side of an unsearched list. Then the pane stays, and the list changes
+     * only in the rows of those asks.
+     */
+    rowsOnly(pane) {
+        const askId = pane?.dataset.inboxAskId;
+        const params = new URL(window.location.href).searchParams;
+
+        return (
+            this.hasRowsUrlValue &&
+            !this.allAsks &&
+            this.askIds.size > 0 &&
+            askId !== undefined &&
+            !this.askIds.has(askId) &&
+            !params.has('q') &&
+            (params.get('side') ?? 'open') === 'open' &&
+            this.element.querySelector('[data-inbox-request]') !== null
+        );
+    }
+
+    /**
+     * Reads the rows of the changed asks as a stream, and plays it. The stream
+     * puts each row before the next row that the read did not change, so it
+     * gives the right order only when the unchanged rows on the page are the
+     * ones of the read, in the same order. Any other case, and any failure,
+     * returns false and leaves the full read to the caller.
+     */
+    async refreshRows(pane, request) {
+        if (!this.rowsOnly(pane)) {
+            return false;
+        }
+        const address = window.location.href;
+        const here = new URL(address).searchParams;
+        const url = new URL(this.rowsUrlValue, address);
+        ['side', 'type'].forEach((name) => {
+            if (here.has(name)) {
+                url.searchParams.set(name, here.get(name));
+            }
+        });
+        url.searchParams.set('ask', pane.dataset.inboxAskId);
+        const changed = [...this.askIds];
+        changed.forEach((id) => url.searchParams.append('changed[]', id));
+
+        let html;
+        let keys;
+        // A newer change aborts the request, and a slow read aborts only this read.
+        const read = new AbortController();
+        request.signal.addEventListener('abort', () => read.abort());
+        const timer = setTimeout(() => read.abort(), READ_TIMEOUT_MILLISECONDS);
+        try {
+            // eslint-disable-next-line no-restricted-syntax -- a read-only GET of the rows to play, not a mutation.
+            const response = await fetch(url.toString(), {
+                headers: { Accept: STREAM_TYPE, 'X-Loupe-Live-Refresh': '1' },
+                credentials: 'same-origin',
+                signal: read.signal,
+            });
+            if (handleLostAccess(response)) {
+                return true;
+            }
+            if (!response?.ok) {
+                return false;
+            }
+            keys = (response.headers?.get('X-Loupe-Inbox-Row-Keys') ?? '')
+                .split(',')
+                .filter((key) => key !== '');
+            html = await response.text();
+        } catch {
+            return request.signal.aborted;
+        } finally {
+            clearTimeout(timer);
+        }
+        if (request.signal.aborted || this.holding()) {
+            return true;
+        }
+        if (window.location.href !== address) {
+            this.schedule();
+
+            return true;
+        }
+        const unchanged = (list) =>
+            list.filter((key) => !changed.includes(key));
+        const shown = [
+            ...this.element.querySelectorAll('[data-inbox-request]'),
+        ].map((row) => row.dataset.inboxRequest);
+        if (
+            keys.length === 0 ||
+            unchanged(shown).join() !== unchanged(keys).join()
+        ) {
+            return false;
+        }
+        this.askIds.clear();
+        renderStreamMessage(html);
+
+        return true;
     }
 
     /**

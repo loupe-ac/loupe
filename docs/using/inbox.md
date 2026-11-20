@@ -172,7 +172,10 @@ ask while the page is open. Every member who can open the page gets this, not
 only the project owner. A new ask appears in the list, an ask that closes leaves the **Open**
 side, and the counts follow. The page keeps the ask you have open, so a new
 blocking ask never takes its place. A change to other asks leaves the ask you
-have open as it is.
+have open as it is, and updates only the rows of those asks in the **Open**
+list. A row moves to its new place in the list, and the **Open** count follows.
+A change to the ask you have open, the **Closed** side and a search read the
+view again.
 
 A response you were typing stays in the form. When the agent withdraws the ask
 you have open, or Loupe closes it because it is no longer needed, the ask stays

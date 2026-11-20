@@ -3,6 +3,12 @@ import { Application } from '@hotwired/stimulus';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 const live = vi.hoisted(() => ({ subscriptions: [] }));
+const turbo = vi.hoisted(() => ({ played: [] }));
+
+vi.mock('@hotwired/turbo', async (importOriginal) => ({
+    ...(await importOriginal()),
+    renderStreamMessage: (html) => turbo.played.push(html),
+}));
 
 vi.mock('../../assets/lib/live.js', () => ({
     on: (types, handler, options) => {
@@ -64,8 +70,9 @@ function answer(html, ok = true, status = ok ? 200 : 500) {
     responses.push({ ok, status, text: async () => page(html) });
 }
 
-async function mount(html = view()) {
-    document.body.innerHTML = `<main><div data-controller="inbox-live">${html}</div></main>`;
+async function mount(html = view(), rowsUrl = null) {
+    const rows = rowsUrl ? ` data-inbox-live-rows-url-value="${rowsUrl}"` : '';
+    document.body.innerHTML = `<main><div data-controller="inbox-live"${rows}>${html}</div></main>`;
     await vi.advanceTimersByTimeAsync(0);
 }
 
@@ -95,6 +102,7 @@ function typeNote(text) {
 }
 
 beforeEach(() => {
+    turbo.played = [];
     vi.useFakeTimers();
     live.subscriptions = [];
     responses = [];
@@ -450,4 +458,113 @@ it('reads the pane again when one signal of a burst names no ask', async () => {
 
     expect(detailText()).toContain('Renamed');
     history.replaceState(null, '', '/');
+});
+
+const OTHER = '0199aaaa-0000-7000-8000-000000000002';
+const THIRD = '0199aaaa-0000-7000-8000-000000000003';
+const ROWS_URL = '/projects/p/inbox/rows';
+
+function answerRows(keys, html = '<turbo-stream></turbo-stream>') {
+    responses.push({
+        ok: true,
+        status: 200,
+        headers: { get: () => keys.join(',') },
+        text: async () => html,
+    });
+}
+
+function rowsView() {
+    return view({
+        rows: [row(ASK, 'Shown'), row(OTHER, 'Other'), row(THIRD, 'Third')],
+    });
+}
+
+it('reads only the rows of the asks a signal names, and plays the stream', async () => {
+    await mount(rowsView(), ROWS_URL);
+    answerRows(
+        [ASK, THIRD, OTHER],
+        '<turbo-stream action="remove"></turbo-stream>',
+    );
+    changed({ askIds: [OTHER] });
+    await settle();
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const [url, options] = fetch.mock.calls[0];
+    const address = new URL(url, 'http://localhost');
+    expect(address.pathname).toBe(ROWS_URL);
+    expect(address.searchParams.get('ask')).toBe(ASK);
+    expect(address.searchParams.getAll('changed[]')).toEqual([OTHER]);
+    expect(options.headers.Accept).toBe('text/vnd.turbo-stream.html');
+    expect(turbo.played).toEqual([
+        '<turbo-stream action="remove"></turbo-stream>',
+    ]);
+});
+
+it('reads the whole view when the signal names the shown ask', async () => {
+    await mount(rowsView(), ROWS_URL);
+    answer(rowsView());
+    changed({ askIds: [ASK] });
+    await settle();
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch.mock.calls[0][0]).not.toContain('/rows');
+    expect(turbo.played).toEqual([]);
+});
+
+it('reads the whole view when the signal names no ask', async () => {
+    await mount(rowsView(), ROWS_URL);
+    answer(rowsView());
+    changed({ askIds: [] });
+    await settle();
+
+    expect(fetch.mock.calls[0][0]).not.toContain('/rows');
+});
+
+it('reads the whole view with no rows address', async () => {
+    await mount(rowsView());
+    answer(rowsView());
+    changed({ askIds: [OTHER] });
+    await settle();
+
+    expect(fetch.mock.calls[0][0]).not.toContain('/rows');
+});
+
+it.each(['side=closed', 'q=csv'])(
+    'reads the whole view for the address %s',
+    async (query) => {
+        window.history.pushState({}, '', `/inbox?${query}`);
+        await mount(rowsView(), ROWS_URL);
+        answer(rowsView());
+        changed({ askIds: [OTHER] });
+        await settle();
+        window.history.pushState({}, '', '/');
+
+        expect(fetch.mock.calls[0][0]).not.toContain('/rows');
+    },
+);
+
+it('reads the whole view when the unchanged rows differ from the read', async () => {
+    await mount(rowsView(), ROWS_URL);
+    answerRows([THIRD, ASK, OTHER]);
+    answer(rowsView());
+    changed({ askIds: [OTHER] });
+    await settle();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch.mock.calls[1][0]).not.toContain('/rows');
+    expect(turbo.played).toEqual([]);
+});
+
+it('reads the whole view when the rows read fails', async () => {
+    await mount(rowsView(), ROWS_URL);
+    answer('', false, 500);
+    answer(rowsView());
+    changed({ askIds: [OTHER] });
+    await settle();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch.mock.calls[1][0]).not.toContain('/rows');
+    expect(turbo.played).toEqual([]);
 });
