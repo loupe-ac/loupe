@@ -1,0 +1,9 @@
+{#- The linked inbox section of a card, redrawn after an answer in the drawer. Props: card (Card). -#}
+{% set section = inbox_card_section(card)|trim %}
+{% if section is empty %}
+<turbo-stream action="remove" target="inbox-items"></turbo-stream>
+{% else %}
+<turbo-stream action="replace" target="inbox-items">
+    <template>{{ section|raw }}</template>
+</turbo-stream>
+{% endif %}

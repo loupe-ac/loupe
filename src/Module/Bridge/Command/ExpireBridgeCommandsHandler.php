@@ -7,6 +7,7 @@ namespace App\Module\Bridge\Command;
 use App\Module\Bridge\Event\BridgeCommandSettled;
 use App\Module\Bridge\Repository\BridgeCommandRepository;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
+use App\Module\Bridge\ValueObject\WorkerRunChangeKind;
 use Psr\Clock\ClockInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
@@ -33,7 +34,7 @@ final readonly class ExpireBridgeCommandsHandler
             $projects[(string) $command->project->id] = $command->project;
         }
         foreach ($projects as $project) {
-            $this->runsChanged->runsChanged($project);
+            $this->runsChanged->runsChanged($project, WorkerRunChangeKind::State);
         }
         foreach ($due as $command) {
             $this->events->dispatch(BridgeCommandSettled::of($command));

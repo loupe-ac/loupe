@@ -1,0 +1,9 @@
+{# One analysis of the Reports tab after a change to a proposal, with the message of the change. Props: project (Project), analysisId (string), row (AnalysisDetailView or null), page (int), costMetric (string), refusedDismissForm (FormView or null), severity (string), message (string or null). #}
+{% if row is null %}
+<turbo-stream action="remove" target="analysis-{{ analysisId }}"></turbo-stream>
+{% else %}
+<turbo-stream action="replace" method="morph" target="analysis-{{ analysisId }}"><template>{% include '@Insights/_report_row.html.twig' with {row: row, project: project, page: page, costMetric: costMetric, refusedDismissForm: refusedDismissForm} only %}</template></turbo-stream>
+{% endif %}
+{% if message is not null %}
+{% include '_flash.stream.html.twig' with {severity: severity, message: message} only %}
+{% endif %}

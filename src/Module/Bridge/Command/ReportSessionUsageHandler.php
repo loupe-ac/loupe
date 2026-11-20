@@ -10,6 +10,7 @@ use App\Module\Bridge\EventListener\WorkerRunFactListener;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Bridge\Service\WorkerRunUsageRecorder;
+use App\Module\Bridge\ValueObject\WorkerRunChangeKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
@@ -40,37 +41,39 @@ final readonly class ReportSessionUsageHandler
 
     public function __invoke(ReportSessionUsageCommand $command): ReportSessionUsageResult
     {
-        /** @var array{ReportSessionUsageResult, Project|null} $outcome */
+        /** @var array{ReportSessionUsageResult, Project|null, list<WorkerRun>} $outcome */
         $outcome = $this->factListener->deferredTransaction($this->em, function () use ($command): array {
             $project = $this->lockedProject($command);
             if (null === $project) {
-                return [new ReportSessionUsageResult(null, \count($command->processes), 0), null];
+                return [new ReportSessionUsageResult(null, \count($command->processes), 0), null, []];
             }
 
             $runs = null === $command->runId
                 ? $this->workerRuns->findStartedOfSessionForUpdate($project, $command->sessionId)
                 : $this->endedInteractiveRun($project, $command);
             if (\count($runs) !== \count($command->processes)) {
-                return [new ReportSessionUsageResult(\count($runs), \count($command->processes), 0), $project];
+                return [new ReportSessionUsageResult(\count($runs), \count($command->processes), 0), $project, []];
             }
 
             $starts = array_map(static fn (WorkerRun $run): string => $run->startedAt?->format('Y-m-d H:i:s') ?? '', $runs);
             if (\count(array_unique($starts)) !== \count($starts)) {
-                return [new ReportSessionUsageResult(\count($runs), \count($command->processes), 0, ambiguousOrder: true), $project];
+                return [new ReportSessionUsageResult(\count($runs), \count($command->processes), 0, ambiguousOrder: true), $project, []];
             }
 
             $updated = 0;
+            $updatedRuns = [];
             foreach ($runs as $i => $run) {
                 if ($this->usageRecorder->record($run, $command->processes[$i])) {
                     ++$updated;
+                    $updatedRuns[] = $run;
                 }
             }
             $this->em->flush();
 
-            return [new ReportSessionUsageResult(\count($runs), \count($command->processes), $updated), $project];
+            return [new ReportSessionUsageResult(\count($runs), \count($command->processes), $updated), $project, $updatedRuns];
         });
 
-        [$result, $project] = $outcome;
+        [$result, $project, $updatedRuns] = $outcome;
         if (null === $project) {
             return $result;
         }
@@ -97,7 +100,7 @@ final readonly class ReportSessionUsageHandler
 
         $this->logger->info('bridge.session_usage_reported', $context);
         if ($result->updated > 0) {
-            $this->publisher->runsChanged($project);
+            $this->publisher->runsChanged($project, WorkerRunChangeKind::Usage, $updatedRuns);
             $this->events->dispatch(new WorkerRunUsageRecorded((string) $project->id));
         }
 

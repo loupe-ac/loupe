@@ -201,6 +201,26 @@ it('announces a save in the drawer so a list behind it can reload', () => {
     expect(saved).toHaveBeenCalledOnce();
 });
 
+it('closes after a delete that the server answers with a stream', () => {
+    const deleteForm = document.createElement('form');
+    deleteForm.dataset.cardDrawerDeletesCard = '';
+    const close = vi.spyOn(controller, 'close').mockImplementation(() => {});
+    controller.submitted({
+        target: deleteForm,
+        detail: {
+            success: true,
+            fetchResponse: { contentType: 'text/vnd.turbo-stream.html' },
+        },
+    });
+    expect(close).toHaveBeenCalledOnce();
+    controller.submitted({
+        target: deleteForm,
+        detail: { success: true, fetchResponse: { contentType: 'text/html' } },
+    });
+    expect(close).toHaveBeenCalledOnce();
+    close.mockRestore();
+});
+
 it('tells the page which card an edit saved, as a change of its own', () => {
     const changes = [];
     const stop = on('board.card_changed', (change) => changes.push(change));

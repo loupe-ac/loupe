@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Module\Bridge\Command;
 
 use App\Module\Bridge\Event\WorkerRunFactsWritten;
+use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Bridge\Service\WorkerRunFactWriter;
+use App\Module\Bridge\ValueObject\WorkerRunChangeKind;
 use App\Module\Project\Repository\ProjectRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
@@ -16,6 +18,7 @@ final readonly class WriteWorkerRunFactsHandler
 {
     public function __construct(
         private ProjectRepository $projects,
+        private WorkerRunRepository $workerRuns,
         private WorkerRunFactWriter $writer,
         private WorkerRunChangedPublisher $publisher,
         private EntityManagerInterface $em,
@@ -39,7 +42,13 @@ final readonly class WriteWorkerRunFactsHandler
 
         $this->events->dispatch(new WorkerRunFactsWritten($command->projectId, array_map(static fn (Uuid $id): string => $id->toRfc4122(), $command->runIds)));
         if ($changed > 0) {
-            $this->publisher->runsChanged($project);
+            $cardIds = [];
+            foreach ($this->workerRuns->findByIds(array_map(static fn (Uuid $id): string => $id->toRfc4122(), $command->runIds)) as $run) {
+                if (null !== $run->cardId()) {
+                    $cardIds[(string) $run->cardId()] = $run->cardId();
+                }
+            }
+            $this->publisher->runsChanged($project, WorkerRunChangeKind::State, cardIds: array_values($cardIds), runIds: $command->runIds);
         }
     }
 }

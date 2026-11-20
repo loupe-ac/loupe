@@ -1,0 +1,15 @@
+{# The prompt before a person leaves unsaved changes. It sits inside the result frame, so each answer brings the dirty state of the graph it draws. Props: graph (InsightsSavedGraph or null), dirty (bool). #}
+<div id="metrics-leave-guard">
+    {% if graph is not null %}
+    <div data-controller="modal leave-guard" data-leave-guard-dirty-value="{{ dirty ? 'true' : 'false' }}">
+        <twig:Ds:Dialog aria-labelledby="leave-graph-title" data-action="cancel->modal#close">
+            <h2 class="lp-dialog-title" id="leave-graph-title">{{ 'analytics.metrics.edit.leave.title'|trans({'%name%': graph.name}) }}</h2>
+            <p class="lp-dialog-desc">{{ 'analytics.metrics.edit.leave.body'|trans }}</p>
+            <twig:Ds:FormActions>
+                <twig:Ds:Button variant="ghost" type="button" data-action="click->modal#close">{{ 'analytics.metrics.edit.leave.keep'|trans }}</twig:Ds:Button>
+                <twig:Ds:Button variant="primary" type="button" data-action="click->leave-guard#discard">{{ 'analytics.metrics.edit.leave.discard'|trans }}</twig:Ds:Button>
+            </twig:Ds:FormActions>
+        </twig:Ds:Dialog>
+    </div>
+    {% endif %}
+</div>

@@ -8,6 +8,9 @@ use App\Controller\AppController;
 use App\Exception\DomainErrors;
 use App\Module\Bridge\Command\ListExperimentsCommand;
 use App\Module\Bridge\Command\ListExperimentsHandler;
+use App\Module\Bridge\Metric\Metric;
+use App\Module\Insights\Command\ListReportsCommand;
+use App\Module\Insights\Command\ListReportsHandler;
 use App\Module\Insights\Command\StartAnalysisCommand;
 use App\Module\Insights\Command\StartAnalysisHandler;
 use App\Module\Insights\Form\StartAnalysisFormType;
@@ -20,6 +23,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Contracts\Translation\TranslatorInterface;
+use Symfony\UX\Turbo\TurboBundle;
 
 #[IsGranted(ProjectVoter::MANAGE, subject: 'project')]
 #[Route(
@@ -32,6 +36,7 @@ class StartAnalysisController extends AppController
     public function __construct(
         private readonly StartAnalysisHandler $startAnalysis,
         private readonly ListExperimentsHandler $listExperiments,
+        private readonly ListReportsHandler $listReports,
         private readonly TranslatorInterface $translator,
     ) {
     }
@@ -54,9 +59,22 @@ class StartAnalysisController extends AppController
                     effort: $data->effort,
                     experiment: $data->experiment,
                 ));
-                $this->addFlash('success', $this->translator->trans('insights.reports.flash.started'));
 
-                return $this->redirectToRoute('app_project_analytics_reports', ['id' => (string) $project->id]);
+                $list = ($this->listReports)(new ListReportsCommand($project, 1));
+
+                return new Response(
+                    $this->renderView('@Insights/_report_list.stream.html.twig', [
+                        'project' => $project,
+                        'analyses' => $list->analyses,
+                        'totalPages' => $list->totalPages,
+                        'pageList' => $list->pageList,
+                        'costMetric' => Metric::Cost->valueType(),
+                        'severity' => 'success',
+                        'message' => $this->translator->trans('insights.reports.flash.started'),
+                    ]),
+                    Response::HTTP_OK,
+                    ['Content-Type' => TurboBundle::STREAM_MEDIA_TYPE],
+                );
             } catch (DomainErrors $e) {
                 // The work request can refuse a field this form does not show.
                 foreach ($e->errors as $field => $key) {

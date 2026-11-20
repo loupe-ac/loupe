@@ -1,0 +1,7 @@
+{# The Undo notice of a removed tile. Props: project (Project), graph (InsightsSavedGraph). #}
+<twig:Ds:Flash severity="success" class="lp-dashboard-notice">
+    <twig:Ds:ActionForm action="{{ path('app_project_analytics_dashboard_graph_undo', {id: project.id, graphId: graph.id}) }}" token="insights-dashboard-graph-undo" class="lp-dashboard-undo" data-dashboard-undo>
+        {{ 'analytics.dashboard.flash.removed'|trans({'%name%': graph.name}) }}
+        <twig:Ds:Button variant="ghost" size="sm" type="submit">{{ 'analytics.dashboard.remove.undo'|trans }}</twig:Ds:Button>
+    </twig:Ds:ActionForm>
+</twig:Ds:Flash>

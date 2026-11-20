@@ -19,14 +19,7 @@
         <twig:Ds:Flash severity="warning" class="lp-dashboard-notice" data-public-links-taken-down>{{ 'insights.public_link.dashboard.taken_down'|trans }}</twig:Ds:Flash>
     {% endif %}
 
-    {% if view.removed is not null %}
-        <twig:Ds:Flash severity="success" class="lp-dashboard-notice">
-            <twig:Ds:ActionForm action="{{ path('app_project_analytics_dashboard_graph_undo', {id: project.id, graphId: view.removed.id}) }}" token="insights-dashboard-graph-undo" class="lp-dashboard-undo" data-dashboard-undo>
-                {{ 'analytics.dashboard.flash.removed'|trans({'%name%': view.removed.name}) }}
-                <twig:Ds:Button variant="ghost" size="sm" type="submit">{{ 'analytics.dashboard.remove.undo'|trans }}</twig:Ds:Button>
-            </twig:Ds:ActionForm>
-        </twig:Ds:Flash>
-    {% endif %}
+    <div id="dashboard-notice"></div>
 
     <p class="lp-dashboard-age" data-dashboard-age-target="line"{% if view.updatedAt is null %} hidden{% endif %}>
         {%- if view.updatedAt is not null -%}

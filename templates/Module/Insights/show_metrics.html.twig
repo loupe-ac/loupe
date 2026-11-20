@@ -17,21 +17,9 @@
 
     {% include '@Insights/_tabs.html.twig' with {project: project, active: 'metrics'} only %}
 
-    {% if app.request.query.has('saved') %}
-    <p class="lp-metric-saved">
-        <twig:Ds:Button variant="outline" size="sm" href="{{ path('app_project_analytics_dashboard', {id: project.id}) }}" data-metrics-saved-link>
-            <twig:ux:icon name="lucide:chart-column" class="lp-icon lp-icon--sm" />{{ 'analytics.metrics.saved_graph.view'|trans }}
-        </twig:Ds:Button>
-    </p>
-    {% endif %}
+    <div id="metrics-saved"></div>
 
-    {% if graph is not null %}
-    <div class="lp-metric-edit-banner" data-edit-banner>
-        {# The graph name is text that a person wrote, so it is escaped here before it enters the sentence. #}
-        <span>{{ 'analytics.metrics.edit.banner'|trans({'%name%': '<strong>' ~ graph.name|e ~ '</strong>'})|raw }}</span>
-        <a href="{{ path('app_project_analytics_dashboard', {id: project.id}) }}">{{ 'analytics.metrics.edit.back'|trans }}</a>
-    </div>
-    {% endif %}
+    <div id="metrics-edit-banner">{% include '@Insights/_metrics_edit_banner.html.twig' with {project: project, graph: graph} only %}</div>
 
     {% set formulaOpen = query.formula is not null %}
     {% set unitOptions = formulaOpen and query.formula.rows is not empty ? query.formula.units : metric.units %}
@@ -46,7 +34,7 @@
         data-metric-formula-check-url-value="{{ path('app_project_analytics_formula_check', {id: project.id}) }}"
         data-metric-formula-default-metric-value="cost"
         data-metric-formula-open-value="{{ formulaOpen ? 'true' : 'false' }}">
-        {% if graph is not null %}<input type="hidden" name="graph" value="{{ graph.id }}">{% endif %}
+        {% include '@Insights/_metrics_graph_field.html.twig' with {graph: graph} only %}
         <div class="lp-metric-formula" data-metric-formula-target="panel"{{ formulaOpen ? '' : ' hidden' }}>
             <div class="lp-metric-formula__row lp-metric-formula__heads" aria-hidden="true">
                 <span></span>
