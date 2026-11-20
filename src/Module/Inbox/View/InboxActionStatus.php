@@ -26,6 +26,7 @@ final readonly class InboxActionStatus
 
     /**
      * Whether the action still answers the open waits, so the thread hides the reply card.
+     * A session never answers a wait.
      * Any open wait other than the answered one still needs the owner, whenever it started.
      *
      * @param iterable<InboxCardWait> $waits
@@ -34,7 +35,8 @@ final readonly class InboxActionStatus
     {
         $open = array_filter([...$waits], static fn (InboxCardWait $wait): bool => null === $wait->endedAt);
 
-        return $this->state->inProgress()
+        return $this->action->kind->answersWait()
+            && $this->state->inProgress()
             && [] !== $open
             && array_all($open, fn (InboxCardWait $wait): bool => true === $wait->id?->equals($this->action->waitId));
     }

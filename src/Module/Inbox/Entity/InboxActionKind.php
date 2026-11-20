@@ -44,4 +44,10 @@ enum InboxActionKind: string
     {
         return \in_array($this, [self::ResumeRun, self::SendAgent, self::StartSession], true);
     }
+
+    /** Whether an action of the kind, while it runs, answers the wait it points at. A session only investigates. */
+    public function answersWait(): bool
+    {
+        return self::StartSession !== $this;
+    }
 }

@@ -18,6 +18,7 @@ use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Bridge\ValueObject\WorkTakerReading;
 use App\Module\Bridge\ValueObject\WorkTakerState;
 use App\Module\Bridge\Workflow\WorkTakerFacts;
+use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Bridge\BridgeScenario;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -639,6 +640,21 @@ final class WorkTakersTest extends KernelTestCase
         $this->reading($bridge, 'one', 'week', 100.0, '2026-10-20 17:00:00', true);
 
         self::assertSame(WorkTakerState::Available, $this->read($project, $request)->state);
+    }
+
+    public function test_the_session_of_an_inbox_item_is_limited_when_the_account_that_lists_the_card_session_is_at_its_limit(): void
+    {
+        $inboxSession = Bridge::workKindOf(InboxItem::SUBJECT_TYPE, WorkRequest::SESSION_KIND);
+        [$project, $request, $owner] = $this->scenario('limited-inbox-session', capability: Bridge::CAPABILITY_SESSION, subject: new WorkSubject(InboxItem::SUBJECT_TYPE, Uuid::v7()));
+        $request->kind = WorkRequest::SESSION_KIND;
+        $bridge = $this->bridge($owner, $project, 10, [WorkRequest::SESSION_KIND, $inboxSession], [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION]);
+        $this->accounts($bridge, ['claude' => [WorkRequest::SESSION_KIND]]);
+        $this->reading($bridge, 'claude', 'week', 100.0, '2026-10-20 17:00:00', true);
+
+        $reading = $this->read($project, $request);
+
+        self::assertSame(WorkTakerState::Limited, $reading->state);
+        self::assertSame(['claude'], array_map(static fn ($account) => $account->account, $reading->limit->accounts ?? []));
     }
 
     public function test_a_bridge_that_reports_no_kinds_per_account_is_not_limited(): void

@@ -48,13 +48,22 @@ func TestAccountKindsNamesTheKindsOfAnAccount(t *testing.T) {
 	s := parse(t, body)
 	for account, want := range map[string][]string{
 		"claude":  {"fix"},
-		"other":   {"implement", "session"},
+		"other":   {"implement", "session", "inbox-item:session"},
 		"idle":    {"fix"},
 		"missing": nil,
 	} {
 		if got := s.AccountKinds(account); !slices.Equal(got, want) {
 			t.Errorf("AccountKinds(%s) = %v, want %v", account, got, want)
 		}
+	}
+}
+
+func TestAccountKindsListsTheInboxItemSessionOfTheSessionEntry(t *testing.T) {
+	body := claudeAccount + claudeDefaults + "projects:\n  loupe:\n    dir: {dir}\nwork:\n  session:\n    action: interactive\n    prompt: x\n" +
+		"launch:\n  command: [open, \"{script}\"]\n"
+	s := parse(t, body)
+	if got := s.AccountKinds("claude"); !slices.Equal(got, []string{"session", "inbox-item:session"}) {
+		t.Errorf("AccountKinds = %v", got)
 	}
 }
 

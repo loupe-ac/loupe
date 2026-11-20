@@ -4,19 +4,25 @@ declare(strict_types=1);
 
 namespace App\Module\Inbox\Service;
 
+use App\Module\AgentReview\Entity\AgentReview;
 use App\Module\AgentReview\Entity\AgentReviewConclusion;
 use App\Module\AgentReview\Entity\AgentReviewFinding;
 use App\Module\AgentReview\Repository\AgentReviewRepository;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardPause;
 use App\Module\Board\Repository\CardRepository;
-use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\WorkerRunRepository;
+use App\Module\Bridge\Repository\WorkRequestRepository;
+use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Forge\Repository\ForgePullRequestRepository;
+use App\Module\Inbox\View\WorkLimitRound;
+use App\Module\Inbox\View\WorkLimitRoundFinding;
 use App\Module\Inbox\View\WorkLimitStory;
 use App\Module\Workflow\Contract\EpicBranches;
 use App\Module\Workflow\Contract\PauseKind;
 use App\Module\Workflow\Contract\RuleWorkLimits;
+use Symfony\Component\Uid\Uuid;
 
 /** Reads what a rule did on a card before a work-limit pause stopped it, so the inbox item can say what looped. */
 final readonly class WorkLimitStories
@@ -28,6 +34,7 @@ final readonly class WorkLimitStories
         private RuleWorkLimits $ruleWorkLimits,
         private ForgePullRequestRepository $forgePullRequests,
         private WorkerRunRepository $workerRuns,
+        private WorkRequestRepository $workRequests,
         private AgentReviewRepository $agentReviews,
         private CardRepository $cards,
         private EpicBranches $epicBranches,
@@ -53,7 +60,14 @@ final readonly class WorkLimitStories
             $review = $this->agentReviews->findLatestOfHeads([$pullRequest])[(string) $pullRequest->id] ?? null;
         }
         $failed = AgentReviewConclusion::Failure === $review?->conclusion;
-        $runs = $this->workerRuns->findLatestOfRule($pause->project, $cardId, $pause->ruleId, $pause->createdAt, $limit->limit);
+        $requests = $this->workRequests->findCountedRoundsOfRule($pause->project, $cardId, $pause->ruleId, $pause->createdAt);
+        $runsOfRequest = [];
+        foreach ($this->workerRuns->findOfWorkRequests(array_map(static fn (WorkRequest $request): Uuid => $request->id ?? throw new \LogicException('A stored request has an id.'), $requests)) as $run) {
+            $runsOfRequest[(string) $run->workRequestId][] = $run;
+        }
+        $rounds = array_map(static fn (WorkRequest $request): WorkLimitRound => new WorkLimitRound($request, $runsOfRequest[(string) $request->id] ?? []), $requests);
+        $runs = array_merge(...array_map(static fn (WorkLimitRound $round): array => array_reverse($round->runs), $rounds));
+        $lowest = [] === $rounds ? null : array_last($rounds)->request->round;
         $github = null !== $pullRequest && 'github' === $pullRequest->forge;
 
         return new WorkLimitStory(
@@ -65,7 +79,9 @@ final readonly class WorkLimitStories
             $github && null !== $review?->checkRunId ? \sprintf('https://github.com/%s/runs/%d', $pullRequest->repository, $review->checkRunId) : null,
             $failed,
             $failed ? array_map(static fn (AgentReviewFinding $finding): string => $finding->title, $review->findings()) : [],
-            self::states($runs),
+            $rounds,
+            null === $lowest ? $limit->limit : max(0, $lowest - 1),
+            null !== $pullRequest && self::AGENT_REVIEW === $limit->reason ? $this->history($pullRequest, $rounds, $pause->createdAt) : [],
             $runs,
             $failed ? $this->openChildren($pause->card) : [],
             $failed ? $this->epicBranches->of($projectId, $pause->card->number) : null,
@@ -73,19 +89,28 @@ final readonly class WorkLimitStories
     }
 
     /**
-     * @param list<WorkerRun> $runs
+     * The failed review that each round answered: the newest one before its request opened.
      *
-     * @return array<string, int>
+     * @param list<WorkLimitRound> $rounds newest first
+     *
+     * @return list<WorkLimitRoundFinding>
      */
-    private static function states(array $runs): array
+    private function history(ForgePullRequest $pullRequest, array $rounds, \DateTimeImmutable $to): array
     {
-        $states = [];
-        foreach ($runs as $run) {
-            $states[$run->state->value] = ($states[$run->state->value] ?? 0) + 1;
+        if ([] === $rounds) {
+            return [];
         }
-        arsort($states);
+        $reviews = $this->agentReviews->findFailedOfPullRequestBetween($pullRequest, array_last($rounds)->request->createdAt, $to);
+        $history = [];
+        foreach ($rounds as $round) {
+            $answered = array_find($reviews, static fn (AgentReview $review): bool => $review->createdAt < $round->request->createdAt);
+            $titles = null === $answered ? [] : array_map(static fn (AgentReviewFinding $finding): string => $finding->title, $answered->findings());
+            if ([] !== $titles) {
+                $history[] = new WorkLimitRoundFinding($round->request->round ?? 0, $titles);
+            }
+        }
 
-        return $states;
+        return $history;
     }
 
     /** @return list<int> */

@@ -1017,7 +1017,7 @@ these keys. A Loupe that does not know a key ignores it.
 
 | Key | Content |
 |---|---|
-| `kinds` | The work kinds that can run on the account, through a work entry or a variant of an experiment. A kind of another subject reads `<subject>:<kind>` |
+| `kinds` | The work kinds that can run on the account, through a work entry or a variant of an experiment. A kind of another subject reads `<subject>:<kind>`. The account of the `session` entry also lists `inbox-item:session` |
 | `stopAt` | The `stopAt` of the account, 95 when the file sets none |
 | `readings` | The latest reading of each window since the last heartbeat |
 

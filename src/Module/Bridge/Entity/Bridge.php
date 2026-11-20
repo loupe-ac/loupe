@@ -78,6 +78,9 @@ class Bridge
     /** The capability of a bridge that opens an interactive session on a card for a person. */
     public const string CAPABILITY_SESSION = 'session';
 
+    /** The work kind of the session of an inbox item. Bridge does not import Inbox, so the subject type is spelled out. */
+    private const string INBOX_ITEM_SESSION = 'inbox-item:'.WorkRequest::SESSION_KIND;
+
     /** Reported by a bridge that runs the prompts the app ships, for a request that carries one. */
     public const string CAPABILITY_APP_PROMPTS = 'app-prompts';
 
@@ -377,12 +380,26 @@ class Bridge
      */
     private function accountsRunning(string $workKind): array
     {
-        $runs = array_values(array_filter($this->accounts ?? [], static fn (array $row): bool => \in_array($workKind, $row['kinds'] ?? [], true)));
+        $runs = array_values(array_filter($this->accounts ?? [], static fn (array $row): bool => self::accountLists($row, $workKind)));
         if ([] !== $runs || \in_array($workKind, $this->workKinds, true)) {
             return $runs;
         }
 
         return array_values(array_filter($this->accounts ?? [], static fn (array $row): bool => $row['appPrompts'] ?? false));
+    }
+
+    /**
+     * Whether the account row lists the work kind. The card session entry also runs the session of an inbox item, and
+     * a CLI up to 2.8.0 lists only `session` for it.
+     *
+     * @param AccountRow $row
+     */
+    public static function accountLists(array $row, string $workKind): bool
+    {
+        $kinds = $row['kinds'] ?? [];
+
+        return \in_array($workKind, $kinds, true)
+            || (self::INBOX_ITEM_SESSION === $workKind && \in_array(WorkRequest::SESSION_KIND, $kinds, true));
     }
 
     public function nameClashes(): bool
