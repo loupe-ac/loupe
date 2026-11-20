@@ -1,16 +1,23 @@
-// Turbo starts the visit of a form answer with the response already in hand,
-// and aims it at the location of that response. A live refresh or another
-// visit does not match both. This tells the render of a submission apart
-// from an unrelated one.
+// Turbo starts the visit of a form answer with the response already in hand.
+// This tells the render of a submission apart from the render of another
+// visit, such as a frame fallback to the same URL.
 let answerHref = null;
+let submission = null;
+let fromSubmission = false;
 let submissionVisit = null;
 
+function navigator() {
+    return window.Turbo?.session?.navigator ?? null;
+}
+
 function currentVisit() {
-    return window.Turbo?.session?.navigator?.currentVisit ?? null;
+    return navigator()?.currentVisit ?? null;
 }
 
 document.addEventListener('turbo:submit-start', () => {
     answerHref = null;
+    submission = null;
+    fromSubmission = false;
 });
 
 document.addEventListener('turbo:submit-end', (event) => {
@@ -20,14 +27,27 @@ document.addEventListener('turbo:submit-end', (event) => {
         response && !type.includes('turbo-stream')
             ? (response.location?.href ?? null)
             : null;
+    submission = answerHref ? (event.detail?.formSubmission ?? null) : null;
+});
+
+// Turbo proposes the visit of a form answer while the navigator still holds
+// that submission, and drops the submission when any other visit starts. So
+// the proposal that finds it is the one that the form made.
+document.addEventListener('turbo:before-visit', (event) => {
+    fromSubmission =
+        submission !== null &&
+        navigator()?.formSubmission === submission &&
+        event.detail?.url === answerHref;
 });
 
 document.addEventListener('turbo:visit', () => {
     const visit = currentVisit();
-    if (visit?.response && answerHref && visit.location?.href === answerHref) {
+    if (fromSubmission && visit?.response) {
         submissionVisit = visit;
+        submission = null;
         answerHref = null;
     }
+    fromSubmission = false;
 });
 
 // A render with no visit under way, such as a failed submission, is the

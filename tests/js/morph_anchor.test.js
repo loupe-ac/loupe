@@ -29,9 +29,23 @@ function answer(type = 'text/html') {
                     header: () => type,
                     location: new URL('http://localhost/settings'),
                 },
+                formSubmission: SUBMISSION,
             },
         }),
     );
+}
+
+const SUBMISSION = { id: 'form' };
+
+function startVisit(visit, formSubmission) {
+    window.Turbo = { session: { navigator: { formSubmission } } };
+    document.dispatchEvent(
+        new CustomEvent('turbo:before-visit', {
+            detail: { url: visit.location.href },
+        }),
+    );
+    window.Turbo = { session: { navigator: { currentVisit: visit } } };
+    document.dispatchEvent(new CustomEvent('turbo:visit'));
 }
 
 function submit(id) {
@@ -133,8 +147,7 @@ it('keeps the section through an unrelated morph after the request ended', () =>
         },
     ];
     for (const visit of unrelated) {
-        window.Turbo = { session: { navigator: { currentVisit: visit } } };
-        document.dispatchEvent(new CustomEvent('turbo:visit'));
+        startVisit(visit, SUBMISSION);
         document.dispatchEvent(new CustomEvent('turbo:morph'));
         expect(section.scrollIntoView).not.toHaveBeenCalled();
     }
@@ -142,8 +155,16 @@ it('keeps the section through an unrelated morph after the request ended', () =>
         response: { responseHTML: '<html></html>' },
         location: new URL('http://localhost/settings'),
     };
-    window.Turbo = { session: { navigator: { currentVisit: own } } };
-    document.dispatchEvent(new CustomEvent('turbo:visit'));
+    startVisit(
+        {
+            response: { responseHTML: '<html></html>' },
+            location: new URL('http://localhost/settings'),
+        },
+        null,
+    );
+    document.dispatchEvent(new CustomEvent('turbo:morph'));
+    expect(section.scrollIntoView).not.toHaveBeenCalled();
+    startVisit(own, SUBMISSION);
     document.dispatchEvent(new CustomEvent('turbo:morph'));
     expect(section.scrollIntoView).toHaveBeenCalledOnce();
     delete window.Turbo;

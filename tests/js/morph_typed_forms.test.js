@@ -89,7 +89,15 @@ it('lets the form take an HTML answer that ends the request', () => {
     expect(morph(form)).toBe(false);
 });
 
-function startVisit(visit) {
+const SUBMISSION = { id: 'form' };
+
+function startVisit(visit, formSubmission = SUBMISSION) {
+    window.Turbo = { session: { navigator: { formSubmission } } };
+    document.dispatchEvent(
+        new CustomEvent('turbo:before-visit', {
+            detail: { url: visit.location.href },
+        }),
+    );
     window.Turbo = { session: { navigator: { currentVisit: visit } } };
     document.dispatchEvent(new CustomEvent('turbo:visit'));
 }
@@ -109,6 +117,7 @@ it('keeps the submitting form through an unrelated morph after the request ended
                     header: () => 'text/html',
                     location: new URL('http://localhost/settings'),
                 },
+                formSubmission: SUBMISSION,
             },
         }),
     );
@@ -122,6 +131,15 @@ it('keeps the submitting form through an unrelated morph after the request ended
         response: { responseHTML: '<html></html>' },
         location: new URL('http://localhost/frame-fallback'),
     });
+    document.dispatchEvent(new CustomEvent('turbo:morph'));
+    expect(morph(form)).toBe(false);
+    startVisit(
+        {
+            response: { responseHTML: '<html></html>' },
+            location: new URL('http://localhost/settings'),
+        },
+        null,
+    );
     document.dispatchEvent(new CustomEvent('turbo:morph'));
     expect(morph(form)).toBe(false);
     startVisit({

@@ -8,8 +8,12 @@ beforeAll(async () => {
         await import('../../assets/lib/submission_render.js'));
 });
 
-function setVisit(visit) {
-    window.Turbo = { session: { navigator: { currentVisit: visit } } };
+const SUBMISSION = { id: 'form' };
+
+function setVisit(visit, formSubmission = undefined) {
+    window.Turbo = {
+        session: { navigator: { currentVisit: visit, formSubmission } },
+    };
 }
 
 function visit(href, response = {}) {
@@ -23,7 +27,15 @@ function fire(name, detail) {
 function answer(href, type = 'text/html') {
     fire('turbo:submit-end', {
         fetchResponse: { header: () => type, location: new URL(href) },
+        formSubmission: SUBMISSION,
     });
+}
+
+function propose(next, formSubmission) {
+    setVisit(null, formSubmission);
+    fire('turbo:before-visit', { url: next.location.href });
+    setVisit(next);
+    fire('turbo:visit');
 }
 
 beforeEach(() => {
@@ -37,35 +49,36 @@ it('treats a render with no visit as the answer of the form', () => {
 
 it('recognises the response-backed visit that the form answer starts', () => {
     answer('http://localhost/settings');
-    const own = visit('http://localhost/settings');
-    setVisit(own);
-    fire('turbo:visit');
+    propose(visit('http://localhost/settings'), SUBMISSION);
     expect(rendersSubmission()).toBe(true);
 });
 
-it('ignores an unrelated response-backed visit between submit-end and the answer', () => {
+it('ignores a same-URL visit that the form did not propose', () => {
     answer('http://localhost/settings');
-    const other = visit('http://localhost/frame-fallback');
-    setVisit(other);
-    fire('turbo:visit');
+    propose(visit('http://localhost/settings'), null);
     expect(rendersSubmission()).toBe(false);
+});
 
-    const own = visit('http://localhost/settings');
-    setVisit(own);
-    fire('turbo:visit');
-    expect(rendersSubmission()).toBe(true);
+it('ignores a visit to another URL while the submission is still held', () => {
+    answer('http://localhost/settings');
+    propose(visit('http://localhost/frame-fallback'), SUBMISSION);
+    expect(rendersSubmission()).toBe(false);
+});
+
+it('ignores a same-URL visit that another submission or visit replaced', () => {
+    answer('http://localhost/settings');
+    propose(visit('http://localhost/settings'), { id: 'other' });
+    expect(rendersSubmission()).toBe(false);
 });
 
 it('ignores a visit with no response', () => {
     answer('http://localhost/settings');
-    setVisit({ location: new URL('http://localhost/settings') });
-    fire('turbo:visit');
+    propose({ location: new URL('http://localhost/settings') }, SUBMISSION);
     expect(rendersSubmission()).toBe(false);
 });
 
 it('ignores a visit after a Turbo Stream answer', () => {
     answer('http://localhost/settings', 'text/vnd.turbo-stream.html');
-    setVisit(visit('http://localhost/settings'));
-    fire('turbo:visit');
+    propose(visit('http://localhost/settings'), SUBMISSION);
     expect(rendersSubmission()).toBe(false);
 });
