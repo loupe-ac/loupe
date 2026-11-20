@@ -11,6 +11,7 @@ use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Service\BridgeLiveness;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
+use App\Module\Bridge\ValueObject\WorkerRunChangeKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
@@ -66,8 +67,13 @@ final readonly class TimeOutQuietWorkerRunsHandler
             return $runs;
         });
 
+        /** @var array<string, list<WorkerRun>> $byProject */
+        $byProject = [];
         foreach ($timedOut as $run) {
-            $this->publisher->runsChanged($run->project);
+            $byProject[(string) $run->project->id][] = $run;
+        }
+        foreach ($byProject as $projectRuns) {
+            $this->publisher->runsChanged($projectRuns[0]->project, WorkerRunChangeKind::State, $projectRuns);
         }
         foreach (WorkerRunChanged::ofRuns($timedOut) as $event) {
             $this->events->dispatch($event);
