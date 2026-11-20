@@ -50,7 +50,13 @@ jobs:
           BODY="The run failed on $(date -u +%F): $RUN_URL"
           # A fence keeps the line breaks and the indentation of tool output in the Markdown body.
           DETAIL=$(printf '%s' "$DETAIL")
-          [ -z "$DETAIL" ] || BODY="~~~~text"$'\n'"$DETAIL"$'\n'"~~~~"$'\n\n'"$BODY"
+          if [ -n "$DETAIL" ]; then
+            # The fence is longer than the longest tilde run in the text, so no line can close it.
+            longest=$(printf '%s' "$DETAIL" | { grep -o '~*' || true; } | awk '{ if (length($0) > m) m = length($0) } END { print m + 0 }')
+            [ "$longest" -ge 4 ] || longest=3
+            fence=$(printf '~%.0s' $(seq 1 $((longest + 1))))
+            BODY="${fence}text"$'\n'"$DETAIL"$'\n'"$fence"$'\n\n'"$BODY"
+          fi
           payload=$(jq -n \
             --arg title "$TITLE" \
             --arg body "$BODY" \
