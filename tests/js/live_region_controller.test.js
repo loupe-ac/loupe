@@ -289,6 +289,21 @@ it('reads again after a reconnect', async () => {
     expect(fetch).toHaveBeenCalledTimes(1);
 });
 
+it('rows mode sends no cursor when the region has none', async () => {
+    await mount(
+        `data-live-region-types-value='["activity.changed"]' data-live-region-url-value="/rows" data-live-region-mode-value="rows"`,
+        '<li data-live-row="r1"></li>',
+    );
+    answer(200, '<turbo-stream></turbo-stream>');
+    signal({ type: 'activity.changed' });
+    await settle();
+    const url = new URL(fetch.mock.calls[0][0]);
+    expect(url.searchParams.get('ids')).toBe('r1');
+    expect(url.searchParams.has('since')).toBe(false);
+    expect(url.searchParams.has('sinceId')).toBe(false);
+    expect(url.searchParams.has('total')).toBe(false);
+});
+
 it('rows mode names the shown rows and the cursor', async () => {
     await mount(
         `data-live-region-types-value='["activity.changed"]' data-live-region-url-value="/rows" data-live-region-mode-value="rows" data-live-since="2026-01-01T00:00:00Z" data-live-since-id="abc" data-live-total="42"`,

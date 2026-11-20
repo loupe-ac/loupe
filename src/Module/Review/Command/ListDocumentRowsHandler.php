@@ -8,12 +8,15 @@ use App\Module\Review\Repository\DocumentRepository;
 use App\Module\Review\Repository\SeriesRepository;
 use App\Module\Review\Repository\TagRepository;
 use App\Module\Review\Service\DocumentListItems;
+use App\Module\Review\View\DocumentListItem;
+use App\Utils\RowChanges;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Reads the rows that a later page of the documents list shows, by id. A row
- * that the filters no longer keep is removed, so the rows of the page never
- * shift. The count names the matching documents created after the page loaded.
+ * Reads the rows that the open page of the documents list shows, by id. Page
+ * one reads its own page again, so a row that entered it is inserted and a row
+ * that left it is removed. A later page keeps its rows in place, and the count
+ * names the matching documents created after the page loaded.
  */
 final readonly class ListDocumentRowsHandler
 {
@@ -24,6 +27,7 @@ final readonly class ListDocumentRowsHandler
         private DocumentListItems $items,
         private TagRepository $tags,
         private SeriesRepository $series,
+        private ListDocumentsHandler $listDocuments,
     ) {
     }
 
@@ -31,6 +35,20 @@ final readonly class ListDocumentRowsHandler
     {
         $query = $command->listQuery;
         $ids = array_slice(array_values(array_map(strtolower(...), array_filter($command->ids, Uuid::isValid(...)))), 0, self::MAX_IDS);
+
+        if (1 === $query->page) {
+            $page = ($this->listDocuments)(new ListDocumentsCommand($command->project, $query));
+
+            return new ListDocumentRowsView(
+                items: [],
+                removedIds: [],
+                newerCount: 0,
+                projectTags: $page->projectTags,
+                projectSeries: $page->projectSeries,
+                changes: RowChanges::between($page->items, static fn (DocumentListItem $item): string => (string) $item->document->id, $ids),
+                page: $page,
+            );
+        }
 
         $matching = $this->documents->findMatchingByIds(
             $command->project,

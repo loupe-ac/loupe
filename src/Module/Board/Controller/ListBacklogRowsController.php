@@ -23,9 +23,10 @@ use Symfony\Component\Uid\Uuid;
 use Symfony\UX\Turbo\TurboBundle;
 
 /**
- * The live read of a Backlog page after the first: a stream that morphs the
- * rows the page shows, removes the rows that left, and counts the new cards.
- * The row order never changes, so a reader keeps their place.
+ * The live read of the open Backlog page: a stream that morphs the rows the
+ * page shows and removes the rows that left. Page one inserts the rows that
+ * entered it, and a later page counts the new cards. The rows the page shows
+ * never change order, so a reader keeps their place.
  */
 #[IsGranted(ProjectVoter::VIEW, subject: 'project')]
 #[Route(
@@ -49,8 +50,9 @@ final class ListBacklogRowsController extends AppController
         #[MapEntity(id: 'projectId')] Project $project,
         #[MapEntity(expr: 'repository.findBacklogForProjectId(projectId)')] BoardColumn $backlog,
     ): Response {
+        $listQuery = BacklogListQuery::fromQuery($request->query);
         $since = LiveCursor::parse($request->query->getString('since'));
-        if (null === $since) {
+        if (null === $since && $listQuery->page > 1) {
             throw $this->createNotFoundException('The read needs the moment the page rendered.');
         }
 
@@ -58,7 +60,6 @@ final class ListBacklogRowsController extends AppController
             array_map(static fn (string $id): string => strtolower(trim($id)), explode(',', $request->query->getString('ids'))),
             static fn (string $id): bool => Uuid::isValid($id),
         )));
-        $listQuery = BacklogListQuery::fromQuery($request->query);
 
         $view = ($this->listBacklogRows)(new ListBacklogRowsCommand($backlog, $listQuery, \array_slice($ids, 0, self::MAX_ROWS), $since));
 

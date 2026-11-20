@@ -84,6 +84,84 @@ final class ListBacklogRowsControllerTest extends WebTestCase
         self::assertStringNotContainsString('new cards match', $body);
     }
 
+    public function test_page_one_inserts_a_new_card_before_the_row_that_follows_it_and_sends_no_band(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+
+        $owner = $this->user($em, 'backlog-rows-first@example.com');
+        $project = $this->project($em, $owner);
+        $older = $this->card($em, $project, 'Older');
+        $gone = $this->card($em, $project, 'Gone', 'next');
+        $newer = $this->card($em, $project, 'Newer');
+        $url = '/projects/'.$project->id.'/board/backlog/rows?page=1&ids='.$older->id.','.$gone->id;
+        $em->clear();
+
+        $client->loginUser($owner);
+        $client->request(Request::METHOD_GET, $url);
+
+        self::assertResponseIsSuccessful();
+        $body = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('<turbo-stream action="replace" method="morph" target="backlog-row-'.$older->id.'">', $body);
+        self::assertStringContainsString('<turbo-stream action="remove" target="backlog-row-'.$gone->id.'">', $body);
+        self::assertStringContainsString('<turbo-stream action="before" target="backlog-row-'.$older->id.'">', $body);
+        self::assertStringContainsString('id="backlog-row-'.$newer->id.'"', $body);
+        self::assertStringContainsString('target="backlog-pagination"', $body);
+        self::assertStringContainsString('target="backlog-filter-count"', $body);
+        self::assertStringContainsString('target="backlog-bulk-form"', $body);
+        self::assertStringNotContainsString('backlog-live-band', $body);
+    }
+
+    public function test_page_one_appends_only_the_card_that_moved_up_from_page_two(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+
+        $owner = $this->user($em, 'backlog-rows-moved-up@example.com');
+        $project = $this->project($em, $owner);
+        $cards = [];
+        for ($i = 1; $i <= 26; ++$i) {
+            $cards[] = $this->card($em, $project, 'Card '.$i);
+        }
+        $shown = array_map(static fn ($card): string => (string) $card->id, \array_slice(array_reverse($cards), 0, 25));
+        $newest = $cards[25];
+        $newest->column = $this->column($project, 'next');
+        $em->flush();
+        $url = '/projects/'.$project->id.'/board/backlog/rows?page=1&ids='.implode(',', $shown);
+        $em->clear();
+
+        $client->loginUser($owner);
+        $client->request(Request::METHOD_GET, $url);
+
+        self::assertResponseIsSuccessful();
+        $body = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('<turbo-stream action="remove" target="backlog-row-'.$newest->id.'">', $body);
+        self::assertSame(1, substr_count($body, '<turbo-stream action="append" target="backlog-rows">'));
+        self::assertStringContainsString('id="backlog-row-'.$cards[0]->id.'"', $body);
+        self::assertStringNotContainsString('action="before"', $body);
+    }
+
+    public function test_page_one_replaces_the_results_when_the_screen_was_empty_and_the_page_is_not(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+
+        $owner = $this->user($em, 'backlog-rows-empty@example.com');
+        $project = $this->project($em, $owner);
+        $card = $this->card($em, $project, 'First card');
+        $url = '/projects/'.$project->id.'/board/backlog/rows?page=1&ids=';
+        $em->clear();
+
+        $client->loginUser($owner);
+        $client->request(Request::METHOD_GET, $url);
+
+        self::assertResponseIsSuccessful();
+        $body = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('<turbo-stream action="update" target="backlog-results">', $body);
+        self::assertStringContainsString('id="backlog-row-'.$card->id.'"', $body);
+        self::assertStringNotContainsString('target="backlog-pagination"', $body);
+    }
+
     public function test_a_read_with_no_valid_cursor_is_not_found(): void
     {
         $client = static::createClient();
@@ -94,7 +172,7 @@ final class ListBacklogRowsControllerTest extends WebTestCase
         $em->clear();
 
         $client->loginUser($owner);
-        $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board/backlog/rows?ids=&since=yesterday');
+        $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board/backlog/rows?page=2&ids=&since=yesterday');
 
         self::assertResponseStatusCodeSame(404);
     }
@@ -118,6 +196,6 @@ final class ListBacklogRowsControllerTest extends WebTestCase
 
     private function rowsUrl(Project $project, string $ids, string $since): string
     {
-        return '/projects/'.$project->id.'/board/backlog/rows?ids='.$ids.'&since='.rawurlencode($since);
+        return '/projects/'.$project->id.'/board/backlog/rows?page=2&ids='.$ids.'&since='.rawurlencode($since);
     }
 }

@@ -20,7 +20,7 @@ const STREAM_TYPE = 'text/vnd.turbo-stream.html';
  *
  * - frame: the region is a turbo-frame, and the answer morphs into it.
  * - stream: the answer is a Turbo Stream.
- * - rows: like stream, and the read names the shown rows and the cursor.
+ * - rows: like stream, and the read names the shown rows and, on a later page, the cursor.
  * - band: no read. The region unhides its band, and a reconnect compares the
  *   fingerprint of the region with the answer of the url.
  */
@@ -144,13 +144,13 @@ export default class extends Controller {
         }
         if (this.modeValue === 'rows') {
             url.searchParams.set('ids', this.rowIds().join(','));
-            url.searchParams.set('since', this.element.dataset.liveSince ?? '');
-            url.searchParams.set(
-                'sinceId',
-                this.element.dataset.liveSinceId ?? '',
-            );
-            if (this.element.dataset.liveTotal !== undefined) {
-                url.searchParams.set('total', this.element.dataset.liveTotal);
+            const { liveSince, liveSinceId, liveTotal } = this.element.dataset;
+            if (liveSince !== undefined) {
+                url.searchParams.set('since', liveSince);
+                url.searchParams.set('sinceId', liveSinceId ?? '');
+            }
+            if (liveTotal !== undefined) {
+                url.searchParams.set('total', liveTotal);
             }
         }
 

@@ -22,30 +22,27 @@
         </twig:block>
     </twig:Ds:PageHeader>
 
-    {% if page == 1 %}
-    {% include '@Project/_projects_frame.html.twig' with {items: items, page: page, totalPages: totalPages, pageList: pageList} only %}
-    {% else %}
+    {# A signal reads the rows by id, so a change never moves a row. Page one also takes the rows it gained. #}
     <div id="projects-live-rows" data-controller="live-region"
          data-live-region-types-value="{{ ['account.changed']|json_encode }}"
          data-live-region-match-value="{{ {area: 'projects'}|json_encode }}"
-         data-live-region-url-value="{{ path('app_projects_rows') }}"
+         data-live-region-url-value="{{ path('app_projects_rows', {page: page}) }}"
          data-live-region-mode-value="rows"
-         data-live-since="{{ liveSince }}">
-        <div id="projects-live-band"></div>
-        <div class="lp-project-list lp-project-tile-grid">
+         {% if page > 1 %}data-live-since="{{ liveSince }}"{% endif %}>
+        {% if page > 1 %}<div id="projects-live-band"></div>{% endif %}
+        <div id="projects-grid" class="lp-project-list lp-project-tile-grid">
             {% for item in items %}
             {% include '@Project/_project_row.html.twig' with {item: item} only %}
             {% endfor %}
 
-            <button type="button" class="lp-project-new" data-action="click->modal#open">
+            <button type="button" id="projects-new-tile" class="lp-project-new" data-action="click->modal#open">
                 <span class="lp-project-new__plus"><twig:ux:icon name="lucide:plus" /></span>
                 <span class="lp-project-new__label">{{ 'project.list.new'|trans }}</span>
             </button>
         </div>
     </div>
 
-    <twig:Ds:Pagination route="app_projects" :page="page" :totalPages="totalPages" :pageList="pageList" />
-    {% endif %}
+    <div id="projects-pagination" class="lp-live-frame">{% include '@Project/_projects_pagination.html.twig' with {page: page, totalPages: totalPages, pageList: pageList} only %}</div>
 
     <twig:Ds:Dialog aria-labelledby="new-project-title" data-action="cancel->modal#close">
         <h3 class="lp-dialog-title" id="new-project-title">{{ 'project.list.new'|trans }}</h3>

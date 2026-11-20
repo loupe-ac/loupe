@@ -53,7 +53,7 @@ test('a Backlog search swaps the list and a live signal keeps the filter', async
 
     await suppressToolbar(watcher);
     await suppressWidget(watcher);
-    await watcher.goto(`/projects/${projectId}/board/backlog`);
+    await gotoSearchable(watcher, `/projects/${projectId}/board/backlog`);
     await expect(watcher.locator('turbo-frame#backlog-list')).toBeVisible();
     await expect(watcher.locator('[data-backlog-card-id]')).toHaveCount(2);
 
@@ -108,7 +108,7 @@ test('a documents search swaps the list and a live signal keeps the filter', asy
 
     await suppressToolbar(watcher);
     await suppressWidget(watcher);
-    await watcher.goto(`/projects/${projectId}/documents`);
+    await gotoSearchable(watcher, `/projects/${projectId}/documents`);
     await expect(watcher.locator('turbo-frame#documents-list')).toBeVisible();
     await expect(watcher.locator('[data-document-id]')).toHaveCount(2);
 
@@ -120,6 +120,11 @@ test('a documents search swaps the list and a live signal keeps the filter', asy
         await expect(watcher.locator('[data-document-id]')).toHaveCount(1);
     });
     await expect(search).toHaveValue('Otter');
+
+    // A row update keeps the element that is on screen, and a page swap replaces it.
+    await watcher.locator('[data-document-id]').evaluate((row) => {
+        (row as unknown as { kept: boolean }).kept = true;
+    });
 
     // The hub keeps no history, so a change made before the page connects is lost.
     await watcher.waitForTimeout(1_000);
@@ -136,6 +141,16 @@ test('a documents search swaps the list and a live signal keeps the filter', asy
     await expect(watcher.getByText('Heron more')).toHaveCount(0);
     await expect(watcher.getByText('Heron notes')).toHaveCount(0);
     await expect(search).toHaveValue('Otter');
+    expect(
+        await watcher
+            .locator('[data-document-id]', { hasText: 'Otter notes' })
+            .evaluate(
+                (row) => (row as unknown as { kept?: boolean }).kept === true,
+            ),
+    ).toBe(true);
+    await expect(watcher.locator('[data-document-id]').first()).toContainText(
+        'Otter more',
+    );
 });
 
 test('the done column pages inside its frame and keeps the page on a live signal', async ({
@@ -195,6 +210,72 @@ test('the done column pages inside its frame and keeps the page on a live signal
     await expect(watcher.getByText('Finished later')).toHaveCount(0);
 });
 
+test('the first page of the done column gains a new finish in place', async ({
+    browser,
+    request,
+}) => {
+    const email = `e2e+listframes+donefirst+${RUN}@example.com`;
+    const registered = await request.post('/dev/register-and-verify', {
+        form: { fullName: 'E2E List Frames', email, password: PASSWORD },
+    });
+    expect(registered.status()).toBe(200);
+
+    const watcher = await signedInPage(browser, email, PASSWORD);
+    const seeded = await watcher.request.post('/dev/seed/document', {
+        form: { title: 'E2E Done First Project', markdown: '# Frames' },
+    });
+    expect(seeded.status()).toBe(201);
+    const projectId = ((await seeded.json()) as { projectId: string })
+        .projectId;
+
+    const actor = await signedInPage(browser, email, PASSWORD);
+    const create = await mcpCards(actor, projectId);
+    await create('Finished first', { status: 'done' });
+
+    await suppressToolbar(watcher);
+    await suppressWidget(watcher);
+    await watcher.goto(`/projects/${projectId}/board`);
+    const href = await watcher
+        .locator('[data-column-slug="done"] .lp-board__column-link')
+        .getAttribute('href');
+    expect(href).not.toBeNull();
+    await watcher.goto(href as string);
+    await expect(watcher.locator('.lp-done-row')).toHaveCount(1);
+    await watcher.locator('.lp-done-row').evaluate((row) => {
+        (row as unknown as { kept: boolean }).kept = true;
+    });
+
+    // The hub keeps no history, so a change made before the page connects is lost.
+    await watcher.waitForTimeout(1_000);
+    await expectInPlace(watcher, async () => {
+        await create('Finished second', { status: 'done' });
+        await expect(watcher.locator('.lp-done-row')).toHaveCount(2, LIVE);
+    });
+
+    await expect(watcher.locator('#terminal-total')).toContainText('2', LIVE);
+    await expect(watcher.locator('.lp-done-row').first()).toContainText(
+        'Finished second',
+    );
+    expect(
+        await watcher
+            .locator('.lp-done-row', { hasText: 'Finished first' })
+            .evaluate(
+                (row) => (row as unknown as { kept?: boolean }).kept === true,
+            ),
+    ).toBe(true);
+    await expect(watcher.locator('#terminal-live-band')).toHaveCount(0);
+});
+
+/** Opens a list page and waits until its lazy search controller is in place, so typing starts a search. */
+async function gotoSearchable(page: Page, url: string): Promise<void> {
+    const loaded = page.waitForResponse((response) =>
+        response.url().includes('autosearch_controller'),
+    );
+    await page.goto(url);
+    await loaded;
+    await page.waitForTimeout(500);
+}
+
 test('an activity search and a page change swap the list and keep the filter', async ({
     browser,
     request,
@@ -215,7 +296,7 @@ test('an activity search and a page change swap the list and keep the filter', a
 
     await suppressToolbar(watcher);
     await suppressWidget(watcher);
-    await watcher.goto(`/projects/${projectId}/activity`);
+    await gotoSearchable(watcher, `/projects/${projectId}/activity`);
     await expect(watcher.locator('turbo-frame#activity-list')).toBeVisible();
     await expect(watcher.locator('[data-activity-event-id]')).toHaveCount(20);
 
@@ -266,12 +347,18 @@ test('an activity filter survives a live signal from another actor', async ({
 
     await suppressToolbar(watcher);
     await suppressWidget(watcher);
-    await watcher.goto(`/projects/${projectId}/activity`);
+    await gotoSearchable(watcher, `/projects/${projectId}/activity`);
     const search = watcher.locator('#activity-search');
     await search.click();
     await watcher.keyboard.type('renamed');
     await expect(watcher).toHaveURL(/search=renamed/, LIVE);
     await expect(watcher.locator('.lp-list-count')).toHaveText('25 events');
+    await watcher
+        .locator('[data-activity-event-id]')
+        .first()
+        .evaluate((row) => {
+            (row as unknown as { kept: boolean }).kept = true;
+        });
 
     // The hub keeps no history, so a change made before the page connects is lost.
     await watcher.waitForTimeout(1_000);
@@ -287,6 +374,18 @@ test('an activity filter survives a live signal from another actor', async ({
         '26 events',
         LIVE,
     );
+    // Page one takes the new row in place, so the old rows keep their elements.
+    await expect(watcher.locator('[data-activity-event-id]')).toHaveCount(20);
+    expect(
+        await watcher
+            .locator('[data-activity-event-id]')
+            .evaluateAll(
+                (rows) =>
+                    rows.filter(
+                        (row) => (row as unknown as { kept?: boolean }).kept,
+                    ).length,
+            ),
+    ).toBe(1);
     await expect(watcher).toHaveURL(/search=renamed/);
     await expect(search).toHaveValue('renamed');
 });
@@ -525,6 +624,9 @@ test('an experiment cards variant filter survives a live signal from another act
         .click();
     await expect(watcher).toHaveURL(/variant=alpha/, LIVE);
     await expect(watcher.locator('[data-experiment-card]')).toHaveCount(1);
+    await watcher.locator('[data-experiment-card]').evaluate((row) => {
+        (row as unknown as { kept: boolean }).kept = true;
+    });
 
     // The hub keeps no history, so a change made before the page connects is lost.
     await watcher.waitForTimeout(1_000);
@@ -538,4 +640,15 @@ test('an experiment cards variant filter survives a live signal from another act
         LIVE,
     );
     await expect(watcher).toHaveURL(/variant=alpha/);
+    // The new card joins the list in place, and the card on screen keeps its element.
+    expect(
+        await watcher
+            .locator('[data-experiment-card]')
+            .evaluateAll(
+                (rows) =>
+                    rows.filter(
+                        (row) => (row as unknown as { kept?: boolean }).kept,
+                    ).length,
+            ),
+    ).toBe(1);
 });

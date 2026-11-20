@@ -37,7 +37,9 @@ test('a card added elsewhere appears, a ticked row stays ticked, and a moved car
 
     await watcher.goto(`/projects/${projectId}/board/backlog`);
     await expect(watcher.locator('[data-backlog-card-id]')).toHaveCount(2);
-    await expect(watcher.locator('turbo-frame#backlog-live')).toBeVisible();
+    await expect(
+        watcher.locator('turbo-frame#backlog-list #backlog-live'),
+    ).toBeVisible();
     // The hub keeps no history, so a change made before the page connects is lost.
     await watcher.waitForTimeout(1_000);
     await watcher
@@ -46,6 +48,12 @@ test('a card added elsewhere appears, a ticked row stays ticked, and a moved car
     await watcher.evaluate(() => {
         (window as unknown as { stayed: boolean }).stayed = true;
     });
+    // A row update keeps the element that is on screen, and a list swap replaces it.
+    await watcher
+        .locator(`[data-backlog-card-id="${first.id}"]`)
+        .evaluate((row) => {
+            (row as unknown as { kept: boolean }).kept = true;
+        });
 
     const third = await create('Third waiting');
     await expect(
@@ -54,6 +62,16 @@ test('a card added elsewhere appears, a ticked row stays ticked, and a moved car
     await expect(
         watcher.getByRole('checkbox', { name: `Select card #${first.number}` }),
     ).toBeChecked();
+    expect(
+        await watcher
+            .locator(`[data-backlog-card-id="${first.id}"]`)
+            .evaluate(
+                (row) => (row as unknown as { kept?: boolean }).kept === true,
+            ),
+    ).toBe(true);
+    await expect(
+        watcher.locator('[data-backlog-card-id]').first(),
+    ).toHaveAttribute('data-backlog-card-id', third.id);
 
     await create.move(second, 'next');
 

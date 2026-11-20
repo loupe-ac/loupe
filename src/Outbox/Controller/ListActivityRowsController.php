@@ -7,11 +7,15 @@ namespace App\Outbox\Controller;
 use App\Controller\AppController;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
+use App\Outbox\ActivityEntry;
+use App\Outbox\ActivityFamily;
+use App\Outbox\Command\ListActivityPageCommand;
 use App\Outbox\Command\ListActivityPageHandler;
 use App\Outbox\Command\ListActivityRowsCommand;
 use App\Outbox\Command\ListActivityRowsHandler;
 use App\Outbox\View\ActivityListQuery;
 use App\Session\ReadOnlyAwareSessionHandler;
+use App\Utils\RowChanges;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
@@ -20,7 +24,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Uid\Uuid;
 use Symfony\UX\Turbo\TurboBundle;
 
-/** The rows of a later activity page, refreshed by id when a signal says the project recorded an event. */
+/** The rows of an activity page, refreshed by id when a signal says the project recorded an event. Page one reads its page again and inserts the rows it gained. */
 #[IsGranted(ProjectVoter::VIEW, subject: 'project')]
 #[Route(
     '/projects/{id:project}/activity/rows',
@@ -32,6 +36,7 @@ final class ListActivityRowsController extends AppController
 {
     public function __construct(
         private readonly ListActivityRowsHandler $listRows,
+        private readonly ListActivityPageHandler $listPage,
     ) {
     }
 
@@ -50,6 +55,27 @@ final class ListActivityRowsController extends AppController
             explode(',', $ids),
             static fn (string $id): bool => Uuid::isValid($id),
         ));
+        if (1 === $listQuery->page) {
+            $view = ($this->listPage)(new ListActivityPageCommand($project, $listQuery));
+            $changes = RowChanges::between(
+                $view->entries,
+                static fn (ActivityEntry $entry): string => (string) $entry->event->id,
+                array_values(array_unique(\array_slice($shown, 0, ListActivityPageHandler::MAX_PER_PAGE))),
+            );
+
+            return new Response(
+                $this->renderView('outbox/_activity_first_page_rows.stream.html.twig', [
+                    'project' => $project,
+                    'view' => $view,
+                    'changes' => $changes,
+                    'listQuery' => $listQuery,
+                    'families' => ActivityFamily::cases(),
+                ]),
+                Response::HTTP_OK,
+                ['Content-Type' => TurboBundle::STREAM_MEDIA_TYPE],
+            );
+        }
+
         $view = ($this->listRows)(new ListActivityRowsCommand(
             $project,
             $listQuery,
