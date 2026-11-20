@@ -101,3 +101,69 @@ it('starts the next visit from the server state', async () => {
 
     expect(document.querySelector('details').open).toBe(true);
 });
+
+function morphAttribute(details, mutationType) {
+    const event = new CustomEvent('turbo:before-morph-attribute', {
+        bubbles: true,
+        cancelable: true,
+        detail: { attributeName: 'open', mutationType },
+    });
+    details.dispatchEvent(event);
+
+    return event;
+}
+
+function refreshVisit() {
+    document.dispatchEvent(
+        new CustomEvent('turbo:visit', {
+            detail: { url: window.location.href, action: 'replace' },
+        }),
+    );
+}
+
+it('keeps a section the reader opened open through a morph refresh', async () => {
+    await mount(SECTION(false));
+    const details = document.querySelector('details');
+    readerSets(details, true);
+
+    refreshVisit();
+
+    expect(morphAttribute(details, 'remove').defaultPrevented).toBe(true);
+});
+
+it('keeps a section the reader closed closed through a morph refresh', async () => {
+    await mount(SECTION(true));
+    const details = document.querySelector('details');
+    readerSets(details, false);
+
+    refreshVisit();
+
+    expect(morphAttribute(details, 'update').defaultPrevented).toBe(true);
+});
+
+it('lets a morph set the server state on a section the reader left alone', async () => {
+    await mount(SECTION(true));
+
+    refreshVisit();
+
+    expect(
+        morphAttribute(document.querySelector('details'), 'remove')
+            .defaultPrevented,
+    ).toBe(false);
+});
+
+it('starts a visit to another page from the server state', async () => {
+    await mount(SECTION(true));
+    readerSets(document.querySelector('details'), false);
+
+    document.dispatchEvent(
+        new CustomEvent('turbo:visit', {
+            detail: {
+                url: new URL('/elsewhere', window.location.href).href,
+                action: 'replace',
+            },
+        }),
+    );
+
+    expect(choices.size).toBe(0);
+});
