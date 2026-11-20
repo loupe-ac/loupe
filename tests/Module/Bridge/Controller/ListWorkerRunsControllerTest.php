@@ -893,6 +893,14 @@ final class ListWorkerRunsControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSame('true', $crawler->filter('[data-controller="worker-run-refresh"]')->attr('data-worker-run-refresh-whole-value'));
         self::assertCount(0, $crawler->filter('[data-controller="live-region"]'));
+        self::assertCount(1, $crawler->filter('turbo-frame#worker-runs-frame [data-controller="worker-run-refresh"][data-worker-run-refresh-target="frame"]'));
+
+        // The Clear link of a filtered empty list swaps this frame alone, so the listener travels inside it.
+        $client->request(Request::METHOD_GET, '/projects/'.$emptyId.'/worker-runs', [], [], ['HTTP_TURBO_FRAME' => 'worker-runs-frame']);
+        self::assertResponseIsSuccessful();
+        $body = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('data-controller="worker-run-refresh"', $body);
+        self::assertStringNotContainsString('data-controller="live-region"', $body);
     }
 
     /** A run with no history rows, as the previous image writes one during a deploy, shows its start and its outcome. */

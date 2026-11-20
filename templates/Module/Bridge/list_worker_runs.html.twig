@@ -85,8 +85,9 @@
     {% set whole = items|length == 0 and not listQuery.isNarrowed %}
     {# The filters stay outside the frame, so a read never takes the search field from under the reader.
        A page with no filters yet has no field to keep, so it reloads whole and gains them. Otherwise
-       the live region inside the frame reads the live route and answers a stream. #}
-    <div class="lp-live-frame"{% if whole %} data-controller="worker-run-refresh" data-worker-run-refresh-whole-value="true"{% endif %}>
+       the live region inside the frame reads the live route and answers a stream. Both listeners sit
+       inside the frame, so a frame swap to or from the empty list carries its own listener. #}
+    <div class="lp-live-frame">
     <turbo-frame id="worker-runs-frame" class="lp-live-frame" target="_top" data-worker-run-refresh-target="frame">
     {% include '@Bridge/_worker_runs_frame.html.twig' with {project: project, items: items, filteredTotal: filteredTotal, page: page, totalPages: totalPages, pageList: pageList, listQuery: listQuery, bridgeLabels: bridgeLabels, commandFlashes: app.flashes('worker-run-command'), requestFrame: app.request.headers.get('Turbo-Frame'), reopen: not frameRequest, live: not whole} only %}
     </turbo-frame>

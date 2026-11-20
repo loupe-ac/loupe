@@ -1,5 +1,7 @@
 {#- The list of runs inside its frame, with its live region. Props: project, items, filteredTotal, page, totalPages, pageList, listQuery, bridgeLabels, commandFlashes (list of string), requestFrame (?string, the Turbo-Frame header), reopen (bool, open the drawer of the run that the search names), live (bool, false while the page reloads whole). -#}
-{% if live %}
+{% if not live %}
+<div hidden data-controller="worker-run-refresh" data-worker-run-refresh-whole-value="true" data-worker-run-refresh-target="frame"></div>
+{% else %}
 <div hidden data-controller="live-region" data-live-region-mode-value="stream" data-live-region-types-value="{{ ['worker_run.changed']|json_encode }}" data-live-region-url-value="{{ path('app_project_worker_runs_live', {id: project.id}|merge(listQuery.withPage(page).routeParams)) }}"></div>
 {% endif %}
 {% if commandFlashes is not empty %}
