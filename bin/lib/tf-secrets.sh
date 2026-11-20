@@ -155,8 +155,9 @@ tfvars_file_b64_all() {
 }
 
 # The value of one name from the output of tfvars_file_b64_all, which arrives
-# as the second argument. The answer reaches awk on standard input only.
+# as the second argument. The answer reaches awk on standard input only. Awk
+# reads all of it, because an early exit breaks the pipe and fails the pipeline.
 ts_b64_of() {
-    printf '%s\n' "$2" | awk -v n="$1" '$1 == n { print $2; found = 1; exit } END { exit !found }' \
+    printf '%s\n' "$2" | awk -v n="$1" '$1 == n && !found { v = $2; found = 1 } END { if (found) print v; exit !found }' \
         || ts_fail "terraform returned no value for $1."
 }
