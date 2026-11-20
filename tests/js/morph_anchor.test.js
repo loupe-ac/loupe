@@ -28,8 +28,24 @@ function answer(type = 'text/html') {
                 fetchResponse: {
                     header: () => type,
                     location: new URL('http://localhost/settings'),
+                    responseHTML: Promise.resolve(ANSWER),
                 },
                 formSubmission: SUBMISSION,
+            },
+        }),
+    );
+}
+
+const ANSWER = '<html><body><p>answer</p></body></html>';
+
+async function render() {
+    await Promise.resolve();
+    await Promise.resolve();
+    document.dispatchEvent(
+        new CustomEvent('turbo:before-render', {
+            detail: {
+                newBody: new DOMParser().parseFromString(ANSWER, 'text/html')
+                    .body,
             },
         }),
     );
@@ -56,10 +72,11 @@ function submit(id) {
         );
 }
 
-it('scrolls the section of the submitted form into view when it is out of view', () => {
+it('scrolls the section of the submitted form into view when it is out of view', async () => {
     place(900, 1100);
     submit('identity-form');
     answer();
+    await render();
     document.dispatchEvent(new CustomEvent('turbo:morph'));
     expect(section.scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
 });
@@ -72,10 +89,11 @@ it('leaves a section that is already in view where it is', () => {
     expect(section.scrollIntoView).not.toHaveBeenCalled();
 });
 
-it('finds the section again when the morph replaced its element', () => {
+it('finds the section again when the morph replaced its element', async () => {
     place(900, 1100);
     submit('identity-form');
     answer();
+    await render();
     const replacement = section.cloneNode(true);
     replacement.scrollIntoView = vi.fn();
     replacement.getBoundingClientRect = () => ({ top: 900, bottom: 1100 });
@@ -100,10 +118,11 @@ it('forgets the section after a full visit', () => {
     expect(section.scrollIntoView).not.toHaveBeenCalled();
 });
 
-it('uses a stored section once', () => {
+it('uses a stored section once', async () => {
     place(900, 1100);
     submit('identity-form');
     answer();
+    await render();
     document.dispatchEvent(new CustomEvent('turbo:morph'));
     document.dispatchEvent(new CustomEvent('turbo:morph'));
     expect(section.scrollIntoView).toHaveBeenCalledOnce();
@@ -125,12 +144,13 @@ it('forgets the section when the request fails', () => {
     expect(section.scrollIntoView).not.toHaveBeenCalled();
 });
 
-it('keeps the section through a morph that arrives before the answer', () => {
+it('keeps the section through a morph that arrives before the answer', async () => {
     place(900, 1100);
     submit('identity-form');
     document.dispatchEvent(new CustomEvent('turbo:morph'));
     expect(section.scrollIntoView).not.toHaveBeenCalled();
     answer();
+    await render();
     document.dispatchEvent(new CustomEvent('turbo:morph'));
     expect(section.scrollIntoView).toHaveBeenCalledOnce();
 });

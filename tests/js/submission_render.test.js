@@ -124,3 +124,29 @@ it('keeps the submission pending after a rejected fallback so the real answer ma
     propose(visit('http://localhost/settings'));
     expect(rendersSubmission()).toBe(true);
 });
+
+it('treats a render with no visit after the request ended as a live morph until the answer render', () => {
+    answer('http://localhost/settings');
+    expect(rendersSubmission()).toBe(false);
+});
+
+it('treats the render that carries the answer body as the answer of a failed submission', async () => {
+    answer('http://localhost/settings');
+    await Promise.resolve();
+    await Promise.resolve();
+    const body = new DOMParser().parseFromString(ANSWER_HTML, 'text/html').body;
+    fire('turbo:before-render', { newBody: body });
+    expect(rendersSubmission()).toBe(true);
+});
+
+it('keeps a live morph with another body no answer after the answer arrived', async () => {
+    answer('http://localhost/settings');
+    await Promise.resolve();
+    await Promise.resolve();
+    const body = new DOMParser().parseFromString(
+        '<p>live</p>',
+        'text/html',
+    ).body;
+    fire('turbo:before-render', { newBody: body });
+    expect(rendersSubmission()).toBe(false);
+});

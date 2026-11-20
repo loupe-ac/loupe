@@ -7,6 +7,8 @@ let fromSubmission = false;
 let submissionVisit = null;
 let answerHtml;
 let requestRunning = false;
+let answerPending = false;
+let answerRendered = false;
 
 function currentVisit() {
     return window.Turbo?.session?.navigator?.currentVisit ?? null;
@@ -14,6 +16,8 @@ function currentVisit() {
 
 document.addEventListener('turbo:submit-start', () => {
     requestRunning = true;
+    answerPending = false;
+    answerRendered = false;
     answerHref = null;
     submissionVisit = null;
     submission = null;
@@ -30,7 +34,8 @@ document.addEventListener('turbo:submit-end', (event) => {
             ? (response.location?.href ?? null)
             : null;
     submission = answerHref ? (event.detail?.formSubmission ?? null) : null;
-    if (submission) {
+    answerPending = Boolean(response) && !type.includes('turbo-stream');
+    if (answerPending) {
         Promise.resolve(response.responseHTML).then((html) => {
             answerHtml = html;
             verifyVisit();
@@ -71,6 +76,21 @@ document.addEventListener('turbo:visit', () => {
     fromSubmission = false;
 });
 
+// Turbo ends the request before its asynchronous answer starts a visit or a
+// render. Until the render that carries the body of the answer, a render with
+// no visit is a live morph. The answer render is the one whose body equals it.
+document.addEventListener('turbo:before-render', (event) => {
+    const body = event.detail?.newBody;
+    if (!answerPending || answerHtml === undefined || !body) {
+        return;
+    }
+    const answerBody = new DOMParser().parseFromString(
+        answerHtml,
+        'text/html',
+    ).body;
+    answerRendered = answerBody.outerHTML === body.outerHTML;
+});
+
 // A render with no visit under way, such as a failed submission, is the
 // answer of the form too. Turbo clears the visit when a submission starts, so
 // a render while the request runs is a live morph, never the answer.
@@ -79,5 +99,8 @@ export function rendersSubmission() {
         return false;
     }
     const visit = currentVisit();
-    return visit === null || visit === submissionVisit;
+    if (visit === null) {
+        return !answerPending || answerRendered;
+    }
+    return visit === submissionVisit;
 }

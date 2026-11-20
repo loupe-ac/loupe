@@ -323,7 +323,7 @@ it('keeps a form that holds typed text out of a morph', () => {
     ).toBe(true);
 });
 
-it('lets the form that is submitting take the answer of its request', () => {
+it('lets the form that is submitting take the answer of its request', async () => {
     document.body.innerHTML =
         '<form id="old"><textarea></textarea></form><form id="new"><textarea></textarea></form>';
     const current = document.getElementById('old');
@@ -337,7 +337,26 @@ it('lets the form that is submitting take the answer of its request', () => {
     current.dispatchEvent(
         new CustomEvent('turbo:submit-end', {
             bubbles: true,
-            detail: { fetchResponse: { header: () => 'text/html' } },
+            detail: {
+                fetchResponse: {
+                    header: () => 'text/html',
+                    responseHTML: Promise.resolve(
+                        '<html><body>a</body></html>',
+                    ),
+                },
+            },
+        }),
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+    document.dispatchEvent(
+        new CustomEvent('turbo:before-render', {
+            detail: {
+                newBody: new DOMParser().parseFromString(
+                    '<html><body>a</body></html>',
+                    'text/html',
+                ).body,
+            },
         }),
     );
     expect(

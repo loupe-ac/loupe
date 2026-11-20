@@ -16,6 +16,21 @@ function morph(current) {
     return event.defaultPrevented;
 }
 
+const ANSWER = '<html><body><p>answer</p></body></html>';
+
+async function renderAnswer() {
+    await Promise.resolve();
+    await Promise.resolve();
+    const body = new DOMParser().parseFromString(ANSWER, 'text/html').body;
+    document.dispatchEvent(
+        new CustomEvent('turbo:before-render', { detail: { newBody: body } }),
+    );
+}
+
+function htmlAnswer() {
+    return { header: () => 'text/html', responseHTML: Promise.resolve(ANSWER) };
+}
+
 it('keeps a form with typed text out of a morph', () => {
     document.body.innerHTML = '<form id="f"><textarea></textarea></form>';
     const form = document.getElementById('f');
@@ -23,7 +38,7 @@ it('keeps a form with typed text out of a morph', () => {
     expect(morph(form)).toBe(true);
 });
 
-it('lets the submitting form take its answer once its request ended', () => {
+it('lets the submitting form take its answer once its request ended', async () => {
     document.body.innerHTML = '<form id="f"><textarea></textarea></form>';
     const form = document.getElementById('f');
     form.querySelector('textarea').value = 'typed';
@@ -33,9 +48,11 @@ it('lets the submitting form take its answer once its request ended', () => {
     form.dispatchEvent(
         new CustomEvent('turbo:submit-end', {
             bubbles: true,
-            detail: { fetchResponse: { header: () => 'text/html' } },
+            detail: { fetchResponse: htmlAnswer() },
         }),
     );
+    expect(morph(form)).toBe(true);
+    await renderAnswer();
     expect(morph(form)).toBe(false);
 });
 
@@ -58,7 +75,7 @@ it('keeps the form again once a render ended the submission', () => {
     expect(morph(form)).toBe(true);
 });
 
-it('keeps the submitting form through a live morph while its request runs, when Turbo holds no visit', () => {
+it('keeps the submitting form through a live morph while its request runs, when Turbo holds no visit', async () => {
     document.body.innerHTML = '<form id="f"><textarea></textarea></form>';
     const form = document.getElementById('f');
     form.querySelector('textarea').value = 'typed';
@@ -73,9 +90,11 @@ it('keeps the submitting form through a live morph while its request runs, when 
     form.dispatchEvent(
         new CustomEvent('turbo:submit-end', {
             bubbles: true,
-            detail: { fetchResponse: { header: () => 'text/html' } },
+            detail: { fetchResponse: htmlAnswer() },
         }),
     );
+    expect(morph(form)).toBe(true);
+    await renderAnswer();
     expect(morph(form)).toBe(false);
     delete window.Turbo;
 });
@@ -115,11 +134,13 @@ it('keeps the form again after a failed request', () => {
     expect(morph(form)).toBe(true);
 });
 
-it('lets the form take an HTML answer that ends the request', () => {
+it('lets the form take an HTML answer that ends the request', async () => {
     document.body.innerHTML = '<form id="f"><textarea></textarea></form>';
     const form = document.getElementById('f');
     form.querySelector('textarea').value = 'typed';
-    submitEnd(form, { header: () => 'text/html; charset=utf-8' });
+    submitEnd(form, htmlAnswer());
+    expect(morph(form)).toBe(true);
+    await renderAnswer();
     expect(morph(form)).toBe(false);
 });
 
