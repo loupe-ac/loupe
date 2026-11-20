@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Inbox\Service;
 
 use App\Module\Board\Entity\Card;
+use App\Module\Board\Entity\CardPause;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\BridgeCommand;
 use App\Module\Bridge\Entity\WorkerRun;
@@ -27,7 +28,9 @@ use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Service\InboxItemCloser;
 use App\Module\Inbox\Service\InboxThreadBuilder;
 use App\Module\Inbox\View\InboxActionState;
+use App\Module\Inbox\View\ThreadAction;
 use App\Module\Project\Entity\Project;
+use App\Module\Workflow\Contract\PauseKind;
 use App\Tests\Module\Inbox\InboxFixtures;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -275,9 +278,9 @@ final class InboxThreadBuilderTest extends KernelTestCase
         self::assertNotNull($thread->replyCard);
     }
 
-    public function test_a_running_session_keeps_the_reply_card(): void
+    public function test_a_running_session_keeps_retry_on_the_reply_card_and_offers_no_second_session(): void
     {
-        [$item, $wait] = $this->waitItem();
+        [$item, $wait] = $this->pauseItem();
         $this->sessionAction($item, $wait);
 
         $thread = $this->builder->build($item);
@@ -285,6 +288,12 @@ final class InboxThreadBuilderTest extends KernelTestCase
         self::assertCount(1, $thread->actions);
         self::assertSame(InboxActionKind::StartSession, $thread->actions[0]->action->kind);
         self::assertNotNull($thread->replyCard);
+        $offered = array_map(
+            static fn (ThreadAction $row): InboxActionKind => $row->action->kind,
+            array_values(array_filter([$thread->replyCard->main, ...$thread->replyCard->menu])),
+        );
+        self::assertContains(InboxActionKind::RetryCard, $offered);
+        self::assertNotContains(InboxActionKind::StartSession, $offered);
     }
 
     public function test_a_session_after_a_queued_resume_still_hides_the_reply_card(): void
@@ -337,6 +346,22 @@ final class InboxThreadBuilderTest extends KernelTestCase
         $watch = new InboxCardWatch($item, $this->card->id ?? throw new \LogicException('Stored.'), $this->card->number);
         $this->em->persist($watch);
         $wait = new InboxCardWait($watch, 'run-needs-you', InboxCardWaitType::WorkerRun, 'marker.run_needs_you', runId: $run->id);
+        $watch->waits->add($wait);
+        $this->em->flush();
+
+        return [$item, $wait];
+    }
+
+    /** @return array{InboxItem, InboxCardWait} */
+    private function pauseItem(): array
+    {
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Wait, title: '#3 Ship it', blocking: true, origin: InboxAskOrigin::Loupe);
+        $this->em->persist($item);
+        $pause = new CardPause($this->card, $this->project, 'retries-spent', 'implement', PauseKind::Retries, new \DateTimeImmutable());
+        $this->em->persist($pause);
+        $watch = new InboxCardWatch($item, $this->card->id ?? throw new \LogicException('Stored.'), $this->card->number);
+        $this->em->persist($watch);
+        $wait = new InboxCardWait($watch, 'paused', InboxCardWaitType::CardPause, 'marker.paused', pauseId: $pause->id);
         $watch->waits->add($wait);
         $this->em->flush();
 
