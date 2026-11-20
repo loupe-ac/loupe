@@ -20,13 +20,16 @@ const VIEW_FRAME = 'inbox-view';
  * and after a reconnect, and morphs it in. A form with typed input keeps its
  * fields. When its item closed in the meantime, the typed values stay as an
  * unsent reply with a Discard button. An open
- * dialog holds the update until it closes.
+ * dialog holds the update until it closes. The detail pane that the address
+ * names stays as it is when the signal names other asks only.
  */
 export default class extends Controller {
     connect() {
         // A lost access ends the live part, as a disconnect does.
         this.removeLostListener = onLostAccess(() => this.disconnect());
         this.held = false;
+        this.askIds = new Set();
+        this.allAsks = false;
         // A dialog's close event does not bubble, so the listener captures it.
         this.onDialogClose = () => {
             if (this.held) {
@@ -56,6 +59,11 @@ export default class extends Controller {
         if (change.own) {
             return;
         }
+        const askIds = change.askIds ?? [];
+        if (askIds.length === 0) {
+            this.allAsks = true;
+        }
+        askIds.forEach((askId) => this.askIds.add(askId));
         this.schedule();
     }
 
@@ -165,9 +173,29 @@ export default class extends Controller {
         if (pinned) {
             keepUnpicked(fresh);
         }
+        const keepDetail = this.keepsDetail(address, pane);
+        this.allAsks = false;
+        this.askIds.clear();
         keepNotices(current, fresh);
         keepReplyDrafts(current, fresh);
-        this.morph(current, fresh);
+        this.morph(current, fresh, keepDetail);
+    }
+
+    /**
+     * The pane shows the ask that the address names. A signal that names other
+     * asks leaves it alone, and a signal with no name, or one that comes with
+     * a read that went wrong before, reads it again.
+     */
+    keepsDetail(address, pane) {
+        const askId = pane?.dataset.inboxAskId;
+
+        return (
+            !this.allAsks &&
+            this.askIds.size > 0 &&
+            askId !== undefined &&
+            new URL(address).searchParams.get('ask') === askId &&
+            !this.askIds.has(askId)
+        );
     }
 
     holding() {
@@ -176,9 +204,17 @@ export default class extends Controller {
         return this.held;
     }
 
-    morph(current, fresh) {
+    morph(current, fresh, keepDetail = false) {
         const keepElement = (event) => {
             const target = event.target;
+            if (
+                keepDetail &&
+                target.classList?.contains('lp-inbox-request-detail')
+            ) {
+                event.preventDefault();
+
+                return;
+            }
             if (
                 target.classList?.contains('lp-flash') ||
                 target.hasAttribute?.('data-inbox-reply-draft') ||

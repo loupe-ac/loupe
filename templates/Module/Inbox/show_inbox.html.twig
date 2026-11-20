@@ -93,60 +93,63 @@
                 </div>
 
                 <div class="lp-inbox-request-detail lp-split-pane">
-                    {# What the last response did, read once. Only this page reads the flash type. #}
-                    {% for status in liveRefresh ? [] : app.flashes('inbox_status') %}
-                        {% set verb = ('inbox.status.verb.' ~ status.verb)|trans %}
-                        <p class="lp-inbox-status" role="status" data-inbox-status>
-                            <twig:ux:icon name="lucide:check" class="lp-inbox-status__icon" />
-                            {% if status.ask %}
-                                <span>{{ 'inbox.status.ask_closed'|trans({'%verb%': verb}) }}</span>
-                                <span class="lp-inbox-status__detail">{{ 'inbox.status.ask_closed_detail'|trans({'%title%': status.title|reference_plain}) }}</span>
-                                <a href="{{ path('app_project_inbox', {id: inbox.project.id, side: 'closed', ask: status.ask}) }}" data-turbo-frame="inbox-view">{{ 'inbox.status.view'|trans }}</a>
-                            {% elseif status.left > 0 %}
-                                <span>{{ 'inbox.status.ask_left'|trans({'%verb%': verb, '%count%': status.left}) }}</span>
-                            {% else %}
-                                <span>{{ 'inbox.status.item'|trans({'%verb%': verb, '%number%': status.number}) }}</span>
-                            {% endif %}
-                        </p>
-                    {% endfor %}
-                    {# The ask that the page showed open has closed since: say why, and point to the next open ask. Only a live refresh that names the ask asks for it. #}
-                    {% set watched = app.request.headers.get('X-Loupe-Inbox-Watching') %}
-                    {% if watched and inbox.selected and inbox.selected.ask and inbox.selected.ask.closedAt and (inbox.selected.ask.id ~ '') == watched %}
-                        {% set closedOutcome = inbox.selected.outcome %}
-                        {% set closedReason = inbox.selected.closing.note ?? null %}
-                        <p class="lp-inbox-status" role="status" data-inbox-closed-notice="{{ closedOutcome ? closedOutcome.key : 'closed' }}">
-                            <span>
-                                {%- if closedOutcome and inbox.selected.closing.state.value == 'cancelled' -%}
-                                    {{ 'inbox.live.closed.cancelled'|trans({'%outcome%': closedOutcome.key|trans(closedOutcome.parameters)}) }}
-                                {%- else -%}
-                                    {{ 'inbox.live.closed.other'|trans({'%outcome%': closedOutcome ? closedOutcome.key|trans(closedOutcome.parameters) : 'inbox.row.closed'|trans}) }}
-                                {%- endif -%}
-                                {%- if closedReason %} {{ closedReason }}{% endif -%}
-                            </span>
-                            <a href="{{ path('app_project_inbox', {id: inbox.project.id}|merge(view.onSide(openSide).withoutSelection.toQuery)) }}" data-turbo-frame="inbox-view">{{ 'inbox.live.next'|trans }}</a>
-                        </p>
-                    {% endif %}
-                    {% if view.isPicked %}
-                        <a class="lp-inbox-back"
-                           href="{{ path('app_project_inbox', {id: inbox.project.id}|merge(view.withoutSelection.toQuery)) }}"
-                           data-turbo-frame="inbox-view">
-                            <twig:ux:icon name="lucide:arrow-left" class="lp-icon lp-icon--md" />
-                            {{ 'inbox.pane.back'|trans }}
-                        </a>
-                    {% endif %}
-                    {% if inbox.selected %}
-                        {% include '@Inbox/_inbox_detail.html.twig' with {row: inbox.selected, inbox: inbox, refusedForm: refusedForm, cardDrawer: true} only %}
-                    {% elseif inbox.pickedNothing %}
-                        <twig:Ds:EmptyState :title="'inbox.pane.missing'|trans" data-inbox-pane-missing />
-                    {% elseif view.isSearch %}
-                        <twig:Ds:EmptyState :title="'inbox.search.empty'|trans" data-inbox-search-empty />
-                    {% elseif view.type %}
-                        <twig:Ds:EmptyState :title="'inbox.filter.empty'|trans" data-inbox-type-empty />
-                    {% elseif view.side == closedSide %}
-                        <twig:Ds:EmptyState :title="'inbox.closed.empty'|trans" data-inbox-queue-empty="closed-asks" />
-                    {% else %}
-                        <twig:Ds:EmptyState icon="lucide:inbox" :title="'inbox.empty.title'|trans" :body="'inbox.empty.body'|trans" data-inbox-queue-empty="open-asks" />
-                    {% endif %}
+                    {# A row pick swaps only this frame, so the list keeps its place. Every other link and form of the pane targets the view frame. #}
+                    <turbo-frame id="inbox-detail" target="_top" data-turbo-action="advance">
+                        {# What the last response did, read once. Only this page reads the flash type. #}
+                        {% for status in liveRefresh ? [] : app.flashes('inbox_status') %}
+                            {% set verb = ('inbox.status.verb.' ~ status.verb)|trans %}
+                            <p class="lp-inbox-status" role="status" data-inbox-status>
+                                <twig:ux:icon name="lucide:check" class="lp-inbox-status__icon" />
+                                {% if status.ask %}
+                                    <span>{{ 'inbox.status.ask_closed'|trans({'%verb%': verb}) }}</span>
+                                    <span class="lp-inbox-status__detail">{{ 'inbox.status.ask_closed_detail'|trans({'%title%': status.title|reference_plain}) }}</span>
+                                    <a href="{{ path('app_project_inbox', {id: inbox.project.id, side: 'closed', ask: status.ask}) }}" data-turbo-frame="inbox-view">{{ 'inbox.status.view'|trans }}</a>
+                                {% elseif status.left > 0 %}
+                                    <span>{{ 'inbox.status.ask_left'|trans({'%verb%': verb, '%count%': status.left}) }}</span>
+                                {% else %}
+                                    <span>{{ 'inbox.status.item'|trans({'%verb%': verb, '%number%': status.number}) }}</span>
+                                {% endif %}
+                            </p>
+                        {% endfor %}
+                        {# The ask that the page showed open has closed since: say why, and point to the next open ask. Only a live refresh that names the ask asks for it. #}
+                        {% set watched = app.request.headers.get('X-Loupe-Inbox-Watching') %}
+                        {% if watched and inbox.selected and inbox.selected.ask and inbox.selected.ask.closedAt and (inbox.selected.ask.id ~ '') == watched %}
+                            {% set closedOutcome = inbox.selected.outcome %}
+                            {% set closedReason = inbox.selected.closing.note ?? null %}
+                            <p class="lp-inbox-status" role="status" data-inbox-closed-notice="{{ closedOutcome ? closedOutcome.key : 'closed' }}">
+                                <span>
+                                    {%- if closedOutcome and inbox.selected.closing.state.value == 'cancelled' -%}
+                                        {{ 'inbox.live.closed.cancelled'|trans({'%outcome%': closedOutcome.key|trans(closedOutcome.parameters)}) }}
+                                    {%- else -%}
+                                        {{ 'inbox.live.closed.other'|trans({'%outcome%': closedOutcome ? closedOutcome.key|trans(closedOutcome.parameters) : 'inbox.row.closed'|trans}) }}
+                                    {%- endif -%}
+                                    {%- if closedReason %} {{ closedReason }}{% endif -%}
+                                </span>
+                                <a href="{{ path('app_project_inbox', {id: inbox.project.id}|merge(view.onSide(openSide).withoutSelection.toQuery)) }}" data-turbo-frame="inbox-view">{{ 'inbox.live.next'|trans }}</a>
+                            </p>
+                        {% endif %}
+                        {% if view.isPicked %}
+                            <a class="lp-inbox-back"
+                               href="{{ path('app_project_inbox', {id: inbox.project.id}|merge(view.withoutSelection.toQuery)) }}"
+                               data-turbo-frame="inbox-view">
+                                <twig:ux:icon name="lucide:arrow-left" class="lp-icon lp-icon--md" />
+                                {{ 'inbox.pane.back'|trans }}
+                            </a>
+                        {% endif %}
+                        {% if inbox.selected %}
+                            {% include '@Inbox/_inbox_detail.html.twig' with {row: inbox.selected, inbox: inbox, refusedForm: refusedForm, cardDrawer: true} only %}
+                        {% elseif inbox.pickedNothing %}
+                            <twig:Ds:EmptyState :title="'inbox.pane.missing'|trans" data-inbox-pane-missing />
+                        {% elseif view.isSearch %}
+                            <twig:Ds:EmptyState :title="'inbox.search.empty'|trans" data-inbox-search-empty />
+                        {% elseif view.type %}
+                            <twig:Ds:EmptyState :title="'inbox.filter.empty'|trans" data-inbox-type-empty />
+                        {% elseif view.side == closedSide %}
+                            <twig:Ds:EmptyState :title="'inbox.closed.empty'|trans" data-inbox-queue-empty="closed-asks" />
+                        {% else %}
+                            <twig:Ds:EmptyState icon="lucide:inbox" :title="'inbox.empty.title'|trans" :body="'inbox.empty.body'|trans" data-inbox-queue-empty="open-asks" />
+                        {% endif %}
+                    </turbo-frame>
                 </div>
                 {# Covers the detail pane, outside its scroll, while a picked row loads, as the board's card drawer does. #}
                 <div class="lp-inbox-pane-loading" role="status">

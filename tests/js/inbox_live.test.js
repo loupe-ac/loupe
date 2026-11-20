@@ -369,3 +369,63 @@ it('keeps a view picked when its address names the ask', async () => {
         window.history.replaceState(null, '', '/');
     }
 });
+
+function detailText() {
+    return document.querySelector('.lp-inbox-request-detail').textContent;
+}
+
+function viewWithTitle(title) {
+    return view().replaceAll('Which column?', title);
+}
+
+it('leaves the pane alone when a signal names other asks', async () => {
+    history.replaceState(null, '', `/inbox?ask=${ASK}`);
+    await mount();
+    answer(
+        viewWithTitle('Renamed').replace(
+            '<div class="lp-inbox-rows">',
+            '<div class="lp-inbox-rows"><a class="lp-list-row" data-inbox-request="new" href="/inbox?ask=new">A new ask</a>',
+        ),
+    );
+    changed({ askIds: ['0199aaaa-0000-7000-8000-000000000002'] });
+    await settle();
+
+    expect(document.querySelector('[data-inbox-request="new"]')).not.toBeNull();
+    expect(detailText()).toContain('Which column?');
+    expect(detailText()).not.toContain('Renamed');
+    history.replaceState(null, '', '/');
+});
+
+it('reads the pane again when a signal names its ask', async () => {
+    history.replaceState(null, '', `/inbox?ask=${ASK}`);
+    await mount();
+    answer(viewWithTitle('Renamed'));
+    changed({ askIds: [ASK] });
+    await settle();
+
+    expect(detailText()).toContain('Renamed');
+    history.replaceState(null, '', '/');
+});
+
+it('reads the pane again when a signal names no ask', async () => {
+    history.replaceState(null, '', `/inbox?ask=${ASK}`);
+    await mount();
+    answer(viewWithTitle('Renamed'));
+    changed({ askIds: [] });
+    await settle();
+
+    expect(detailText()).toContain('Renamed');
+    history.replaceState(null, '', '/');
+});
+
+it('reads the pane again when one signal of a burst names no ask', async () => {
+    history.replaceState(null, '', `/inbox?ask=${ASK}`);
+    await mount();
+    answer(viewWithTitle('Renamed'));
+    changed({ askIds: ['0199aaaa-0000-7000-8000-000000000002'] });
+    changed({ askIds: [] });
+    await settle();
+
+    expect(detailText()).toContain('Renamed');
+    history.replaceState(null, '', '/');
+});

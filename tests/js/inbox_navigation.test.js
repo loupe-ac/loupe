@@ -211,3 +211,60 @@ it('moves no focus when a render follows no action of the owner', async () => {
 
     expect(document.activeElement).toBe(document.body);
 });
+
+async function mountWithDetail() {
+    document.body.innerHTML =
+        '<div data-controller="inbox-navigation"><turbo-frame id="inbox-view"><div class="lp-inbox-split" data-inbox-picked="false"><div data-inbox-scroll><a class="lp-list-row" id="second" href="#"></a></div><turbo-frame id="inbox-detail"></turbo-frame></div></turbo-frame></div>';
+    application = Application.start();
+    application.register('inbox-navigation', InboxNavigationController);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+function renderDetail(html) {
+    const frame = document.getElementById('inbox-detail');
+    frame.dispatchEvent(
+        new CustomEvent('turbo:before-frame-render', { bubbles: true }),
+    );
+    frame.innerHTML = html;
+    frame.dispatchEvent(
+        new CustomEvent('turbo:frame-render', { bubbles: true }),
+    );
+}
+
+it('shows the detail pane at once on a row pick and hides the spinner when the detail frame renders', async () => {
+    await mountWithDetail();
+    const root = document.querySelector('[data-controller="inbox-navigation"]');
+    const split = document.querySelector('.lp-inbox-split');
+
+    document
+        .getElementById('second')
+        .dispatchEvent(new MouseEvent('click', { bubbles: true, button: 0 }));
+    expect(split.dataset.inboxPicked).toBe('true');
+    expect(root.hasAttribute('data-inbox-loading')).toBe(true);
+
+    renderDetail('<a class="lp-inbox-back" href="#"></a>');
+    expect(root.hasAttribute('data-inbox-loading')).toBe(false);
+    expect(split.dataset.inboxPicked).toBe('true');
+});
+
+it('shows the list again when the detail frame renders with no back link', async () => {
+    await mountWithDetail();
+    const split = document.querySelector('.lp-inbox-split');
+    split.dataset.inboxPicked = 'true';
+
+    renderDetail('<p>No request is picked.</p>');
+
+    expect(split.dataset.inboxPicked).toBe('false');
+});
+
+it('restores the pick state when the detail request fails', async () => {
+    await mountWithDetail();
+    const split = document.querySelector('.lp-inbox-split');
+
+    document
+        .getElementById('second')
+        .dispatchEvent(new MouseEvent('click', { bubbles: true, button: 0 }));
+    document.dispatchEvent(new CustomEvent('turbo:fetch-request-error'));
+
+    expect(split.dataset.inboxPicked).toBe('false');
+});

@@ -135,6 +135,42 @@ test('a row click moves the address without a page load, and back returns', asyn
     ).toBeVisible();
 });
 
+test('a row click swaps only the detail and keeps the list in place', async ({
+    page,
+}, testInfo) => {
+    const { first, second } = await seedTwoAsks(
+        page,
+        testInfo.testId.replace(/[^a-z0-9]/gi, ''),
+    );
+    const inboxUrl = `/projects/${first.projectId}/inbox`;
+    await page.goto(inboxUrl);
+    await expect(page.locator('a.lp-list-row')).toHaveCount(2);
+    await page.evaluate(() => {
+        document.querySelector('.lp-inbox-rows')?.setAttribute('data-kept', '');
+    });
+
+    await page
+        .locator(`a.lp-list-row[data-inbox-request="${second.askId}"]`)
+        .click();
+    await expect(page).toHaveURL(`${inboxUrl}?ask=${second.askId}`);
+    await expect(
+        page.locator(`#inbox-detail [data-inbox-ask-id="${second.askId}"]`),
+    ).toBeVisible();
+    await expect(page.locator('.lp-inbox-rows[data-kept]')).toHaveCount(1);
+    await expect(
+        page.locator(`a.lp-list-row[data-inbox-request="${second.askId}"]`),
+    ).toHaveAttribute('aria-current', 'true');
+    await expect(page.locator('.lp-inbox-split')).toHaveAttribute(
+        'data-inbox-picked',
+        'true',
+    );
+
+    // The back link reloads the whole view, so no row stays current.
+    await page.getByRole('link', { name: 'All asks' }).click();
+    await expect(page).toHaveURL(inboxUrl);
+    await expect(page.locator('.lp-inbox-rows[data-kept]')).toHaveCount(0);
+});
+
 test('the type filter and the switch change the list and keep the address', async ({
     page,
 }, testInfo) => {

@@ -304,6 +304,11 @@ test('the owner answers a question and declines a to-do', async ({
 
     const question = page.locator(`#inbox-item-${inbox.questionNumber}`);
     await expect(question).toContainText('Which format should the export use?');
+    // An answer swaps the view frame and leaves the page and the sidebar in place.
+    await page.evaluate(() => {
+        (window as unknown as { stayed: boolean }).stayed = true;
+        document.querySelector('.lp-sidebar')?.setAttribute('data-kept', '');
+    });
     await question.getByText('CSV', { exact: true }).click();
     await question
         .getByLabel('Note for the agent')
@@ -344,9 +349,16 @@ test('the owner answers a question and declines a to-do', async ({
     ).toBeVisible();
     await page.getByRole('link', { name: 'View it' }).click();
     await expect(todo).toContainText('dismissed it at');
-    await expect(sidebarPill).toHaveCount(0);
+    expect(
+        await page.evaluate(
+            () => (window as unknown as { stayed?: boolean }).stayed,
+        ),
+    ).toBe(true);
+    await expect(page.locator('.lp-sidebar[data-kept]')).toHaveCount(1);
 
+    // The pill follows a live signal, which this spec stubs, so a reload shows the new count.
     await page.reload();
+    await expect(sidebarPill).toHaveCount(0);
     await expect(question.locator('[data-inbox-response]')).toContainText(
         'The importer reads CSV.',
     );

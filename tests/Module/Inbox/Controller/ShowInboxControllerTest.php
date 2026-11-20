@@ -407,6 +407,29 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertSame('false', $crawler->filter('.lp-inbox-split')->attr('data-inbox-picked'));
     }
 
+    public function test_a_row_swaps_the_detail_frame_and_an_answer_stays_in_the_view_frame(): void
+    {
+        $owner = $this->signedUpUser($this->em, 'inbox-in-place');
+        $project = $this->inboxProject($this->em, $owner);
+        $question = $this->question($this->em, $project, 1);
+        $ask = $this->askHolding($this->em, $project, [$question]);
+        $this->askHolding($this->em, $project, [$this->question($this->em, $project, 2)], createdAt: new \DateTimeImmutable('+1 hour'));
+        $this->setInboxFlag(true);
+
+        $this->client->loginUser($owner);
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox?ask='.$ask->id);
+
+        self::assertResponseIsSuccessful();
+        $detail = $crawler->filter('turbo-frame#inbox-view turbo-frame#inbox-detail[data-turbo-action="advance"][target="_top"]');
+        self::assertCount(1, $detail);
+        self::assertCount(1, $detail->filter('[data-inbox-ask-id="'.$ask->id.'"]'));
+        $rows = $crawler->filter('a.lp-list-row');
+        self::assertCount(2, $rows);
+        self::assertSame(['inbox-detail', 'inbox-detail'], $rows->each(static fn ($node): string => (string) $node->attr('data-turbo-frame')));
+        self::assertSame('inbox-view', $detail->filter('form[name="inbox_response_'.$question->id.'"]')->attr('data-turbo-frame'));
+        self::assertSame('inbox-view', $detail->filter('.lp-inbox-back')->attr('data-turbo-frame'));
+    }
+
     public function test_an_ask_in_the_address_is_the_one_shown_and_marks_the_view_picked(): void
     {
         $owner = $this->signedUpUser($this->em, 'inbox-pick');
