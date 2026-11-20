@@ -91,8 +91,8 @@ it('lets the form take an HTML answer that ends the request', () => {
 
 const SUBMISSION = { id: 'form' };
 
-function startVisit(visit, formSubmission = SUBMISSION) {
-    window.Turbo = { session: { navigator: { formSubmission } } };
+function startVisit(visit) {
+    window.Turbo = { session: { navigator: {} } };
     document.dispatchEvent(
         new CustomEvent('turbo:before-visit', {
             detail: { url: visit.location.href },
@@ -125,28 +125,42 @@ it('keeps the submitting form through an unrelated morph after the request ended
         response: undefined,
         location: new URL('http://localhost/settings'),
     });
+    expect(morph(form)).toBe(true);
     document.dispatchEvent(new CustomEvent('turbo:morph'));
-    expect(morph(form)).toBe(false);
+    expect(morph(form)).toBe(true);
     startVisit({
         response: { responseHTML: '<html></html>' },
         location: new URL('http://localhost/frame-fallback'),
     });
+    expect(morph(form)).toBe(true);
     document.dispatchEvent(new CustomEvent('turbo:morph'));
-    expect(morph(form)).toBe(false);
-    startVisit(
-        {
-            response: { responseHTML: '<html></html>' },
-            location: new URL('http://localhost/settings'),
-        },
-        null,
-    );
-    document.dispatchEvent(new CustomEvent('turbo:morph'));
-    expect(morph(form)).toBe(false);
+    expect(morph(form)).toBe(true);
     startVisit({
         response: { responseHTML: '<html></html>' },
         location: new URL('http://localhost/settings'),
     });
     document.dispatchEvent(new CustomEvent('turbo:morph'));
+    expect(morph(form)).toBe(true);
+    delete window.Turbo;
+});
+
+it('keeps the submitting form through a live morph while its request runs', () => {
+    document.body.innerHTML = '<form id="f"><textarea></textarea></form>';
+    const form = document.getElementById('f');
+    form.querySelector('textarea').value = 'typed';
+    window.Turbo = {
+        session: {
+            navigator: {
+                currentVisit: {
+                    response: { responseHTML: '<html></html>' },
+                    location: new URL('http://localhost/settings'),
+                },
+            },
+        },
+    };
+    form.dispatchEvent(
+        new CustomEvent('turbo:submit-start', { bubbles: true }),
+    );
     expect(morph(form)).toBe(true);
     delete window.Turbo;
 });

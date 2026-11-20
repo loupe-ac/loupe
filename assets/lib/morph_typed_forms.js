@@ -11,7 +11,7 @@ const TEXT_FIELDS =
 let submitted = null;
 
 export function isSubmitted(form) {
-    return form === submitted;
+    return form === submitted && rendersSubmission();
 }
 
 export function keepTypedForm(event) {

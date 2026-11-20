@@ -7,12 +7,8 @@ let fromSubmission = false;
 let submissionVisit = null;
 let answerHtml;
 
-function navigator() {
-    return window.Turbo?.session?.navigator ?? null;
-}
-
 function currentVisit() {
-    return navigator()?.currentVisit ?? null;
+    return window.Turbo?.session?.navigator?.currentVisit ?? null;
 }
 
 document.addEventListener('turbo:submit-start', () => {
@@ -56,14 +52,11 @@ function verifyVisit() {
     }
 }
 
-// Turbo proposes the visit of a form answer while the navigator still holds
-// that submission, and drops the submission when any other visit starts. So
-// the proposal that finds it is the one that the form made.
+// Turbo drops the navigator submission when any visit starts, so a fallback
+// visit can clear it before the answer is proposed. The answer is the visit
+// to the answer URL, and verifyVisit then checks it by its body.
 document.addEventListener('turbo:before-visit', (event) => {
-    fromSubmission =
-        submission !== null &&
-        navigator()?.formSubmission === submission &&
-        event.detail?.url === answerHref;
+    fromSubmission = submission !== null && event.detail?.url === answerHref;
 });
 
 document.addEventListener('turbo:visit', () => {
