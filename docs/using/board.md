@@ -640,7 +640,8 @@ reaches its work limit.
 **Retry** on a paused card releases the pause and keeps the card open in the
 drawer. The same holds for resolving or reopening a feedback note, for the lane
 button of an epic and for revoking a preview sign-in: each changes only its own
-part of the drawer.
+part of the drawer. Answering an inbox item of the card in the drawer redraws only
+the inbox section of the card and shows the confirmation.
 
 The panel also shows the slot of the card, the condition that the card waits
 for and the next action. It also shows the last refusal, with its reason, its

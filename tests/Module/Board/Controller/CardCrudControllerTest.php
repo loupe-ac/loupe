@@ -166,6 +166,33 @@ final class CardCrudControllerTest extends WebTestCase
         self::assertNull($em->find(Card::class, $cardId));
     }
 
+    public function test_deleting_an_empty_epic_from_the_drawer_removes_its_lane_first(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $owner = $this->user($em, 'card-delete-lane@example.com');
+        $project = $this->project($em, $owner);
+        $card = $this->card($em, $project, 'Empty epic');
+        $card->type = 'epic';
+        $cardId = $card->id;
+        $em->flush();
+        $em->clear();
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board/cards/'.$cardId);
+        $values = $crawler->filter('form[action$="/delete"]')->form()->getPhpValues();
+
+        $client->request(Request::METHOD_POST, '/projects/'.$project->id.'/board/cards/'.$cardId.'/delete', $values, [], [
+            'HTTP_ACCEPT' => 'text/vnd.turbo-stream.html',
+            'HTTP_TURBO_FRAME' => 'card-drawer-frame',
+        ]);
+
+        self::assertResponseIsSuccessful();
+        $body = (string) $client->getResponse()->getContent();
+        $lane = strpos($body, 'action="remove" target="board-lane-'.$cardId.'"');
+        self::assertNotFalse($lane);
+        self::assertLessThan((int) strpos($body, 'action="board-place"'), $lane);
+    }
+
     public function test_a_feedback_url_that_is_not_http_renders_without_a_link(): void
     {
         $client = static::createClient();

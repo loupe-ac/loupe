@@ -60,7 +60,7 @@ final class DeleteCardController extends AppController
 
         if ('card-drawer-frame' === $request->headers->get('Turbo-Frame') && TurboBundle::STREAM_FORMAT === $request->getPreferredFormat()) {
             return new Response(
-                $this->renderView('@Board/_card_placement.stream.html.twig', [
+                $this->renderView('@Board/_board_lane_removed.stream.html.twig', ['cardId' => $cardId]).$this->renderView('@Board/_card_placement.stream.html.twig', [
                     'cardId' => $cardId,
                     'placement' => ($this->showPlacement)(new ShowCardPlacementCommand($card->project, null)),
                 ]).$this->renderView('_flash.stream.html.twig', ['severity' => 'success', 'message' => $message]),

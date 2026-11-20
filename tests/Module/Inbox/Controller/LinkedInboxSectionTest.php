@@ -22,6 +22,7 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Profiler\Profile;
+use Symfony\UX\Turbo\TurboBundle;
 
 final class LinkedInboxSectionTest extends WebTestCase
 {
@@ -240,6 +241,24 @@ final class LinkedInboxSectionTest extends WebTestCase
         self::assertSelectorTextContains('.lp-flash', 'Item 4 is answered.');
     }
 
+    public function test_an_answer_from_the_drawer_streams_the_section_and_a_flash(): void
+    {
+        $answered = $this->question($this->em, $this->project, 4);
+        $other = $this->question($this->em, $this->project, 5);
+        $this->linkCard($answered);
+        $this->linkCard($other);
+
+        $this->post($answered, 'answer', ['selectedOptions' => '1'], $this->cardQuery(), ['HTTP_ACCEPT' => TurboBundle::STREAM_MEDIA_TYPE, 'HTTP_TURBO_FRAME' => 'card-drawer-frame']);
+
+        self::assertResponseIsSuccessful();
+        self::assertStringStartsWith(TurboBundle::STREAM_MEDIA_TYPE, (string) $this->client->getResponse()->headers->get('Content-Type'));
+        $body = (string) $this->client->getResponse()->getContent();
+        self::assertStringContainsString('action="replace" target="inbox-items"', $body);
+        self::assertStringContainsString('id="inbox-item-5"', $body);
+        self::assertStringContainsString('Item 4 is answered.', $body);
+        self::assertSame(InboxItemState::Resolved, $this->reload($answered)->state);
+    }
+
     public function test_a_refused_answer_from_the_card_page_shows_its_refusal_there(): void
     {
         $item = $this->question($this->em, $this->project, 1);
@@ -369,14 +388,15 @@ final class LinkedInboxSectionTest extends WebTestCase
     /**
      * @param array<string, string> $fields
      * @param array<string, string> $query
+     * @param array<string, string> $server
      */
-    private function post(InboxItem $item, string $action, array $fields, array $query): Crawler
+    private function post(InboxItem $item, string $action, array $fields, array $query, array $server = []): Crawler
     {
         $kind = ['answer' => 'answer', 'done' => 'complete', 'decline' => 'dismiss'][$action];
         $url = '/projects/'.$this->project->id.'/inbox/items/'.$item->id.'/actions/'.$kind.'?'.http_build_query($query);
 
         // 'csrf-token' is the SameOriginCsrfTokenManager sentinel, which a same-origin Referer lets stand in for a signed token.
-        return $this->client->request(Request::METHOD_POST, $url, ['inbox_response_'.$item->id => [...$fields, '_token' => 'csrf-token']], [], ['HTTP_REFERER' => 'http://localhost'.$url]);
+        return $this->client->request(Request::METHOD_POST, $url, ['inbox_response_'.$item->id => [...$fields, '_token' => 'csrf-token']], [], ['HTTP_REFERER' => 'http://localhost'.$url, ...$server]);
     }
 
     private function cardUrl(): string
