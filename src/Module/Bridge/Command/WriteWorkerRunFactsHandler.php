@@ -7,6 +7,7 @@ namespace App\Module\Bridge\Command;
 use App\Module\Bridge\Event\WorkerRunFactsWritten;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Bridge\Service\WorkerRunFactWriter;
+use App\Module\Bridge\ValueObject\WorkerRunChangeKind;
 use App\Module\Project\Repository\ProjectRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
@@ -39,7 +40,7 @@ final readonly class WriteWorkerRunFactsHandler
 
         $this->events->dispatch(new WorkerRunFactsWritten($command->projectId, array_map(static fn (Uuid $id): string => $id->toRfc4122(), $command->runIds)));
         if ($changed > 0) {
-            $this->publisher->runsChanged($project);
+            $this->publisher->runsChanged($project, WorkerRunChangeKind::State);
         }
     }
 }

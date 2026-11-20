@@ -10,6 +10,7 @@ use App\Module\Bridge\Repository\WorkerRunBilledCostRepository;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Bridge\Service\WorkerRunFactWriter;
 use App\Module\Bridge\ValueObject\BilledCostState;
+use App\Module\Bridge\ValueObject\WorkerRunChangeKind;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
@@ -59,7 +60,7 @@ final readonly class RecordBilledCostHandler
             return;
         }
 
-        $this->publisher->runsChanged($row->project);
+        $this->publisher->runsChanged($row->project, WorkerRunChangeKind::Usage);
         $this->events->dispatch(new WorkerRunBilledCostRecorded((string) $row->project->id));
         if ($row->state->isFinal()) {
             $this->auditor->record(

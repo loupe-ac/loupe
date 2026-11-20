@@ -23,6 +23,8 @@ const {
 
 const CARD = '0199aaaa-0000-7000-8000-000000000001';
 const URL_PATH = `/projects/p/board/cards/${CARD}`;
+const RUNS_PATH = `/projects/p/worker-runs/card/${CARD}`;
+const OTHER_CARD = '0199aaaa-0000-7000-8000-000000000002';
 
 let application;
 let responses;
@@ -57,7 +59,7 @@ function cardHtml({
         )
         .join('');
 
-    return `<div class="lp-card-drawer" data-card-drawer-card-id="${CARD}" data-controller="card-live" data-card-live-card-id-value="${CARD}" data-card-live-url-value="${URL_PATH}" data-card-live-frame-value="${frame}">
+    return `<div class="lp-card-drawer" data-card-drawer-card-id="${CARD}" data-controller="card-live" data-card-live-card-id-value="${CARD}" data-card-live-url-value="${URL_PATH}" data-card-live-runs-url-value="${RUNS_PATH}" data-card-live-frame-value="${frame}">
         ${flash}
         <header class="lp-card-drawer__header"><span class="lp-tag" data-column>${column}</span></header>
         <div class="lp-card-drawer__body">
@@ -65,6 +67,7 @@ function cardHtml({
             ${panels}
             ${body}
         </div>
+        <turbo-frame id="card-worker-runs"><span data-runs></span></turbo-frame>
         <footer><div data-controller="modal"><dialog id="delete"><form data-card-delete></form></dialog><form data-other-form></form></div></footer>
     </div>`;
 }
@@ -133,6 +136,7 @@ async function settle() {
 
 beforeEach(() => {
     vi.useFakeTimers();
+    stubIntersectionObserver();
     live.subscriptions = [];
     responses = [];
     connects = 0;
@@ -300,12 +304,85 @@ it('fetches on the hub echo of a change this reader made elsewhere on the page',
     expect(fetch).toHaveBeenCalledOnce();
 });
 
-it('fetches on a worker run change, which names no card', async () => {
-    await mount();
-    answer(cardHtml());
-    subscription().handler({ type: 'worker_run.changed', local: false });
-    await settle();
-    expect(fetch).toHaveBeenCalledOnce();
+function runSignal(change = {}) {
+    return subscription().handler({
+        type: 'worker_run.changed',
+        kind: 'state',
+        runIds: [],
+        cardIds: [],
+        local: false,
+        ...change,
+    });
+}
+
+// A real src would make Turbo fetch the frame, so the frame answers for its src.
+function runsFrame(src = null) {
+    const frame = document.querySelector('turbo-frame#card-worker-runs');
+    frame.reload = vi.fn();
+    frame.getAttribute = vi.fn((name) => (name === 'src' ? src : null));
+    frame.setAttribute = vi.fn();
+
+    return frame;
+}
+
+describe('a worker run change', () => {
+    it('gives the runs frame its fragment url, and reads no card', async () => {
+        await mount();
+        const frame = runsFrame();
+        runSignal({ cardIds: [CARD], runIds: ['run-1'] });
+        await settle();
+        expect(frame.setAttribute).toHaveBeenCalledWith('src', RUNS_PATH);
+        expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('reloads a runs frame that has a src', async () => {
+        await mount();
+        const frame = runsFrame(RUNS_PATH);
+        runSignal({ cardIds: [CARD] });
+        await settle();
+        expect(frame.reload).toHaveBeenCalledOnce();
+    });
+
+    it('reloads the runs frame for a change that names no card', async () => {
+        await mount();
+        const frame = runsFrame();
+        runSignal();
+        await settle();
+        expect(frame.setAttribute).toHaveBeenCalledWith('src', RUNS_PATH);
+    });
+
+    it('ignores a change that names only another card', async () => {
+        await mount();
+        const frame = runsFrame();
+        runSignal({ cardIds: [OTHER_CARD], runIds: ['run-2'] });
+        runSignal({ kind: 'usage', cardIds: [OTHER_CARD], runIds: ['run-2'] });
+        await settle();
+        expect(frame.setAttribute).not.toHaveBeenCalled();
+        expect(frame.reload).not.toHaveBeenCalled();
+        expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('reloads once for a burst', async () => {
+        await mount();
+        const frame = runsFrame(RUNS_PATH);
+        runSignal({ cardIds: [CARD] });
+        runSignal({ cardIds: [CARD, OTHER_CARD] });
+        await settle();
+        expect(frame.reload).toHaveBeenCalledOnce();
+    });
+
+    it('holds the reload while a dialog is open, and reloads when it closes', async () => {
+        await mount();
+        const frame = runsFrame(RUNS_PATH);
+        const dialog = document.querySelector('dialog#delete');
+        dialog.setAttribute('open', '');
+        runSignal({ cardIds: [CARD] });
+        await settle();
+        expect(frame.reload).not.toHaveBeenCalled();
+        dialog.removeAttribute('open');
+        dialog.dispatchEvent(new Event('close'));
+        expect(frame.reload).toHaveBeenCalledOnce();
+    });
 });
 
 it('fetches once for a burst of changes', async () => {

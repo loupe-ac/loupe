@@ -9,6 +9,7 @@ use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Event\BridgeAvailabilityChanged;
 use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
+use App\Module\Bridge\ValueObject\WorkerRunChangeKind;
 use App\Module\Project\Repository\ProjectRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
@@ -78,7 +79,7 @@ final readonly class SetBridgePauseHandler
                 new AuditSubject('bridge', (string) $bridge->id),
             );
             foreach ($this->projects->findOwnedBy($command->owner, $bridge->projects) as $project) {
-                $this->runsChanged->runsChanged($project);
+                $this->runsChanged->runsChanged($project, WorkerRunChangeKind::State);
             }
             $this->events->dispatch(new BridgeAvailabilityChanged($bridge->projects));
         }
