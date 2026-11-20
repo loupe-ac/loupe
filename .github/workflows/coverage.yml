@@ -55,6 +55,14 @@ jobs:
 
       - run: date -u +'stack build ends %H:%M:%S UTC'
 
+      # Shard 1 went silent for over an hour in two runs. Every five minutes
+      # this logs the PHP processes and the busy database sessions, so the next
+      # hang shows what it waits for.
+      - name: Log what a hung shard waits for
+        run: |
+          mkdir -p var/phpunit-coverage
+          setsid nohup bin/coverage-watchdog.sh var/phpunit-coverage/watchdog-${{ matrix.shard }}.log 300 > /dev/null 2>&1 &
+
       # Writes var/phpunit-coverage. Never var/coverage, which the e2e legs
       # below delete at the start of their own run. ParaTest runs four workers,
       # each restarting after 100 test files, so memory stays bounded per process.
@@ -69,6 +77,7 @@ jobs:
           path: |
             var/phpunit-coverage/shard-${{ matrix.shard }}.cov
             var/phpunit-coverage/junit-${{ matrix.shard }}.xml
+            var/phpunit-coverage/watchdog-${{ matrix.shard }}.log
           retention-days: 2
           if-no-files-found: error
 
