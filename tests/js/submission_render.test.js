@@ -120,3 +120,17 @@ it('keeps the visit that carries the body of the answer', async () => {
     await Promise.resolve();
     expect(rendersSubmission()).toBe(true);
 });
+
+it('keeps the submission pending after a rejected fallback so the real answer matches', async () => {
+    answer('http://localhost/settings');
+    await new Promise((resolve) => setTimeout(resolve));
+    propose(
+        visit('http://localhost/settings', {
+            responseHTML: '<html>frame</html>',
+        }),
+        SUBMISSION,
+    );
+    expect(rendersSubmission()).toBe(false);
+    propose(visit('http://localhost/settings'), SUBMISSION);
+    expect(rendersSubmission()).toBe(true);
+});

@@ -17,6 +17,7 @@ function currentVisit() {
 
 document.addEventListener('turbo:submit-start', () => {
     answerHref = null;
+    submissionVisit = null;
     submission = null;
     fromSubmission = false;
     answerHtml = undefined;
@@ -40,7 +41,8 @@ document.addEventListener('turbo:submit-end', (event) => {
 
 // A response-backed visit to the same URL can come from a frame fallback while
 // the navigator still holds the submission. Only the visit that carries the
-// body of the form answer is the answer.
+// body of the form answer is the answer. A rejected fallback leaves the
+// submission pending, so the visit that carries the answer can still match.
 function verifyVisit() {
     if (
         submissionVisit !== null &&
@@ -48,6 +50,9 @@ function verifyVisit() {
         submissionVisit.response?.responseHTML !== answerHtml
     ) {
         submissionVisit = null;
+    } else if (submissionVisit !== null && answerHtml !== undefined) {
+        submission = null;
+        answerHref = null;
     }
 }
 
@@ -65,8 +70,6 @@ document.addEventListener('turbo:visit', () => {
     const visit = currentVisit();
     if (fromSubmission && visit?.response) {
         submissionVisit = visit;
-        submission = null;
-        answerHref = null;
         verifyVisit();
     }
     fromSubmission = false;
