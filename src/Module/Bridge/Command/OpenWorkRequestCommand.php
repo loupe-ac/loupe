@@ -38,6 +38,8 @@ final readonly class OpenWorkRequestCommand
         public ?array $run = null,
         /** What the work does, such as code-review, whatever its kind. */
         public ?string $role = null,
+        /** The round of the rule that this request opens, counted from 1 after each reset of the rule. */
+        public ?int $round = null,
     ) {
     }
 }

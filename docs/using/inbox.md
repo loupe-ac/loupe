@@ -401,9 +401,17 @@ pass the agent review of PR #1302". Below the sentence, the item shows these
 facts when Loupe has them:
 
 - the titles of the findings of the latest failed agent review
-- how the last runs of the rule ended, such as "3 blocked, 5 waiting on the
-  forge, 2 succeeded"
-- what the last blocked run, or the last run that waited for a person, said
+- what the last rounds of the rule did, counted as the title counts them, such
+  as "7 handed the pull request back to the review, 3 waiting for you". A round
+  is one work request. A round that stopped to ask you and then went on counts
+  once, and the item says how many rounds did so. When Loupe has no record of
+  some rounds, because they began before it stored round numbers, the item says
+  how many
+- the titles of the findings that the agent review made before each round, so
+  you can see whether the review asked for the same thing again or found a new
+  one each time
+- what the last round that stopped to ask you said. A question that a later run
+  of the same round went on from is not quoted
 - for an epic whose agent review failed while some children are open, which
   children to wait for, such as "Wait for cards 1124 and 1126 to merge into
   `epic/1108`, then retry the card"

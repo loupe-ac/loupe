@@ -49,6 +49,7 @@ final class RequestWorkTest extends KernelTestCase
         $live = $this->service(WorkRequestRepository::class)->findLiveForCard($card->id ?? throw new \LogicException('A flushed card has an id.'));
         self::assertCount(1, $live);
         self::assertSame(['product-design', 'interactive', 'start-product-design', $card->number], [$live[0]->kind, $live[0]->capability, $live[0]->ruleId, $live[0]->cardNumber]);
+        self::assertSame(1, $live[0]->round, 'A rule with a count of 0 opens round 1.');
     }
 
     public function test_a_held_project_gets_the_held_outcome_and_no_request(): void

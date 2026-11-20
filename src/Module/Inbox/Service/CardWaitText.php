@@ -13,6 +13,9 @@ use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWaitType;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\View\CardWaitLine;
+use App\Module\Inbox\View\WorkLimitRound;
+use App\Module\Inbox\View\WorkLimitRoundFinding;
+use App\Module\Inbox\View\WorkLimitRoundOutcome;
 use App\Module\Inbox\View\WorkLimitStory;
 use App\Module\Workflow\Contract\PauseKind;
 use App\Module\Workflow\Contract\PauseReasonText;
@@ -363,18 +366,28 @@ final readonly class CardWaitText
         if ([] !== $story->findings) {
             $parts[] = $trans(self::WORK_LIMIT_LABEL.'.findings', ['%number%' => $params['%number%']])."\n\n".implode("\n", array_map(static fn (string $title): string => '- '.$title, $story->findings));
         }
-        if ([] !== $story->runStates) {
-            $states = [];
-            foreach ($story->runStates as $state => $count) {
-                $states[] = $count.' '.mb_strtolower($trans(WorkerRunState::from($state)->translationKey()));
+        if ([] !== $story->rounds) {
+            $parts[] = $this->roundsSentence($story, $trans);
+            $asked = \count(array_filter($story->rounds, static fn (WorkLimitRound $round): bool => $round->askedFirst));
+            if ($asked > 0) {
+                $parts[\count($parts) - 1] .= ' '.$trans(self::WORK_LIMIT_LABEL.'.asked_first', ['%count%' => $asked]);
             }
-            $parts[] = $trans(self::WORK_LIMIT_LABEL.'.runs', ['%count%' => array_sum($story->runStates), '%work%' => $story->work(), '%states%' => implode(', ', $states)]);
+        }
+        if ($story->unknownRounds > 0) {
+            $parts[] = $trans(self::WORK_LIMIT_LABEL.'.rounds_unknown', ['%count%' => $story->unknownRounds]);
+        }
+        if ([] !== $story->history) {
+            $lines = array_map(
+                fn (WorkLimitRoundFinding $round): string => '- '.$trans(self::WORK_LIMIT_LABEL.'.review_round', ['%round%' => $round->round, '%titles%' => implode('; ', \array_slice($round->titles, 0, 3))]),
+                $story->history,
+            );
+            $parts[] = $trans(self::WORK_LIMIT_LABEL.'.review_history')."\n\n".implode("\n", $lines);
         }
         $stop = $story->lastStop();
         if (null !== $stop) {
             $said = self::runSaid($stop);
             if ('' !== $said) {
-                $parts[] = $trans(self::WORK_LIMIT_LABEL.'.last_stop', ['%work%' => $story->work(), '%state%' => mb_strtolower($trans($stop->state->translationKey()))])."\n\n".self::quote($said);
+                $parts[] = $trans(self::WORK_LIMIT_LABEL.'.last_stop', ['%work%' => $story->work()])."\n\n".self::quote($said);
             }
         }
         if ($story->waitsForChildren()) {
@@ -400,6 +413,34 @@ final readonly class CardWaitText
         }
 
         return [self::WORK_LIMIT_LABEL.'.'.$variant, $params, [] === $parts ? null : implode("\n\n", $parts)];
+    }
+
+    /**
+     * What the rounds did, in groups of outcomes, most first. A story whose rounds all handed the pull request back says so in one clause.
+     *
+     * @param callable(string, array<string, string|int>=): string $trans
+     */
+    private function roundsSentence(WorkLimitStory $story, callable $trans): string
+    {
+        $count = \count($story->rounds);
+        $values = ['%count%' => $count, '%work%' => $story->work()];
+        $groups = [];
+        foreach ($story->rounds as $round) {
+            $key = WorkLimitRoundOutcome::Other === $round->outcome ? 'other:'.($round->lastRun()?->state->value ?? '') : $round->outcome->value;
+            $groups[$key] = ($groups[$key] ?? 0) + 1;
+        }
+        if (1 === \count($groups) && isset($groups[WorkLimitRoundOutcome::HandedBack->value])) {
+            return $trans(self::WORK_LIMIT_LABEL.'.rounds_handed_back', $values);
+        }
+        arsort($groups);
+        $texts = [];
+        foreach ($groups as $key => $n) {
+            $texts[] = str_starts_with((string) $key, 'other:')
+                ? $trans(self::WORK_LIMIT_LABEL.'.round.other', ['%count%' => $n, '%state%' => mb_strtolower($trans(WorkerRunState::from(substr((string) $key, 6))->translationKey()))])
+                : $trans(WorkLimitRoundOutcome::from((string) $key)->translationKey(), ['%count%' => $n]);
+        }
+
+        return $trans(self::WORK_LIMIT_LABEL.'.rounds', $values + ['%outcomes%' => implode(', ', $texts)]);
     }
 
     /** The whole summary of a run, led by its title when the summary does not open with it. */
