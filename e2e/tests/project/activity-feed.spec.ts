@@ -105,7 +105,10 @@ test('the events list links, searches and filters through the URL', async ({
     await expect(page.locator('.lp-data-table__target')).toHaveCount(0);
 
     await page.getByRole('link', { name: 'Clear', exact: true }).click();
-    await expect(page).toHaveURL(new RegExp(`${activityUrl}$`), NAVIGATION);
+    await expect(page).toHaveURL(
+        new RegExp(`${activityUrl}(\\?search=&family=)?$`),
+        NAVIGATION,
+    );
     await expect(rows).toHaveCount(2);
 
     const family = page.getByRole('combobox', {

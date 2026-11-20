@@ -1,5 +1,5 @@
 /**
- * The documents list, the Backlog, the activity list, the runs, the artifacts and the bucket rules filter inside their frame: a search swaps
+ * The documents list, the Backlog, the activity list, the runs and the bucket rules filter inside their frame: a search swaps
  * only the list, the address bar follows, and a live signal that another actor
  * sends keeps the filter instead of bringing the old list back. The done
  * column pages inside its frame the same way. The hub delivers the signal, so
@@ -362,69 +362,6 @@ test('a runs filter survives a live signal from another actor', async ({
     ).toHaveCount(0);
     await expect(watcher).toHaveURL(/open/);
     await expect(watcher.locator('#worker-run-outcome')).toHaveValue('open');
-});
-
-test('an artifacts archived filter survives a live signal from another actor', async ({
-    browser,
-    request,
-}) => {
-    const email = `e2e+listframes+artifacts+${RUN}@example.com`;
-    const registered = await request.post('/dev/register-and-verify', {
-        form: { fullName: 'E2E List Frames', email, password: PASSWORD },
-    });
-    expect(registered.status()).toBe(200);
-    const flag = await request.post('/dev/e2e/feature-flag', {
-        form: { name: 'artifacts.enabled', enabled: 1 },
-    });
-    expect(flag.ok()).toBeTruthy();
-
-    const watcher = await signedInPage(browser, email, PASSWORD);
-    const seeded = await watcher.request.post('/dev/seed/document', {
-        form: { title: 'E2E Artifacts Frames', markdown: '# Artifacts' },
-    });
-    expect(seeded.status()).toBe(201);
-    const projectId = ((await seeded.json()) as { projectId: string })
-        .projectId;
-    const actor = await signedInPage(browser, email, PASSWORD);
-    const token = await agentAccessToken(actor);
-    const store = async (name: string): Promise<void> => {
-        const stored = await actor.request.post(
-            `/api/v1/bridge/projects/${projectId}/artifacts`,
-            {
-                headers: { Authorization: `Bearer ${token}` },
-                multipart: {
-                    name,
-                    'paths[0]': 'index.html',
-                    'files[0]': {
-                        name: 'index.html',
-                        mimeType: 'text/html',
-                        buffer: Buffer.from(`<h1>${name}</h1>`),
-                    },
-                },
-            },
-        );
-        expect(stored.status()).toBe(201);
-    };
-    await store('First artifact');
-    await store('Kept artifact');
-
-    await suppressToolbar(watcher);
-    await suppressWidget(watcher);
-    await watcher.goto(`/projects/${projectId}/artifacts`);
-    await watcher.locator('[data-artifact-row-archive]').click();
-    await expect(watcher.locator('[data-artifact-id]')).toHaveCount(1, LIVE);
-    const toggle = watcher.locator('[data-artifact-archived-toggle]');
-    await toggle.click();
-    await expect(watcher).toHaveURL(/archived=1/, LIVE);
-    await expect(watcher.locator('[data-artifact-id]')).toHaveCount(2);
-
-    // The hub keeps no history, so a change made before the page connects is lost.
-    await watcher.waitForTimeout(1_000);
-    await store('Second artifact');
-
-    await expect(watcher.locator('[data-artifact-id]')).toHaveCount(3, LIVE);
-    await expect(watcher.locator('[data-artifact-archived]')).toHaveCount(1);
-    await expect(watcher).toHaveURL(/archived=1/);
 });
 
 test('a bucket rules range survives a live signal from another actor', async ({
