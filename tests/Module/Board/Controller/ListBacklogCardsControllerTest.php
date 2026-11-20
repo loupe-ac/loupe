@@ -298,6 +298,27 @@ final class ListBacklogCardsControllerTest extends WebTestCase
         self::assertCount(1, $region->filter('form#backlog-bulk-form'));
     }
 
+    public function test_a_later_page_read_sends_the_epic_options_again_for_the_select_outside_the_frame(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+
+        $owner = $this->user($em, 'backlog-epic-rows@example.com');
+        $project = $this->project($em, $owner);
+        $epic = $this->typed($em, $this->card($em, $project, 'Rows epic', 'next'), 'epic');
+        $shown = $this->childOf($em, $epic, $this->card($em, $project, 'Waiting', 'backlog', 0));
+        $url = $this->backlogUrl($project);
+        $em->clear();
+
+        $client->loginUser($owner);
+        $client->request(Request::METHOD_GET, $url.'/rows', ['since' => LiveCursor::format(new \DateTimeImmutable('-1 hour')), 'ids' => (string) $shown->id], server: ['HTTP_ACCEPT' => 'text/vnd.turbo-stream.html']);
+
+        self::assertResponseIsSuccessful();
+        $stream = new Crawler((string) $client->getResponse()->getContent())->filter('turbo-stream[action="replace"][method="morph"][target="backlog-epic"]');
+        self::assertCount(1, $stream);
+        self::assertStringContainsString('Rows epic', $stream->filter('template')->html());
+    }
+
     public function test_a_title_opens_the_card_drawer_and_the_row_shows_no_source_tag(): void
     {
         $client = static::createClient();

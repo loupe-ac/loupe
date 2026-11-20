@@ -11,6 +11,7 @@ use App\Module\Review\Command\CreateDocumentCommand;
 use App\Module\Review\Command\CreateDocumentHandler;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\DocumentStatus;
+use App\Module\Review\Entity\Tag;
 use App\Tests\Support\AcceptedTerms;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -157,6 +158,20 @@ final class DocumentsLiveListTest extends WebTestCase
         self::assertStringContainsString('1 new document.', $band->text());
         self::assertStringContainsString('/documents?page=1', (string) $band->filter('a')->attr('href'));
         self::assertNotContains('document-row-'.$newer->id, array_keys($byTarget), 'a new document is counted, never inserted');
+    }
+
+    public function test_the_rows_route_sends_the_tag_options_again_for_the_select_outside_the_list(): void
+    {
+        $shown = $this->create('Shown');
+        $this->em->persist(new Tag($this->project, 'fresh tag'));
+        $this->em->flush();
+
+        $this->rows([$shown], time() - 3600);
+
+        self::assertResponseIsSuccessful();
+        $choices = array_column($this->streams(), null, 'target')['documents-filter-choices'];
+        self::assertSame(['replace', 'morph'], [$choices['action'], $choices['method']]);
+        self::assertStringContainsString('fresh tag', $choices['content']->text());
     }
 
     public function test_the_count_leaves_out_the_shown_rows_and_older_documents_and_follows_the_filters(): void

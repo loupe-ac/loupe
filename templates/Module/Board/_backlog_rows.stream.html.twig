@@ -4,6 +4,9 @@
     <template>{% include '@Board/_backlog_row.html.twig' with {project: project, card: card, listQuery: listQuery, pendingComments: view.pendingComments, boardColumns: view.boardColumns} only %}</template>
 </turbo-stream>
 {% endfor %}
+{% if view.total > 0 or listQuery.isNarrowed %}
+<turbo-stream action="replace" method="morph" target="backlog-epic"><template>{% include '@Board/_backlog_epic_select.html.twig' with {view: view, listQuery: listQuery} only %}</template></turbo-stream>
+{% endif %}
 {% for goneId in view.goneIds %}
 <turbo-stream action="remove" target="backlog-row-{{ goneId }}"></turbo-stream>
 {% endfor %}

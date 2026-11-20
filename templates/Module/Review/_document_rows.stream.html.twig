@@ -1,4 +1,4 @@
-{# Props: project, listQuery, items (list<DocumentListItem>), removedIds (list<string>), newerCount (int).
+{# Props: project, listQuery, items (list<DocumentListItem>), removedIds (list<string>), newerCount (int), projectTags, projectSeries.
    The answer to a later page of the documents list: a row that still matches
    morphs, a row that no longer matches goes, and the band counts new documents. #}
 {% set cardLinkMap = document_card_link_map(items) %}
@@ -7,6 +7,8 @@
     <template>{% include '@Review/_document_row.html.twig' with {item: item, project: project, listQuery: listQuery, cardLinks: cardLinkMap[item.document.id ~ '']|default([])} only %}</template>
 </turbo-stream>
 {% endfor %}
+{# The tag and series selects sit outside the list, so a live change sends their options again. #}
+<turbo-stream action="replace" method="morph" target="documents-filter-choices"><template>{% include '@Review/_documents_filter_choices.html.twig' with {listQuery: listQuery, projectTags: projectTags, projectSeries: projectSeries} only %}</template></turbo-stream>
 {% for id in removedIds %}
 <turbo-stream action="remove" target="document-row-{{ id }}"></turbo-stream>
 {% endfor %}
