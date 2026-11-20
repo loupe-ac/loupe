@@ -130,6 +130,19 @@ final class CoverageShardScriptsTest extends TestCase
         );
     }
 
+    public function test_the_mutation_summary_names_the_share_of_skipped_mutants(): void
+    {
+        mkdir($this->dir.'/a');
+        file_put_contents($this->dir.'/a/summary.log', "Total: 10\n\nKilled by Test Framework: 6\nSkipped: 4\n");
+
+        $this->php(['bin/merge-infection-logs.php', $this->dir.'/out', $this->dir.'/a']);
+
+        self::assertSame(
+            "Total: 10\n\nKilled by Test Framework: 6\nSkipped: 4\nSkipped share (left out of the MSI): 40%\n",
+            file_get_contents($this->dir.'/out/summary.log'),
+        );
+    }
+
     /**
      * @param list<string> $arguments
      */

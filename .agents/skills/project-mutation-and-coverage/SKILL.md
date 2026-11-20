@@ -165,6 +165,26 @@ Read a leg that fails again like this:
   collector on a hosted runner, or call `CoverageSubscriber` from a CLI script
   with `XDEBUG_MODE=coverage`.
 
+## The MSI leaves out the mutants that Infection skips
+
+Infection never runs a mutant when the covering tests, added up from `junit.xml`,
+take longer than `timeout` in `infection.json5`. It counts the mutant as skipped
+and leaves it out of the MSI. Its console prints that count as "N mutants
+required more time than configured", which reads like a timeout, and the real
+timeouts are the line "N time outs were encountered".
+
+The junit times come from the coverage run, where xdebug makes a test about ten
+times slower. A line that a request listener runs is covered by thousands of
+tests: one such line in `src/Api` had 4,476 covering tests that add up to 3,086 s
+against a timeout of 90 s. So code that every HTTP test touches is skipped, and
+run 44768687240 skipped 33,316 of 82,697 mutants (40%). Its MSI of 91 to 92% is
+the score of the other 60%. `bin/merge-infection-logs.php` writes the skipped share
+into `summary.log` for that reason. Read it before you trust a score.
+
+Raising `timeout` runs more of them, and it costs: a killed mutant stops at its
+first failing test, but a survivor runs every covering test, and the same value
+is the kill time of the mutant process.
+
 ## A wall-clock assertion is a landmine
 
 xdebug drives both mutation and coverage, and it roughly doubles execution time.

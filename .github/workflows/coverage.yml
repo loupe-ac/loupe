@@ -36,7 +36,7 @@ jobs:
   phpunit-coverage:
     name: phpunit-coverage-${{ matrix.shard }}
     runs-on: ubuntu-latest
-    timeout-minutes: 170
+    timeout-minutes: 230
     strategy:
       fail-fast: false
       matrix:
@@ -58,11 +58,11 @@ jobs:
       # Writes var/phpunit-coverage. Never var/coverage, which the e2e legs
       # below delete at the start of their own run. ParaTest runs four workers,
       # each restarting after 100 test files, so memory stays bounded per process.
-      # Shard 1 took 97 minutes in run 44660442947, and 91 of them were
+      # Shard 1 took 83, 97 and 137 minutes in three runs, and most of that is
       # DevSeedRestoreTest, which seeds twice in each of 37 tests in one worker.
-      # The other shards took 16 to 20 minutes.
+      # The other shards took 12 to 21 minutes. 210 is 1.5 times the slowest.
       - run: just phpunit-coverage-shard ${{ matrix.shard }} 4
-        timeout-minutes: 150
+        timeout-minutes: 210
 
       - name: Raw coverage and test log of this shard
         if: always()
@@ -129,7 +129,7 @@ jobs:
     name: infection-${{ matrix.shard }}
     needs: phpunit-coverage-merge
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 95
     strategy:
       fail-fast: false
       matrix:
@@ -156,7 +156,7 @@ jobs:
       # The paths in the coverage XML match because every job mounts the
       # checkout at /var/www/html.
       - run: just mutation-shard ${{ matrix.shard }} 4
-        timeout-minutes: 110
+        timeout-minutes: 85
 
       - name: Mutation log of this shard
         if: always()

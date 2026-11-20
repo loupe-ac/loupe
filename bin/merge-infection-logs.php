@@ -53,6 +53,12 @@ foreach ($totals as $label => $count) {
         $lines[] = '';
     }
 }
+// Infection leaves a mutant out of its MSI when the tests that cover it take longer
+// than the timeout, and its console calls that "required more time than configured".
+// The share shows how much of the code the score does not describe.
+if (($totals['Total'] ?? 0) > 0 && isset($totals['Skipped'])) {
+    $lines[] = \sprintf('Skipped share (left out of the MSI): %d%%', (int) round(100 * $totals['Skipped'] / $totals['Total']));
+}
 file_put_contents($outputDir.'/summary.log', implode("\n", $lines)."\n");
 file_put_contents($outputDir.'/infection.log', $detail);
 fwrite(STDOUT, 'merge-infection-logs: '.\count($shardDirs).' shards, total '.($totals['Total'] ?? 0)." mutants\n");
