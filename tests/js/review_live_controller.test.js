@@ -333,6 +333,15 @@ it('lets the form that is submitting take the answer of its request', () => {
     );
     expect(
         morphEvent(current, document.getElementById('new')).defaultPrevented,
+    ).toBe(true);
+    current.dispatchEvent(
+        new CustomEvent('turbo:submit-end', {
+            bubbles: true,
+            detail: { fetchResponse: { header: () => 'text/html' } },
+        }),
+    );
+    expect(
+        morphEvent(current, document.getElementById('new')).defaultPrevented,
     ).toBe(false);
 });
 

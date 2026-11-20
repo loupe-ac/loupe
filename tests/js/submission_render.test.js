@@ -48,8 +48,13 @@ beforeEach(() => {
     fire('turbo:submit-start');
 });
 
-it('treats a render with no visit as the answer of the form', () => {
+it('treats a render with no visit as the answer of the form once the request ended', () => {
+    fire('turbo:submit-end', {});
     expect(rendersSubmission()).toBe(true);
+});
+
+it('treats a render while the request runs as no answer, also when no visit is held', () => {
+    expect(rendersSubmission()).toBe(false);
 });
 
 it('recognises the response-backed visit that the form answer starts', () => {

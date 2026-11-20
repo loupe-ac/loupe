@@ -6,12 +6,14 @@ let submission = null;
 let fromSubmission = false;
 let submissionVisit = null;
 let answerHtml;
+let requestRunning = false;
 
 function currentVisit() {
     return window.Turbo?.session?.navigator?.currentVisit ?? null;
 }
 
 document.addEventListener('turbo:submit-start', () => {
+    requestRunning = true;
     answerHref = null;
     submissionVisit = null;
     submission = null;
@@ -20,6 +22,7 @@ document.addEventListener('turbo:submit-start', () => {
 });
 
 document.addEventListener('turbo:submit-end', (event) => {
+    requestRunning = false;
     const response = event.detail?.fetchResponse;
     const type = response?.header?.('Content-Type') ?? '';
     answerHref =
@@ -69,8 +72,12 @@ document.addEventListener('turbo:visit', () => {
 });
 
 // A render with no visit under way, such as a failed submission, is the
-// answer of the form too.
+// answer of the form too. Turbo clears the visit when a submission starts, so
+// a render while the request runs is a live morph, never the answer.
 export function rendersSubmission() {
+    if (requestRunning) {
+        return false;
+    }
     const visit = currentVisit();
     return visit === null || visit === submissionVisit;
 }

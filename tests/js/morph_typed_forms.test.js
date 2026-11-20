@@ -23,12 +23,18 @@ it('keeps a form with typed text out of a morph', () => {
     expect(morph(form)).toBe(true);
 });
 
-it('lets the submitting form take its answer, also after its request ended', () => {
+it('lets the submitting form take its answer once its request ended', () => {
     document.body.innerHTML = '<form id="f"><textarea></textarea></form>';
     const form = document.getElementById('f');
     form.querySelector('textarea').value = 'typed';
     form.dispatchEvent(
         new CustomEvent('turbo:submit-start', { bubbles: true }),
+    );
+    form.dispatchEvent(
+        new CustomEvent('turbo:submit-end', {
+            bubbles: true,
+            detail: { fetchResponse: { header: () => 'text/html' } },
+        }),
     );
     expect(morph(form)).toBe(false);
 });
@@ -40,10 +46,38 @@ it('keeps the form again once a render ended the submission', () => {
     form.dispatchEvent(
         new CustomEvent('turbo:submit-start', { bubbles: true }),
     );
+    form.dispatchEvent(
+        new CustomEvent('turbo:submit-end', {
+            bubbles: true,
+            detail: { fetchResponse: { header: () => 'text/html' } },
+        }),
+    );
     document.documentElement.dispatchEvent(
         new CustomEvent('turbo:morph', { bubbles: true }),
     );
     expect(morph(form)).toBe(true);
+});
+
+it('keeps the submitting form through a live morph while its request runs, when Turbo holds no visit', () => {
+    document.body.innerHTML = '<form id="f"><textarea></textarea></form>';
+    const form = document.getElementById('f');
+    form.querySelector('textarea').value = 'typed';
+    window.Turbo = { session: { navigator: { currentVisit: null } } };
+    form.dispatchEvent(
+        new CustomEvent('turbo:submit-start', { bubbles: true }),
+    );
+    expect(morph(form)).toBe(true);
+    document.documentElement.dispatchEvent(
+        new CustomEvent('turbo:morph', { bubbles: true }),
+    );
+    form.dispatchEvent(
+        new CustomEvent('turbo:submit-end', {
+            bubbles: true,
+            detail: { fetchResponse: { header: () => 'text/html' } },
+        }),
+    );
+    expect(morph(form)).toBe(false);
+    delete window.Turbo;
 });
 
 it('lets an untouched form morph', () => {
