@@ -12,6 +12,7 @@ use App\Module\Board\View\BacklogListQuery;
 use App\Module\Board\View\LiveCursor;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
+use App\Module\Workflow\Contract\CardTypeCatalog;
 use App\Session\ReadOnlyAwareSessionHandler;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 use Symfony\Component\HttpFoundation\Request;
@@ -42,6 +43,7 @@ final class ListBacklogRowsController extends AppController
 
     public function __construct(
         private readonly ListBacklogRowsHandler $listBacklogRows,
+        private readonly CardTypeCatalog $catalog,
     ) {
     }
 
@@ -67,6 +69,7 @@ final class ListBacklogRowsController extends AppController
             'project' => $project,
             'view' => $view,
             'listQuery' => $listQuery,
+            'types' => $this->catalog->forProject($project->requireId())->all,
         ]), Response::HTTP_OK, ['Content-Type' => TurboBundle::STREAM_MEDIA_TYPE]);
     }
 }

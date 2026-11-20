@@ -17,27 +17,8 @@
 
     <div id="backlog-confirmation" aria-live="polite"></div>
 
-    {% if view.total > 0 or listQuery.isNarrowed %}
-    {# A GET form outside the swapped frame, so the field keeps its focus while the list changes. `page` is not a field, so a changed filter starts at page one. #}
-    <twig:Ds:FilterBar
-        :action="backlogPath"
-        :frame="'backlog-list'"
-        :formAttributes="{id: 'backlog-filter'}"
-        :search="{id: 'backlog-search', name: 'search', value: listQuery.search, label: 'board.backlog.filter.search_label'|trans, placeholder: 'board.backlog.filter.search_placeholder'|trans}"
-        :clearHref="backlogPath"
-        :clearLabel="'board.backlog.filter.clear'|trans">
-        <label class="sr-only" for="backlog-type">{{ 'board.backlog.filter.type_label'|trans }}</label>
-        <twig:Ds:Select id="backlog-type" name="type" data-action="change->autosearch#search">
-            <option value="">{{ 'board.backlog.filter.all_types'|trans }}</option>
-            {% for type in types %}
-            <option value="{{ type.key }}"{{ listQuery.type == type.key ? ' selected' : '' }}>{{ type.label|trans }}</option>
-            {% endfor %}
-        </twig:Ds:Select>
-
-        <label class="sr-only" for="backlog-epic">{{ 'board.backlog.filter.epic_label'|trans }}</label>
-        {% include '@Board/_backlog_epic_select.html.twig' with {view: view, listQuery: listQuery} only %}
-    </twig:Ds:FilterBar>
-    {% endif %}
+    {# A GET form outside the swapped frame, so the field keeps its focus while the list changes. The slot stays when the list is empty, so a live read can fill it. #}
+    <div id="backlog-filter-slot">{% include '@Board/_backlog_filter.html.twig' with {project: project, view: view, listQuery: listQuery, types: types} only %}</div>
 
     {# One frame on every page, so a filter, a sort or a page swaps only the list. The live region sits inside it, so each swap brings the address of the new filter, sort and page. #}
     <turbo-frame id="backlog-list" target="_top">
@@ -56,7 +37,7 @@
     <input type="hidden" name="dir" value="{{ listQuery.dir.value }}" form="backlog-filter">
     {% endif %}
     {% endif %}
-    <p class="lp-list-count"{{ view.total > 0 or listQuery.isNarrowed ? '' : ' hidden' }}><span id="backlog-filter-count">{% include '@Board/_backlog_count.html.twig' with {view: view, listQuery: listQuery} only %}</span></p>
+    {% include '@Board/_backlog_count_line.html.twig' with {view: view, listQuery: listQuery} only %}
 
     <div id="backlog-results">
         {% include '@Board/_backlog_results.html.twig' with {project: project, view: view, listQuery: listQuery} only %}

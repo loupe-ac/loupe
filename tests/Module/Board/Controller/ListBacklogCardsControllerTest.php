@@ -314,7 +314,7 @@ final class ListBacklogCardsControllerTest extends WebTestCase
         $client->request(Request::METHOD_GET, $url.'/rows', ['since' => LiveCursor::format(new \DateTimeImmutable('-1 hour')), 'ids' => (string) $shown->id], server: ['HTTP_ACCEPT' => 'text/vnd.turbo-stream.html']);
 
         self::assertResponseIsSuccessful();
-        $stream = new Crawler((string) $client->getResponse()->getContent())->filter('turbo-stream[action="replace"][method="morph"][target="backlog-epic"]');
+        $stream = new Crawler((string) $client->getResponse()->getContent())->filter('turbo-stream[action="replace"][method="morph"][target="backlog-filter-slot"]');
         self::assertCount(1, $stream);
         self::assertStringContainsString('Rows epic', $stream->filter('template')->html());
     }

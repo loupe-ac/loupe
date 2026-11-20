@@ -8,6 +8,7 @@ use App\Module\Board\View\LiveCursor;
 use App\Module\Project\Entity\Project;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\HttpFoundation\Request;
 
 final class ListBacklogRowsControllerTest extends WebTestCase
@@ -38,7 +39,7 @@ final class ListBacklogRowsControllerTest extends WebTestCase
         self::assertStringContainsString('<turbo-stream action="remove" target="backlog-row-'.$moved->id.'">', $body);
         self::assertStringContainsString('target="backlog-live-band"', $body);
         self::assertStringContainsString('One new card matches this list.', $body);
-        self::assertStringContainsString('target="backlog-filter-count"', $body);
+        self::assertStringContainsString('target="backlog-count"', $body);
     }
 
     public function test_the_read_refreshes_the_bulk_bar_with_the_current_next_column(): void
@@ -107,7 +108,7 @@ final class ListBacklogRowsControllerTest extends WebTestCase
         self::assertStringContainsString('<turbo-stream action="before" target="backlog-row-'.$older->id.'">', $body);
         self::assertStringContainsString('id="backlog-row-'.$newer->id.'"', $body);
         self::assertStringContainsString('target="backlog-pagination"', $body);
-        self::assertStringContainsString('target="backlog-filter-count"', $body);
+        self::assertStringContainsString('target="backlog-count"', $body);
         self::assertStringContainsString('target="backlog-bulk-form"', $body);
         self::assertStringNotContainsString('backlog-live-band', $body);
     }
@@ -160,6 +161,46 @@ final class ListBacklogRowsControllerTest extends WebTestCase
         self::assertStringContainsString('<turbo-stream action="update" target="backlog-results">', $body);
         self::assertStringContainsString('id="backlog-row-'.$card->id.'"', $body);
         self::assertStringNotContainsString('target="backlog-pagination"', $body);
+    }
+
+    public function test_the_first_card_of_an_empty_backlog_shows_the_count_and_the_filter_bar(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+
+        $owner = $this->user($em, 'backlog-rows-first-card@example.com');
+        $project = $this->project($em, $owner);
+        $this->card($em, $project, 'First card');
+        $em->clear();
+
+        $client->loginUser($owner);
+        $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board/backlog/rows?page=1&ids=');
+
+        self::assertResponseIsSuccessful();
+        $stream = new Crawler((string) $client->getResponse()->getContent());
+        $count = $stream->filter('turbo-stream[target="backlog-count"] template')->html();
+        self::assertStringContainsString('id="backlog-count"', $count);
+        self::assertStringNotContainsString('hidden', $count);
+        $slot = $stream->filter('turbo-stream[method="morph"][target="backlog-filter-slot"] template')->html();
+        self::assertStringContainsString('id="backlog-filter"', $slot);
+    }
+
+    public function test_an_empty_backlog_keeps_the_count_hidden_and_the_filter_bar_out(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+
+        $owner = $this->user($em, 'backlog-rows-still-empty@example.com');
+        $project = $this->project($em, $owner);
+        $em->clear();
+
+        $client->loginUser($owner);
+        $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board/backlog/rows?page=1&ids=');
+
+        self::assertResponseIsSuccessful();
+        $stream = new Crawler((string) $client->getResponse()->getContent());
+        self::assertStringContainsString('hidden', $stream->filter('turbo-stream[target="backlog-count"] template')->html());
+        self::assertStringNotContainsString('id="backlog-filter"', $stream->filter('turbo-stream[target="backlog-filter-slot"] template')->html());
     }
 
     public function test_a_read_with_no_valid_cursor_is_not_found(): void
