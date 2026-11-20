@@ -6,7 +6,12 @@
  * the run needs a hub.
  */
 
-import { test, expect } from '@playwright/test';
+import {
+    test,
+    expect,
+    type APIRequestContext,
+    type Browser,
+} from '@playwright/test';
 import {
     agentAccessToken,
     expectInPlace,
@@ -461,4 +466,131 @@ test('a bucket rules range survives a live signal from another actor', async ({
     await expect(watcher.locator('[data-bucket-rule]')).toHaveCount(1, LIVE);
     await expect(watcher).toHaveURL(/range=seven-days/);
     await expect(range).toHaveValue('seven-days');
+});
+
+/** Opens a project with an actor that reports worker runs of experiments. */
+async function experimentActor(
+    browser: Browser,
+    request: APIRequestContext,
+    name: string,
+) {
+    const email = `e2e+listframes+${name}+${RUN}@example.com`;
+    const registered = await request.post('/dev/register-and-verify', {
+        form: { fullName: 'E2E List Frames', email, password: PASSWORD },
+    });
+    expect(registered.status()).toBe(200);
+
+    const watcher = await signedInPage(browser, email, PASSWORD);
+    const seeded = await watcher.request.post('/dev/seed/document', {
+        form: { title: `E2E ${name} Frames`, markdown: '# Experiments' },
+    });
+    expect(seeded.status()).toBe(201);
+    const projectId = ((await seeded.json()) as { projectId: string })
+        .projectId;
+    const actor = await signedInPage(browser, email, PASSWORD);
+    const token = await agentAccessToken(actor);
+    const bridgeId = crypto.randomUUID();
+    const newCard = await mcpCards(actor, projectId);
+    const report = async (
+        card: { id: string; number: number },
+        experiment: string,
+        variant: string,
+    ): Promise<void> => {
+        const response = await actor.request.put(
+            `/api/v1/bridge/projects/${projectId}/worker-runs/${crypto.randomUUID()}`,
+            {
+                headers: { Authorization: `Bearer ${token}` },
+                data: {
+                    bridgeId,
+                    at: new Date().toISOString(),
+                    workKind: 'implement',
+                    subjectType: 'card',
+                    subjectId: card.id,
+                    cardNumber: card.number,
+                    state: 'queued',
+                    experiment,
+                    variant,
+                },
+            },
+        );
+        expect(response.status()).toBe(201);
+    };
+
+    return { watcher, actor, projectId, newCard, report };
+}
+
+test('an experiments archived filter survives a live signal from another actor', async ({
+    browser,
+    request,
+}) => {
+    const { watcher, actor, projectId, newCard, report } =
+        await experimentActor(browser, request, 'experiments');
+    const card = await newCard('Experiments frame card');
+    await report(card, 'frame-first', 'control');
+    await report(card, 'frame-second', 'control');
+    await report(card, 'frame-third', 'control');
+    const url = `/projects/${projectId}/analytics/experiments`;
+
+    await suppressToolbar(watcher);
+    await suppressWidget(watcher);
+    await watcher.goto(url);
+    await expect(watcher.locator('[data-experiment]')).toHaveCount(3);
+    await watcher.locator('[data-experiment-row-archive]').first().click();
+    await expect(watcher.locator('[data-experiment]')).toHaveCount(2, LIVE);
+    // The archive signals its own change, and the live read it starts must end before the toggle.
+    await watcher.waitForTimeout(2_000);
+    await watcher.locator('[data-experiment-archived-toggle]').click();
+    await expect(watcher).toHaveURL(/archived=1/, LIVE);
+    await expect(watcher.locator('[data-experiment]')).toHaveCount(1);
+
+    // The hub keeps no history, so a change made before the page connects is lost.
+    await watcher.waitForTimeout(1_000);
+    await actor.goto(url);
+    await actor.locator('[data-experiment-row-archive]').first().click();
+
+    await expect(watcher.locator('[data-experiment]')).toHaveCount(2, LIVE);
+    await expect(watcher).toHaveURL(/archived=1/);
+    await expect(
+        watcher.locator('[data-experiment-archived-toggle]'),
+    ).toBeChecked();
+});
+
+test('an experiment cards variant filter survives a live signal from another actor', async ({
+    browser,
+    request,
+}) => {
+    const { watcher, projectId, newCard, report } = await experimentActor(
+        browser,
+        request,
+        'experiment-cards',
+    );
+    const first = await newCard('Variant a card');
+    const second = await newCard('Variant b card');
+    await report(first, 'frame-cards', 'alpha');
+    await report(second, 'frame-cards', 'beta');
+
+    await suppressToolbar(watcher);
+    await suppressWidget(watcher);
+    await watcher.goto(
+        `/projects/${projectId}/analytics/experiments/frame-cards/cards`,
+    );
+    await expect(watcher.locator('[data-experiment-card]')).toHaveCount(2);
+    await watcher
+        .locator('[data-experiment-filter] a', { hasText: 'alpha' })
+        .click();
+    await expect(watcher).toHaveURL(/variant=alpha/, LIVE);
+    await expect(watcher.locator('[data-experiment-card]')).toHaveCount(1);
+
+    // The hub keeps no history, so a change made before the page connects is lost.
+    await watcher.waitForTimeout(1_000);
+    const third = await newCard('Another variant a card');
+    await report(third, 'frame-cards', 'alpha');
+    const fourth = await newCard('Another variant b card');
+    await report(fourth, 'frame-cards', 'beta');
+
+    await expect(watcher.locator('[data-experiment-card]')).toHaveCount(
+        2,
+        LIVE,
+    );
+    await expect(watcher).toHaveURL(/variant=alpha/);
 });
