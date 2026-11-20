@@ -252,9 +252,13 @@ This project does not use `--path-coverage`. Path coverage held 492 MB for 51
 tests and killed the container at about 250 of 2,262 tests, so it does not fit
 this suite.
 
-## Infection needs 2 GB
+## Infection needs 2 GB, and 6 GB on the whole of `src`
 
-Both recipes run Infection under `php -d memory_limit=2G`. Infection deletes
+`just mutation-diff` runs Infection under `php -d memory_limit=2G`. `just mutation`
+and `just mutation-shard` run it under 6G, because the parent holds the parse of
+a quarter or all of `src` and the coverage of the whole suite. At 2G the four
+shards of run 44733675596 died, two while they read the source files and two
+after the mutation summary. Infection deletes
 about 8,500 mutant directories when it finishes, and `Filesystem::remove()`
 materialises that tree before it deletes it. At 512M the process dies in the
 cleanup, after it writes the reports, so the failure looks like something else.

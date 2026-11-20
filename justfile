@@ -207,7 +207,7 @@ mutation *args:
     # An interrupted run leaves a half-written junit.xml that aborts the next one.
     rm -rf var/infection/infection
     bin/worktrees/compose-exec.sh vendor/bin/phpunit --list-tests > /dev/null
-    bin/worktrees/compose-exec.sh env TEST_SCHEMA_READY=1 XDEBUG_MODE=coverage php -d memory_limit=2G vendor/bin/infection --no-interaction --with-uncovered "$@"
+    bin/worktrees/compose-exec.sh env TEST_SCHEMA_READY=1 XDEBUG_MODE=coverage php -d memory_limit=6G vendor/bin/infection --no-interaction --with-uncovered "$@"
 
 # One shard of the weekly mutation run: every Nth file of src/, from the merged
 # coverage of `phpunit-coverage-merge`. Never run it beside another test run in
@@ -215,7 +215,7 @@ mutation *args:
 mutation-shard shard of="4" *args:
     rm -rf var/infection/infection
     bin/worktrees/compose-exec.sh vendor/bin/phpunit --list-tests > /dev/null
-    bin/worktrees/compose-exec.sh sh -c 'env TEST_SCHEMA_READY=1 XDEBUG_MODE=coverage php -d memory_limit=2G vendor/bin/infection --no-interaction --with-uncovered --coverage=var/phpunit-coverage --skip-initial-tests --filter="$(php bin/coverage-shard.php src-filter {{shard}} {{of}})" {{args}}'
+    bin/worktrees/compose-exec.sh sh -c 'env TEST_SCHEMA_READY=1 XDEBUG_MODE=coverage php -d memory_limit=6G vendor/bin/infection --no-interaction --with-uncovered --coverage=var/phpunit-coverage --skip-initial-tests --filter="$(php bin/coverage-shard.php src-filter {{shard}} {{of}})" {{args}}'
 
 # Mutation testing over the src/ files this branch changed. The one to run while
 # you work, because it mutates your files alone. Usage: just mutation-diff [BASE]
