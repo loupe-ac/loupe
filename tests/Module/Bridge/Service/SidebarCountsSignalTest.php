@@ -12,6 +12,7 @@ use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Service\AgentsFiguresReader;
 use App\Module\Bridge\Service\SidebarCountsSignal;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
+use App\Module\Bridge\ValueObject\WorkerRunChangeKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Bridge\BridgeScenario;
@@ -67,7 +68,7 @@ final class SidebarCountsSignalTest extends KernelTestCase
         $this->runsChanged(); // the first event of a project has no stored fingerprint and signals
         $this->seedRun($this->em(), $this->project, state: WorkerRunState::Queued);
 
-        $this->service(WorkerRunChangedPublisher::class)->runsChanged($this->project);
+        $this->service(WorkerRunChangedPublisher::class)->runsChanged($this->project, WorkerRunChangeKind::State);
         $sent = array_values(array_filter($this->drainLiveUpdates(), static fn (array $update): bool => SidebarCountsSignal::TYPE === $update['data']['type']));
 
         self::assertCount(1, $sent);
@@ -120,7 +121,7 @@ final class SidebarCountsSignalTest extends KernelTestCase
         $this->runsChanged(); // the first event of a project has no stored fingerprint and signals
         $this->seedRun($this->em(), $this->project, state: WorkerRunState::Running);
 
-        $this->service(WorkerRunChangedPublisher::class)->runsChanged($this->project);
+        $this->service(WorkerRunChangedPublisher::class)->runsChanged($this->project, WorkerRunChangeKind::State);
         $this->service(SidebarCountsSignal::class)->reset();
 
         self::assertNotContains(SidebarCountsSignal::TYPE, array_map(static fn (array $update): string => (string) $update['data']['type'], $this->drainLiveUpdates()));
@@ -128,7 +129,7 @@ final class SidebarCountsSignalTest extends KernelTestCase
 
     private function runsChanged(): void
     {
-        $this->service(WorkerRunChangedPublisher::class)->runsChanged($this->project);
+        $this->service(WorkerRunChangedPublisher::class)->runsChanged($this->project, WorkerRunChangeKind::State);
         $this->sent = $this->drainLiveUpdates();
     }
 

@@ -10,6 +10,7 @@ use App\Module\Bridge\Event\BridgeCommandSettled;
 use App\Module\Bridge\Repository\BridgeCommandRepository;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Bridge\ValueObject\BridgeCommandState;
+use App\Module\Bridge\ValueObject\WorkerRunChangeKind;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
@@ -70,7 +71,7 @@ final readonly class CancelBridgeCommandHandler
             ],
             new AuditSubject('bridge_command', (string) $cancelled->id),
         );
-        $this->runsChanged->runsChanged($run->project);
+        $this->runsChanged->runsChanged($run->project, WorkerRunChangeKind::State, [$run]);
         $this->events->dispatch(BridgeCommandSettled::of($cancelled));
 
         return $cancelled;
