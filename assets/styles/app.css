@@ -389,6 +389,17 @@
         @apply w-full;
     }
 
+    .lp-core-inbox .lp-inbox-search {
+        padding-bottom: calc(var(--spacing) * 2);
+    }
+
+    .lp-core-inbox .lp-inbox-search-state {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: calc(var(--spacing) * 2);
+    }
+
     .lp-core-inbox .lp-inbox-list-head .lp-filter-search {
         width: 100%;
     }

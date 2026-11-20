@@ -162,7 +162,7 @@ test('projects header keeps its action reachable with enlarged text', async ({
     ).toBeFocused();
 });
 
-test('the list head keeps the switch, the search and the type filter in reach', async ({
+test('the list head and the search keep the switch, the search and the type filter in reach', async ({
     page,
 }) => {
     const head = page.locator('.lp-inbox-list-head');
@@ -170,7 +170,7 @@ test('the list head keeps the switch, the search and the type filter in reach', 
         await page.setViewportSize({ width, height: 900 });
         await expect(head).toBeVisible();
         await expect(head.locator('.lp-tabs__tab')).toHaveCount(2);
-        await expect(head.locator('#inbox-search')).toBeVisible();
+        await expect(page.locator('#inbox-search')).toBeVisible();
         await expect(head.locator('[data-inbox-type]')).toHaveCount(6);
         expect(
             await page.evaluate(
@@ -221,6 +221,24 @@ test('inbox search shows Clear only while a search is active', async ({
     await expect(
         page.locator('[data-inbox-section="open-asks"]'),
     ).toBeVisible();
+});
+
+test('typing in the inbox search survives the frame swap of each response', async ({
+    page,
+}) => {
+    const search = page.locator('#inbox-search');
+    await search.focus();
+    const swapped = page.waitForResponse(
+        (response) =>
+            response.url().includes('q=') &&
+            response.request().headers()['turbo-frame'] === 'inbox-view',
+    );
+    await search.pressSequentially('un', { delay: 450 });
+    await swapped;
+    await search.pressSequentially('matched', { delay: 20 });
+    await expect(search).toBeFocused();
+    await expect(search).toHaveValue('unmatched');
+    await expect(page.locator('[data-inbox-search-empty]')).toBeVisible();
 });
 
 test('the note field marks focus at one height', async ({ page, inbox }) => {

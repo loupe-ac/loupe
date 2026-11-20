@@ -49,6 +49,8 @@ list. Select **Archive** on the page of the experiment, or the archive button on
 its row in the list. When the project has an archived experiment, the list shows
 a **Show archived** switch. Turn it on to see the archived experiments, and
 select **Unarchive** to put one back.
+The switch and the archive buttons change the list in place, and the view you chose stays.
+The **Cards** tab of an experiment filters by variant and pages the same way, and a live update keeps the variant and the page.
 
 Archiving only hides the experiment. Its page and its data stay readable, and
 the bridge keeps its pins and its variant assignment. A worker run that Loupe

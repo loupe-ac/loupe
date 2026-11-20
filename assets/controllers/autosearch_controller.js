@@ -3,12 +3,11 @@ import { Controller } from '@hotwired/stimulus';
 
 export default class extends Controller {
     static targets = ['clearButton', 'field'];
-    static values = { ignore: Array };
+    static values = { ignore: Array, sync: Boolean };
 
     connect() {
         this.timeout = null;
         this.#updateClearButton();
-        this.#resumeTyping();
         this.element.addEventListener('turbo:morph-element', this.#onMorph);
         this.clearFromOutside = (event) => {
             const proxy = event.target.closest?.('[data-clear-filter-form]');
@@ -21,6 +20,18 @@ export default class extends Controller {
             }
         };
         document.addEventListener('click', this.clearFromOutside);
+        this.syncFromFrame = (event) => {
+            if (
+                this.syncValue &&
+                event.target.id &&
+                event.target.id === this.element.dataset.turboFrame
+            ) {
+                this.#syncFromAddress(
+                    event.detail?.fetchResponse?.response?.url,
+                );
+            }
+        };
+        document.addEventListener('turbo:frame-render', this.syncFromFrame);
     }
 
     #onMorph = (event) => {
@@ -29,28 +40,9 @@ export default class extends Controller {
         }
     };
 
-    /**
-     * Submitting is a full Turbo visit, which replaces the body and destroys the
-     * field being typed into — so without this, the rest of a word typed through
-     * the 300ms debounce lands nowhere. Restoring focus alone is not enough: the
-     * caret returns at position 0, so the continued keystrokes are inserted in
-     * front of the term rather than lost, which looks like the app working.
-     *
-     * A form with no field target (the admin outbox, which filters with selects
-     * only) never enters here, so nothing focuses on its behalf.
-     */
-    #resumeTyping() {
-        if (!this.hasFieldTarget || this.fieldTarget.value === '') {
-            return;
-        }
-
-        this.fieldTarget.focus();
-        const end = this.fieldTarget.value.length;
-        this.fieldTarget.setSelectionRange(end, end);
-    }
-
     disconnect() {
         document.removeEventListener('click', this.clearFromOutside);
+        document.removeEventListener('turbo:frame-render', this.syncFromFrame);
         clearTimeout(this.timeout);
         this.element.removeEventListener('turbo:morph-element', this.#onMorph);
     }
@@ -93,6 +85,41 @@ export default class extends Controller {
         }
         this.#updateClearButton();
         this.element.requestSubmit();
+    }
+
+    /**
+     * A form that sits outside the frame it swaps keeps its own state, so a
+     * link inside the frame that changes the filter, such as a button of an
+     * empty list, leaves the switch and the selects stale. After a render the
+     * form copies its checkboxes and selects from the address the frame
+     * loaded. A response for another path, such as a row action, changes
+     * nothing, and a control with focus is left alone.
+     */
+    #syncFromAddress(address) {
+        let url;
+        try {
+            url = new URL(
+                address ?? window.location.href,
+                window.location.href,
+            );
+        } catch {
+            return;
+        }
+        if (url.pathname !== new URL(this.element.action).pathname) return;
+        for (const element of this.element.elements) {
+            if (!element.name || element === document.activeElement) continue;
+            if (element.type === 'checkbox') {
+                element.checked = url.searchParams
+                    .getAll(element.name)
+                    .includes(element.value);
+            } else if (
+                element.tagName === 'SELECT' &&
+                url.searchParams.has(element.name)
+            ) {
+                element.value = url.searchParams.get(element.name);
+            }
+        }
+        this.#updateClearButton();
     }
 
     #hasActiveFilters() {

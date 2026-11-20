@@ -161,6 +161,33 @@ class WorkerRunRepository extends ServiceEntityRepository
         return $runs;
     }
 
+    /**
+     * The worker runs of the requests, a resumed run included, because it reports the request of the run it continues.
+     *
+     * @param list<Uuid> $workRequestIds
+     *
+     * @return list<WorkerRun> oldest first
+     */
+    public function findOfWorkRequests(array $workRequestIds): array
+    {
+        if ([] === $workRequestIds) {
+            return [];
+        }
+
+        /** @var list<WorkerRun> $runs */
+        $runs = $this->createQueryBuilder('r')
+            ->andWhere('r.workRequestId IN (:requests)')
+            ->andWhere('r.kind = :kind')
+            ->setParameter('requests', array_map(static fn (Uuid $id): string => $id->toRfc4122(), $workRequestIds))
+            ->setParameter('kind', WorkerRunKind::Worker->value)
+            ->orderBy('r.receivedAt', 'ASC')
+            ->addOrderBy('r.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $runs;
+    }
+
     /** The newest worker run of a claude session that the bridge ran, which a resume of the session continues. */
     public function findLatestOfSessionOnBridge(Project $project, Uuid $bridgeId, Uuid $sessionId): ?WorkerRun
     {

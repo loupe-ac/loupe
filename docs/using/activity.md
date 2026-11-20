@@ -39,7 +39,8 @@ The family filter keeps one family of events. **Documents** also keeps the older
 
 Every control lands in the URL, so a filtered view is a link you can share.
 Select **Clear** to go back to the whole list.
-The count beside the filters shows how many events match.
+The count above the list shows how many events match.
+A search, a filter or a page change swaps only the list. The search box keeps its focus and the address bar follows. A live update keeps the filter you chose.
 
 ## Live updates
 

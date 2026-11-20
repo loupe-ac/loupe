@@ -12,8 +12,10 @@ use App\Module\AgentReview\Entity\AgentReviewSeverity;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardPause;
 use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\CardHoldRepository;
 use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Inbox\Command\RunInboxActionCommand;
@@ -81,8 +83,9 @@ final class WorkLimitPauseTest extends KernelTestCase
         $body = $text->body([$wait]);
         self::assertStringStartsWith('Card 1108 is paused. 10 fix rounds did not pass the agent review of PR #1302. Fix the cause, then retry the card. The latest agent review of PR #1302 found:', $body);
         self::assertStringContainsString("- The epic head still lacks B3 and B5\n- Preview: the Workflow Metrics page has no proven link", $body);
-        self::assertStringContainsString('The last 10 fix runs ended: 5 waiting on the forge, 3 blocked, 2 succeeded.', $body);
-        self::assertStringContainsString("The last blocked fix run said:\n\n> A fix round cannot build child work. Merge the children first.", $body);
+        self::assertStringContainsString('The last 10 fix rounds: 7 handed the pull request back to the review, 3 waiting for you.', $body);
+        self::assertStringNotContainsString('waiting on the forge', $body);
+        self::assertStringContainsString("The last fix round that stopped to ask you said:\n\n> A fix round cannot build child work. Merge the children first.", $body);
         self::assertStringContainsString('Wait for cards 1124 and 1126 to merge into `epic/1108`, then retry the card.', $body);
         self::assertStringContainsString('[Open pull request #1302](https://github.com/loupe-ac/loupe/pull/1302)', $body);
         self::assertStringContainsString('[Open the agent review](https://github.com/loupe-ac/loupe/runs/4242)', $body);
@@ -94,7 +97,7 @@ final class WorkLimitPauseTest extends KernelTestCase
     {
         $wait = $this->workLimitWait(lastOutput: "The children are open.\n\n1. Merge card 1124.\n2. Retry the card.");
 
-        self::assertStringContainsString("The last blocked fix run said:\n\n> The children are open.\n>\n> 1. Merge card 1124.\n> 2. Retry the card.", $this->service(CardWaitText::class)->body([$wait]));
+        self::assertStringContainsString("The last fix round that stopped to ask you said:\n\n> The children are open.\n>\n> 1. Merge card 1124.\n> 2. Retry the card.", $this->service(CardWaitText::class)->body([$wait]));
     }
 
     public function test_the_body_reads_the_stage_result_of_an_older_run(): void
@@ -109,6 +112,103 @@ final class WorkLimitPauseTest extends KernelTestCase
         $wait = $this->workLimitWait(lastOutput: 'Card 1124 holds the B3 work.', lastTitle: 'Merge the children first');
 
         self::assertStringContainsString("said:\n\n> Merge the children first\n>\n> Card 1124 holds the B3 work.", $this->service(CardWaitText::class)->body([$wait]));
+    }
+
+    public function test_a_resumed_round_counts_once_and_its_answered_stop_is_not_quoted(): void
+    {
+        $wait = $this->workLimitWait(rounds: [
+            [1, [WorkerRunState::Blocked, WorkerRunState::WaitingOnForge]],
+            [2, [WorkerRunState::WaitingOnForge]],
+            [3, [WorkerRunState::Blocked, WorkerRunState::WaitingOnForge]],
+        ], fires: 3);
+        $text = $this->service(CardWaitText::class);
+        $body = $text->body([$wait]);
+
+        self::assertStringContainsString('The last 3 fix rounds all finished and handed the pull request back to the review. 2 of them first stopped to ask you, and went on.', $body);
+        self::assertStringNotContainsString('stopped to ask you said', $body);
+        self::assertStringNotContainsString('record of', $body);
+    }
+
+    public function test_the_walk_stops_at_round_one_of_the_current_cycle(): void
+    {
+        $wait = $this->workLimitWait(rounds: [
+            [1, [WorkerRunState::Failed]],
+            [2, [WorkerRunState::Failed]],
+            [1, [WorkerRunState::WaitingOnForge]],
+            [2, [WorkerRunState::WaitingOnForge]],
+        ], fires: 2);
+
+        $body = $this->service(CardWaitText::class)->body([$wait]);
+
+        self::assertStringContainsString('The last 2 fix rounds all finished', $body);
+        self::assertStringNotContainsString('failed', $body);
+    }
+
+    public function test_a_round_that_a_hold_gave_back_counts_its_newer_request_only(): void
+    {
+        $wait = $this->workLimitWait(rounds: [
+            [1, [WorkerRunState::WaitingOnForge]],
+            [2, [WorkerRunState::Failed]],
+            [2, [WorkerRunState::WaitingOnForge]],
+        ], fires: 2);
+
+        self::assertStringContainsString('The last 2 fix rounds all finished', $this->service(CardWaitText::class)->body([$wait]));
+    }
+
+    public function test_a_round_with_no_run_is_not_called_failed(): void
+    {
+        $wait = $this->workLimitWait(rounds: [
+            [1, [WorkerRunState::WaitingOnForge]],
+            [2, []],
+        ], fires: 2);
+
+        $body = $this->service(CardWaitText::class)->body([$wait]);
+
+        self::assertStringContainsString('The last 2 fix rounds: 1 has no run yet, 1 handed the pull request back to the review.', $body);
+        self::assertStringNotContainsString('failed', $body);
+        self::assertStringNotContainsString('all finished', $body);
+    }
+
+    public function test_older_requests_with_no_round_number_are_named_as_unknown(): void
+    {
+        $wait = $this->workLimitWait(rounds: [
+            [null, [WorkerRunState::WaitingOnForge]],
+            [null, [WorkerRunState::WaitingOnForge]],
+            [3, [WorkerRunState::WaitingOnForge]],
+            [4, [WorkerRunState::WaitingOnForge]],
+        ], fires: 4);
+
+        $body = $this->service(CardWaitText::class)->body([$wait]);
+
+        self::assertStringContainsString('The last 2 fix rounds all finished', $body);
+        self::assertStringContainsString('Loupe has no record of 2 counted rounds, which began before it stored round numbers.', $body);
+    }
+
+    public function test_a_pause_with_no_numbered_request_names_the_limit_as_unknown(): void
+    {
+        $wait = $this->workLimitWait(rounds: [
+            [null, [WorkerRunState::Blocked]],
+            [null, [WorkerRunState::WaitingOnForge]],
+        ], fires: 2);
+
+        $body = $this->service(CardWaitText::class)->body([$wait]);
+
+        self::assertStringContainsString('Loupe has no record of 10 counted rounds', $body);
+        self::assertStringNotContainsString('The last', $body);
+        self::assertStringNotContainsString('stopped to ask you said', $body);
+    }
+
+    public function test_the_body_lists_what_the_review_found_before_each_round(): void
+    {
+        $wait = $this->workLimitWait(rounds: [
+            [1, [WorkerRunState::WaitingOnForge]],
+            [2, [WorkerRunState::WaitingOnForge]],
+        ], fires: 2, earlierFindings: ['First finding', 'Second finding']);
+
+        $body = $this->service(CardWaitText::class)->body([$wait]);
+
+        self::assertStringContainsString("What the agent review found before each round, newest first:\n\n- Round 2: Second finding\n- Round 1: First finding", $body);
+        self::assertStringContainsString("found:\n\n- The epic head still lacks B3 and B5", $body);
     }
 
     public function test_the_retry_says_what_it_grants_and_is_not_the_default_after_a_blocked_run(): void
@@ -186,25 +286,45 @@ final class WorkLimitPauseTest extends KernelTestCase
         self::assertNotContains(InboxActionKind::HoldCard, $kinds);
     }
 
-    /** The 1108 sequence: 2 succeeded, 5 waiting on the forge and 3 blocked fix runs, the newest blocked, then the pause. */
-    private function workLimitWait(string $ruleId = 'fix-agent-review', WorkerRunState $lastState = WorkerRunState::Blocked, ?string $lastOutput = null, ?string $lastTitle = null, AgentReviewConclusion $conclusion = AgentReviewConclusion::Failure): InboxCardWait
+    /**
+     * The 1108 sequence by default: ten fix rounds, 2 succeeded, 5 waiting on the forge and 3 blocked, the newest blocked, then the pause.
+     *
+     * @param list<array{?int, list<WorkerRunState>}>|null $rounds          the request round number and the run states of each round, oldest first
+     * @param list<string>                                 $earlierFindings the titles of one failed review before each round, oldest first
+     */
+    private function workLimitWait(string $ruleId = 'fix-agent-review', WorkerRunState $lastState = WorkerRunState::Blocked, ?string $lastOutput = null, ?string $lastTitle = null, AgentReviewConclusion $conclusion = AgentReviewConclusion::Failure, ?array $rounds = null, int $fires = 10, array $earlierFindings = []): InboxCardWait
     {
         $em = $this->em();
         $cardId = $this->epic->id ?? throw new \LogicException('The card is stored.');
         $state = new WorkflowRuleState($cardId, $this->project, 'fix-agent-review');
         $state->subjectPullRequestId = $this->pullRequest->id;
-        $state->fires = 10;
+        $state->fires = $fires;
         $em->persist($state);
 
         $states = [WorkerRunState::Succeeded, WorkerRunState::Succeeded, WorkerRunState::Blocked, WorkerRunState::WaitingOnForge, WorkerRunState::WaitingOnForge, WorkerRunState::WaitingOnForge, WorkerRunState::WaitingOnForge, WorkerRunState::WaitingOnForge, WorkerRunState::Blocked, $lastState];
+        $rounds ??= array_map(static fn (WorkerRunState $runState, int $i): array => [$i + 1, [$runState]], $states, array_keys($states));
         $at = new \DateTimeImmutable('2026-10-27 22:20:00');
-        foreach ($states as $i => $runState) {
-            $last = 9 === $i;
-            $run = new WorkerRun($this->project, Uuid::v7(), WorkSubject::CARD, $cardId, 1108, 'fix', $runState, output: $last && null !== $lastOutput ? $lastOutput : 'A fix round cannot build child work. Merge the children first.', receivedAt: $at->modify(\sprintf('+%d minutes', $i * 10)), ruleId: 'fix-agent-review');
-            if ($last && null !== $lastTitle) {
-                $run->resultFields = ['title' => $lastTitle];
+        $lastRun = array_key_last($rounds);
+        foreach ($rounds as $i => [$number, $runStates]) {
+            $opened = $at->modify(\sprintf('+%d minutes', $i * 10 - 1));
+            $request = new WorkRequest($this->project, WorkSubject::CARD, $cardId, 1108, 'fix', null, 'fix-agent-review', $opened);
+            $request->round = $number;
+            $request->state = WorkRequestState::Done;
+            $em->persist($request);
+            $em->flush();
+            foreach ($runStates as $j => $runState) {
+                $last = $i === $lastRun && $j === array_key_last($runStates);
+                $run = new WorkerRun($this->project, Uuid::v7(), WorkSubject::CARD, $cardId, 1108, 'fix', $runState, output: $last && null !== $lastOutput ? $lastOutput : 'A fix round cannot build child work. Merge the children first.', receivedAt: $at->modify(\sprintf('+%d minutes', $i * 10 + $j)), workRequestId: $request->id, ruleId: 'fix-agent-review');
+                if ($last && null !== $lastTitle) {
+                    $run->resultFields = ['title' => $lastTitle];
+                }
+                $em->persist($run);
             }
-            $em->persist($run);
+            if (isset($earlierFindings[$i])) {
+                $em->persist(new AgentReview($this->project, $this->epic, $this->pullRequest, $this->pullRequest->headSha ?? '', 'Earlier finding.', AgentReviewConclusion::Failure, [
+                    new AgentReviewFinding(null, null, null, AgentReviewSeverity::Important, $earlierFindings[$i], 'Fix it.', AgentReviewCategory::Spec),
+                ], createdAt: $opened->modify('-2 minutes')));
+            }
         }
         $em->persist(new WorkerRun($this->project, Uuid::v7(), WorkSubject::CARD, $cardId, 1108, 'review', WorkerRunState::Failed, receivedAt: $at, ruleId: 'agent-review'));
 

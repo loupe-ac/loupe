@@ -678,6 +678,47 @@ class WorkRequestRepository extends ServiceEntityRepository
     }
 
     /**
+     * The requests of the rule on the card that its work limit counted, one for each round, newest first. The walk starts
+     * at the newest request and goes down to round 1. It skips a request whose count a hold or a failed setup gave back,
+     * and it stops before a request of an earlier cycle or a request with no round number.
+     *
+     * @return list<WorkRequest>
+     */
+    public function findCountedRoundsOfRule(Project $project, Uuid $cardId, string $ruleId, \DateTimeImmutable $before): array
+    {
+        /** @var list<WorkRequest> $requests */
+        $requests = $this->ofSubject(WorkSubject::card($cardId))
+            ->andWhere('w.project = :project')
+            ->andWhere('w.ruleId = :ruleId')
+            ->andWhere('w.createdAt <= :before')
+            ->setParameter('project', $project)
+            ->setParameter('ruleId', $ruleId)
+            ->setParameter('before', $before)
+            ->orderBy('w.createdAt', 'DESC')
+            ->addOrderBy('w.id', 'DESC')
+            ->getQuery()
+            ->getResult();
+
+        $rounds = [];
+        $expected = null;
+        foreach ($requests as $request) {
+            if (null === $request->round) {
+                break;
+            }
+            if (null !== $expected && $request->round > $expected) {
+                continue;
+            }
+            $rounds[] = $request;
+            if ($request->round <= 1) {
+                break;
+            }
+            $expected = $request->round - 1;
+        }
+
+        return $rounds;
+    }
+
+    /**
      * The kind, the pull request number and the head of each request of the card that ended done with one of the heads.
      *
      * @param list<string> $headShas lower-case head shas

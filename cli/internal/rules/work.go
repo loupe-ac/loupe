@@ -698,8 +698,9 @@ func (s *Set) RunsAppPrompts(name string) bool {
 
 // AccountKinds lists the kinds of the work map that can run on the named
 // account, through a work entry or a variant of an experiment, in name order.
-// A kind of another subject than card reads <subject>:<kind>. A set with its
-// agents off gives none.
+// A kind of another subject than card reads <subject>:<kind>. A session entry
+// about cards also lists inbox-item:session, as it takes that subject too. A
+// set with its agents off gives none.
 func (s *Set) AccountKinds(name string) []string {
 	var out []string
 	if s.agentsOff != "" {
@@ -716,6 +717,9 @@ func (s *Set) AccountKinds(name string) []string {
 			}
 			if !slices.Contains(out, listed) {
 				out = append(out, listed)
+			}
+			if entry.takes(kind, api.SubjectInboxItem) && !slices.Contains(out, api.SubjectInboxItem+":"+kind) {
+				out = append(out, api.SubjectInboxItem+":"+kind)
 			}
 		}
 	}

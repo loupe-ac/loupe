@@ -97,3 +97,30 @@ it('clears the form that an outside button names', async () => {
     expect(form.elements.search.value).toBe('');
     expect(submitted).toBe(1);
 });
+
+it('copies a switch from the loaded address when its frame renders', async () => {
+    application = Application.start();
+    application.register('autosearch', AutosearchController);
+    document.body.innerHTML = `<form data-controller="autosearch" data-autosearch-sync-value="true"
+            data-turbo-frame="list" action="http://localhost/experiments">
+        <input type="checkbox" name="archived" value="1">
+    </form><turbo-frame id="list"></turbo-frame>`;
+    await settle();
+    const form = document.querySelector('form');
+    const render = (address) =>
+        document.querySelector('turbo-frame').dispatchEvent(
+            new CustomEvent('turbo:frame-render', {
+                bubbles: true,
+                detail: { fetchResponse: { response: { url: address } } },
+            }),
+        );
+
+    render('http://localhost/experiments?archived=1');
+    expect(form.elements.archived.checked).toBe(true);
+
+    render('http://localhost/experiments/other/archive');
+    expect(form.elements.archived.checked).toBe(true);
+
+    render('http://localhost/experiments');
+    expect(form.elements.archived.checked).toBe(false);
+});

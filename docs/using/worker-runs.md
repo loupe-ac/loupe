@@ -21,6 +21,7 @@ bridge that also serves another project counts the workers of both. It shows
 nothing when no bridge reports worker pools. It updates as runs and pools change,
 with a delay of up to 10 seconds for a pool change.
 The open runs also show on the [Workshop](workshop.md), under In motion.
+A search, a filter or a page change on the Runs tab swaps only the list. The search box keeps its focus and the address bar follows. A live update keeps the filter you chose.
 
 The Activity page has two tabs. **Runs** lists the runs, and the rest of this
 page describes it. **Events** lists the [project events](activity.md).

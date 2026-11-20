@@ -180,6 +180,10 @@ class WorkRequest
     #[ORM\Column(name: 'role', length: 20, nullable: true)]
     public ?string $role = null;
 
+    /** The count of the rule when it opened the request, so the first request after a reset is round 1. Null for a request of no rule with a limit, or from before the column. */
+    #[ORM\Column(name: 'round_number', nullable: true)]
+    public ?int $round = null;
+
     /** What the card held when the request opened. A row from before the column reads as an empty context. */
     public WorkRequestContext $context {
         get => WorkRequestContext::fromArray($this->contextData);
