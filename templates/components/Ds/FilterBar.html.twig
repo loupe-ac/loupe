@@ -10,16 +10,18 @@
     countAttributes   hash          Extra attributes of the count, such as {id: 'x'}. Optional.
     countFrame        string|null   Id of a turbo-frame that wraps the count. Optional.
     switch            hash|null     {name, label, checked, attributes} of an on/off filter. Optional.
+    frame             string|null   Id of a turbo-frame that the form and the Clear link swap, with the address advancing. Optional.
 
   The body holds extra controls of the primary row, after the search. The `secondary` block holds
   what follows that row inside the form, such as selects that wrap and hidden fields.
   Any other attribute, class included, is passed to the root.
 #}
-{%- props action = null, formAttributes = {}, search = null, clearHref = null, clearLabel = null, clearAttributes = {}, count = null, countAttributes = {}, countFrame = null, switch = null -%}
+{%- props action = null, formAttributes = {}, search = null, clearHref = null, clearLabel = null, clearAttributes = {}, count = null, countAttributes = {}, countFrame = null, switch = null, frame = null -%}
 {%- macro attrs(map) -%}
     {%- for key, value in map %} {{ key }}{% if value is not same as(true) %}="{{ value }}"{% endif %}{% endfor -%}
 {%- endmacro -%}
 {%- import _self as bar -%}
+{%- set frameAttributes = frame is not null ? {'data-turbo-frame': frame, 'data-turbo-action': 'advance'} : {} -%}
 {%- set primary -%}{% block content %}{% endblock %}{%- endset -%}
 {%- set hasPrimary = primary|trim is not empty -%}
 {%- set searchField -%}
@@ -57,12 +59,12 @@
     </label>
     {%- endif -%}
     {%- if clearHref is not null -%}
-    <a href="{{ clearHref }}" data-autosearch-target="clearButton" class="lp-filter-clear"{{ bar.attrs(clearAttributes) }}>{{ clearLabel }}</a>
+    <a href="{{ clearHref }}" data-autosearch-target="clearButton" class="lp-filter-clear"{{ bar.attrs(frameAttributes|merge(frame is not null ? {'data-action': 'click->autosearch#clear'} : {})|merge(clearAttributes)) }}>{{ clearLabel }}</a>
     {%- endif -%}
 {%- endset -%}
 <div{{ attributes.defaults({class: 'lp-list-filters'}) }}>
     {%- if action is not null %}
-    <form method="get" action="{{ action }}" data-controller="autosearch" class="lp-filter-form"{{ bar.attrs(formAttributes) }}>
+    <form method="get" action="{{ action }}" data-controller="autosearch" class="lp-filter-form"{{ bar.attrs(frameAttributes|merge(formAttributes)) }}>
         {{ controls }}
     </form>
     {%- else %}

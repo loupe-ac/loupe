@@ -16,7 +16,7 @@
         {% endfor %}
 </twig:Ds:DataTable>
 
-<twig:Ds:Pagination route="app_project_board_backlog" :page="listQuery.page" :totalPages="view.totalPages" :pageList="view.pageList" :routeParams="{projectId: project.id}|merge(listQuery.routeParams)" />
+<twig:Ds:Pagination route="app_project_board_backlog" :page="listQuery.page" :totalPages="view.totalPages" :pageList="view.pageList" :routeParams="{projectId: project.id}|merge(listQuery.routeParams)" frame="backlog-list" />
 {% elseif listQuery.isNarrowed %}
 <twig:Ds:EmptyState icon="lucide:search-x" iconSize="xl" :title="'board.backlog.empty_filtered.title'|trans" :body="'board.backlog.empty_filtered.body'|trans">
     <twig:Ds:Button href="{{ backlogPath }}">{{ 'board.backlog.filter.clear_filters'|trans }}</twig:Ds:Button>

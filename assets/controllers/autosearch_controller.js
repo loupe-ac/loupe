@@ -51,6 +51,30 @@ export default class extends Controller {
         this.#updateClearButton();
     }
 
+    /**
+     * A bar that swaps a frame keeps its form across the swap, so a plain
+     * link would leave the old values in the fields. The link empties the
+     * fields and submits the form instead.
+     */
+    clear(event) {
+        event.preventDefault();
+        clearTimeout(this.timeout);
+        const ignored = this.hasIgnoreValue
+            ? this.ignoreValue
+            : ['sort', 'dir'];
+        for (const element of this.element.elements) {
+            if (!element.name || ignored.includes(element.name)) continue;
+            if (element.type === 'hidden') continue;
+            if (element.type === 'checkbox') {
+                element.checked = false;
+            } else {
+                element.value = '';
+            }
+        }
+        this.#updateClearButton();
+        this.element.requestSubmit();
+    }
+
     #hasActiveFilters() {
         const ignored = this.hasIgnoreValue
             ? this.ignoreValue

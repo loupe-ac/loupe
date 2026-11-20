@@ -82,6 +82,23 @@ final class DocumentsLiveListTest extends WebTestCase
         );
     }
 
+    public function test_every_page_swaps_inside_one_list_frame_and_keeps_the_filter_bar_outside_it(): void
+    {
+        $this->createMany(21);
+
+        foreach (['', '?page=2'] as $query) {
+            $crawler = $this->client->request(Request::METHOD_GET, $this->list().$query);
+
+            self::assertResponseIsSuccessful();
+            self::assertCount(1, $crawler->filter('turbo-frame#documents-list #documents-live'));
+            self::assertCount(0, $crawler->filter('turbo-frame#documents-list form.lp-filter-form'));
+            self::assertSame('documents-list', $crawler->filter('form.lp-filter-form')->attr('data-turbo-frame'));
+            self::assertSame('documents-list', $crawler->filter('.lp-pagination a')->first()->attr('data-turbo-frame'));
+            self::assertSame('documents-list', $crawler->filter('.lp-document-row__action-form')->first()->attr('data-turbo-frame'));
+            self::assertCount(1, $crawler->filter('turbo-frame#documents-list .lp-list-count'));
+        }
+    }
+
     public function test_a_later_page_reads_its_rows_by_id_after_the_cursor_it_loaded_at(): void
     {
         $this->createMany(21);

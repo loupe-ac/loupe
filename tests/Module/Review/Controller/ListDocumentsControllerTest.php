@@ -476,7 +476,7 @@ final class ListDocumentsControllerTest extends WebTestCase
         // 21 match and 20 fit on the page: the count must be the match total,
         // or a filtered list reads as having matched only one page.
         self::assertCount(20, $crawler->filter('[data-document-id]'));
-        self::assertSelectorTextContains('.lp-filter-count', '21 of 21 documents');
+        self::assertSelectorTextContains('.lp-list-count', '21 of 21 documents');
     }
 
     public function test_out_of_range_page_redirects_to_the_last_page(): void

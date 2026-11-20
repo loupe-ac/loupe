@@ -67,7 +67,7 @@ final class ListBacklogCardsControllerTest extends WebTestCase
         );
         self::assertSame($url.'?page=1&sort=type&dir=asc', $crawler->selectLink('Type')->attr('href'));
         self::assertSame($url.'?page=1&sort=created&dir=asc', $crawler->selectLink('Added')->attr('href'));
-        self::assertCount(0, $crawler->filter('form.lp-filter-form input[name="sort"]'));
+        self::assertCount(0, $crawler->filter('input[name="sort"][form="backlog-filter"]'));
 
         $crawler = $client->request(Request::METHOD_GET, $url.'?sort=type&dir=asc&epic=none');
 
@@ -78,8 +78,8 @@ final class ListBacklogCardsControllerTest extends WebTestCase
         );
         self::assertSame($url.'?page=1&epic=none&sort=type&dir=desc', $crawler->selectLink('Type')->attr('href'));
         self::assertSame($url.'?page=1&epic=none', $crawler->selectLink('Added')->attr('href'));
-        self::assertSame('type', $crawler->filter('form.lp-filter-form input[name="sort"]')->attr('value'));
-        self::assertSame('asc', $crawler->filter('form.lp-filter-form input[name="dir"]')->attr('value'));
+        self::assertSame('type', $crawler->filter('input[name="sort"][form="backlog-filter"]')->attr('value'));
+        self::assertSame('asc', $crawler->filter('input[name="dir"][form="backlog-filter"]')->attr('value'));
 
         $crawler = $client->request(Request::METHOD_GET, $url.'?sort=type&dir=desc');
         self::assertSame(['Otter feature', 'Otter bug'], $this->titles($crawler));
@@ -173,7 +173,7 @@ final class ListBacklogCardsControllerTest extends WebTestCase
         self::assertSame('1 of 3 cards', trim($crawler->filter('#backlog-filter-count')->text()));
         self::assertSame('bug', $crawler->filter('#backlog-type option[selected]')->attr('value'));
         self::assertSame($epicId, $crawler->filter('#backlog-epic option[selected]')->attr('value'));
-        self::assertSame('epic', $crawler->filter('form.lp-filter-form input[name="sort"]')->attr('value'));
+        self::assertSame('epic', $crawler->filter('input[name="sort"][form="backlog-filter"]')->attr('value'));
 
         $crawler = $client->request(Request::METHOD_GET, $url.'?epic=none');
         self::assertSame(['Loose feature', 'Loose bug'], $this->titles($crawler));

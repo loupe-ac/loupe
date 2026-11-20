@@ -21,6 +21,10 @@
     .lp-filter-count {
         @apply ml-auto font-mono text-fg-dim text-xs;
     }
+    /* The count of a bar whose form stays outside the swapped frame, drawn at the top of the frame content. */
+    .lp-list-count {
+        @apply mt-2 text-right font-mono text-fg-dim text-xs;
+    }
     .lp-filter-form {
         @apply flex flex-1 basis-full sm:basis-auto min-w-0 flex-wrap items-center gap-2;
     }
