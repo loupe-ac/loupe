@@ -3,11 +3,20 @@
 const TEXT_FIELDS =
     'textarea, input:not([type="hidden"], [type="checkbox"], [type="radio"], [type="button"], [type="submit"])';
 
+// Turbo clears `aria-busy` on a form when its request ends, which is before
+// the render of the answer. So the form is remembered from the submit start
+// until the render that follows.
+let submitted = null;
+
+export function isSubmitted(form) {
+    return form === submitted;
+}
+
 export function keepTypedForm(event) {
     const { currentElement } = event.detail;
     if (
         !(currentElement instanceof HTMLFormElement) ||
-        currentElement.getAttribute('aria-busy') === 'true'
+        isSubmitted(currentElement)
     ) {
         return;
     }
@@ -19,4 +28,13 @@ export function keepTypedForm(event) {
     }
 }
 
+document.addEventListener('turbo:submit-start', (event) => {
+    submitted = event.target;
+});
+document.addEventListener('turbo:render', () => {
+    submitted = null;
+});
+document.addEventListener('turbo:morph', () => {
+    submitted = null;
+});
 document.addEventListener('turbo:before-morph-element', keepTypedForm);

@@ -325,9 +325,12 @@ it('keeps a form that holds typed text out of a morph', () => {
 
 it('lets the form that is submitting take the answer of its request', () => {
     document.body.innerHTML =
-        '<form id="old" aria-busy="true"><textarea></textarea></form><form id="new"><textarea></textarea></form>';
+        '<form id="old"><textarea></textarea></form><form id="new"><textarea></textarea></form>';
     const current = document.getElementById('old');
     current.querySelector('textarea').value = 'typed';
+    current.dispatchEvent(
+        new CustomEvent('turbo:submit-start', { bubbles: true }),
+    );
     expect(
         morphEvent(current, document.getElementById('new')).defaultPrevented,
     ).toBe(false);

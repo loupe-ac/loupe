@@ -1,6 +1,7 @@
 import { Controller } from '@hotwired/stimulus';
 import { renderStreamMessage } from '@hotwired/turbo';
 import { on } from '../lib/live.js';
+import { isSubmitted } from '../lib/morph_typed_forms.js';
 import {
     /* stimulusFetch: 'lazy' */
     LiveFetcher,
@@ -27,7 +28,7 @@ export function keepLocalForm(event) {
     if (!(currentElement instanceof HTMLFormElement) || !newElement) {
         return;
     }
-    if (currentElement.getAttribute('aria-busy') === 'true') {
+    if (isSubmitted(currentElement)) {
         return;
     }
     const typed = [...currentElement.querySelectorAll(TEXT_FIELDS)].some(

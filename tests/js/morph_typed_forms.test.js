@@ -23,12 +23,27 @@ it('keeps a form with typed text out of a morph', () => {
     expect(morph(form)).toBe(true);
 });
 
-it('lets the submitting form take its answer', () => {
-    document.body.innerHTML =
-        '<form id="f" aria-busy="true"><textarea></textarea></form>';
+it('lets the submitting form take its answer, also after its request ended', () => {
+    document.body.innerHTML = '<form id="f"><textarea></textarea></form>';
     const form = document.getElementById('f');
     form.querySelector('textarea').value = 'typed';
+    form.dispatchEvent(
+        new CustomEvent('turbo:submit-start', { bubbles: true }),
+    );
     expect(morph(form)).toBe(false);
+});
+
+it('keeps the form again once a render ended the submission', () => {
+    document.body.innerHTML = '<form id="f"><textarea></textarea></form>';
+    const form = document.getElementById('f');
+    form.querySelector('textarea').value = 'typed';
+    form.dispatchEvent(
+        new CustomEvent('turbo:submit-start', { bubbles: true }),
+    );
+    document.documentElement.dispatchEvent(
+        new CustomEvent('turbo:morph', { bubbles: true }),
+    );
+    expect(morph(form)).toBe(true);
 });
 
 it('lets an untouched form morph', () => {
