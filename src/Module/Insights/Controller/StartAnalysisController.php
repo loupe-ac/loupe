@@ -20,6 +20,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Contracts\Translation\TranslatorInterface;
+use Symfony\UX\Turbo\TurboBundle;
 
 #[IsGranted(ProjectVoter::MANAGE, subject: 'project')]
 #[Route(
@@ -54,9 +55,13 @@ class StartAnalysisController extends AppController
                     effort: $data->effort,
                     experiment: $data->experiment,
                 ));
-                $this->addFlash('success', $this->translator->trans('insights.reports.flash.started'));
 
-                return $this->redirectToRoute('app_project_analytics_reports', ['id' => (string) $project->id]);
+                // The new analysis reaches the open list through the live update of the Reports tab.
+                return new Response(
+                    $this->renderView('_flash.stream.html.twig', ['severity' => 'success', 'message' => $this->translator->trans('insights.reports.flash.started')]),
+                    Response::HTTP_OK,
+                    ['Content-Type' => TurboBundle::STREAM_MEDIA_TYPE],
+                );
             } catch (DomainErrors $e) {
                 // The work request can refuse a field this form does not show.
                 foreach ($e->errors as $field => $key) {

@@ -11,6 +11,7 @@ use App\Module\Insights\Command\DismissProposalHandler;
 use App\Module\Insights\Entity\Proposal;
 use App\Module\Insights\Form\DismissProposalFormType;
 use App\Module\Insights\Form\DismissProposalRequest;
+use App\Module\Insights\Service\ReportStreamAnswers;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
@@ -32,6 +33,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 class DismissProposalController extends AppController
 {
     public function __construct(
+        private readonly ReportStreamAnswers $answers,
         private readonly DismissProposalHandler $dismissProposal,
         private readonly FormFactoryInterface $formFactory,
         private readonly TranslatorInterface $translator,
@@ -50,34 +52,17 @@ class DismissProposalController extends AppController
         if ($form->isSubmitted() && $form->isValid()) {
             try {
                 ($this->dismissProposal)(new DismissProposalCommand($proposal, $data->reason));
-                $this->addFlash('success', $this->translator->trans('insights.reports.flash.dismissed'));
 
-                return $this->redirectToRoute('app_project_analytics_reports', self::reportsPage($project, $request));
+                return $this->answers->row($project, $proposal, $request, 'success', $this->translator->trans('insights.reports.flash.dismissed'));
             } catch (DomainErrors $e) {
                 if (!\in_array(DismissProposalHandler::REASON_TOO_LONG, $e->errors, true)) {
-                    // The proposal is no longer open, so the page has no form to show the error on.
-                    foreach ($e->errors as $key) {
-                        $this->addFlash('error', $this->translator->trans($key));
-                    }
-
-                    return $this->redirectToRoute('app_project_analytics_reports', self::reportsPage($project, $request));
+                    // The proposal is no longer open, so the row has no form to show the error on.
+                    return $this->answers->row($project, $proposal, $request, 'error', implode(' ', array_map($this->translator->trans(...), $e->errors)), status: Response::HTTP_UNPROCESSABLE_ENTITY);
                 }
                 $this->applyDomainErrors($form, $e);
             }
         }
 
-        return $this->forward(ListReportsController::class, [
-            'id' => (string) $project->id,
-            'project' => $project,
-            ListReportsController::REFUSED_DISMISS_FORM => $form->createView(),
-        ], ['page' => max(1, $request->query->getInt('page', 1))])->setStatusCode(Response::HTTP_UNPROCESSABLE_ENTITY);
-    }
-
-    /** @return array<string, int|string> the Reports page the form came from */
-    private static function reportsPage(Project $project, Request $request): array
-    {
-        $page = $request->query->getInt('page', 1);
-
-        return $page > 1 ? ['id' => (string) $project->id, 'page' => $page] : ['id' => (string) $project->id];
+        return $this->answers->row($project, $proposal, $request, 'error', null, $form->createView(), Response::HTTP_UNPROCESSABLE_ENTITY);
     }
 }

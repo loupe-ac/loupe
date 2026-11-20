@@ -10,10 +10,8 @@ use App\Module\Insights\View\MetricChartType;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Insights\InsightsScenario;
 use PHPUnit\Framework\Attributes\DataProvider;
-use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
 
 final class SavedGraphControllersTest extends WebTestCase
 {
@@ -32,7 +30,7 @@ final class SavedGraphControllersTest extends WebTestCase
         'chart' => 'bars',
     ];
 
-    public function test_a_save_stores_the_graph_and_returns_to_the_metrics_with_its_settings(): void
+    public function test_a_save_stores_the_graph_and_answers_the_link_to_the_dashboard(): void
     {
         $client = static::createClient();
         $project = $this->scenarioProject('save-ok');
@@ -44,8 +42,12 @@ final class SavedGraphControllersTest extends WebTestCase
 
         $graphs = $this->stored($projectId);
         self::assertCount(1, $graphs);
-        self::assertResponseRedirects('/projects/'.$projectId.'/analytics/metrics?unit=run&statistic=sum&range=thirty-days&bucket=day&chart=bars&saved='.$graphs[0]->id);
-        self::assertSame(['success' => ['The graph is saved.']], $this->flashes($client));
+        self::assertResponseIsSuccessful();
+        $stream = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('The graph is saved.', $stream);
+        self::assertStringContainsString('<turbo-stream action="update" target="metrics-saved">', $stream);
+        self::assertStringContainsString('data-metrics-saved-link', $stream);
+        self::assertStringContainsString('<turbo-stream action="replace" target="metrics-save">', $stream);
         self::assertSame('My cost', $graphs[0]->name);
         self::assertSame(MetricChartType::Bars, $graphs[0]->chartType);
         self::assertSame(0, $graphs[0]->position);
@@ -61,7 +63,7 @@ final class SavedGraphControllersTest extends WebTestCase
         $client->loginUser($project->owner);
         $client->request(Request::METHOD_POST, $this->savePath($projectId), $this->form(['name' => '']), [], self::HEADERS);
 
-        self::assertResponseRedirects();
+        self::assertResponseIsSuccessful();
         self::assertSame('Cost per run, sum, last 30 days, per day', $this->stored($projectId)[0]->name);
     }
 
@@ -93,7 +95,7 @@ final class SavedGraphControllersTest extends WebTestCase
         yield 'update' => ['update'];
     }
 
-    public function test_a_wrong_csrf_token_stores_nothing_and_flashes_an_error(): void
+    public function test_a_wrong_csrf_token_stores_nothing_and_answers_an_error(): void
     {
         $client = static::createClient();
         $project = $this->scenarioProject('save-csrf');
@@ -103,8 +105,8 @@ final class SavedGraphControllersTest extends WebTestCase
         $client->loginUser($project->owner);
         $client->request(Request::METHOD_POST, $this->savePath($projectId), $this->form(['_token' => 'wrong']), [], self::HEADERS);
 
-        self::assertResponseRedirects();
-        self::assertSame(['error' => ['Loupe could not save the graph. Try again.']], $this->flashes($client));
+        self::assertResponseStatusCodeSame(422);
+        self::assertStringContainsString('Loupe could not save the graph. Try again.', (string) $client->getResponse()->getContent());
         self::assertSame([], $this->stored($projectId));
     }
 
@@ -118,12 +120,11 @@ final class SavedGraphControllersTest extends WebTestCase
         $client->loginUser($project->owner);
         $client->request(Request::METHOD_POST, $this->savePath($projectId), $this->form(['name' => str_repeat('a', 121)]), [], self::HEADERS);
 
-        self::assertResponseRedirects();
-        self::assertArrayHasKey('error', $this->flashes($client));
+        self::assertResponseStatusCodeSame(422);
         self::assertSame([], $this->stored($projectId));
     }
 
-    public function test_a_locked_chart_type_is_refused_and_kept_in_the_redirect(): void
+    public function test_a_locked_chart_type_is_refused(): void
     {
         $client = static::createClient();
         $project = $this->scenarioProject('save-locked');
@@ -133,8 +134,8 @@ final class SavedGraphControllersTest extends WebTestCase
         $client->loginUser($project->owner);
         $client->request(Request::METHOD_POST, $this->savePath($projectId), $this->form(['chart' => 'donut', 'statistic' => 'median']), [], self::HEADERS);
 
-        self::assertResponseRedirects('/projects/'.$projectId.'/analytics/metrics?metric=cost&unit=run&statistic=median&group=none&range=thirty-days&bucket=day&compare=off&chart=donut');
-        self::assertSame(['error' => ['This chart type needs a sum, a count or a mean of a metric that adds up. Change the statistic, or pick another chart type.']], $this->flashes($client));
+        self::assertResponseStatusCodeSame(422);
+        self::assertStringContainsString('This chart type needs a sum, a count or a mean of a metric that adds up. Change the statistic, or pick another chart type.', (string) $client->getResponse()->getContent());
         self::assertSame([], $this->stored($projectId));
     }
 
@@ -151,12 +152,12 @@ final class SavedGraphControllersTest extends WebTestCase
         $client->loginUser($project->owner);
         $client->request(Request::METHOD_POST, $this->savePath($projectId), $this->form(), [], self::HEADERS);
 
-        self::assertResponseRedirects();
-        self::assertSame(['error' => ['The dashboard holds at most 12 graphs. Remove a graph first.']], $this->flashes($client));
+        self::assertResponseStatusCodeSame(422);
+        self::assertStringContainsString('The dashboard holds at most 12 graphs. Remove a graph first.', (string) $client->getResponse()->getContent());
         self::assertCount(12, $this->stored($projectId));
     }
 
-    public function test_an_update_changes_the_graph_and_returns_to_the_metrics_with_its_id(): void
+    public function test_an_update_changes_the_graph_and_answers_the_banner_and_a_clean_leave_guard(): void
     {
         $client = static::createClient();
         $project = $this->scenarioProject('update-ok');
@@ -168,8 +169,13 @@ final class SavedGraphControllersTest extends WebTestCase
         $client->loginUser($project->owner);
         $client->request(Request::METHOD_POST, $this->updatePath($projectId, $graphId), $this->form(['name' => 'Renamed', 'chart' => 'line']), [], self::HEADERS);
 
-        self::assertResponseRedirects('/projects/'.$projectId.'/analytics/metrics?graph='.$graphId.'&unit=run&statistic=sum&range=thirty-days&bucket=day');
-        self::assertSame(['success' => ['The graph is updated.']], $this->flashes($client));
+        self::assertResponseIsSuccessful();
+        $stream = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('The graph is updated.', $stream);
+        self::assertStringContainsString('<turbo-stream action="update" target="metrics-edit-banner">', $stream);
+        self::assertStringContainsString('<turbo-stream action="replace" target="metrics-leave-guard">', $stream);
+        self::assertStringContainsString('data-leave-guard-dirty-value="false"', $stream);
+        self::assertStringNotContainsString('target="metrics-saved"', $stream);
         $graphs = $this->stored($projectId);
         self::assertCount(1, $graphs);
         self::assertSame('Renamed', $graphs[0]->name);
@@ -188,8 +194,7 @@ final class SavedGraphControllersTest extends WebTestCase
         $client->loginUser($project->owner);
         $client->request(Request::METHOD_POST, $this->updatePath($projectId, $graphId), $this->form(['name' => 'Renamed', '_token' => 'wrong']), [], self::HEADERS);
 
-        self::assertResponseRedirects();
-        self::assertArrayHasKey('error', $this->flashes($client));
+        self::assertResponseStatusCodeSame(422);
         self::assertSame('Tests', $this->stored($projectId)[0]->name);
     }
 
@@ -285,15 +290,6 @@ final class SavedGraphControllersTest extends WebTestCase
     private function form(array $overrides = []): array
     {
         return ['saved_graph_form' => $overrides + self::SETTINGS + ['name' => '', '_token' => 'csrf-token']];
-    }
-
-    /** @return array<string, list<string>> */
-    private function flashes(KernelBrowser $client): array
-    {
-        $session = $client->getRequest()->getSession();
-        self::assertInstanceOf(FlashBagAwareSessionInterface::class, $session);
-
-        return $session->getFlashBag()->peekAll();
     }
 
     /** @return list<InsightsSavedGraph> */

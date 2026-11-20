@@ -16,7 +16,7 @@ final class StartAnalysisControllerTest extends WebTestCase
 {
     use InsightsScenario;
 
-    public function test_the_form_starts_an_analysis_and_redirects_back_with_a_flash(): void
+    public function test_the_form_starts_an_analysis_and_answers_a_flash_stream(): void
     {
         $client = static::createClient();
         $project = $this->scenarioProject('start-analysis');
@@ -32,9 +32,9 @@ final class StartAnalysisControllerTest extends WebTestCase
             'start_analysis_form[effort]' => 'high',
         ]);
 
-        self::assertResponseRedirects('/projects/'.$projectId.'/analytics/reports');
-        $crawler = $client->followRedirect();
-        self::assertStringContainsString('The analysis waits for a bridge.', $crawler->filter('body')->text());
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('The analysis waits for a bridge.', (string) $client->getResponse()->getContent());
+        self::assertStringContainsString('action="prepend" target="main-content"', (string) $client->getResponse()->getContent());
         $analyses = $this->analyses($projectId);
         self::assertCount(1, $analyses);
         self::assertSame('opus', $analyses[0]->model);
@@ -58,7 +58,7 @@ final class StartAnalysisControllerTest extends WebTestCase
             'start_analysis_form[range]' => 'thirty-days',
         ]);
 
-        self::assertResponseRedirects('/projects/'.$projectId.'/analytics/reports');
+        self::assertResponseIsSuccessful();
         $analyses = $this->analyses($projectId);
         self::assertCount(1, $analyses);
         self::assertSame('time', $analyses[0]->topic->value);
@@ -79,7 +79,7 @@ final class StartAnalysisControllerTest extends WebTestCase
             'start_analysis_form[range]' => 'thirty-days',
         ]);
 
-        self::assertResponseRedirects('/projects/'.$projectId.'/analytics/reports');
+        self::assertResponseIsSuccessful();
         $analyses = $this->analyses($projectId);
         self::assertCount(1, $analyses);
         self::assertSame(AnalysisTopic::Host, $analyses[0]->topic);
@@ -98,7 +98,7 @@ final class StartAnalysisControllerTest extends WebTestCase
             'start_analysis_form' => ['topic' => 'cost', 'range' => 'thirty-days', 'model' => '', 'effort' => '', '_token' => 'csrf-token'],
         ], [], ['HTTP_REFERER' => 'http://localhost/']);
 
-        self::assertResponseRedirects('/projects/'.$projectId.'/analytics/reports');
+        self::assertResponseIsSuccessful();
         $analyses = $this->analyses($projectId);
         self::assertSame(['sonnet', 'medium'], [$analyses[0]->model, $analyses[0]->effort]);
     }
@@ -136,7 +136,7 @@ final class StartAnalysisControllerTest extends WebTestCase
             'start_analysis_form[range]' => 'all',
         ]);
 
-        self::assertResponseRedirects('/projects/'.$projectId.'/analytics/reports');
+        self::assertResponseIsSuccessful();
         $analyses = $this->analyses($projectId);
         self::assertCount(1, $analyses);
         self::assertSame('experiment', $analyses[0]->topic->value);

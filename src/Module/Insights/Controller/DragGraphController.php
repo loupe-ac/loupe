@@ -10,6 +10,7 @@ use App\Module\Insights\Command\MoveSavedGraphHandler;
 use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\Form\DragGraphRequest;
 use App\Module\Insights\Service\DashboardGraphForms;
+use App\Module\Insights\Service\DashboardStreamAnswers;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
@@ -18,7 +19,6 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Requirement\Requirement;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
-use Symfony\Contracts\Translation\TranslatorInterface;
 
 #[IsGranted(ProjectVoter::MANAGE, subject: 'project')]
 #[Route(
@@ -30,9 +30,9 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 class DragGraphController extends AppController
 {
     public function __construct(
+        private readonly DashboardStreamAnswers $answers,
         private readonly MoveSavedGraphHandler $handler,
         private readonly DashboardGraphForms $forms,
-        private readonly TranslatorInterface $translator,
     ) {
     }
 
@@ -46,11 +46,11 @@ class DragGraphController extends AppController
         $form->handleRequest($request);
 
         if (!$form->isSubmitted() || !$form->isValid()) {
-            $this->addFlash('error', $this->translator->trans('analytics.dashboard.flash.invalid'));
-        } else {
-            ($this->handler)(new MoveSavedGraphCommand($graph, $data->steps ?? throw new \LogicException('A valid step count is not null.')));
+            return $this->answers->invalid();
         }
 
-        return $this->redirectToRoute('app_project_analytics_dashboard', ['id' => (string) $project->id]);
+        ($this->handler)(new MoveSavedGraphCommand($graph, $data->steps ?? throw new \LogicException('A valid step count is not null.')));
+
+        return $this->answers->grid($project);
     }
 }

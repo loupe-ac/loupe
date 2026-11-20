@@ -8,6 +8,7 @@ use App\Controller\AppController;
 use App\Module\Insights\Command\RemoveSavedGraphCommand;
 use App\Module\Insights\Command\RemoveSavedGraphHandler;
 use App\Module\Insights\Entity\InsightsSavedGraph;
+use App\Module\Insights\Service\DashboardStreamAnswers;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
@@ -28,6 +29,7 @@ use Ubermuda\SymfonyExtra\Csrf\Attribute\CsrfToken;
 class RemoveGraphController extends AppController
 {
     public function __construct(
+        private readonly DashboardStreamAnswers $answers,
         private readonly RemoveSavedGraphHandler $removeGraph,
     ) {
     }
@@ -38,6 +40,6 @@ class RemoveGraphController extends AppController
     ): Response {
         ($this->removeGraph)(new RemoveSavedGraphCommand($graph));
 
-        return $this->redirectToRoute('app_project_analytics_dashboard', ['id' => (string) $project->id, 'removed' => (string) $graph->id]);
+        return $this->answers->grid($project, $graph);
     }
 }

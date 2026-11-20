@@ -9,6 +9,7 @@ use App\Module\Insights\Command\MoveSavedGraphCommand;
 use App\Module\Insights\Command\MoveSavedGraphHandler;
 use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\Entity\SavedGraphDirection;
+use App\Module\Insights\Service\DashboardStreamAnswers;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
@@ -29,6 +30,7 @@ use Ubermuda\SymfonyExtra\Csrf\Attribute\CsrfToken;
 class MoveGraphController extends AppController
 {
     public function __construct(
+        private readonly DashboardStreamAnswers $answers,
         private readonly MoveSavedGraphHandler $moveGraph,
     ) {
     }
@@ -40,6 +42,6 @@ class MoveGraphController extends AppController
     ): Response {
         ($this->moveGraph)(new MoveSavedGraphCommand($graph, SavedGraphDirection::Up === $direction ? -1 : 1));
 
-        return $this->redirectToRoute('app_project_analytics_dashboard', ['id' => (string) $project->id]);
+        return $this->answers->grid($project);
     }
 }

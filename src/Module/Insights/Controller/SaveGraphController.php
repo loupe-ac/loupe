@@ -10,6 +10,7 @@ use App\Module\Insights\Command\SaveSavedGraphCommand;
 use App\Module\Insights\Command\SaveSavedGraphHandler;
 use App\Module\Insights\Form\SavedGraphFormType;
 use App\Module\Insights\Form\SavedGraphRequest;
+use App\Module\Insights\Service\MetricsSaveStreamAnswers;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
 use Symfony\Component\HttpFoundation\Request;
@@ -27,6 +28,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 class SaveGraphController extends AppController
 {
     public function __construct(
+        private readonly MetricsSaveStreamAnswers $answers,
         private readonly SaveSavedGraphHandler $saveGraph,
         private readonly TranslatorInterface $translator,
     ) {
@@ -37,26 +39,21 @@ class SaveGraphController extends AppController
         $data = new SavedGraphRequest();
         $form = $this->createForm(SavedGraphFormType::class, $data);
         $form->handleRequest($request);
-        $params = ['id' => (string) $project->id] + $data->settings();
 
         if (!$form->isSubmitted() || !$form->isValid()) {
-            $this->addFlash('error', $this->translator->trans('analytics.metrics.saved_graph.flash.invalid'));
-
-            return $this->redirectToRoute('app_project_analytics_metrics', $params);
+            return $this->answers->refused($this->translator->trans('analytics.metrics.saved_graph.flash.invalid'));
         }
 
         try {
             $result = ($this->saveGraph)(new SaveSavedGraphCommand($project, $data->name, $data->settings()));
         } catch (DomainErrors $e) {
-            foreach ($e->errors as $field => $translationKey) {
-                $this->addFlash('error', $this->translator->trans($translationKey, $e->parameters[$field] ?? []));
-            }
-
-            return $this->redirectToRoute('app_project_analytics_metrics', $params);
+            return $this->answers->refused(implode(' ', array_map(
+                fn (string $field, string $translationKey): string => $this->translator->trans($translationKey, $e->parameters[$field] ?? []),
+                array_keys($e->errors),
+                $e->errors,
+            )));
         }
 
-        $this->addFlash('success', $this->translator->trans('analytics.metrics.saved_graph.flash.saved'));
-
-        return $this->redirectToRoute('app_project_analytics_metrics', ['id' => (string) $project->id] + $result->query->routeParams() + ['saved' => (string) $result->graph->id]);
+        return $this->answers->saved($project, $result->graph, $data, true, $this->translator->trans('analytics.metrics.saved_graph.flash.saved'));
     }
 }

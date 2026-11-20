@@ -432,8 +432,9 @@ period, so the change is empty and the sign reads **Not enough cards**.
 
 Press **Save to dashboard** on the Metrics tab to keep the graph. A **Name**
 field opens, filled with the title of the graph. You can edit the name. An empty
-name takes the title. Two graphs can share a name. After the save, a notice links
-to the Dashboard.
+name takes the title. Two graphs can share a name. The page stays where it is
+when you save. A message confirms the save, and a link to the Dashboard appears
+above the controls. **Save changes** in edit mode also keeps the page as it is.
 
 A saved graph keeps the metric, the statistic, the unit, the group, the range,
 the bucket, the compare and the chart type. The range stays rolling, so **30
@@ -471,6 +472,11 @@ The menu of a tile has these actions:
 After a removal, a notice offers **Undo**, which puts the tile back in its place.
 The graph stays removable for one day. **Undo** checks the limit of 12 graphs, so
 it refuses when the Dashboard is full.
+
+Every tile action keeps the page where it is. A rename, a width change or a
+legend switch updates only that tile. A move, a drag, a removal and an undo
+update only the grid of tiles. A drag or a form that Loupe refuses puts the tile
+back and shows a message.
 
 In edit mode, a banner names the saved graph. **Save changes** updates it, and
 **Save as new graph** saves a copy. When you leave with unsaved changes, a dialog
@@ -700,6 +706,11 @@ estimated saving. A proposal is **Proposed** until you act on it.
 - Press **Create the card** to put a feature card in the backlog of the board.
   The proposal then reads **Card created**, with a link to the card.
 - Press **Dismiss** to close the proposal. Type an optional reason first.
+
+The page stays where it is when you press **Create the card**, **Create the rule**
+or **Dismiss**. Only the analysis that holds the proposal changes, and a message
+confirms it. A dismissal reason that is too long shows its error under the field.
+The new analysis of **Analyse** appears in the list through the live update.
 
 A proposal of the kind `bucket-rule` shows its pattern and its bucket. Press
 **Create the rule** on it to add the rule to the [time buckets](#time-buckets)

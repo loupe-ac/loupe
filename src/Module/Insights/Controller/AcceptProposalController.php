@@ -10,6 +10,7 @@ use App\Module\Insights\Command\AcceptProposalCommand;
 use App\Module\Insights\Command\AcceptProposalHandler;
 use App\Module\Insights\Entity\Proposal;
 use App\Module\Insights\Entity\ProposalKind;
+use App\Module\Insights\Service\ReportStreamAnswers;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
@@ -32,6 +33,7 @@ use Ubermuda\SymfonyExtra\Csrf\Attribute\CsrfToken;
 class AcceptProposalController extends AppController
 {
     public function __construct(
+        private readonly ReportStreamAnswers $answers,
         private readonly AcceptProposalHandler $acceptProposal,
         private readonly TranslatorInterface $translator,
     ) {
@@ -44,21 +46,10 @@ class AcceptProposalController extends AppController
     ): Response {
         try {
             $accepted = ($this->acceptProposal)(new AcceptProposalCommand($proposal));
-            $this->addFlash('success', $this->translator->trans(ProposalKind::BucketRule === $accepted->kind ? 'insights.reports.flash.rule_accepted' : 'insights.reports.flash.accepted'));
         } catch (DomainErrors $e) {
-            foreach ($e->errors as $key) {
-                $this->addFlash('error', $this->translator->trans($key));
-            }
+            return $this->answers->row($project, $proposal, $request, 'error', implode(' ', array_map($this->translator->trans(...), $e->errors)), status: Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        return $this->redirectToRoute('app_project_analytics_reports', self::reportsPage($project, $request));
-    }
-
-    /** @return array<string, int|string> the Reports page the form came from */
-    private static function reportsPage(Project $project, Request $request): array
-    {
-        $page = $request->query->getInt('page', 1);
-
-        return $page > 1 ? ['id' => (string) $project->id, 'page' => $page] : ['id' => (string) $project->id];
+        return $this->answers->row($project, $proposal, $request, 'success', $this->translator->trans(ProposalKind::BucketRule === $accepted->kind ? 'insights.reports.flash.rule_accepted' : 'insights.reports.flash.accepted'));
     }
 }

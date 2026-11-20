@@ -1,0 +1,17 @@
+{# The answer to a save on the Metrics tab. Props: project (Project), graph (InsightsSavedGraph), saveForm (FormView), capReached (bool), capLimit (int), saved (bool, true for a new graph), severity (string), message (string). #}
+{% if saved %}
+<turbo-stream action="update" target="metrics-saved">
+    <template>
+        <p class="lp-metric-saved">
+            <twig:Ds:Button variant="outline" size="sm" href="{{ path('app_project_analytics_dashboard', {id: project.id}) }}" data-metrics-saved-link>
+                <twig:ux:icon name="lucide:chart-column" class="lp-icon lp-icon--sm" />{{ 'analytics.metrics.saved_graph.view'|trans }}
+            </twig:Ds:Button>
+        </p>
+    </template>
+</turbo-stream>
+{% else %}
+<turbo-stream action="update" target="metrics-edit-banner"><template>{% include '@Insights/_metrics_edit_banner.html.twig' with {project: project, graph: graph} only %}</template></turbo-stream>
+<turbo-stream action="replace" target="metrics-leave-guard"><template>{% include '@Insights/_metrics_leave_guard.html.twig' with {graph: graph, dirty: false} only %}</template></turbo-stream>
+{% endif %}
+<turbo-stream action="replace" target="metrics-save"><template>{% include '@Insights/_metrics_save_form.html.twig' with {project: project, graph: saved ? null : graph, saveForm: saveForm, capReached: capReached, capLimit: capLimit} only %}</template></turbo-stream>
+{% include '_flash.stream.html.twig' with {severity: severity, message: message} only %}

@@ -9,6 +9,7 @@ use App\Exception\DomainErrors;
 use App\Module\Insights\Command\RestoreSavedGraphCommand;
 use App\Module\Insights\Command\RestoreSavedGraphHandler;
 use App\Module\Insights\Entity\InsightsSavedGraph;
+use App\Module\Insights\Service\DashboardStreamAnswers;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
@@ -30,6 +31,7 @@ use Ubermuda\SymfonyExtra\Csrf\Attribute\CsrfToken;
 class UndoRemoveGraphController extends AppController
 {
     public function __construct(
+        private readonly DashboardStreamAnswers $answers,
         private readonly RestoreSavedGraphHandler $restoreGraph,
         private readonly TranslatorInterface $translator,
     ) {
@@ -42,13 +44,13 @@ class UndoRemoveGraphController extends AppController
         try {
             ($this->restoreGraph)(new RestoreSavedGraphCommand($graph));
         } catch (DomainErrors $e) {
-            foreach ($e->errors as $field => $translationKey) {
-                $this->addFlash('error', $this->translator->trans($translationKey, $e->parameters[$field] ?? []));
-            }
-
-            return $this->redirectToRoute('app_project_analytics_dashboard', ['id' => (string) $project->id, 'removed' => (string) $graph->id]);
+            return $this->answers->refused(implode(' ', array_map(
+                fn (string $field, string $translationKey): string => $this->translator->trans($translationKey, $e->parameters[$field] ?? []),
+                array_keys($e->errors),
+                $e->errors,
+            )));
         }
 
-        return $this->redirectToRoute('app_project_analytics_dashboard', ['id' => (string) $project->id]);
+        return $this->answers->grid($project);
     }
 }
