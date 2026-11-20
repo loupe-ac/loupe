@@ -1,6 +1,8 @@
 // A same-page redirect with a fragment morphs the page, and the fetch response
 // drops the fragment. So the form that submits names its section, and the
 // section scrolls into view after the morph when it is out of view.
+import { rendersSubmission } from './submission_render.js';
+
 let anchorId = null;
 let answered = false;
 
@@ -20,7 +22,7 @@ function registerMorphAnchor() {
         }
     });
     document.addEventListener('turbo:morph', () => {
-        if (!answered) {
+        if (!answered || !rendersSubmission()) {
             return;
         }
         const id = anchorId;
@@ -38,6 +40,9 @@ function registerMorphAnchor() {
     });
     // A full visit handles the fragment on its own.
     document.addEventListener('turbo:load', () => {
+        if (!rendersSubmission()) {
+            return;
+        }
         anchorId = null;
         answered = false;
     });

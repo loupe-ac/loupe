@@ -1,3 +1,5 @@
+import { rendersSubmission } from './submission_render.js';
+
 // A morph copies the saved state of the page onto it. A form that holds text
 // the reader typed, and is not the form that submits, would lose that text.
 const TEXT_FIELDS =
@@ -38,10 +40,11 @@ document.addEventListener('turbo:submit-end', (event) => {
         submitted = null;
     }
 });
-document.addEventListener('turbo:render', () => {
-    submitted = null;
-});
-document.addEventListener('turbo:morph', () => {
-    submitted = null;
-});
+function endSubmission() {
+    if (rendersSubmission()) {
+        submitted = null;
+    }
+}
+document.addEventListener('turbo:render', endSubmission);
+document.addEventListener('turbo:morph', endSubmission);
 document.addEventListener('turbo:before-morph-element', keepTypedForm);

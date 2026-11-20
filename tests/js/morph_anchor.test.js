@@ -115,3 +115,21 @@ it('keeps the section through a morph that arrives before the answer', () => {
     document.dispatchEvent(new CustomEvent('turbo:morph'));
     expect(section.scrollIntoView).toHaveBeenCalledOnce();
 });
+
+it('keeps the section through an unrelated morph after the request ended', () => {
+    place(900, 1100);
+    submit('identity-form');
+    answer();
+    window.Turbo = {
+        session: { navigator: { currentVisit: { response: undefined } } },
+    };
+    document.dispatchEvent(new CustomEvent('turbo:visit'));
+    document.dispatchEvent(new CustomEvent('turbo:morph'));
+    expect(section.scrollIntoView).not.toHaveBeenCalled();
+    const own = { response: { responseHTML: '<html></html>' } };
+    window.Turbo = { session: { navigator: { currentVisit: own } } };
+    document.dispatchEvent(new CustomEvent('turbo:visit'));
+    document.dispatchEvent(new CustomEvent('turbo:morph'));
+    expect(section.scrollIntoView).toHaveBeenCalledOnce();
+    delete window.Turbo;
+});

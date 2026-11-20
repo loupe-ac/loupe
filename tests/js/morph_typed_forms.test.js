@@ -88,3 +88,24 @@ it('lets the form take an HTML answer that ends the request', () => {
     submitEnd(form, { header: () => 'text/html; charset=utf-8' });
     expect(morph(form)).toBe(false);
 });
+
+function startVisit(visit) {
+    window.Turbo = { session: { navigator: { currentVisit: visit } } };
+    document.dispatchEvent(new CustomEvent('turbo:visit'));
+}
+
+it('keeps the submitting form through an unrelated morph after the request ended', () => {
+    document.body.innerHTML = '<form id="f"><textarea></textarea></form>';
+    const form = document.getElementById('f');
+    form.querySelector('textarea').value = 'typed';
+    form.dispatchEvent(
+        new CustomEvent('turbo:submit-start', { bubbles: true }),
+    );
+    startVisit({ response: undefined });
+    document.dispatchEvent(new CustomEvent('turbo:morph'));
+    expect(morph(form)).toBe(false);
+    startVisit({ response: { responseHTML: '<html></html>' } });
+    document.dispatchEvent(new CustomEvent('turbo:morph'));
+    expect(morph(form)).toBe(true);
+    delete window.Turbo;
+});
