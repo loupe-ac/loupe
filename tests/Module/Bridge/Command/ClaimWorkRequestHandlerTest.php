@@ -18,6 +18,8 @@ use App\Module\Bridge\Service\CardHolds;
 use App\Module\Bridge\ValueObject\WorkRequestRefusal;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
+use App\Module\Inbox\Entity\InboxItem;
+use App\Module\Project\Entity\Project;
 use App\Tests\Module\Bridge\BlockingRepositories;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Support\DispatchedEvents;
@@ -315,6 +317,21 @@ final class ClaimWorkRequestHandlerTest extends KernelTestCase
         self::assertSame([], $changes->events());
         $this->em()->clear();
         self::assertSame(WorkRequestState::Open, $this->em()->find(WorkRequest::class, $request->id)?->state);
+    }
+
+    public function test_an_account_that_lists_the_card_session_claims_the_session_of_an_inbox_item(): void
+    {
+        [$owner, $bridge] = $this->scenario('claim-handler-inbox-session', WorkRequestState::Open);
+        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION];
+        $bridge->workKinds = [WorkRequest::SESSION_KIND, Bridge::workKindOf(InboxItem::SUBJECT_TYPE, WorkRequest::SESSION_KIND)];
+        $bridge->accounts = [['name' => 'claude', 'harness' => 'claude', 'state' => 'ready', 'reason' => null, 'kinds' => ['product-design', WorkRequest::SESSION_KIND, 'tech-design-session']]];
+        $project = $this->em()->find(Project::class, Uuid::fromString($bridge->projects[0])) ?? throw new \LogicException('The scenario seeds a project.');
+        $request = $this->seedWorkRequest($this->em(), $project, kind: WorkRequest::SESSION_KIND, capability: Bridge::CAPABILITY_SESSION, subject: new WorkSubject(InboxItem::SUBJECT_TYPE, Uuid::v7()));
+
+        $result = $this->claim($owner, $bridge, $request, 'claude');
+
+        self::assertNull($result->refusal);
+        self::assertSame(WorkRequestState::Claimed, $result->request?->state);
     }
 
     public function test_a_claim_with_no_account_is_accepted_when_every_account_reports_its_kinds_and_none_runs_the_kind(): void
