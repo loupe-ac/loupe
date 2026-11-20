@@ -55,9 +55,7 @@ test('a Backlog search swaps the list and a live signal keeps the filter', async
         await search.click();
         await watcher.keyboard.type('Otter');
         await expect(watcher).toHaveURL(/search=Otter/, LIVE);
-        await expect(watcher.locator('[data-backlog-card-id]')).toHaveCount(
-            1,
-        );
+        await expect(watcher.locator('[data-backlog-card-id]')).toHaveCount(1);
     });
     await expect(search).toHaveValue('Otter');
     await expect(search).toBeFocused();
@@ -93,8 +91,7 @@ test('a documents search swaps the list and a live signal keeps the filter', asy
         form: { title: 'Otter notes', markdown: '# Otter notes' },
     });
     expect(first.status()).toBe(201);
-    const projectId = ((await first.json()) as { projectId: string })
-        .projectId;
+    const projectId = ((await first.json()) as { projectId: string }).projectId;
     const second = await watcher.request.post('/dev/seed/document', {
         form: { title: 'Heron notes', markdown: '# Heron notes' },
     });
