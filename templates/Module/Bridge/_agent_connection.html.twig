@@ -1,6 +1,6 @@
 {#- One connection card of the Agents page. Props: project, connection (AgentConnection), canManage (bool). -#}
 {% set bridge = connection.bridge %}
-<article class="lp-agent-card" id="agent-connection-{{ bridge.id }}" data-agent-connection-id="{{ bridge.id }}" tabindex="-1">
+<article class="lp-agent-card" id="agent-connection-{{ bridge.id }}" data-agent-connection-id="{{ bridge.id }}" data-morph-anchor tabindex="-1">
     <div class="lp-agent-card__art">
         <twig:Ds:StatusChip :modifier="connection.healthChip.tone" data-agent-health data-agent-health-state="{{ connection.healthChip.state }}">{{ connection.healthChip.label|trans }}</twig:Ds:StatusChip>
         <twig:ux:icon name="lucide:bot" />

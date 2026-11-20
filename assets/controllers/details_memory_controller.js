@@ -5,7 +5,18 @@ import { Controller } from '@hotwired/stimulus';
 export const choices = new Map();
 
 // A frame reload fires no visit, so the choices last for one visit of the page only.
-document.addEventListener('turbo:visit', () => choices.clear());
+// A refresh of the same page morphs it, so the choices outlast that visit.
+document.addEventListener('turbo:visit', (event) => {
+    const { url, action } = event.detail ?? {};
+    const refresh =
+        action === 'replace' &&
+        url !== undefined &&
+        new URL(url, window.location.href).pathname ===
+            window.location.pathname;
+    if (!refresh) {
+        choices.clear();
+    }
+});
 
 /**
  * Keeps a `<details>` section open or closed as the reader left it, across the reloads of a live page.
@@ -21,12 +32,31 @@ export default class extends Controller {
         }
         this.element.addEventListener('click', this.watch);
         this.element.addEventListener('toggle', this.remember);
+        this.element.addEventListener(
+            'turbo:before-morph-attribute',
+            this.keep,
+        );
     }
 
     disconnect() {
         this.element.removeEventListener('click', this.watch);
         this.element.removeEventListener('toggle', this.remember);
+        this.element.removeEventListener(
+            'turbo:before-morph-attribute',
+            this.keep,
+        );
     }
+
+    // A morph keeps the element, so connect does not run again to apply the choice.
+    keep = (event) => {
+        if (
+            event.target === this.element &&
+            event.detail.attributeName === 'open' &&
+            choices.has(this.keyValue)
+        ) {
+            event.preventDefault();
+        }
+    };
 
     watch = (event) => {
         if (event.target.closest('summary')?.parentElement === this.element) {

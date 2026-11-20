@@ -35,6 +35,17 @@ it('treats a checked switch as an active filter', async () => {
     expect(clear.classList.contains('pointer-events-none')).toBe(false);
 });
 
+it('updates the clear button when a morph resets its classes', async () => {
+    const clear = await mount(false);
+    clear.className = '';
+
+    document
+        .querySelector('form')
+        .dispatchEvent(new CustomEvent('turbo:morph-element'));
+
+    expect(clear.classList.contains('pointer-events-none')).toBe(true);
+});
+
 it('empties the fields and submits when the clear link is clicked', async () => {
     application = Application.start();
     application.register('autosearch', AutosearchController);

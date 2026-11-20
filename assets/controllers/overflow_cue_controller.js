@@ -26,10 +26,8 @@ export default class extends Controller {
         this.resizeObserver = new ResizeObserver(() =>
             this.revealPending ? this.reveal() : this.update(),
         );
-        this.resizeObserver.observe(this.viewportTarget);
-        for (const child of this.viewportTarget.children) {
-            this.resizeObserver.observe(child);
-        }
+        this.observeSizes();
+        this.element.addEventListener('turbo:morph-element', this.onMorph);
         this.activeObserver = new MutationObserver(() => this.reveal());
         this.activeObserver.observe(this.viewportTarget, {
             subtree: true,
@@ -40,7 +38,23 @@ export default class extends Controller {
         this.reveal();
     }
 
+    observeSizes() {
+        this.resizeObserver.observe(this.viewportTarget);
+        for (const child of this.viewportTarget.children) {
+            this.resizeObserver.observe(child);
+        }
+    }
+
+    // A morph can replace the children that the observer watches.
+    onMorph = (event) => {
+        if (event.target !== this.element || !this.resizeObserver) return;
+        this.resizeObserver.disconnect();
+        this.observeSizes();
+        this.reveal();
+    };
+
     disconnect() {
+        this.element.removeEventListener('turbo:morph-element', this.onMorph);
         this.viewportTarget.removeEventListener('scroll', this.onScroll);
         this.resizeObserver?.disconnect();
         this.resizeObserver = null;

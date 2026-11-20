@@ -492,3 +492,15 @@ it.each([
         expect(controller.invoker).toBeNull();
     },
 );
+
+it('points the openers at the drawer frame again after a page morph', () => {
+    const opener = document.createElement('a');
+    opener.href = '/card/2';
+    opener.dataset.cardDrawerOpener = '';
+    document.body.append(opener);
+    document.dispatchEvent(new Event('turbo:morph'));
+    expect(opener.dataset.turboFrame).toBe('card-drawer-frame');
+    opener.removeAttribute('data-turbo-frame');
+    document.dispatchEvent(new Event('turbo:morph'));
+    expect(opener.dataset.turboFrame).toBe('card-drawer-frame');
+});

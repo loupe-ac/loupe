@@ -93,6 +93,24 @@ final class ListAgentsControllerTest extends WebTestCase
         self::assertStringNotContainsString('other-version', $crawler->text());
     }
 
+    public function test_a_connection_card_is_a_morph_anchor_with_an_id(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'agents-anchor@example.com');
+        $project = $this->project($em, $owner, 'Crew');
+        $bridge = $this->seedBridge($em, $owner, projects: [(string) $project->id], cliVersion: 'anchor-version');
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/agents');
+
+        self::assertResponseIsSuccessful();
+        $card = $crawler->filter('[data-agent-connection-id="'.$bridge->id.'"][data-morph-anchor]');
+        self::assertCount(1, $card);
+        self::assertSame('agent-connection-'.$bridge->id, $card->attr('id'));
+    }
+
     public function test_a_commit_sha_version_shows_its_short_form(): void
     {
         $client = static::createClient();

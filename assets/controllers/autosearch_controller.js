@@ -8,6 +8,7 @@ export default class extends Controller {
     connect() {
         this.timeout = null;
         this.#updateClearButton();
+        this.element.addEventListener('turbo:morph-element', this.#onMorph);
         this.clearFromOutside = (event) => {
             const proxy = event.target.closest?.('[data-clear-filter-form]');
             if (
@@ -33,10 +34,17 @@ export default class extends Controller {
         document.addEventListener('turbo:frame-render', this.syncFromFrame);
     }
 
+    #onMorph = (event) => {
+        if (event.target === this.element) {
+            this.#updateClearButton();
+        }
+    };
+
     disconnect() {
         document.removeEventListener('click', this.clearFromOutside);
         document.removeEventListener('turbo:frame-render', this.syncFromFrame);
         clearTimeout(this.timeout);
+        this.element.removeEventListener('turbo:morph-element', this.#onMorph);
     }
 
     revealField(event) {

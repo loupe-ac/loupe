@@ -46,7 +46,7 @@
 
     <twig:GitIdentity :project="project" />
 
-    <twig:Ds:Panel as="section" id="site-review-widget">
+    <twig:Ds:Panel as="section" id="site-review-widget" data-morph-anchor>
         <twig:Ds:SectionHeading>{{ 'project.connect.card.widget.title'|trans }}</twig:Ds:SectionHeading>
         <p class="lp-connect-hint">
             {%- if project.domain -%}

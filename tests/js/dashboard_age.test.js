@@ -102,3 +102,24 @@ it('rolls the line over from minutes to hours as the page stays open', async () 
 
     expect(line().textContent).toBe('Updated 1 hour ago');
 });
+
+it('moves the line when a morph changes the stamp of a tile in place', async () => {
+    await mount(tile(60));
+    expect(line().textContent).toBe('Updated 1 min ago');
+
+    document
+        .querySelector('[data-computed-at]')
+        .setAttribute('data-computed-at', String(NOW - 600));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(line().textContent).toBe('Updated 10 min ago');
+});
+
+it('hides the line again when a morph reveals it with no tile result', async () => {
+    await mount('');
+
+    line().hidden = false;
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(line().hidden).toBe(true);
+});

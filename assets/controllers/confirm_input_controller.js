@@ -16,8 +16,19 @@ export default class extends Controller {
     static values = { expected: String };
 
     connect() {
+        this.element.addEventListener('turbo:morph-element', this.#onMorph);
         this.check();
     }
+
+    disconnect() {
+        this.element.removeEventListener('turbo:morph-element', this.#onMorph);
+    }
+
+    #onMorph = (event) => {
+        if (event.target === this.element) {
+            this.check();
+        }
+    };
 
     check() {
         // Byte-for-byte match — the server compares the untrimmed value too.

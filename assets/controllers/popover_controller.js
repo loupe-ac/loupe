@@ -27,6 +27,7 @@ export default class extends Controller {
         this.element.addEventListener('keydown', this.onKeydown);
         this.onBeforeCache = () => this.close({ restoreFocus: false });
         document.addEventListener('turbo:before-cache', this.onBeforeCache);
+        this.element.addEventListener('turbo:morph-element', this.#onMorph);
         this.#setExpanded(!this.panelTarget.hidden);
     }
 
@@ -35,7 +36,17 @@ export default class extends Controller {
         document.removeEventListener('click', this.onDocumentClick);
         this.element.removeEventListener('keydown', this.onKeydown);
         document.removeEventListener('turbo:before-cache', this.onBeforeCache);
+        this.element.removeEventListener('turbo:morph-element', this.#onMorph);
     }
+
+    #onMorph = (event) => {
+        if (event.target === this.element) {
+            if (this.panelTarget.hidden) {
+                this.stopFollowing();
+            }
+            this.#setExpanded(!this.panelTarget.hidden);
+        }
+    };
 
     toggle(event) {
         event.preventDefault();

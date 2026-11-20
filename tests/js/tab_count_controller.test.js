@@ -69,3 +69,13 @@ it('strips a prefix that the incoming page title already carries', async () => {
 
     expect(document.title).toBe('(2) Board — Loupe');
 });
+
+it('puts the prefix back when a page morph replaces the title', async () => {
+    mount(3);
+    await Promise.resolve();
+
+    document.title = 'Board — Loupe';
+    document.dispatchEvent(new CustomEvent('turbo:morph'));
+
+    expect(document.title).toBe('(3) Board — Loupe');
+});

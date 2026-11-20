@@ -18,8 +18,20 @@ export default class extends ModalController {
     connect() {
         super.connect();
         this.trail = [];
+        this.element.addEventListener('turbo:morph-element', this.#onMorph);
         this.#render();
     }
+
+    disconnect() {
+        this.element.removeEventListener('turbo:morph-element', this.#onMorph);
+        super.disconnect();
+    }
+
+    #onMorph = (event) => {
+        if (event.target === this.element) {
+            this.#render();
+        }
+    };
 
     open(event) {
         this.trail = [];

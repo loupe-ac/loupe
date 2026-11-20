@@ -35,7 +35,12 @@ export default class extends Controller {
     connect() {
         this.offset = this.nowValue - Date.now() / 1000;
         this.observer = new MutationObserver(() => this.render());
-        this.observer.observe(this.element, { childList: true, subtree: true });
+        this.observer.observe(this.element, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['data-computed-at', 'hidden'],
+        });
         this.timer = setInterval(() => this.render(), TICK_MILLISECONDS);
         this.render();
     }
@@ -54,7 +59,7 @@ export default class extends Controller {
             .map((tile) => Number(tile.dataset.computedAt))
             .filter(Number.isFinite);
         if (stamps.length === 0) {
-            this.lineTarget.hidden = true;
+            this.setHidden(true);
             return;
         }
         const seconds = Date.now() / 1000 + this.offset - Math.min(...stamps);
@@ -66,6 +71,13 @@ export default class extends Controller {
         if (this.lineTarget.textContent !== text) {
             this.lineTarget.textContent = text;
         }
-        this.lineTarget.hidden = false;
+        this.setHidden(false);
+    }
+
+    // Writing the same value still queues an attribute mutation, which would re-run render.
+    setHidden(hidden) {
+        if (this.lineTarget.hidden !== hidden) {
+            this.lineTarget.hidden = hidden;
+        }
     }
 }

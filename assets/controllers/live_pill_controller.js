@@ -25,6 +25,8 @@ export default class extends Controller {
 
     connect() {
         this.attempt = 0;
+        this.isLive = false;
+        this.isStopped = false;
         this.onMissing = (event) => this.missing(event);
         this.onRequestError = () => this.failed(true);
         this.onLoad = () => this.loaded();
@@ -34,6 +36,7 @@ export default class extends Controller {
             this.onRequestError,
         );
         this.element.addEventListener('turbo:frame-load', this.onLoad);
+        this.element.addEventListener('turbo:morph-element', this.onMorph);
         this.unsubscribe = on(
             this.eventsValue,
             (data) => {
@@ -48,16 +51,30 @@ export default class extends Controller {
             {
                 onOpen: () => {
                     this.restart();
+                    this.isLive = true;
                     this.element.setAttribute('data-live-pill-connected', '');
                 },
-                onError: () =>
-                    this.element.removeAttribute('data-live-pill-connected'),
+                onError: () => {
+                    this.isLive = false;
+                    this.element.removeAttribute('data-live-pill-connected');
+                },
             },
         );
     }
 
+    // A morph resets the marker attributes and the status line that the server never renders.
+    onMorph = (event) => {
+        if (event.target !== this.element) return;
+        this.element.toggleAttribute('data-live-pill-connected', this.isLive);
+        this.element.toggleAttribute(STOPPED_ATTRIBUTE, this.isStopped);
+        this.statusTargets.forEach((line) => {
+            line.textContent = this.isStopped ? this.stoppedValue : '';
+        });
+    };
+
     disconnect() {
         clearTimeout(this.timeout);
+        this.element.removeEventListener('turbo:morph-element', this.onMorph);
         this.element.removeEventListener('turbo:frame-missing', this.onMissing);
         this.element.removeEventListener(
             'turbo:fetch-request-error',
@@ -98,6 +115,7 @@ export default class extends Controller {
 
     loaded() {
         this.attempt = 0;
+        this.isStopped = false;
         this.element.removeAttribute(STOPPED_ATTRIBUTE);
         this.statusTargets.forEach((line) => {
             line.textContent = '';
@@ -105,6 +123,7 @@ export default class extends Controller {
     }
 
     showStopped() {
+        this.isStopped = true;
         this.element.setAttribute(STOPPED_ATTRIBUTE, '');
         this.statusTargets.forEach((line) => {
             line.textContent = this.stoppedValue;

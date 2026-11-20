@@ -34,6 +34,22 @@ export default class extends Controller {
     static values = { enabled: Boolean, moduleUrl: String };
 
     connect() {
+        this.build();
+        document.addEventListener('turbo:morph', this.onMorph);
+    }
+
+    // A page morph drops the hosts that the server never rendered.
+    onMorph = () => {
+        const missingHost = [
+            ...this.docTarget.querySelectorAll('pre > code.language-mermaid'),
+        ].some(
+            (code) =>
+                !code.parentElement.nextElementSibling?.matches('.lp-mermaid'),
+        );
+        if (missingHost) this.build();
+    };
+
+    build() {
         // A Turbo snapshot keeps the empty hosts and the hidden sources.
         this.removeHosts();
         const blocks = [
@@ -55,6 +71,7 @@ export default class extends Controller {
     }
 
     disconnect() {
+        document.removeEventListener('turbo:morph', this.onMorph);
         this.removeHosts();
     }
 

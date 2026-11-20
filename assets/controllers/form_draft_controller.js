@@ -35,6 +35,25 @@ export default class extends Controller {
         this.baseline = JSON.stringify(this.fields());
         this.identity =
             this.element.dataset.formDraftIdentity ?? crypto.randomUUID();
+        this.restore();
+        this.element.addEventListener('turbo:morph-element', this.onMorph);
+    }
+
+    disconnect() {
+        this.element.removeEventListener('turbo:morph-element', this.onMorph);
+    }
+
+    onMorph = (event) => {
+        if (event.target !== this.element) return;
+        this.freshGuards = this.guards();
+        this.element.dataset.formDraftFreshGuards = JSON.stringify(
+            this.freshGuards,
+        );
+        this.baseline = JSON.stringify(this.fields());
+        this.restore();
+    };
+
+    restore() {
         const draft = formDraft(this.keyValue);
         if (draft) {
             this.baseline = draft.baseline;
