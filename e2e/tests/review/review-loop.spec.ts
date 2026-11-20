@@ -692,7 +692,7 @@ test('a completed review leaves another tabs unsent review recoverable', async (
     context,
     review,
 }) => {
-    // Two tabs, a submit with its redirect and three page loads, after a login
+    // Two tabs, a submit and three page loads, after a login
     // that took 15 s of the 30 s budget on a loaded runner.
     test.slow();
     await page
@@ -713,15 +713,14 @@ test('a completed review leaves another tabs unsent review recoverable', async (
         .getByRole('button', { name: 'Finish review', exact: true })
         .click();
     await other.getByRole('radio', { name: 'Approve', exact: true }).check();
-    // The bar renders from the redirect after the submit. A loaded CI runner
-    // answered that pair in 4.6 s, so wait for it before the render check.
-    const reviewPageReloaded = other.waitForResponse(
+    // The verdict answers with a Turbo Stream, so wait for the submit itself.
+    const verdictSubmitted = other.waitForResponse(
         (r) =>
-            r.request().method() === 'GET' &&
-            new URL(r.url()).pathname === review.reviewUrl,
+            r.request().method() === 'POST' &&
+            new URL(r.url()).pathname === `${review.reviewUrl}/submit`,
     );
     await other.getByRole('button', { name: 'Submit review' }).click();
-    expect((await reviewPageReloaded).status()).toBe(200);
+    expect((await verdictSubmitted).status()).toBe(200);
     await expect(other.locator('.lp-verdict-chip--approved')).toBeVisible();
     await page
         .getByRole('button', { name: 'More about this document' })
