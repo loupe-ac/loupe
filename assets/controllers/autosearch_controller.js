@@ -9,6 +9,17 @@ export default class extends Controller {
         this.timeout = null;
         this.#updateClearButton();
         this.#resumeTyping();
+        this.clearFromOutside = (event) => {
+            const proxy = event.target.closest?.('[data-clear-filter-form]');
+            if (
+                proxy &&
+                this.element.id &&
+                proxy.dataset.clearFilterForm === this.element.id
+            ) {
+                this.clear(event);
+            }
+        };
+        document.addEventListener('click', this.clearFromOutside);
     }
 
     /**
@@ -32,6 +43,7 @@ export default class extends Controller {
     }
 
     disconnect() {
+        document.removeEventListener('click', this.clearFromOutside);
         clearTimeout(this.timeout);
     }
 
@@ -49,6 +61,30 @@ export default class extends Controller {
             this.element.requestSubmit();
         }, 300);
         this.#updateClearButton();
+    }
+
+    /**
+     * A bar that swaps a frame keeps its form across the swap, so a plain
+     * link would leave the old values in the fields. The link empties the
+     * fields and submits the form instead.
+     */
+    clear(event) {
+        event.preventDefault();
+        clearTimeout(this.timeout);
+        const ignored = this.hasIgnoreValue
+            ? this.ignoreValue
+            : ['sort', 'dir'];
+        for (const element of this.element.elements) {
+            if (!element.name || ignored.includes(element.name)) continue;
+            if (element.type === 'hidden') continue;
+            if (element.type === 'checkbox') {
+                element.checked = false;
+            } else {
+                element.value = '';
+            }
+        }
+        this.#updateClearButton();
+        this.element.requestSubmit();
     }
 
     #hasActiveFilters() {

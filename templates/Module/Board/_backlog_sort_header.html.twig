@@ -1,7 +1,7 @@
 {#- A Backlog column header that sorts the list. Props: project (Project), listQuery (BacklogListQuery), column (BacklogSort), label (string). -#}
 {% set ariaSort = listQuery.ariaSort(column) %}
 <span class="lp-data-table__cell" role="columnheader" aria-sort="{{ ariaSort }}">
-    <a class="lp-backlog-sort-link" href="{{ path('app_project_board_backlog', {projectId: project.id}|merge(listQuery.sortParams(column))) }}">
+    <a class="lp-backlog-sort-link" href="{{ path('app_project_board_backlog', {projectId: project.id}|merge(listQuery.sortParams(column))) }}" data-turbo-frame="backlog-list" data-turbo-action="advance">
         {{ label }}
         {% if ariaSort == 'ascending' %}
         <twig:ux:icon name="lucide:arrow-up" class="lp-icon lp-icon--sm" aria-hidden="true" />

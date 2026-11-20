@@ -143,7 +143,7 @@ test('secondary text and active navigation counts remain legible on their render
     for (const selector of [
         '.lp-workspace-desc',
         '.lp-crumbs__here',
-        '.lp-filter-count',
+        '.lp-list-count',
         '.lp-sidebar__link--active .lp-sidebar__link-label',
     ]) {
         const text = page.locator(selector);

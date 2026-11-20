@@ -1,5 +1,5 @@
 {# The connected apps and preview tokens of the account, in a live region. The page and the fragment route render it. Props: view (ListConnectedAppsView). #}
-<turbo-frame id="connected-apps-list" refresh="morph" data-live-content data-controller="live-region" data-live-region-types-value="{{ ['account.changed']|json_encode }}" data-live-region-match-value="{{ {area: ['apps', 'projects']}|json_encode }}" data-live-region-url-value="{{ path('app_account_connected_apps_frame') }}" data-live-region-mode-value="frame">
+<turbo-frame id="connected-apps-list" refresh="morph" data-live-content data-controller="live-region" data-live-region-types-value="{{ ['account.changed']|json_encode }}" data-live-region-match-value="{{ {area: 'apps'}|json_encode }}" data-live-region-url-value="{{ path('app_account_connected_apps_frame') }}" data-live-region-mode-value="frame">
     <twig:Ds:Panel as="section" class="lp-connect-block" data-testid="connected-apps-section">
         <twig:Ds:SectionHeading>{{ 'oauth.connected_apps.heading'|trans }}</twig:Ds:SectionHeading>
         <p class="lp-connect-hint">{{ 'oauth.connected_apps.intro'|trans }}</p>

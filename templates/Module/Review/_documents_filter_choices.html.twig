@@ -1,0 +1,30 @@
+{# The tag and series selects of the documents filter. Their options come from the project, so a live refresh sends this block again. Props: listQuery, projectTags, projectSeries. #}
+<span id="documents-filter-choices" class="contents">
+    {% if projectTags|length > 0 %}
+        <label class="sr-only" for="document-tag">{{ 'review.dashboard.filter.tag_label'|trans }}</label>
+        <twig:Ds:Select id="document-tag"
+                name="tag"
+                data-action="change->autosearch#search">
+            <option value="">{{ 'review.dashboard.filter.all_tags'|trans }}</option>
+            {% for tag in projectTags %}
+                <option value="{{ tag.name }}"{{ listQuery.tagName == tag.name ? ' selected' : '' }}>{{ tag.name }}</option>
+            {% endfor %}
+        </twig:Ds:Select>
+    {% endif %}
+
+    {# Filtering by series is also what puts the list in the series's own
+       order, so the control stays out of the way until a series exists. #}
+    {% if projectSeries|length > 0 %}
+        <label class="sr-only" for="document-series">{{ 'review.dashboard.filter.series_label'|trans }}</label>
+        <twig:Ds:Select id="document-series"
+                name="series"
+                data-action="change->autosearch#search">
+            <option value="">{{ 'review.dashboard.filter.all_series'|trans }}</option>
+            {# The option carries the spelling and the comparison uses the
+               key, because listQuery.seriesName is already folded. #}
+            {% for series in projectSeries %}
+                <option value="{{ series.name }}"{{ listQuery.seriesName == series.normalizedName ? ' selected' : '' }}>{{ series.name }}</option>
+            {% endfor %}
+        </twig:Ds:Select>
+    {% endif %}
+</span>
