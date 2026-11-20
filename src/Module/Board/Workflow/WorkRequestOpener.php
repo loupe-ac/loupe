@@ -69,6 +69,7 @@ final readonly class WorkRequestOpener implements WorkOpener
                 inboxItemNumber: $retry?->itemNumber,
                 inboxItemId: $retry?->itemId,
                 role: $role,
+                round: $context->fires + 1,
             ));
         } catch (WorkRequestAlreadyLive $e) {
             return ActionOutcome::alreadyLive($e->ruleId);
