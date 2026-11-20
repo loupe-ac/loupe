@@ -8,6 +8,7 @@ use App\Module\Bridge\Event\BridgeCommandSettled;
 use App\Module\Bridge\Repository\BridgeCommandRepository;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Bridge\ValueObject\BridgeCommandState;
+use App\Module\Bridge\ValueObject\WorkerRunChangeKind;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
@@ -66,7 +67,7 @@ final readonly class AcknowledgeBridgeCommandHandler
                 ],
                 new AuditSubject('bridge_command', (string) $settled->id),
             );
-            $this->runsChanged->runsChanged($settled->project);
+            $this->runsChanged->runsChanged($settled->project, WorkerRunChangeKind::State, null === $settled->workerRun ? [] : [$settled->workerRun]);
             $this->events->dispatch(BridgeCommandSettled::of($settled));
         }
 

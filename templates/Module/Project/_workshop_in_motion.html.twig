@@ -1,5 +1,5 @@
 {#- The In motion section of the Workshop. The page and its reload route both render it. Props: project, inMotion. -#}
-<turbo-frame id="workshop-in-motion" class="lp-live-frame" target="_top" data-worker-run-refresh-target="frame">
+<turbo-frame id="workshop-in-motion" class="lp-live-frame" refresh="morph" target="_top" data-worker-run-refresh-target="frame">
     <div class="lp-workshop-work-grid">
         {% for card in inMotion.cards %}
         <a class="lp-workshop-work-card" href="{{ card.url }}" data-workshop-card="{{ card.number }}" data-turbo-frame="card-drawer-frame" data-drawer-title="#{{ card.number }}" data-action="click->card-drawer#prepare">

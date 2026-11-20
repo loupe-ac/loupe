@@ -17,6 +17,7 @@ use App\Module\Bridge\Service\BridgeCommandTtl;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Bridge\Service\WorkRequestPayload;
 use App\Module\Bridge\ValueObject\BridgeCommandKind;
+use App\Module\Bridge\ValueObject\WorkerRunChangeKind;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Outbox\OutboxWriter;
 use Doctrine\ORM\EntityManagerInterface;
@@ -130,7 +131,7 @@ final readonly class TryAccountNowHandler
                 new AuditSubject('bridge', (string) $command->bridge->id),
             );
             foreach ($this->projects->findOwnedBy($owner, $command->bridge->projects) as $project) {
-                $this->runsChanged->runsChanged($project);
+                $this->runsChanged->runsChanged($project, WorkerRunChangeKind::State);
             }
             $this->events->dispatch(new BridgeAvailabilityChanged($command->bridge->projects));
         }
