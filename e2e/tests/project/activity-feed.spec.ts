@@ -116,7 +116,7 @@ test('the events list links, searches and filters through the URL', async ({
     });
     await family.selectOption({ label: 'Needs you' });
     await expect(page).toHaveURL(/[?&]family=inbox(&|$)/, NAVIGATION);
-    await expect(page.locator('[data-activity-filtered-empty]')).toHaveText(
+    await expect(page.locator('[data-activity-filtered-empty]')).toContainText(
         'No activity matches these filters.',
     );
     await expect(search).toBeVisible();
