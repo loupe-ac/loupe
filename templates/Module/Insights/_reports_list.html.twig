@@ -1,4 +1,5 @@
-{# The analyses of a page of the Reports tab, or the empty state. #}
+{# The analyses of a page of the Reports tab, or the empty state. Page 1 has the wrapper id that the stream of a start of an analysis targets. #}
+<div{% if page == 1 %} id="analysis-list"{% endif %}>
 {% if analyses is not empty %}
 <ol class="lp-reports-list">
     {% for row in analyses %}
@@ -8,3 +9,4 @@
 {% else %}
 <twig:Ds:EmptyState icon="lucide:file-chart-column" :title="'insights.reports.empty.title'|trans" :body="'insights.reports.empty.description'|trans" linkHref="{{ app_docs_url }}/extending/cli-bridge/#work-requests" :linkLabel="'insights.reports.empty.docs'|trans" data-reports-empty />
 {% endif %}
+</div>

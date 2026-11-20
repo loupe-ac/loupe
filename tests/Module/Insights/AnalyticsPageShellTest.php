@@ -57,7 +57,7 @@ final class AnalyticsPageShellTest extends WebTestCase
         self::assertSame('Analytics', trim($active->text()));
     }
 
-    public function test_metrics_links_to_the_dashboard_after_a_save_and_at_no_other_time(): void
+    public function test_metrics_has_an_empty_slot_for_the_dashboard_link_that_a_save_fills(): void
     {
         $client = static::createClient();
         $em = $this->em();
@@ -67,10 +67,8 @@ final class AnalyticsPageShellTest extends WebTestCase
 
         $client->loginUser($owner);
         $crawler = $client->request(Request::METHOD_GET, $base.'/analytics/metrics?saved=0199aaaa-0000-7000-8000-000000000001');
-        self::assertSame($base.'/analytics/dashboard', $crawler->filter('[data-metrics-saved-link]')->attr('href'));
-        self::assertSame('View on the Dashboard', trim($crawler->filter('[data-metrics-saved-link]')->text()));
 
-        $crawler = $client->request(Request::METHOD_GET, $base.'/analytics/metrics');
+        self::assertCount(1, $crawler->filter('#metrics-saved'));
         self::assertCount(0, $crawler->filter('[data-metrics-saved-link]'));
     }
 
