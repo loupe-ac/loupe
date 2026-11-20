@@ -8,6 +8,9 @@ use App\Controller\AppController;
 use App\Exception\DomainErrors;
 use App\Module\Bridge\Command\ListExperimentsCommand;
 use App\Module\Bridge\Command\ListExperimentsHandler;
+use App\Module\Bridge\Metric\Metric;
+use App\Module\Insights\Command\ListReportsCommand;
+use App\Module\Insights\Command\ListReportsHandler;
 use App\Module\Insights\Command\StartAnalysisCommand;
 use App\Module\Insights\Command\StartAnalysisHandler;
 use App\Module\Insights\Form\StartAnalysisFormType;
@@ -33,6 +36,7 @@ class StartAnalysisController extends AppController
     public function __construct(
         private readonly StartAnalysisHandler $startAnalysis,
         private readonly ListExperimentsHandler $listExperiments,
+        private readonly ListReportsHandler $listReports,
         private readonly TranslatorInterface $translator,
     ) {
     }
@@ -56,9 +60,14 @@ class StartAnalysisController extends AppController
                     experiment: $data->experiment,
                 ));
 
-                // The new analysis reaches the open list through the live update of the Reports tab.
                 return new Response(
-                    $this->renderView('_flash.stream.html.twig', ['severity' => 'success', 'message' => $this->translator->trans('insights.reports.flash.started')]),
+                    $this->renderView('@Insights/_report_list.stream.html.twig', [
+                        'project' => $project,
+                        'analyses' => ($this->listReports)(new ListReportsCommand($project, 1))->analyses,
+                        'costMetric' => Metric::Cost->valueType(),
+                        'severity' => 'success',
+                        'message' => $this->translator->trans('insights.reports.flash.started'),
+                    ]),
                     Response::HTTP_OK,
                     ['Content-Type' => TurboBundle::STREAM_MEDIA_TYPE],
                 );

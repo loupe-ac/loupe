@@ -37,6 +37,8 @@ final class StartAnalysisControllerTest extends WebTestCase
         self::assertStringContainsString('action="prepend" target="main-content"', (string) $client->getResponse()->getContent());
         $analyses = $this->analyses($projectId);
         self::assertCount(1, $analyses);
+        self::assertStringContainsString('target="analysis-list"', (string) $client->getResponse()->getContent());
+        self::assertStringContainsString('id="analysis-'.$analyses[0]->id.'"', (string) $client->getResponse()->getContent());
         self::assertSame('opus', $analyses[0]->model);
         self::assertSame('high', $analyses[0]->effort);
         self::assertSame('ninety-days', $analyses[0]->scope->range->value);
