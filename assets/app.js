@@ -6,6 +6,7 @@ import './lib/live_project_deleted.js';
 import './lib/analytics.js';
 import './lib/board_place.js';
 import './lib/board_structure.js';
+import './lib/live_region_url.js';
 /*
  * Welcome to your app's main JavaScript file!
  *

@@ -576,7 +576,8 @@ typed. A move to another column alone shows no notice. When someone deletes the
 card, the drawer shows **This card was deleted** and offers no save.
 
 **Delete** asks for a confirmation first, then removes the card, its
-links and its feedback. A delete cannot be undone, and the number the card held is not
+links and its feedback. In the drawer, the drawer closes and the card leaves the
+board with no reload. A delete cannot be undone, and the number the card held is not
 issued again.
 
 The create form and the edit form carry a **Linked cards** block. Each row picks
@@ -636,6 +637,12 @@ of pause, the reason, the time and the condition that ends the pause. The
 workflow pauses a card when a rule of the template asks for it, when too many
 attempts are refused, when no bridge takes the work in time, or when a rule
 reaches its work limit.
+
+**Retry** on a paused card releases the pause and keeps the card open in the
+drawer. The same holds for resolving or reopening a feedback note, for the lane
+button of an epic and for revoking a preview sign-in: each changes only its own
+part of the drawer. Answering an inbox item of the card in the drawer redraws only
+the inbox section of the card and shows the confirmation.
 
 The panel also shows the slot of the card, the condition that the card waits
 for and the next action. It also shows the last refusal, with its reason, its

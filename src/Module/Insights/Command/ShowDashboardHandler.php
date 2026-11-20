@@ -59,16 +59,10 @@ final readonly class ShowDashboardHandler
 
         $now = \DateTimeImmutable::createFromInterface($this->clock->now());
         $computed = array_values(array_filter(array_map(static fn (DashboardTileView $tile): ?\DateTimeImmutable => $tile->result?->computedAt, $tiles)));
-        $removed = null;
-        if (null !== $command->removedGraphId) {
-            $candidate = $this->insightsSavedGraphs->findOneByIdAndProjectId($command->removedGraphId, (string) $project->requireId());
-            $removed = null !== $candidate && $candidate->isUndoable($now) ? $candidate : null;
-        }
 
         return new DashboardView(
             $project,
             $tiles,
-            $removed,
             $this->cap->isReached($project),
             $this->cap->limit(),
             [] === $computed ? null : min($computed),

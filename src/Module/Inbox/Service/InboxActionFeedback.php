@@ -39,12 +39,17 @@ final readonly class InboxActionFeedback
         }
 
         if (!$saved->isInbox()) {
-            $session->getFlashBag()->add('success', $this->translator->trans($verb->flashKey(), ['%number%' => $item->number]));
+            $session->getFlashBag()->add('success', $this->message($item, $verb));
 
             return;
         }
 
         $session->getFlashBag()->add(self::STATUS_FLASH, $this->status($saved->acted, $item, $verb));
+    }
+
+    public function message(InboxItem $item, InboxActionVerb $verb): string
+    {
+        return $this->translator->trans($verb->flashKey(), ['%number%' => $item->number]);
     }
 
     /**

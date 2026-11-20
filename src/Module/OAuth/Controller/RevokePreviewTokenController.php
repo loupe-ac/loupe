@@ -9,7 +9,9 @@ use App\Module\Account\Entity\User;
 use App\Module\OAuth\Command\RevokeOwnPreviewTokenCommand;
 use App\Module\OAuth\Command\RevokeOwnPreviewTokenHandler;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Ubermuda\SymfonyExtra\Csrf\Attribute\CsrfToken;
 
@@ -40,7 +42,7 @@ final class RevokePreviewTokenController extends AppController
     ) {
     }
 
-    public function __invoke(string $accessTokenId, string $returnTo): Response
+    public function __invoke(string $accessTokenId, string $returnTo, #[MapQueryParameter] string $projectId = '', #[MapQueryParameter] string $cardId = ''): Response
     {
         $user = $this->getUser();
         if (!$user instanceof User) {
@@ -49,6 +51,11 @@ final class RevokePreviewTokenController extends AppController
 
         $row = ($this->revokeOwnPreviewToken)(new RevokeOwnPreviewTokenCommand($user, $accessTokenId));
         if (null === $row) {
+            // The form posts inside the drawer frame, and only a card page holds that frame.
+            if (self::RETURN_TO_CARD === $returnTo && Uuid::isValid($projectId) && Uuid::isValid($cardId)) {
+                return $this->redirectToRoute('app_board_card', ['projectId' => $projectId, 'cardId' => $cardId]);
+            }
+
             return $this->redirectToRoute('app_account_connected_apps');
         }
 

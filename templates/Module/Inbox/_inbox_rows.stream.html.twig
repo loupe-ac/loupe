@@ -1,0 +1,17 @@
+{#- The rows of the asks that a live signal named. Each changed row leaves the list, and the ones the view still holds come back before the next unchanged row, or at the end.
+    Params: inbox (InboxPageView), changed (list of ask ids), inserts (list of InboxRowInsert). -#}
+{% for key in changed %}
+<turbo-stream action="remove" targets="[data-inbox-request='{{ key }}']"></turbo-stream>
+{% endfor %}
+{% for insert in inserts %}
+{% if insert.before %}
+<turbo-stream action="before" targets="[data-inbox-request='{{ insert.before }}']">
+{% else %}
+<turbo-stream action="append" target="inbox-rows">
+{% endif %}
+    <template>{% include '@Inbox/_inbox_request.html.twig' with {row: insert.row, inbox: inbox} only %}</template>
+</turbo-stream>
+{% endfor %}
+<turbo-stream action="update" target="inbox-open-tab">
+    <template>{{ 'inbox.view.open'|trans({'%count%': inbox.openCount}) }}</template>
+</turbo-stream>

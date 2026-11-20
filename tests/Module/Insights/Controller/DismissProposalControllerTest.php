@@ -16,7 +16,7 @@ final class DismissProposalControllerTest extends WebTestCase
 {
     use InsightsScenario;
 
-    public function test_dismiss_stores_the_reason_and_redirects_back_with_a_flash(): void
+    public function test_dismiss_stores_the_reason_and_answers_the_row_with_a_flash(): void
     {
         $client = static::createClient();
         $proposal = $this->proposal('dismiss-controller');
@@ -30,9 +30,9 @@ final class DismissProposalControllerTest extends WebTestCase
             'dismiss_proposal_'.$proposal->id.'[reason]' => 'We cache them already.',
         ]);
 
-        self::assertResponseRedirects('/projects/'.$projectId.'/analytics/reports');
-        $crawler = $client->followRedirect();
-        self::assertStringContainsString('The proposal is dismissed.', $crawler->filter('body')->text());
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('The proposal is dismissed.', (string) $client->getResponse()->getContent());
+        self::assertStringContainsString('target="analysis-'.$proposal->analysis->id.'"', (string) $client->getResponse()->getContent());
         $stored = $this->stored($proposal);
         self::assertSame(ProposalState::Dismissed, $stored->state);
         self::assertSame('We cache them already.', $stored->dismissReason);
@@ -51,7 +51,7 @@ final class DismissProposalControllerTest extends WebTestCase
             'dismiss_proposal_'.$proposal->id => ['reason' => '', '_token' => 'csrf-token'],
         ], [], ['HTTP_REFERER' => 'http://localhost/']);
 
-        self::assertResponseRedirects('/projects/'.$projectId.'/analytics/reports');
+        self::assertResponseIsSuccessful();
         $stored = $this->stored($proposal);
         self::assertSame(ProposalState::Dismissed, $stored->state);
         self::assertNull($stored->dismissReason);
@@ -96,7 +96,7 @@ final class DismissProposalControllerTest extends WebTestCase
         self::assertNotSame('', trim($crawler->filter('[data-proposal="'.$proposal->id.'"] [data-field-errors="reason"]')->text()));
     }
 
-    public function test_a_second_dismiss_redirects_back_with_an_error(): void
+    public function test_a_second_dismiss_answers_an_error_with_a_422(): void
     {
         $client = static::createClient();
         $proposal = $this->proposal('dismiss-controller-twice');
@@ -111,9 +111,8 @@ final class DismissProposalControllerTest extends WebTestCase
             'dismiss_proposal_'.$proposal->id => ['reason' => '', '_token' => 'csrf-token'],
         ], [], ['HTTP_REFERER' => 'http://localhost/']);
 
-        self::assertResponseRedirects('/projects/'.$projectId.'/analytics/reports');
-        $crawler = $client->followRedirect();
-        self::assertStringContainsString('This proposal is no longer open.', $crawler->filter('body')->text());
+        self::assertResponseStatusCodeSame(422);
+        self::assertStringContainsString('This proposal is no longer open.', (string) $client->getResponse()->getContent());
     }
 
     public function test_another_users_project_is_refused(): void
