@@ -22,6 +22,8 @@ The Status column shows a draft as a dashed outline, so it stands out from a fil
 
 Open Documents in a project, then select **New document**.
 Enter a title and Markdown.
+A bare address that starts with `http://` or `https://` renders as a link. A bare `www.` address with no scheme stays text.
+A version that you stored before this change keeps its old text until Loupe renders it again.
 When Board is enabled, select the cards to link.
 Select **Create document**.
 Loupe opens the first version with Draft status.

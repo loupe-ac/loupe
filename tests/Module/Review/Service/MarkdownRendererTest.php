@@ -23,6 +23,40 @@ final class MarkdownRendererTest extends TestCase
         self::assertStringNotContainsString('alert(1)', $html);
     }
 
+    public function test_links_a_bare_https_address(): void
+    {
+        $html = new MarkdownRenderer(new NullLogger(), new IdentityTranslator())->render('The run failed on 2026-11-20: https://github.com/loupe-ac/loupe/actions/runs/44660442947');
+
+        self::assertStringContainsString('<a href="https://github.com/loupe-ac/loupe/actions/runs/44660442947">https://github.com/loupe-ac/loupe/actions/runs/44660442947</a>', $html);
+    }
+
+    public function test_links_a_bare_address_without_its_trailing_full_stop(): void
+    {
+        $html = new MarkdownRenderer(new NullLogger(), new IdentityTranslator())->render('See https://www.example.com/x.');
+
+        self::assertStringContainsString('<a href="https://www.example.com/x">https://www.example.com/x</a>.', $html);
+    }
+
+    #[DataProvider('addressesThatStayText')]
+    public function test_leaves_other_bare_addresses_as_text(string $markdown): void
+    {
+        $html = new MarkdownRenderer(new NullLogger(), new IdentityTranslator())->render($markdown);
+
+        self::assertStringNotContainsString('<a ', $html);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function addressesThatStayText(): iterable
+    {
+        yield 'www without scheme' => ['Visit www.example.com now'];
+        yield 'email' => ['Write to dev@loupe.test'];
+        yield 'ftp' => ['Get ftp://x.org/a'];
+        yield 'javascript' => ['Run javascript:alert(1)'];
+        yield 'in code' => ['Run `https://example.com/a`'];
+    }
+
     public function test_keeps_the_href_on_a_documents_own_in_page_link(): void
     {
         $html = new MarkdownRenderer(new NullLogger(), new IdentityTranslator())->render("# Intro\n\n[jump](#heading-intro)");
