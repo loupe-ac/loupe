@@ -25,6 +25,22 @@ final class FilterBarComponentTest extends KernelTestCase
         self::assertStringContainsString('<form method="get" action="/list" data-controller="autosearch" class="lp-filter-form" data-metrics-form>', $html);
     }
 
+    public function test_a_bar_with_a_frame_swaps_it_and_clears_through_the_controller(): void
+    {
+        $html = $this->render('<twig:Ds:FilterBar action="/list" frame="rows" clearHref="/list" clearLabel="Clear" />');
+
+        self::assertStringContainsString('class="lp-filter-form" data-turbo-frame="rows" data-turbo-action="advance">', $html);
+        self::assertStringContainsString('data-turbo-frame="rows" data-turbo-action="advance" data-action="click-&gt;autosearch#clear"', $html);
+    }
+
+    public function test_a_bar_without_a_frame_keeps_the_plain_clear_link(): void
+    {
+        $html = $this->render('<twig:Ds:FilterBar action="/list" clearHref="/list" clearLabel="Clear" />');
+
+        self::assertStringNotContainsString('data-turbo-frame', $html);
+        self::assertStringNotContainsString('autosearch#clear', $html);
+    }
+
     public function test_a_bar_without_an_action_draws_no_form(): void
     {
         $html = $this->render('<twig:Ds:FilterBar class="extra" count="3 items"><nav>toggle</nav></twig:Ds:FilterBar>');

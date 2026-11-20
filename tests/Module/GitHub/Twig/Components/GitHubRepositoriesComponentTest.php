@@ -93,7 +93,7 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
         self::assertSame('noopener noreferrer', $rules->attr('rel'));
         self::assertStringContainsString('Check that Loupe / Approval shows the Loupe App as its source', $guide->text());
 
-        $form = $crawler->filter('[data-forge-repository] form[action$="/repositories/'.$repository->id.'/check"]');
+        $form = $crawler->filter('[data-forge-repository] form[action$="/repositories/'.$repository->id.'/check?inline=1"]');
         self::assertCount(1, $form);
         self::assertNotSame('', (string) $form->filter('input[name="_csrf_token"]')->attr('value'));
         self::assertSame('Check again', trim($form->filter('button')->text()));

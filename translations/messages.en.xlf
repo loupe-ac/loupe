@@ -1206,15 +1206,7 @@
             </trans-unit>
             <trans-unit id="review.dashboard.description">
                 <source>review.dashboard.description</source>
-                <target>Project documents, newest first.</target>
-            </trans-unit>
-            <trans-unit id="review.dashboard.description_ranked">
-                <source>review.dashboard.description_ranked</source>
-                <target>Documents the agent submitted for review, best matches first.</target>
-            </trans-unit>
-            <trans-unit id="review.dashboard.description_series">
-                <source>review.dashboard.description_series</source>
-                <target>Documents the agent submitted for review, in the order of the series.</target>
+                <target>Documents the agent submitted for review.</target>
             </trans-unit>
             <trans-unit id="review.dashboard.meta.updated">
                 <source>review.dashboard.meta.updated</source>

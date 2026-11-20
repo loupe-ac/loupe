@@ -44,6 +44,7 @@ final readonly class ListBacklogRowsHandler
             ),
             total: $total,
             filteredTotal: $command->listQuery->isNarrowed() ? $this->cards->countBacklogMatching($command->backlog, $command->listQuery) : $total,
+            epics: $this->cards->findEpicsOfColumn($command->backlog),
         );
     }
 }

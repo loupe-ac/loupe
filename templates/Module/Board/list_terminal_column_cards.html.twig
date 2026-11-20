@@ -15,6 +15,8 @@
     <h1 class="lp-workspace-title lp-workspace-title--doc">{{ column.label|trans }}</h1>
     <p class="lp-workspace-desc">{{ 'board.terminal.page.description'|trans }}</p>
 
+    {# One frame on every page, so a page change swaps only the list. The live region sits inside it, so each swap brings the address of the new page. #}
+    <turbo-frame id="terminal-list" target="_top">
     {% set liveRows = page > 1 %}
     {% set liveTag = liveRows ? 'div' : 'turbo-frame' %}
     <{{ liveTag }} id="terminal-live"{{ liveRows ? '' : ' target="_top"' }}
@@ -32,12 +34,13 @@
         {% endfor %}
     </div>
 
-    <twig:Ds:Pagination route="app_project_board_terminal_column" :page="page" :totalPages="totalPages" :pageList="pageList" :routeParams="routeParams" />
+    <twig:Ds:Pagination route="app_project_board_terminal_column" :page="page" :totalPages="totalPages" :pageList="pageList" :routeParams="routeParams" frame="terminal-list" />
     {% else %}
     <twig:Ds:EmptyState icon="lucide:square-check-big" :title="'board.terminal.empty.title'|trans" :body="'board.terminal.empty.body'|trans">
         <twig:Ds:Button href="{{ path('app_project_board', {id: project.id}) }}">{{ 'board.terminal.empty.action'|trans }}</twig:Ds:Button>
     </twig:Ds:EmptyState>
     {% endif %}
     </{{ liveTag }}>
+    </turbo-frame>
 </twig:Ds:Workspace>
 {% endblock %}

@@ -369,6 +369,7 @@ template declares.
 The epic filter offers **Any epic**, **No epic**, and each epic with a card in
 Backlog. **Clear** removes every filter, and a count shows how many cards
 match.
+A search, a filter, a sort or a page change swaps only the list. The search box keeps its focus and the address bar follows, so the view stays linkable. A live update keeps the filter and the sort that you chose.
 
 The list shows the newest cards first. Click the **Type**, **Epic** or
 **Added** column header to sort by that column, and click it again to reverse

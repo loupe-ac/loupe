@@ -1,0 +1,31 @@
+{# Props: project, listQuery, totalDocuments, statuses, projectTags, projectSeries. #}
+{# Six controls in front of a project that has nothing to filter are six dead
+   controls, so the bar waits for a first document — but it stays once a
+   filter or the archived view is on, whatever the counts say: a filter that
+   disappears the moment it matches nothing is a dead end. #}
+{% if totalDocuments > 0 or listQuery.isNarrowed or listQuery.includeArchived %}
+{# Outside the swapped frame, so the field keeps its focus and caret while the list changes. #}
+{# A GET form, so every control lands in the URL and the view stays shareable. `page` is not a field: a changed filter starts at page one. #}
+<twig:Ds:FilterBar
+    :action="path('app_project_documents', {id: project.id})"
+    :search="{id: 'document-search', name: 'search', value: listQuery.search, label: 'review.dashboard.filter.search_label'|trans, placeholder: 'review.dashboard.filter.search_placeholder'|trans}"
+    :frame="'documents-list'"
+    :formAttributes="{id: 'documents-filter'}"
+    :switch="{name: 'archived', label: 'review.dashboard.filter.show_archived'|trans, checked: listQuery.includeArchived}"
+    :clearHref="path('app_project_documents', {id: project.id})"
+    :clearLabel="'review.dashboard.filter.clear'|trans">
+    <label class="sr-only" for="document-status">{{ 'review.dashboard.filter.status_label'|trans }}</label>
+    <twig:Ds:Select id="document-status"
+            name="status"
+            data-action="change->autosearch#search">
+        <option value="">{{ 'review.dashboard.filter.all_statuses'|trans }}</option>
+        {% for status in statuses %}
+            <option value="{{ status.value }}"{{ listQuery.status == status ? ' selected' : '' }}>{{ status.translationKey()|trans }}</option>
+        {% endfor %}
+    </twig:Ds:Select>
+
+    <twig:block name="secondary">
+        {% include '@Review/_documents_filter_choices.html.twig' with {listQuery: listQuery, projectTags: projectTags, projectSeries: projectSeries} only %}
+    </twig:block>
+</twig:Ds:FilterBar>
+{% endif %}

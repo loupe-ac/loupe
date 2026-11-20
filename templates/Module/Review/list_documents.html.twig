@@ -13,16 +13,7 @@
    "the filters matched nothing". Same number the shell's nav pill shows. #}
 {% set totalDocuments = project_document_count(project) %}
 <twig:Ds:Workspace class="lp-core-prototype-page lp-core-documents" data-live-content data-controller="modal" data-modal-reopen-value="{{ createDocumentForm.vars.submitted ? 'true' : 'false' }}">
-    {# The default line promises newest-first, which a ranked search and a series
-       both make untrue. The series wins, because its order wins in the query. #}
-    {% if listQuery.seriesName %}
-        {% set descriptionKey = 'review.dashboard.description_series' %}
-    {% elseif listQuery.search %}
-        {% set descriptionKey = 'review.dashboard.description_ranked' %}
-    {% else %}
-        {% set descriptionKey = 'review.dashboard.description' %}
-    {% endif %}
-    <twig:Ds:PageHeader :title="'review.dashboard.page.title'|trans" :description="descriptionKey|trans" titleClass="lp-workspace-title--doc">
+    <twig:Ds:PageHeader :title="'review.dashboard.page.title'|trans" :description="'review.dashboard.description'|trans" titleClass="lp-workspace-title--doc">
         <twig:block name="actions">
             <twig:Ds:Button variant="primary" type="button" data-action="click->modal#open"><twig:ux:icon name="lucide:plus" class="lp-icon lp-icon--md" />{{ 'review.create.title'|trans }}</twig:Ds:Button>
         </twig:block>
@@ -30,13 +21,20 @@
     {% include '@Review/_create_document.html.twig' with {form: createDocumentForm, projectId: project.id} only %}
 
     {% do mercure_subscribe(documentsTopic) %}
+    {% include '@Review/_documents_filter.html.twig' with {project: project, listQuery: listQuery, totalDocuments: totalDocuments, statuses: statuses, projectTags: projectTags, projectSeries: projectSeries} only %}
+    {# One frame on every page, so a filter, a sort or a page swaps only the list. The live region sits inside it, so each swap brings the address of the new filter and page. #}
+    <turbo-frame id="documents-list" target="_top">
     {% if page == 1 %}
     <turbo-frame id="documents-live" refresh="morph" target="_top"
                  data-controller="live-region"
                  data-live-region-mode-value="frame"
                  data-live-region-types-value="{{ ['documents.changed']|json_encode|e('html_attr') }}"
                  data-live-region-url-value="{{ path('app_project_documents', {id: project.id}|merge(listQuery.routeParams)) }}">
-        {% include '@Review/_documents_list.html.twig' with {project: project, listQuery: listQuery, totalDocuments: totalDocuments, items: items, filteredTotal: filteredTotal, page: page, totalPages: totalPages, pageList: pageList, statuses: statuses, projectTags: projectTags, projectSeries: projectSeries} only %}
+        {% include '@Review/_documents_list.html.twig' with {project: project, listQuery: listQuery, totalDocuments: totalDocuments, items: items, filteredTotal: filteredTotal, page: page, totalPages: totalPages, pageList: pageList} only %}
+        {# The selects sit outside this frame, so a live refresh sends their options again. #}
+        {% if app.request.headers.get('Turbo-Frame') == 'documents-live' %}
+        <turbo-stream action="replace" method="morph" target="documents-filter-choices"><template>{% include '@Review/_documents_filter_choices.html.twig' with {listQuery: listQuery, projectTags: projectTags, projectSeries: projectSeries} only %}</template></turbo-stream>
+        {% endif %}
     </turbo-frame>
     {% else %}
     <div id="documents-live"
@@ -49,8 +47,9 @@
          data-live-total="{{ filteredTotal }}"{% if knownIds is not null %}
          data-live-known="{{ knownIds|json_encode|e('html_attr') }}"{% endif %}>
         <div id="documents-live-band"></div>
-        {% include '@Review/_documents_list.html.twig' with {project: project, listQuery: listQuery, totalDocuments: totalDocuments, items: items, filteredTotal: filteredTotal, page: page, totalPages: totalPages, pageList: pageList, statuses: statuses, projectTags: projectTags, projectSeries: projectSeries} only %}
+        {% include '@Review/_documents_list.html.twig' with {project: project, listQuery: listQuery, totalDocuments: totalDocuments, items: items, filteredTotal: filteredTotal, page: page, totalPages: totalPages, pageList: pageList} only %}
     </div>
     {% endif %}
+    </turbo-frame>
 </twig:Ds:Workspace>
 {% endblock %}

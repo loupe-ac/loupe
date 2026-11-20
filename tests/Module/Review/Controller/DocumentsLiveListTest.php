@@ -11,6 +11,7 @@ use App\Module\Review\Command\CreateDocumentCommand;
 use App\Module\Review\Command\CreateDocumentHandler;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\DocumentStatus;
+use App\Module\Review\Entity\Tag;
 use App\Tests\Support\AcceptedTerms;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -61,6 +62,20 @@ final class DocumentsLiveListTest extends WebTestCase
         self::assertCount(0, $crawler->filter('[data-live-since]'));
     }
 
+    public function test_a_live_frame_read_sends_the_tag_and_series_options_again_for_the_selects_outside_the_frame(): void
+    {
+        $this->create('First');
+
+        $page = $this->client->request(Request::METHOD_GET, $this->list());
+        self::assertCount(0, $page->filter('turbo-stream'));
+
+        $frame = $this->client->request(Request::METHOD_GET, $this->list(), server: ['HTTP_TURBO_FRAME' => 'documents-live']);
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $frame->filter('turbo-frame#documents-live turbo-stream[action="replace"][method="morph"][target="documents-filter-choices"]'));
+        self::assertCount(1, $page->filter('#documents-filter-choices'));
+    }
+
     public function test_the_page_subscribes_to_the_documents_topic(): void
     {
         $this->create('First');
@@ -80,6 +95,23 @@ final class DocumentsLiveListTest extends WebTestCase
             static::getContainer()->get(ProjectTopicBuilder::class)->forDocuments($this->project->requireId()),
             $claims['mercure']['subscribe'],
         );
+    }
+
+    public function test_every_page_swaps_inside_one_list_frame_and_keeps_the_filter_bar_outside_it(): void
+    {
+        $this->createMany(21);
+
+        foreach (['', '?page=2'] as $query) {
+            $crawler = $this->client->request(Request::METHOD_GET, $this->list().$query);
+
+            self::assertResponseIsSuccessful();
+            self::assertCount(1, $crawler->filter('turbo-frame#documents-list #documents-live'));
+            self::assertCount(0, $crawler->filter('turbo-frame#documents-list form.lp-filter-form'));
+            self::assertSame('documents-list', $crawler->filter('form.lp-filter-form')->attr('data-turbo-frame'));
+            self::assertSame('documents-list', $crawler->filter('.lp-pagination a')->first()->attr('data-turbo-frame'));
+            self::assertSame('documents-list', $crawler->filter('.lp-document-row__action-form')->first()->attr('data-turbo-frame'));
+            self::assertCount(1, $crawler->filter('turbo-frame#documents-list .lp-list-count'));
+        }
     }
 
     public function test_a_later_page_reads_its_rows_by_id_after_the_cursor_it_loaded_at(): void
@@ -126,6 +158,20 @@ final class DocumentsLiveListTest extends WebTestCase
         self::assertStringContainsString('1 new document.', $band->text());
         self::assertStringContainsString('/documents?page=1', (string) $band->filter('a')->attr('href'));
         self::assertNotContains('document-row-'.$newer->id, array_keys($byTarget), 'a new document is counted, never inserted');
+    }
+
+    public function test_the_rows_route_sends_the_tag_options_again_for_the_select_outside_the_list(): void
+    {
+        $shown = $this->create('Shown');
+        $this->em->persist(new Tag($this->project, 'fresh tag'));
+        $this->em->flush();
+
+        $this->rows([$shown], time() - 3600);
+
+        self::assertResponseIsSuccessful();
+        $choices = array_column($this->streams(), null, 'target')['documents-filter-choices'];
+        self::assertSame(['replace', 'morph'], [$choices['action'], $choices['method']]);
+        self::assertStringContainsString('fresh tag', $choices['content']->text());
     }
 
     public function test_the_count_leaves_out_the_shown_rows_and_older_documents_and_follows_the_filters(): void
