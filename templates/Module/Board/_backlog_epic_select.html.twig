@@ -1,0 +1,8 @@
+{# The epic select of the backlog filter. Its options come from the project, so a live refresh sends it again. Props: view, listQuery. #}
+<twig:Ds:Select id="backlog-epic" name="epic" data-action="change->autosearch#search">
+    <option value="">{{ 'board.backlog.filter.any_epic'|trans }}</option>
+    <option value="{{ constant('App\\Module\\Board\\View\\BacklogListQuery::NO_EPIC') }}"{{ listQuery.epic == constant('App\\Module\\Board\\View\\BacklogListQuery::NO_EPIC') ? ' selected' : '' }}>{{ 'board.backlog.filter.no_epic'|trans }}</option>
+    {% for epic in view.epics %}
+    <option value="{{ epic.id }}"{{ listQuery.epic == epic.id ~ '' ? ' selected' : '' }}>#{{ epic.number }} {{ epic.title|reference_plain }}</option>
+    {% endfor %}
+</twig:Ds:Select>

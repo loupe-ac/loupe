@@ -247,6 +247,30 @@ final class ListBacklogCardsControllerTest extends WebTestCase
         self::assertCount(1, $region->filter('form#backlog-bulk-form'));
     }
 
+    public function test_a_live_frame_read_sends_the_epic_options_again_for_the_select_outside_the_frame(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+
+        $owner = $this->user($em, 'backlog-epic-live@example.com');
+        $project = $this->project($em, $owner);
+        $epic = $this->typed($em, $this->card($em, $project, 'Fresh epic', 'next'), 'epic');
+        $this->childOf($em, $epic, $this->card($em, $project, 'Waiting', 'backlog', 0));
+        $url = $this->backlogUrl($project);
+        $em->clear();
+
+        $client->loginUser($owner);
+        $page = $client->request(Request::METHOD_GET, $url);
+        self::assertCount(0, $page->filter('turbo-stream'));
+
+        $frame = $client->request(Request::METHOD_GET, $url, server: ['HTTP_TURBO_FRAME' => 'backlog-live']);
+
+        self::assertResponseIsSuccessful();
+        $stream = $frame->filter('turbo-frame#backlog-live turbo-stream[action="replace"][method="morph"][target="backlog-epic"]');
+        self::assertCount(1, $stream);
+        self::assertStringContainsString('Fresh epic', $stream->filter('template')->html());
+    }
+
     public function test_a_later_page_reads_its_own_rows_with_the_moment_it_rendered(): void
     {
         $client = static::createClient();

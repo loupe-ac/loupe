@@ -35,13 +35,7 @@
         </twig:Ds:Select>
 
         <label class="sr-only" for="backlog-epic">{{ 'board.backlog.filter.epic_label'|trans }}</label>
-        <twig:Ds:Select id="backlog-epic" name="epic" data-action="change->autosearch#search">
-            <option value="">{{ 'board.backlog.filter.any_epic'|trans }}</option>
-            <option value="{{ constant('App\\Module\\Board\\View\\BacklogListQuery::NO_EPIC') }}"{{ listQuery.epic == constant('App\\Module\\Board\\View\\BacklogListQuery::NO_EPIC') ? ' selected' : '' }}>{{ 'board.backlog.filter.no_epic'|trans }}</option>
-            {% for epic in view.epics %}
-            <option value="{{ epic.id }}"{{ listQuery.epic == epic.id ~ '' ? ' selected' : '' }}>#{{ epic.number }} {{ epic.title|reference_plain }}</option>
-            {% endfor %}
-        </twig:Ds:Select>
+        {% include '@Board/_backlog_epic_select.html.twig' with {view: view, listQuery: listQuery} only %}
     </twig:Ds:FilterBar>
     {% endif %}
 
@@ -56,6 +50,10 @@
         data-live-region-url-value="{{ path(liveRows ? 'app_project_board_backlog_rows' : 'app_project_board_backlog', {projectId: project.id}|merge(listQuery.routeParams)) }}"
         {% if liveRows %}data-live-since="{{ since }}"{% endif %}>
     {% if liveRows %}<div id="backlog-live-band" aria-live="polite"></div>{% endif %}
+    {# The epic select sits outside this frame, so a live refresh sends its options again. #}
+    {% if not liveRows and (view.total > 0 or listQuery.isNarrowed) and app.request.headers.get('Turbo-Frame') == 'backlog-live' %}
+    <turbo-stream action="replace" method="morph" target="backlog-epic"><template>{% include '@Board/_backlog_epic_select.html.twig' with {view: view, listQuery: listQuery} only %}</template></turbo-stream>
+    {% endif %}
     {% if view.total > 0 or listQuery.isNarrowed %}
     {# A filter change keeps the order the column headers chose. These fields sit in the swapped frame and join the filter form, so the sort of the new address reaches the next filter. #}
     {% if listQuery.routeParams.sort is defined %}

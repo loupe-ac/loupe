@@ -61,6 +61,20 @@ final class DocumentsLiveListTest extends WebTestCase
         self::assertCount(0, $crawler->filter('[data-live-since]'));
     }
 
+    public function test_a_live_frame_read_sends_the_tag_and_series_options_again_for_the_selects_outside_the_frame(): void
+    {
+        $this->create('First');
+
+        $page = $this->client->request(Request::METHOD_GET, $this->list());
+        self::assertCount(0, $page->filter('turbo-stream'));
+
+        $frame = $this->client->request(Request::METHOD_GET, $this->list(), server: ['HTTP_TURBO_FRAME' => 'documents-live']);
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $frame->filter('turbo-frame#documents-live turbo-stream[action="replace"][method="morph"][target="documents-filter-choices"]'));
+        self::assertCount(1, $page->filter('#documents-filter-choices'));
+    }
+
     public function test_the_page_subscribes_to_the_documents_topic(): void
     {
         $this->create('First');
