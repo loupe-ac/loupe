@@ -3,7 +3,7 @@ import { Controller } from '@hotwired/stimulus';
 
 export default class extends Controller {
     static targets = ['clearButton', 'field'];
-    static values = { ignore: Array };
+    static values = { ignore: Array, sync: Boolean };
 
     connect() {
         this.timeout = null;
@@ -19,10 +19,23 @@ export default class extends Controller {
             }
         };
         document.addEventListener('click', this.clearFromOutside);
+        this.syncFromFrame = (event) => {
+            if (
+                this.syncValue &&
+                event.target.id &&
+                event.target.id === this.element.dataset.turboFrame
+            ) {
+                this.#syncFromAddress(
+                    event.detail?.fetchResponse?.response?.url,
+                );
+            }
+        };
+        document.addEventListener('turbo:frame-render', this.syncFromFrame);
     }
 
     disconnect() {
         document.removeEventListener('click', this.clearFromOutside);
+        document.removeEventListener('turbo:frame-render', this.syncFromFrame);
         clearTimeout(this.timeout);
     }
 
@@ -64,6 +77,41 @@ export default class extends Controller {
         }
         this.#updateClearButton();
         this.element.requestSubmit();
+    }
+
+    /**
+     * A form that sits outside the frame it swaps keeps its own state, so a
+     * link inside the frame that changes the filter, such as a button of an
+     * empty list, leaves the switch and the selects stale. After a render the
+     * form copies its checkboxes and selects from the address the frame
+     * loaded. A response for another path, such as a row action, changes
+     * nothing, and a control with focus is left alone.
+     */
+    #syncFromAddress(address) {
+        let url;
+        try {
+            url = new URL(
+                address ?? window.location.href,
+                window.location.href,
+            );
+        } catch {
+            return;
+        }
+        if (url.pathname !== new URL(this.element.action).pathname) return;
+        for (const element of this.element.elements) {
+            if (!element.name || element === document.activeElement) continue;
+            if (element.type === 'checkbox') {
+                element.checked = url.searchParams
+                    .getAll(element.name)
+                    .includes(element.value);
+            } else if (
+                element.tagName === 'SELECT' &&
+                url.searchParams.has(element.name)
+            ) {
+                element.value = url.searchParams.get(element.name);
+            }
+        }
+        this.#updateClearButton();
     }
 
     #hasActiveFilters() {

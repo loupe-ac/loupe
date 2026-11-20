@@ -50,7 +50,7 @@ final class ArchiveExperimentControllerTest extends WebTestCase
 
         $crawler = $client->request(Request::METHOD_GET, $base);
         self::assertCount(1, $crawler->filter('[data-experiment="model-test"]'));
-        self::assertCount(0, $crawler->filter('[data-experiment-archived-toggle]'));
+        self::assertCount(0, $crawler->filter('[data-filter-needed]'));
     }
 
     public function test_the_archived_filter_keeps_its_switch_when_nothing_is_archived(): void

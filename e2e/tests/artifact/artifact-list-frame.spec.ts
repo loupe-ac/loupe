@@ -77,8 +77,12 @@ test('an artifacts archived filter survives a live signal from another actor', a
         .click();
     await expect(watcher.locator('[data-artifact-id]')).toHaveCount(1, LIVE);
     const toggle = watcher.locator('[data-artifact-archived-toggle]');
+    await expect(toggle).toBeVisible();
+    // The switch sits outside the swapped frame, so a swap keeps the same element.
+    await toggle.evaluate((element) => element.setAttribute('data-kept', ''));
     await toggle.click();
     await expect(watcher).toHaveURL(/archived=1/, LIVE);
+    await expect(toggle).toHaveAttribute('data-kept', '');
     await expect(watcher.locator('[data-artifact-id]')).toHaveCount(2);
 
     // The hub keeps no history, so a change made before the page connects is lost.

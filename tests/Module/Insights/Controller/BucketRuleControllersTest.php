@@ -78,8 +78,9 @@ final class BucketRuleControllersTest extends WebTestCase
 
         $client->loginUser($project->owner);
         $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/analytics/time-buckets');
-        self::assertCount(1, $crawler->filter('turbo-frame#bucket-rules-view > turbo-frame#analytics-bucket-rules[data-controller="live-region"]'));
-        self::assertCount(1, $crawler->filter('#bucket-rules-view form[data-turbo-frame="bucket-rules-view"][data-turbo-action="advance"] select[name="range"]'));
+        self::assertCount(1, $crawler->filter('turbo-frame#bucket-rules-view > turbo-frame#analytics-bucket-summary[data-controller="live-region"]'));
+        self::assertCount(0, $crawler->filter('turbo-frame#bucket-rules-view select[name="range"]'));
+        self::assertCount(1, $crawler->filter('form[data-turbo-frame="bucket-rules-view"][data-turbo-action="advance"] select[name="range"]'));
 
         self::assertResponseIsSuccessful();
         $summary = $crawler->filter('[data-bucket-summary]');

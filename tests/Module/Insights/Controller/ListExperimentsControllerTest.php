@@ -39,6 +39,9 @@ final class ListExperimentsControllerTest extends WebTestCase
         self::assertCount(0, $crawler->filter('[data-experiments-empty]'));
         self::assertCount(1, $crawler->filter('turbo-frame#experiments-list > turbo-frame#analytics-experiments[data-controller="live-region"]'));
         self::assertCount(2, $crawler->filter('#analytics-experiments form.lp-document-row__action-form[data-turbo-frame="experiments-list"]'));
+        self::assertCount(0, $crawler->filter('turbo-frame#experiments-list form[data-turbo-action="advance"]'));
+        self::assertCount(1, $crawler->filter('.lp-filter-gated ~ turbo-frame#experiments-list'));
+        self::assertCount(1, $crawler->filter('.lp-filter-gated form#experiments-filter[data-turbo-frame="experiments-list"][data-turbo-action="advance"] input[data-experiment-archived-toggle]'));
     }
 
     public function test_a_project_with_no_experiment_says_how_to_start_one(): void

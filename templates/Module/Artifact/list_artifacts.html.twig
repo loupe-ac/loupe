@@ -13,6 +13,13 @@
     <twig:Ds:PageHeader :title="'artifact.list.heading'|trans" :description="'artifact.list.description'|trans" titleClass="lp-workspace-title--doc" />
 
     {% if not app.request.headers.has('Turbo-Frame') %}{% do mercure_subscribe(artifacts_topic(project)) %}{% endif %}
+    {# The filter form sits outside the swapped frame, so a swap never replaces the control that started it. It shows while the frame holds a filter-needed marker. #}
+    <twig:Ds:FilterBar
+        class="lp-filter-gated"
+        :action="path('app_project_artifacts', {id: project.id})"
+        :frame="'artifacts-list'"
+        :formAttributes="{id: 'artifacts-filter', 'data-autosearch-sync-value': 'true'}"
+        :switch="{name: 'archived', label: 'artifact.list.show_archived'|trans, checked: includeArchived, attributes: {'data-artifact-archived-toggle': true}}" />
     {# The outer frame swaps on a filter and on a row archive. The live frame sits inside it, so each swap brings the live address of the new filter. #}
     <turbo-frame id="artifacts-list" target="_top">
     <turbo-frame id="artifacts-frame" class="lp-live-frame" refresh="morph" target="_top" data-live-content
@@ -21,12 +28,7 @@
                  data-live-region-mode-value="frame"
                  data-live-region-url-value="{{ app.request.requestUri }}">
     {% if items is not empty or includeArchived %}
-    <twig:Ds:FilterBar
-        :action="path('app_project_artifacts', {id: project.id})"
-        :frame="'artifacts-list'"
-        :switch="{name: 'archived', label: 'artifact.list.show_archived'|trans, checked: includeArchived, attributes: {'data-artifact-archived-toggle': true}}"
-        :count="'artifact.list.count'|trans({'%count%': items|length})"
-        :countAttributes="{'data-artifact-count': true}" />
+    <p class="lp-list-count" data-filter-needed data-artifact-count>{{ 'artifact.list.count'|trans({'%count%': items|length}) }}</p>
     {% endif %}
 
     {% if items is empty %}

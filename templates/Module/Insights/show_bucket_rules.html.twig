@@ -39,13 +39,12 @@
         {{ form_end(ruleForm) }}
     </section>
 
-    {# The add form stays outside the frame, so a refresh never touches typed text. The outer frame swaps on a range change, and the live frame inside it brings the live address of the new range. #}
-    <turbo-frame id="bucket-rules-view" target="_top">
+    {# The add form stays outside the frame, so a refresh never touches typed text. #}
     <turbo-frame id="analytics-bucket-rules" refresh="morph" target="_top" class="lp-live-frame"
                  data-controller="live-region"
                  data-live-region-types-value="{{ ['analytics.changed']|json_encode }}"
                  data-live-region-match-type-value="{{ {'analytics.changed': {area: 'bucket_rules'}}|json_encode }}"
-                 data-live-region-url-value="{{ path('app_project_analytics_time_buckets', {id: project.id, range: summary.range.value}) }}"
+                 data-live-region-url-value="{{ path('app_project_analytics_time_buckets', {id: project.id}) }}"
                  data-live-region-mode-value="frame"
                  data-live-content>
     {% if rules is not empty %}
@@ -76,10 +75,12 @@
     {% else %}
     <twig:Ds:EmptyState icon="lucide:list-filter" :title="'insights.bucket_rules.empty.title'|trans" :body="'insights.bucket_rules.empty.description'|trans({'%fallback%': constant('App\\Module\\Bridge\\Service\\BucketRule::FALLBACK')})" data-bucket-rules-empty />
     {% endif %}
+    </turbo-frame>
 
     <section class="lp-reports-panel" data-bucket-summary>
         <twig:Ds:SectionHeading>{{ 'insights.bucket_rules.summary.title'|trans }}</twig:Ds:SectionHeading>
         <twig:Ds:Hint>{{ 'insights.bucket_rules.summary.intro'|trans }}</twig:Ds:Hint>
+        {# The range form sits outside the swapped frame, so a swap never replaces the select that started it. #}
         <twig:Ds:FilterBar :action="path('app_project_analytics_time_buckets', {id: project.id})" :frame="'bucket-rules-view'">
             <twig:block name="secondary">
                 <label class="sr-only" for="bucket-summary-range">{{ 'insights.bucket_rules.summary.range'|trans }}</label>
@@ -91,6 +92,15 @@
                 <noscript><twig:Ds:Button type="submit">{{ 'analytics.metrics.form.apply'|trans }}</twig:Ds:Button></noscript>
             </twig:block>
         </twig:Ds:FilterBar>
+        {# The outer frame swaps on a range change. The live frame sits inside it, so each swap brings the live address of the new range. #}
+        <turbo-frame id="bucket-rules-view" target="_top">
+        <turbo-frame id="analytics-bucket-summary" refresh="morph" target="_top" class="lp-live-frame"
+                     data-controller="live-region"
+                     data-live-region-types-value="{{ ['analytics.changed']|json_encode }}"
+                     data-live-region-match-type-value="{{ {'analytics.changed': {area: 'bucket_rules'}}|json_encode }}"
+                     data-live-region-url-value="{{ path('app_project_analytics_time_buckets', {id: project.id, range: summary.range.value}) }}"
+                     data-live-region-mode-value="frame"
+                     data-live-content>
         {% if 0 == summary.knownRuns %}
         <twig:Ds:Panel data-bucket-summary-no-data><twig:Ds:Hint>{{ 'insights.bucket_rules.summary.no_data'|trans }}</twig:Ds:Hint></twig:Ds:Panel>
         {% else %}
@@ -131,8 +141,8 @@
 </div>
         </div>
         {% endif %}
+        </turbo-frame>
+        </turbo-frame>
     </section>
-    </turbo-frame>
-    </turbo-frame>
 </twig:Ds:Workspace>
 {% endblock %}

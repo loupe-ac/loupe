@@ -388,9 +388,12 @@ test('a bucket rules range survives a live signal from another actor', async ({
     await suppressWidget(watcher);
     await watcher.goto(url);
     const range = watcher.locator('#bucket-summary-range');
+    // The select sits outside the swapped frame, so a swap keeps the same element.
+    await range.evaluate((element) => element.setAttribute('data-kept', ''));
     await range.selectOption('seven-days');
     await expect(watcher).toHaveURL(/range=seven-days/, LIVE);
     await expect(range).toHaveValue('seven-days');
+    await expect(range).toHaveAttribute('data-kept', '');
 
     // The hub keeps no history, so a change made before the page connects is lost.
     await watcher.waitForTimeout(1_000);
@@ -476,8 +479,13 @@ test('an experiments archived filter survives a live signal from another actor',
     await expect(watcher.locator('[data-experiment]')).toHaveCount(2, LIVE);
     // The archive signals its own change, and the live read it starts must end before the toggle.
     await watcher.waitForTimeout(2_000);
-    await watcher.locator('[data-experiment-archived-toggle]').click();
+    const toggle = watcher.locator('[data-experiment-archived-toggle]');
+    await expect(toggle).toBeVisible();
+    // The switch sits outside the swapped frame, so a swap keeps the same element.
+    await toggle.evaluate((element) => element.setAttribute('data-kept', ''));
+    await toggle.click();
     await expect(watcher).toHaveURL(/archived=1/, LIVE);
+    await expect(toggle).toHaveAttribute('data-kept', '');
     await expect(watcher.locator('[data-experiment]')).toHaveCount(1);
 
     // The hub keeps no history, so a change made before the page connects is lost.

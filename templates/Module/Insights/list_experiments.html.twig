@@ -17,6 +17,13 @@
 
     {% set canManage = is_granted(constant('App\\Module\\Project\\Security\\ProjectVoter::MANAGE'), project) %}
     {% set shares = experiment_share_states(project, experiments|map(row => row.name)) %}
+    {# The filter form sits outside the swapped frame, so a swap never replaces the control that started it. It shows while the frame holds a filter-needed marker. #}
+    <twig:Ds:FilterBar
+        class="lp-filter-gated"
+        :action="path('app_project_analytics_experiments', {id: project.id})"
+        :frame="'experiments-list'"
+        :formAttributes="{id: 'experiments-filter', 'data-autosearch-sync-value': 'true'}"
+        :switch="{name: 'archived', label: 'bridge.experiments.show_archived'|trans, checked: includeArchived, attributes: {'data-experiment-archived-toggle': true}}" />
     {# The outer frame swaps on a filter and on a row archive. The live frame sits inside it, so each swap brings the live address of the new filter. #}
     <turbo-frame id="experiments-list" target="_top">
     <turbo-frame id="analytics-experiments" refresh="morph" target="_top" class="lp-live-frame"
@@ -27,12 +34,7 @@
                  data-live-region-mode-value="frame"
                  data-live-content>
     {% if archivedCount > 0 or includeArchived %}
-    <twig:Ds:FilterBar
-        :action="path('app_project_analytics_experiments', {id: project.id})"
-        :frame="'experiments-list'"
-        :switch="{name: 'archived', label: 'bridge.experiments.show_archived'|trans, checked: includeArchived, attributes: {'data-experiment-archived-toggle': true}}"
-        :count="'bridge.experiments.count'|trans({'%count%': experiments|length})"
-        :countAttributes="{'data-experiment-count': true}" />
+    <p class="lp-list-count" data-filter-needed data-experiment-count>{{ 'bridge.experiments.count'|trans({'%count%': experiments|length}) }}</p>
     {% endif %}
 
     {% if experiments is not empty %}
