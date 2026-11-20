@@ -103,6 +103,29 @@ final class ChangeGitIdentityManagedControllerTest extends WebTestCase
         self::assertStringContainsString('The form has expired', $client->followRedirect()->filter('body')->text());
     }
 
+    public function test_an_invalid_turbo_stream_request_restores_the_panel_with_an_error_flash(): void
+    {
+        $client = static::createClient();
+        $owner = $this->signedUpUser('streambad');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $client->request(
+            Request::METHOD_POST,
+            '/projects/'.$project->id.'/git-identity',
+            ['change_git_identity_managed_form' => ['_token' => 'wrong']],
+            server: ['HTTP_ORIGIN' => 'http://localhost', 'HTTP_ACCEPT' => 'text/vnd.turbo-stream.html'],
+        );
+
+        self::assertResponseIsSuccessful();
+        $body = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('<turbo-stream action="replace" target="git-identity">', $body);
+        self::assertStringContainsString('<turbo-stream action="prepend" target="main-content">', $body);
+        self::assertStringContainsString('The form has expired', $body);
+        self::assertTrue($this->stored($project)->gitIdentityManaged);
+    }
+
     public function test_a_stranger_is_forbidden_and_the_setting_stays(): void
     {
         $client = static::createClient();

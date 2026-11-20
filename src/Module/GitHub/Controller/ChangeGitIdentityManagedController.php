@@ -39,18 +39,16 @@ class ChangeGitIdentityManagedController extends AppController
         $form->handleRequest($request);
 
         $flash = ['severity' => 'error', 'message' => $this->translator->trans('github.identity.flash.invalid')];
-        $changed = false;
         if ($form->isSubmitted() && $form->isValid()) {
             $turnOff = $form->get('turnOff');
             $managed = ($turnOff instanceof SubmitButton && $turnOff->isClicked()) ? false : $form->getData()->managed;
             ($this->changeGitIdentityManaged)(new ChangeGitIdentityManagedCommand($project, $managed));
-            $changed = true;
             $flash = ['severity' => 'success', 'message' => $this->translator->trans($managed ? 'github.identity.flash.managed' : 'github.identity.flash.unmanaged')];
         }
 
         if (TurboBundle::STREAM_FORMAT === $request->getPreferredFormat()) {
             return new Response(
-                ($changed ? $this->renderView('@GitHub/_git_identity.stream.html.twig', ['project' => $project]) : '')
+                $this->renderView('@GitHub/_git_identity.stream.html.twig', ['project' => $project])
                 .$this->renderView('_flash.stream.html.twig', $flash),
                 Response::HTTP_OK,
                 ['Content-Type' => TurboBundle::STREAM_MEDIA_TYPE],
