@@ -65,6 +65,7 @@ final readonly class DocumentStateStreams
                 ['action' => $this->urlGenerator->generate('app_document_review_undo', $routeParameters)],
             )->createView(),
         ]);
+        $html .= $this->twig->render('@Review/_history_topbar_actions.stream.html.twig', ['document' => $document]);
         $html .= $this->twig->render('@Review/_finish_review_form.stream.html.twig', [
             'document' => $document,
             'submitReviewForm' => $this->formFactory->create(

@@ -308,15 +308,17 @@ final class SubmitReviewControllerTest extends WebTestCase
         self::assertResponseHeaderSame('Content-Type', 'text/vnd.turbo-stream.html; charset=UTF-8');
         $body = (string) $client->getResponse()->getContent();
         self::assertStringContainsString('target="review-topbar-actions"', $body);
+        self::assertStringContainsString('target="history-topbar-actions"', $body);
         self::assertStringContainsString('target="draft-band"', $body);
         self::assertStringContainsString('<turbo-stream action="replace" target="finish-review-form" data-closes-dialog>', $body);
         self::assertStringContainsString('target="main-content"', $body);
         self::assertStringContainsString('lp-verdict-chip--approved', $body);
 
         preg_match('/name="undo_verdict_form\[reviewId\]"[^>]*value="([^"]+)"/', $body, $matches);
-        self::assertNotEmpty($matches[1] ?? null);
+        $reviewId = $matches[1] ?? null;
+        self::assertNotEmpty($reviewId);
         $client->request(Request::METHOD_POST, "/projects/$projectId/documents/$docId/review/undo", [
-            'undo_verdict_form' => ['_token' => 'csrf-token', 'reviewId' => $matches[1]],
+            'undo_verdict_form' => ['_token' => 'csrf-token', 'reviewId' => $reviewId],
         ], [], $stream);
 
         self::assertResponseIsSuccessful();
