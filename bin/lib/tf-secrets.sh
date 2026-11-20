@@ -157,6 +157,6 @@ tfvars_file_b64_all() {
 # The value of one name from the output of tfvars_file_b64_all, which arrives
 # as the second argument. The answer reaches awk on standard input only.
 ts_b64_of() {
-    printf '%s\n' "$2" | awk -v n="$1" '$1 == n { print $2; found = 1; exit } END { exit !found }' \
+    printf '%s\n' "$2" | awk -v n="$1" '$1 == n && !found { print $2; found = 1 } END { exit !found }' \
         || ts_fail "terraform returned no value for $1."
 }
