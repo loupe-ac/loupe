@@ -101,10 +101,33 @@ it('keeps the submitting form through an unrelated morph after the request ended
     form.dispatchEvent(
         new CustomEvent('turbo:submit-start', { bubbles: true }),
     );
-    startVisit({ response: undefined });
+    form.dispatchEvent(
+        new CustomEvent('turbo:submit-end', {
+            bubbles: true,
+            detail: {
+                fetchResponse: {
+                    header: () => 'text/html',
+                    location: new URL('http://localhost/settings'),
+                },
+            },
+        }),
+    );
+    startVisit({
+        response: undefined,
+        location: new URL('http://localhost/settings'),
+    });
     document.dispatchEvent(new CustomEvent('turbo:morph'));
     expect(morph(form)).toBe(false);
-    startVisit({ response: { responseHTML: '<html></html>' } });
+    startVisit({
+        response: { responseHTML: '<html></html>' },
+        location: new URL('http://localhost/frame-fallback'),
+    });
+    document.dispatchEvent(new CustomEvent('turbo:morph'));
+    expect(morph(form)).toBe(false);
+    startVisit({
+        response: { responseHTML: '<html></html>' },
+        location: new URL('http://localhost/settings'),
+    });
     document.dispatchEvent(new CustomEvent('turbo:morph'));
     expect(morph(form)).toBe(true);
     delete window.Turbo;

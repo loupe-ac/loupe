@@ -24,7 +24,12 @@ beforeEach(() => {
 function answer(type = 'text/html') {
     document.dispatchEvent(
         new CustomEvent('turbo:submit-end', {
-            detail: { fetchResponse: { header: () => type } },
+            detail: {
+                fetchResponse: {
+                    header: () => type,
+                    location: new URL('http://localhost/settings'),
+                },
+            },
         }),
     );
 }
@@ -120,13 +125,23 @@ it('keeps the section through an unrelated morph after the request ended', () =>
     place(900, 1100);
     submit('identity-form');
     answer();
-    window.Turbo = {
-        session: { navigator: { currentVisit: { response: undefined } } },
+    const unrelated = [
+        { response: undefined, location: new URL('http://localhost/settings') },
+        {
+            response: { responseHTML: '<html></html>' },
+            location: new URL('http://localhost/frame-fallback'),
+        },
+    ];
+    for (const visit of unrelated) {
+        window.Turbo = { session: { navigator: { currentVisit: visit } } };
+        document.dispatchEvent(new CustomEvent('turbo:visit'));
+        document.dispatchEvent(new CustomEvent('turbo:morph'));
+        expect(section.scrollIntoView).not.toHaveBeenCalled();
+    }
+    const own = {
+        response: { responseHTML: '<html></html>' },
+        location: new URL('http://localhost/settings'),
     };
-    document.dispatchEvent(new CustomEvent('turbo:visit'));
-    document.dispatchEvent(new CustomEvent('turbo:morph'));
-    expect(section.scrollIntoView).not.toHaveBeenCalled();
-    const own = { response: { responseHTML: '<html></html>' } };
     window.Turbo = { session: { navigator: { currentVisit: own } } };
     document.dispatchEvent(new CustomEvent('turbo:visit'));
     document.dispatchEvent(new CustomEvent('turbo:morph'));
