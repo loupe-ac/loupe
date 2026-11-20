@@ -9,7 +9,8 @@ export const DEBOUNCE_MILLISECONDS = 300;
  * Reloads a frame of worker runs when the Mercure hub reports a change, and
  * after each reconnect for any change it missed. An open run drawer holds the
  * reload until it closes, so the reader keeps what they are reading. With a
- * project value, a change that names another project is ignored.
+ * project value, a change that names another project is ignored. With an
+ * ignore kinds value, a worker run change of such a kind is ignored too.
  */
 export default class extends Controller {
     static targets = ['frame'];
@@ -19,6 +20,7 @@ export default class extends Controller {
         whole: Boolean,
         project: String,
         events: { type: Array, default: ['worker_run.changed'] },
+        ignoreKinds: { type: Array, default: [] },
     };
 
     connect() {
@@ -45,6 +47,13 @@ export default class extends Controller {
     receive(data) {
         const projectId = data?.projectId;
         if (this.projectValue && projectId && projectId !== this.projectValue) {
+            return;
+        }
+        // A worker run signal names its kind. A page that shows no usage skips that kind.
+        if (
+            data?.type === 'worker_run.changed' &&
+            this.ignoreKindsValue.includes(data.kind)
+        ) {
             return;
         }
         this.schedule();

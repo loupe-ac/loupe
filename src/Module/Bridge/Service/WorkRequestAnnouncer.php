@@ -6,6 +6,7 @@ namespace App\Module\Bridge\Service;
 
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Event\WorkRequestChanged;
+use App\Module\Bridge\ValueObject\WorkerRunChangeKind;
 use App\Module\Project\Entity\Project;
 use Psr\EventDispatcher\EventDispatcherInterface;
 
@@ -35,7 +36,7 @@ final readonly class WorkRequestAnnouncer
             ));
         }
         foreach ($projects as $project) {
-            $this->runsChanged->runsChanged($project);
+            $this->runsChanged->runsChanged($project, WorkerRunChangeKind::State);
         }
     }
 }

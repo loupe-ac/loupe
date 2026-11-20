@@ -14,22 +14,32 @@ export const RETRY_MILLISECONDS = [1000, 3000, 9000];
 export const READ_TIMEOUT_MILLISECONDS = 10000;
 
 /**
- * Morphs the card in again on a change to it or to a worker run, and after a
- * reconnect. An open dialog holds the update until it closes. A form with
- * unsaved input, a flash and an open disclosure keep their state.
+ * Morphs the card in again on a change to it, and after a reconnect. A change
+ * to a worker run reloads only the runs frame, and only when it names this
+ * card or names no card. An open dialog holds the update until it closes. A
+ * form with unsaved input, a flash and an open disclosure keep their state.
  */
 export default class extends Controller {
-    static values = { cardId: String, url: String, frame: Boolean };
+    static values = {
+        cardId: String,
+        url: String,
+        runsUrl: String,
+        frame: Boolean,
+    };
 
     connect() {
         // A lost access ends the live part, as a disconnect does.
         this.removeLostListener = onLostAccess(() => this.disconnect());
         this.held = false;
+        this.runsHeld = false;
         this.waiters = [];
         // A dialog's close event does not bubble, so the listener captures it.
         this.onDialogClose = () => {
             if (this.held) {
                 this.refresh();
+            }
+            if (this.runsHeld) {
+                this.reloadRuns();
             }
         };
         this.element.addEventListener('close', this.onDialogClose, true);
@@ -44,6 +54,7 @@ export default class extends Controller {
         this.removeLostListener?.();
         this.removeLostListener = undefined;
         clearTimeout(this.timeout);
+        clearTimeout(this.runsTimeout);
         this.request?.abort();
         this.settle();
         this.element.removeEventListener('close', this.onDialogClose, true);
@@ -61,6 +72,11 @@ export default class extends Controller {
         if (change.local) {
             return;
         }
+        if (change.type === 'worker_run.changed' && this.runsUrlValue) {
+            this.runsChanged(change);
+
+            return;
+        }
         if (change.type === 'board.card_changed') {
             if (change.cardId !== this.cardIdValue) {
                 return;
@@ -73,6 +89,47 @@ export default class extends Controller {
         this.schedule();
 
         return new Promise((resolve) => this.waiters.push(resolve));
+    }
+
+    /**
+     * A run signal that names cards and not this one changes nothing here, and
+     * neither does one that names runs of no card. Only a signal with no run
+     * and no card is a change to any run, so the frame reads it again.
+     */
+    runsChanged(change) {
+        const cardIds = Array.isArray(change.cardIds) ? change.cardIds : [];
+        const runIds = Array.isArray(change.runIds) ? change.runIds : [];
+        const named = cardIds.length > 0 || runIds.length > 0;
+        if (named && !cardIds.includes(this.cardIdValue)) {
+            return;
+        }
+        clearTimeout(this.runsTimeout);
+        this.runsTimeout = setTimeout(
+            () => this.reloadRuns(),
+            DEBOUNCE_MILLISECONDS,
+        );
+    }
+
+    reloadRuns() {
+        if (this.element.querySelector('dialog[open]') !== null) {
+            this.runsHeld = true;
+
+            return;
+        }
+        this.runsHeld = false;
+        const frame = this.element.querySelector(
+            'turbo-frame#card-worker-runs',
+        );
+        if (frame === null) {
+            return;
+        }
+        // A frame with no src has nothing to reload, and one given a src loads it.
+        if (frame.getAttribute('src') === null) {
+            frame.setAttribute('src', this.runsUrlValue);
+
+            return;
+        }
+        frame.reload();
     }
 
     settle() {
