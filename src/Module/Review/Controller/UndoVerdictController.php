@@ -14,6 +14,7 @@ use App\Module\Review\Entity\Document;
 use App\Module\Review\Form\UndoVerdictFormType;
 use App\Module\Review\Form\UndoVerdictRequest;
 use App\Module\Review\Security\DocumentVoter;
+use App\Module\Review\Service\DocumentStateStreams;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
@@ -21,6 +22,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Contracts\Translation\TranslatorInterface;
+use Symfony\UX\Turbo\TurboBundle;
 
 #[IsGranted(DocumentVoter::CONTRIBUTE, subject: 'document')]
 #[Route(
@@ -32,6 +34,7 @@ final class UndoVerdictController extends AppController
 {
     public function __construct(
         private readonly UndoVerdictHandler $undoVerdict,
+        private readonly DocumentStateStreams $streams,
         private readonly TranslatorInterface $translator,
     ) {
     }
@@ -59,7 +62,12 @@ final class UndoVerdictController extends AppController
         if ($form->isSubmitted() && $form->isValid() && null !== $data->reviewId) {
             try {
                 ($this->undoVerdict)(new UndoVerdictCommand(document: $document, actor: $user, reviewId: $data->reviewId));
-                $this->addFlash('success', $this->translator->trans('review.document.flash.verdict_undone'));
+                $message = $this->translator->trans('review.document.flash.verdict_undone');
+                if (TurboBundle::STREAM_FORMAT === $request->getPreferredFormat()) {
+                    return $this->streams->answer($document, $user, 'success', $message);
+                }
+
+                $this->addFlash('success', $message);
 
                 return $this->redirectToRoute('app_document_review', $routeParameters);
             } catch (DomainErrors $e) {

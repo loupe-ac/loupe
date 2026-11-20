@@ -109,7 +109,7 @@ final class ArchiveDocumentControllerTest extends WebTestCase
         self::assertStringContainsString('src="/projects/'.$projectId.'/documents?page=1"', $body);
     }
 
-    public function test_unarchiving_from_the_review_page_redirects_to_the_list_even_for_a_turbo_request(): void
+    public function test_unarchiving_from_the_review_page_redirects_back_to_the_review_page_even_for_a_turbo_request(): void
     {
         $client = static::createClient();
         $em = static::getContainer()->get(EntityManagerInterface::class);
@@ -127,7 +127,7 @@ final class ArchiveDocumentControllerTest extends WebTestCase
         $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/documents/'.$documentId.'/review');
         $client->submit($crawler->filter('[data-live-band="archived"] form')->form(), [], ['HTTP_ACCEPT' => 'text/vnd.turbo-stream.html']);
 
-        self::assertResponseRedirects('/projects/'.$projectId.'/documents?page=1');
+        self::assertResponseRedirects('/projects/'.$projectId.'/documents/'.$documentId.'/review');
 
         $em->clear();
         $fresh = $em->find(Document::class, $document->id);

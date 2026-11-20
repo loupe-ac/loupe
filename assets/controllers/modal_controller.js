@@ -184,12 +184,15 @@ export default class extends Controller {
         if (action !== 'remove' && action !== 'replace') return;
 
         const target = document.getElementById(stream.getAttribute('target'));
-        if (!target?.contains(this.element)) return;
         if (!this.dialogTarget.open) return;
+        const closesInside =
+            stream.hasAttribute('data-closes-dialog') &&
+            this.dialogTarget.contains(target);
+        if (!closesInside && !target?.contains(this.element)) return;
 
         const originalRender = event.detail.render;
         event.detail.render = async (streamElement) => {
-            await this.#animateOutAsync();
+            await (closesInside ? this.close() : this.#animateOutAsync());
             await originalRender(streamElement);
         };
     };

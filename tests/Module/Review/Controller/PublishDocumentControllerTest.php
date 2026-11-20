@@ -124,6 +124,37 @@ final class PublishDocumentControllerTest extends WebTestCase
         self::assertSelectorTextContains('body', 'An archived document cannot be sent to review.');
     }
 
+    public function test_publishing_answers_a_stream_that_clears_the_draft_band(): void
+    {
+        $owner = $this->user('publish-web-stream@example.com');
+        $document = $this->document($owner, DocumentStatus::Draft);
+        $this->client->loginUser($owner);
+
+        $this->post($document, 'csrf-token', true);
+
+        self::assertResponseIsSuccessful();
+        $body = (string) $this->client->getResponse()->getContent();
+        self::assertStringContainsString('<turbo-stream action="remove" target="draft-band">', $body);
+        self::assertStringContainsString('target="review-topbar-actions"', $body);
+        self::assertStringContainsString('target="main-content"', $body);
+        self::assertSame(DocumentStatus::InReview, $this->statusOf($document));
+    }
+
+    public function test_a_refused_publish_answers_a_stream_with_the_error(): void
+    {
+        $owner = $this->user('publish-web-stream-refused@example.com');
+        $document = $this->document($owner, DocumentStatus::Draft);
+        $document->archivedAt = new \DateTimeImmutable();
+        $this->em->flush();
+        $this->client->loginUser($owner);
+
+        $this->post($document, 'csrf-token', true);
+
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('An archived document cannot be sent to review.', (string) $this->client->getResponse()->getContent());
+        self::assertSame(DocumentStatus::Draft, $this->statusOf($document));
+    }
+
     public function test_a_forged_token_is_refused(): void
     {
         $owner = $this->user('publish-web-csrf@example.com');
@@ -148,9 +179,9 @@ final class PublishDocumentControllerTest extends WebTestCase
         self::assertSame(DocumentStatus::Draft, $this->statusOf($document));
     }
 
-    private function post(Document $document, string $token): void
+    private function post(Document $document, string $token, bool $stream = false): void
     {
         $url = '/projects/'.$document->project->id.'/documents/'.$document->id.'/publish';
-        $this->client->request(Request::METHOD_POST, $url, ['_csrf_token' => $token], [], ['HTTP_REFERER' => 'http://localhost'.$url]);
+        $this->client->request(Request::METHOD_POST, $url, ['_csrf_token' => $token], [], ['HTTP_REFERER' => 'http://localhost'.$url] + ($stream ? ['HTTP_ACCEPT' => 'text/vnd.turbo-stream.html'] : []));
     }
 }
