@@ -8,6 +8,7 @@ use App\Module\Board\Entity\Card;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\BridgeCommand;
 use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\ValueObject\BridgeCommandKind;
 use App\Module\Bridge\ValueObject\BridgeCommandState;
 use App\Module\Bridge\ValueObject\WorkerRunState;
@@ -274,6 +275,30 @@ final class InboxThreadBuilderTest extends KernelTestCase
         self::assertNotNull($thread->replyCard);
     }
 
+    public function test_a_running_session_keeps_the_reply_card(): void
+    {
+        [$item, $wait] = $this->waitItem();
+        $this->sessionAction($item, $wait);
+
+        $thread = $this->builder->build($item);
+
+        self::assertCount(1, $thread->actions);
+        self::assertSame(InboxActionKind::StartSession, $thread->actions[0]->action->kind);
+        self::assertNotNull($thread->replyCard);
+    }
+
+    public function test_a_session_after_a_queued_resume_still_hides_the_reply_card(): void
+    {
+        [$item, $wait] = $this->waitItem();
+        $this->resumeAction($item, $wait);
+        $this->sessionAction($item, $wait);
+
+        $thread = $this->builder->build($item);
+
+        self::assertCount(2, $thread->actions);
+        self::assertNull($thread->replyCard);
+    }
+
     /** @param list<string> $options */
     private function item(InboxItemKind $kind, array $options = [], ?string $body = null, InboxAskOrigin $origin = InboxAskOrigin::Agent): InboxItem
     {
@@ -316,6 +341,20 @@ final class InboxThreadBuilderTest extends KernelTestCase
         $this->em->flush();
 
         return [$item, $wait];
+    }
+
+    private function sessionAction(InboxItem $item, InboxCardWait $wait): InboxAction
+    {
+        $request = new WorkRequest($this->project, WorkSubject::CARD, $this->card->id ?? throw new \LogicException('Stored.'), $this->card->number, WorkRequest::SESSION_KIND, Bridge::CAPABILITY_SESSION, 'inbox:start-session', new \DateTimeImmutable('+1 minute'));
+        $this->em->persist($request);
+        $this->em->flush();
+        $action = new InboxAction($item, InboxActionKind::StartSession, $this->project->owner, '', new \DateTimeImmutable('+1 minute'));
+        $action->workRequestId = $request->id;
+        $action->waitId = $wait->id;
+        $this->em->persist($action);
+        $this->em->flush();
+
+        return $action;
     }
 
     private function resumeAction(InboxItem $item, InboxCardWait $wait): BridgeCommand

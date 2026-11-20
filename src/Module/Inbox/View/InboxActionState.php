@@ -18,7 +18,7 @@ enum InboxActionState: string
     case Running = 'running';
     case Added = 'added';
 
-    /** The action still answers the wait, so the thread shows no reply card beside it. */
+    /** The action still answers the wait, so the thread shows no reply card beside it. A session never answers a wait. */
     public function inProgress(): bool
     {
         return match ($this) {

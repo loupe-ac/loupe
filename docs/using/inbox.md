@@ -514,8 +514,12 @@ Neither action asks for a confirmation. Retry the card acts at once, and its
 status line reads "Retried at" and the time. Resume the run asks the bridge to
 resume the session. Send an agent and Start an interactive session each queue
 work for a bridge. In each case the reply card turns into a tinted card with
-your name, your note and a status line. The status line of a resume uses the
-run states of the Activity page:
+your name, your note and a status line. The exception is Start an interactive
+session. It shows its status line, and the reply card stays under it without
+Start an interactive session, so you can still retry or dismiss while the
+session runs.
+
+The status line of a resume uses the run states of the Activity page:
 
 - "Queued" while the command waits for a bridge. When no bridge is online,
   the card adds "No bridge is online."
