@@ -348,8 +348,16 @@ test('a runs filter survives a live signal from another actor', async ({
     await suppressWidget(watcher);
     await watcher.goto(`/projects/${projectId}/worker-runs`);
     await expect(watcher.locator('[data-worker-run-id]')).toHaveCount(2);
-    await watcher.locator('#worker-run-outcome').selectOption('open');
-    await expect(watcher).toHaveURL(/open/, LIVE);
+    // The autosearch controller loads lazily, so a change that lands before it connects submits nothing. Send it again until it does.
+    await expect(async () => {
+        await watcher
+            .locator('#worker-run-outcome')
+            .evaluate((select: HTMLSelectElement) => {
+                select.value = 'open';
+                select.dispatchEvent(new Event('change', { bubbles: true }));
+            });
+        await expect(watcher).toHaveURL(/open/, { timeout: 3_000 });
+    }).toPass({ timeout: 30_000 });
     await expect(watcher.locator('[data-worker-run-id]')).toHaveCount(1);
 
     // The hub keeps no history, so a change made before the page connects is lost.

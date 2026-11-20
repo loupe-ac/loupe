@@ -51,6 +51,45 @@ final class BridgePauseControllersTest extends WebTestCase
         self::assertFalse($this->storedBridge($owner, $bridgeId)->pauseRequested);
     }
 
+    public function test_a_turbo_pause_answers_the_one_connection_card(): void
+    {
+        $client = static::createClient();
+        [$owner, $project, $bridge] = $this->scenario('stream');
+        $bridgeId = $bridge->id;
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $url = $this->url($project, $bridgeId, 'pause');
+        $client->request(Request::METHOD_POST, $url, ['_csrf_token' => 'csrf-token'], [], ['HTTP_REFERER' => 'http://localhost'.$url, 'HTTP_ACCEPT' => 'text/vnd.turbo-stream.html, text/html']);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertResponseHeaderSame('Content-Type', 'text/vnd.turbo-stream.html; charset=UTF-8');
+        $body = (string) $client->getResponse()->getContent();
+        self::assertSame(1, substr_count($body, '<turbo-stream action="replace" target="agent-connection-'.$bridgeId.'">'));
+        self::assertStringContainsString('data-agent-pause-control="unpause"', $body);
+        self::assertTrue($this->storedBridge($owner, $bridgeId)->pauseRequested);
+    }
+
+    public function test_a_turbo_unpause_answers_the_one_connection_card(): void
+    {
+        $client = static::createClient();
+        [$owner, $project, $bridge] = $this->scenario('stream-unpause');
+        $bridge->pauseRequested = true;
+        $this->em()->flush();
+        $bridgeId = $bridge->id;
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $url = $this->url($project, $bridgeId, 'unpause');
+        $client->request(Request::METHOD_POST, $url, ['_csrf_token' => 'csrf-token'], [], ['HTTP_REFERER' => 'http://localhost'.$url, 'HTTP_ACCEPT' => 'text/vnd.turbo-stream.html, text/html']);
+
+        self::assertResponseStatusCodeSame(200);
+        $body = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('<turbo-stream action="replace" target="agent-connection-'.$bridgeId.'">', $body);
+        self::assertStringContainsString('data-agent-pause-control="pause"', $body);
+        self::assertFalse($this->storedBridge($owner, $bridgeId)->pauseRequested);
+    }
+
     public function test_a_bridge_that_does_not_follow_the_project_is_not_found(): void
     {
         $client = static::createClient();

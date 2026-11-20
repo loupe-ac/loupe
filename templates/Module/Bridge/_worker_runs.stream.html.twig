@@ -1,0 +1,7 @@
+{#- The list of runs and its shown count, after a live read or a run action. Props: project, view (ListWorkerRunsView), listQuery. -#}
+<turbo-stream action="update" target="worker-runs-frame">
+    <template>{% include '@Bridge/_worker_runs_frame.html.twig' with {project: project, items: view.items, filteredTotal: view.filteredTotal, page: view.page, totalPages: view.totalPages, pageList: view.pageList, listQuery: listQuery, bridgeLabels: view.bridgeLabels, commandFlashes: [], requestFrame: null, reopen: false, live: true} only %}</template>
+</turbo-stream>
+<turbo-stream action="update" target="worker-runs-shown">
+    <template><span class="lp-topbar__meta">{{ 'bridge.worker_runs.meta.shown'|trans({'%count%': view.items|length}) }}</span></template>
+</turbo-stream>

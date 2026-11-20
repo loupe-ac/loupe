@@ -794,9 +794,41 @@ final class ListAgentsControllerTest extends WebTestCase
         $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/agents');
 
         self::assertResponseIsSuccessful();
-        self::assertCount(1, $crawler->filter('[data-controller="worker-run-refresh"] turbo-frame#agents-frame[target="_top"][data-worker-run-refresh-target="frame"] [data-agent-connection-id="'.$bridge->id.'"]'));
+        $frame = $crawler->filter('turbo-frame#agents-frame[target="_top"][refresh="morph"][data-controller="live-region"]');
+        self::assertCount(1, $frame);
+        self::assertSame('/projects/'.$project->id.'/agents/frame', $frame->attr('data-live-region-url-value'));
+        self::assertSame(['worker_run.changed'], json_decode((string) $frame->attr('data-live-region-types-value'), true));
+        self::assertCount(1, $frame->filter('[data-agent-connection-id="'.$bridge->id.'"]'));
         self::assertContains($topic, self::subscribedTopics($client->getResponse()) ?? []);
         self::assertContains($topic, $crawler->filter('form#mercure-subscriptions input[data-mercure-topic]')->each(static fn (Crawler $input): ?string => $input->attr('value')));
+    }
+
+    public function test_the_live_route_answers_the_frame_alone(): void
+    {
+        $client = static::createClient();
+        [$owner, $project, $bridge] = $this->pauseScenario('fragment');
+        $bridgeId = $bridge->id;
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/agents/frame');
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $crawler->filter('turbo-frame#agents-frame [data-agent-connection-id="'.$bridgeId.'"]'));
+        self::assertCount(0, $crawler->filter('[data-hooks-section]'));
+    }
+
+    public function test_a_stranger_cannot_read_the_live_route(): void
+    {
+        $client = static::createClient();
+        [, $project] = $this->pauseScenario('fragment-stranger');
+        $stranger = $this->user($this->em(), 'agents-fragment-stranger@example.com');
+        $this->em()->clear();
+
+        $client->loginUser($stranger);
+        $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/agents/frame');
+
+        self::assertResponseStatusCodeSame(403);
     }
 
     public function test_the_empty_state_sits_in_the_live_frame(): void
