@@ -38,8 +38,13 @@ afterEach(async () => {
     vi.useRealTimers();
 });
 
-async function mount({ url = '', src = null, events = null } = {}) {
-    document.body.innerHTML = `<div data-controller="worker-run-refresh"${url ? ` data-worker-run-refresh-url-value="${url}"` : ''}${events ? ` data-worker-run-refresh-events-value='${JSON.stringify(events)}'` : ''}>
+async function mount({
+    url = '',
+    src = null,
+    events = null,
+    ignoreKinds = null,
+} = {}) {
+    document.body.innerHTML = `<div data-controller="worker-run-refresh"${url ? ` data-worker-run-refresh-url-value="${url}"` : ''}${events ? ` data-worker-run-refresh-events-value='${JSON.stringify(events)}'` : ''}${ignoreKinds ? ` data-worker-run-refresh-ignore-kinds-value='${JSON.stringify(ignoreKinds)}'` : ''}>
         <turbo-frame id="runs" data-worker-run-refresh-target="frame"${src ? ` src="${src}"` : ''}>
             <dialog id="drawer"></dialog>
         </turbo-frame>
@@ -96,6 +101,16 @@ it('gives a frame with no src its fragment url when one is set', async () => {
     await signal();
     await vi.advanceTimersByTimeAsync(DEBOUNCE_MILLISECONDS);
     expect(frame.getAttribute('src')).toBe('/projects/1/worker-runs/card/2');
+});
+
+it('ignores a worker run change of an ignored kind, and reloads for another kind', async () => {
+    const frame = await mount({ src: '/in-motion', ignoreKinds: ['usage'] });
+    subscription().handler({ type: 'worker_run.changed', kind: 'usage' });
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MILLISECONDS);
+    expect(frame.reload).not.toHaveBeenCalled();
+    subscription().handler({ type: 'worker_run.changed', kind: 'state' });
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MILLISECONDS);
+    expect(frame.reload).toHaveBeenCalledOnce();
 });
 
 it('reloads once for a burst of signals', async () => {
