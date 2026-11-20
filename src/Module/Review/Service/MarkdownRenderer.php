@@ -374,6 +374,7 @@ final readonly class MarkdownRenderer
         $environment = new Environment(['html_input' => 'allow', 'allow_unsafe_links' => false]);
         $environment->addExtension(new CommonMarkCoreExtension());
         $environment->addExtension(new TableExtension());
+        $environment->addInlineParser(new HttpUrlAutolinkParser());
 
         if ($withFrontMatter) {
             $environment->addExtension(new FrontMatterExtension(new FrontMatterYamlParser()));

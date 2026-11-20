@@ -1021,6 +1021,9 @@ refused response shows its message there, beside the item.
 Markdown in an item or an ask renders with no heading anchors, on this section
 and on the inbox page, so it never takes the anchor of a document heading.
 
+A bare address that starts with `http://` or `https://` renders as a link. A bare
+`www.` address with no scheme stays text.
+
 ## The projects list
 
 While the flag is on, each row of the projects list also shows how many inbox
