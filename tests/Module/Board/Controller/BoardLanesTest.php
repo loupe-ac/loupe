@@ -217,7 +217,7 @@ final class BoardLanesTest extends WebTestCase
         $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/board');
         self::assertResponseIsSuccessful();
         // The Move sheet keeps a flash in a template, which draws nothing.
-        self::assertCount(0, $crawler->filterXPath('//*[contains(@class, "lp-flash") and not(ancestor::template)]'));
+        self::assertCount(0, $crawler->filterXPath('//*[contains(concat(" ", normalize-space(@class), " "), " lp-flash ") and not(ancestor::template)]'));
     }
 
     public function test_a_done_epic_shows_as_one_card_and_its_children_leave_the_board(): void

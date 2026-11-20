@@ -323,6 +323,16 @@ it('keeps a form that holds typed text out of a morph', () => {
     ).toBe(true);
 });
 
+it('lets the form that is submitting take the answer of its request', () => {
+    document.body.innerHTML =
+        '<form id="old" aria-busy="true"><textarea></textarea></form><form id="new"><textarea></textarea></form>';
+    const current = document.getElementById('old');
+    current.querySelector('textarea').value = 'typed';
+    expect(
+        morphEvent(current, document.getElementById('new')).defaultPrevented,
+    ).toBe(false);
+});
+
 it('keeps a form that a script opened out of a morph', () => {
     document.body.innerHTML =
         '<form id="old"></form><form id="new" hidden></form>';

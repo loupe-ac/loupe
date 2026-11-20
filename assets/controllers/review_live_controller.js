@@ -19,11 +19,15 @@ const TEXT_FIELDS =
 
 /**
  * A form that holds text the reader typed, or that a script opened, is not the
- * server's to redraw: the new markup renders it empty and hidden.
+ * server's to redraw: the new markup renders it empty and hidden. The form
+ * that is submitting takes the answer of its own request, such as its errors.
  */
 export function keepLocalForm(event) {
     const { currentElement, newElement } = event.detail;
     if (!(currentElement instanceof HTMLFormElement) || !newElement) {
+        return;
+    }
+    if (currentElement.getAttribute('aria-busy') === 'true') {
         return;
     }
     const typed = [...currentElement.querySelectorAll(TEXT_FIELDS)].some(
