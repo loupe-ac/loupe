@@ -13,6 +13,8 @@
     <twig:Ds:PageHeader :title="'artifact.list.heading'|trans" :description="'artifact.list.description'|trans" titleClass="lp-workspace-title--doc" />
 
     {% if not app.request.headers.has('Turbo-Frame') %}{% do mercure_subscribe(artifacts_topic(project)) %}{% endif %}
+    {# The outer frame swaps on a filter and on a row archive. The live frame sits inside it, so each swap brings the live address of the new filter. #}
+    <turbo-frame id="artifacts-list" target="_top">
     <turbo-frame id="artifacts-frame" class="lp-live-frame" refresh="morph" target="_top" data-live-content
                  data-controller="live-region"
                  data-live-region-types-value="{{ ['artifact.changed']|json_encode }}"
@@ -21,6 +23,7 @@
     {% if items is not empty or includeArchived %}
     <twig:Ds:FilterBar
         :action="path('app_project_artifacts', {id: project.id})"
+        :frame="'artifacts-list'"
         :switch="{name: 'archived', label: 'artifact.list.show_archived'|trans, checked: includeArchived, attributes: {'data-artifact-archived-toggle': true}}"
         :count="'artifact.list.count'|trans({'%count%': items|length})"
         :countAttributes="{'data-artifact-count': true}" />
@@ -68,7 +71,7 @@
             <div class="lp-data-table__cell lp-document-row__actions" role="cell">
                 <twig:Ds:CopyButton variant="icon" :text="url('app_project_artifact', {id: project.id, artifactId: artifact.id})" :label="'artifact.list.copy_link'|trans({'%name%': artifact.name})" :copiedLabel="'artifact.viewer.copied'|trans" class="lp-document-row__action" data-artifact-copy-link />
                 {# Both states are written out, because the icon importer sees only literal names. #}
-                <form method="post" class="lp-document-row__action-form"
+                <form method="post" class="lp-document-row__action-form" data-turbo-frame="artifacts-list"
                       action="{{ path(archived ? 'app_project_artifact_unarchive' : 'app_project_artifact_archive', {id: project.id, artifactId: artifact.id}) }}">
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token(archived ? 'artifact-unarchive' : 'artifact-archive') }}">
                     <input type="hidden" name="from" value="library">
@@ -87,6 +90,7 @@
         {% endfor %}
     </twig:Ds:DataTable>
     {% endif %}
+    </turbo-frame>
     </turbo-frame>
 </twig:Ds:Workspace>
 {% endblock %}

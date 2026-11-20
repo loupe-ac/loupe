@@ -1,6 +1,6 @@
 {# The count and the variant links of the Cards tab. A later page replaces it through the rows stream. #}
 <twig:Ds:FilterBar id="experiment-cards-filter" class="lp-cost-controls" :count="'bridge.experiments.card_count'|trans({'%count%': report.filteredTotal})">
-    <nav class="lp-cost-toggle" aria-label="{{ 'bridge.experiments.cards.filter_label'|trans }}" data-experiment-filter>
+    <nav class="lp-cost-toggle" aria-label="{{ 'bridge.experiments.cards.filter_label'|trans }}" data-experiment-filter data-turbo-frame="experiment-cards-list" data-turbo-action="advance">
         <a class="lp-cost-toggle__option"
            href="{{ path('app_project_analytics_experiment_cards', routeParams) }}"
            {% if query.variant is null and not query.leftOutOnly %}aria-current="true"{% endif %}>{{ 'bridge.experiments.cards.all'|trans }}</a>

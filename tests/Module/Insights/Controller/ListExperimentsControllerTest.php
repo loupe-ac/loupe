@@ -37,6 +37,8 @@ final class ListExperimentsControllerTest extends WebTestCase
         self::assertSame('1 card', trim($crawler->filter('[data-experiment="prompt-test"] [data-experiment-cards]')->text()));
         self::assertCount(2, $crawler->filter('[data-experiment] time'));
         self::assertCount(0, $crawler->filter('[data-experiments-empty]'));
+        self::assertCount(1, $crawler->filter('turbo-frame#experiments-list > turbo-frame#analytics-experiments[data-controller="live-region"]'));
+        self::assertCount(2, $crawler->filter('#analytics-experiments form.lp-document-row__action-form[data-turbo-frame="experiments-list"]'));
     }
 
     public function test_a_project_with_no_experiment_says_how_to_start_one(): void

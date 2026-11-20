@@ -22,15 +22,15 @@
        as a complete history, and a report lost with its bridge would read as a
        worker that never ran. #}
     {% if items|length > 0 or listQuery.isNarrowed %}
-    {# A GET form, so every control lands in the URL and the view stays
-       shareable. `page` is not a field: a changed filter starts at page one. #}
+    {# A GET form outside the swapped frame, so every control lands in the URL and the field keeps its focus while the list changes.
+       `page` is not a field: a changed filter starts at page one. #}
     <twig:Ds:FilterBar
         :action="path('app_project_worker_runs', {id: project.id})"
         :search="{id: 'worker-run-search', name: 'search', value: listQuery.search, label: 'bridge.worker_runs.filter.search_label'|trans, placeholder: 'bridge.worker_runs.filter.search_placeholder'|trans}"
         :clearHref="path('app_project_worker_runs', {id: project.id})"
         :clearLabel="'bridge.worker_runs.filter.clear'|trans"
-        :count="'bridge.worker_runs.filter.count'|trans({'%count%': filteredTotal})"
-        countFrame="worker-runs-count">
+        :frame="'worker-runs-frame'"
+        :formAttributes="{id: 'worker-run-filter'}">
         <label class="sr-only" for="worker-run-outcome">{{ 'bridge.worker_runs.filter.outcome_label'|trans }}</label>
         <twig:Ds:Select id="worker-run-outcome"
                 name="outcome"
@@ -85,7 +85,7 @@
     {# The filters stay outside the frame, so a reload never takes the search field from under the reader.
        A page with no filters yet has no field to keep, so it reloads whole and gains them. #}
     <div class="lp-live-frame" data-controller="worker-run-refresh"
-         data-worker-run-refresh-frames-value="{{ ['worker-runs-shown', 'worker-runs-count']|json_encode }}"
+         data-worker-run-refresh-frames-value="{{ ['worker-runs-shown']|json_encode }}"
          data-worker-run-refresh-whole-value="{{ items|length > 0 or listQuery.isNarrowed ? 'false' : 'true' }}">
     <turbo-frame id="worker-runs-frame" class="lp-live-frame" target="_top" data-worker-run-refresh-target="frame">
     {% set commandFlashes = app.flashes('worker-run-command') %}
@@ -93,6 +93,13 @@
     <div class="lp-worker-run-flashes lp-worker-run-flashes--page" data-worker-run-command-flash>
         {% include '_flash_messages.html.twig' with {flashes: {error: commandFlashes}} only %}
     </div>
+    {% endif %}
+    {% if items|length > 0 or listQuery.isNarrowed %}
+    <p class="lp-list-count">{{ 'bridge.worker_runs.filter.count'|trans({'%count%': filteredTotal}) }}</p>
+    {% endif %}
+    {# The shown count sits in the topbar, outside this frame, so a swap sends it again. #}
+    {% if frameRequest and app.request.headers.get('Turbo-Frame') == 'worker-runs-frame' %}
+    <turbo-stream action="update" target="worker-runs-shown"><template><span class="lp-topbar__meta">{{ 'bridge.worker_runs.meta.shown'|trans({'%count%': items|length}) }}</span></template></turbo-stream>
     {% endif %}
     {% if items|length > 0 %}
     <twig:Ds:DataTable modifier="runs" :label="'bridge.worker_runs.table.label'|trans" :columns="[
@@ -135,7 +142,7 @@
         {% endfor %}
     </twig:Ds:DataTable>
 
-    <twig:Ds:Pagination route="app_project_worker_runs" :page="page" :totalPages="totalPages" :pageList="pageList" :routeParams="{id: project.id}|merge(listQuery.routeParams)" />
+    <twig:Ds:Pagination route="app_project_worker_runs" :page="page" :totalPages="totalPages" :pageList="pageList" :routeParams="{id: project.id}|merge(listQuery.routeParams)" frame="worker-runs-frame" />
     {% else %}
     <twig:Ds:EmptyState icon="lucide:bot" iconClass="text-accent" :title="(listQuery.isNarrowed ? 'bridge.worker_runs.empty_filtered' : 'bridge.worker_runs.empty')|trans" />
     {% endif %}

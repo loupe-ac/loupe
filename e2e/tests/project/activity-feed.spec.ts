@@ -85,7 +85,7 @@ test('the events list links, searches and filters through the URL', async ({
 
     await page.goto(activityUrl);
     await expect(rows).toHaveCount(2);
-    await expect(page.locator('.lp-filter-count')).toHaveText('2 events');
+    await expect(page.locator('.lp-list-count')).toHaveText('2 events');
     const moved = rows.filter({ hasText: 'Backlog → Next' });
     await expect(moved.locator('.lp-tag')).toHaveText('Board');
     await expect(moved.locator('.lp-status-chip')).toBeVisible();

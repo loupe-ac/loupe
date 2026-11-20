@@ -105,4 +105,43 @@ final class ArchiveExperimentControllerTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(403);
     }
+
+    public function test_a_row_archive_from_the_archived_view_keeps_that_view(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'archive-controller-keeps-view@example.com');
+        $project = $this->boardProject($em, $owner);
+        $this->experimentRun($em, $project, $this->experimentCard($em, $project, 1), 'a', at: '-3 hours');
+        $base = '/projects/'.$project->id.'/analytics/experiments';
+        $em->clear();
+        $client->loginUser($owner);
+
+        $client->request(Request::METHOD_POST, $base.'/model-test/archive', ['from' => 'list', 'archived' => '1', '_csrf_token' => 'csrf-token'], [], self::HEADERS);
+
+        self::assertResponseRedirects($base.'?archived=1');
+    }
+
+    public function test_a_refused_archive_inside_the_list_frame_answers_with_the_flash_and_a_frame_reload(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'archive-controller-stream@example.com');
+        $project = $this->boardProject($em, $owner);
+        $projectId = (string) $project->id;
+        $em->clear();
+        $client->loginUser($owner);
+
+        $client->request(
+            Request::METHOD_POST,
+            '/projects/'.$projectId.'/analytics/experiments/ghost/archive',
+            ['from' => 'list', '_csrf_token' => 'csrf-token'],
+            [],
+            self::HEADERS + ['HTTP_TURBO_FRAME' => 'experiments-list', 'HTTP_ACCEPT' => 'text/vnd.turbo-stream.html'],
+        );
+
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('nothing to archive', (string) $client->getResponse()->getContent());
+        self::assertStringContainsString('<turbo-frame id="experiments-list" target="_top" src="/projects/'.$projectId.'/analytics/experiments">', (string) $client->getResponse()->getContent());
+    }
 }

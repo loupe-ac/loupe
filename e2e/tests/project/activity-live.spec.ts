@@ -74,7 +74,7 @@ test('page one follows a new event, and page two shows a band and keeps its rows
     await first.goto(`/projects/${projectId}/activity`);
     await second.goto(`/projects/${projectId}/activity?page=2`);
     await expect(first.locator('[data-activity-event-id]')).toHaveCount(20);
-    await expect(first.locator('.lp-filter-count')).toHaveText('25 events');
+    await expect(first.locator('.lp-list-count')).toHaveText('25 events');
     const laterRows = second.locator('[data-activity-event-id]');
     await expect(laterRows).toHaveCount(5);
     await expect(second.locator('[data-activity-live-newer]')).toHaveCount(0);
@@ -86,14 +86,14 @@ test('page one follows a new event, and page two shows a band and keeps its rows
 
     await rename(actor, projectId, `Live ${RUN} renamed`);
 
-    await expect(first.locator('.lp-filter-count')).toHaveText('26 events', {
+    await expect(first.locator('.lp-list-count')).toHaveText('26 events', {
         timeout: 15_000,
     });
     await expect(second.locator('[data-activity-live-newer]')).toContainText(
         'One newer event was recorded.',
         { timeout: 15_000 },
     );
-    await expect(second.locator('.lp-filter-count')).toHaveText('26 events', {
+    await expect(second.locator('.lp-list-count')).toHaveText('26 events', {
         timeout: 15_000,
     });
     await expect(

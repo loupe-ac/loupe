@@ -1,5 +1,5 @@
 /**
- * The documents list and the Backlog filter inside their frame: a search swaps
+ * The documents list, the Backlog and the activity list filter inside their frame: a search swaps
  * only the list, the address bar follows, and a live signal that another actor
  * sends keeps the filter instead of bringing the old list back. The done
  * column pages inside its frame the same way. The hub delivers the signal, so
@@ -187,4 +187,54 @@ test('the done column pages inside its frame and keeps the page on a live signal
     await expect(watcher).toHaveURL(/page=2/);
     await expect(watcher.locator('.lp-done-row')).toHaveCount(2);
     await expect(watcher.getByText('Finished later')).toHaveCount(0);
+});
+
+test('an activity search and a page change swap the list and keep the filter', async ({
+    browser,
+    request,
+}) => {
+    const email = `e2e+listframes+activity+${RUN}@example.com`;
+    const registered = await request.post('/dev/register-and-verify', {
+        form: { fullName: 'E2E List Frames', email, password: PASSWORD },
+    });
+    expect(registered.status()).toBe(200);
+
+    const watcher = await signedInPage(browser, email, PASSWORD);
+    const seeded = await watcher.request.post('/dev/seed/activity-events', {
+        form: { name: `Frames ${RUN}`, published: 25, unsent: 0 },
+    });
+    expect(seeded.status()).toBe(201);
+    const projectId = ((await seeded.json()) as { projectId: string })
+        .projectId;
+
+    await suppressToolbar(watcher);
+    await suppressWidget(watcher);
+    await watcher.goto(`/projects/${projectId}/activity`);
+    await expect(watcher.locator('turbo-frame#activity-list')).toBeVisible();
+    await expect(watcher.locator('[data-activity-event-id]')).toHaveCount(20);
+
+    const search = watcher.locator('#activity-search');
+    await expectInPlace(watcher, async () => {
+        await search.click();
+        await watcher.keyboard.type('renamed');
+        await expect(watcher).toHaveURL(/search=renamed/, LIVE);
+        await expect(watcher.locator('[data-activity-event-id]')).toHaveCount(
+            20,
+        );
+    });
+    await expect(search).toHaveValue('renamed');
+    await expect(search).toBeFocused();
+
+    await expectInPlace(watcher, async () => {
+        await watcher
+            .locator('turbo-frame#activity-list')
+            .getByRole('link', { name: '2', exact: true })
+            .click();
+        await expect(watcher).toHaveURL(/page=2/, LIVE);
+        await expect(watcher.locator('[data-activity-event-id]')).toHaveCount(
+            5,
+        );
+    });
+    await expect(watcher).toHaveURL(/search=renamed/);
+    await expect(search).toHaveValue('renamed');
 });

@@ -134,6 +134,9 @@ final class ListExperimentCardsControllerTest extends WebTestCase
         self::assertSame($base.'?variant=a&page=2', $crawler->filter('.lp-pagination a[aria-label="Next page"]')->attr('href'));
 
         $crawler = $client->request(Request::METHOD_GET, $base.'?variant=a&page=2');
+        self::assertCount(1, $crawler->filter('turbo-frame#experiment-cards-list nav[data-experiment-filter][data-turbo-frame="experiment-cards-list"][data-turbo-action="advance"]'));
+        self::assertNotCount(0, $crawler->filter('turbo-frame#experiment-cards-list nav.lp-pagination a[data-turbo-frame="experiment-cards-list"]'));
+        self::assertCount(1, $crawler->filter('turbo-frame#experiment-cards-list [data-controller="live-region"][data-live-region-mode-value="rows"]'));
 
         self::assertCount(1, $crawler->filter('[data-experiment-card]'));
         self::assertStringContainsString('Card 1', $crawler->filter('[data-experiment-card]')->text());

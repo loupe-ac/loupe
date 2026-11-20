@@ -20,8 +20,10 @@
 
 
     {% set pagination %}
-        <twig:Ds:Pagination route="app_project_analytics_experiment_cards" :page="report.page" :totalPages="report.totalPages" :pageList="report.pageList" :routeParams="routeParams|merge(query.routeParams)" />
+        <twig:Ds:Pagination route="app_project_analytics_experiment_cards" :page="report.page" :totalPages="report.totalPages" :pageList="report.pageList" :routeParams="routeParams|merge(query.routeParams)" frame="experiment-cards-list" />
     {% endset %}
+    {# One frame on every page, so a filter or a page swaps only the list. The live region sits inside it, so each swap brings the address of the new filter and page. #}
+    <turbo-frame id="experiment-cards-list" target="_top">
     {% if report.page == 1 %}
     {# Page 1 morphs as a whole. A later page reads its own rows by id, so a card that runs again never moves them. #}
     <turbo-frame id="analytics-experiment-cards" refresh="morph" target="_top" class="lp-live-frame"
@@ -49,5 +51,6 @@
     </div>
     {% if report.cards is not empty %}{{ pagination }}{% endif %}
     {% endif %}
+    </turbo-frame>
 </twig:Ds:Workspace>
 {% endblock %}
