@@ -65,6 +65,29 @@ final class ChangeGitIdentityManagedControllerTest extends WebTestCase
         self::assertFalse($this->stored($project)->gitIdentityManaged);
     }
 
+    public function test_a_turbo_stream_request_gets_the_panel_and_the_flash_in_place(): void
+    {
+        $client = static::createClient();
+        $owner = $this->signedUpUser('stream');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+
+        $client->loginUser($owner);
+        $client->request(
+            Request::METHOD_POST,
+            '/projects/'.$project->id.'/git-identity',
+            ['change_git_identity_managed_form' => ['_token' => 'csrf-token']],
+            server: ['HTTP_ORIGIN' => 'http://localhost', 'HTTP_ACCEPT' => 'text/vnd.turbo-stream.html'],
+        );
+
+        self::assertResponseIsSuccessful();
+        $body = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('<turbo-stream action="replace" target="git-identity">', $body);
+        self::assertStringContainsString('<turbo-stream action="prepend" target="main-content">', $body);
+        self::assertStringContainsString('Agents now use the git setup of each machine.', $body);
+        self::assertFalse($this->stored($project)->gitIdentityManaged);
+    }
+
     public function test_a_wrong_token_changes_nothing(): void
     {
         $client = static::createClient();
