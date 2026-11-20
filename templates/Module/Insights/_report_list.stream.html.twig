@@ -1,3 +1,4 @@
-{# The first page of the Reports tab after a start of an analysis, with the message of the start. Props: project (Project), analyses (list of AnalysisDetailView), costMetric (string), severity (string), message (string). #}
+{# The first page of the Reports tab after a start of an analysis, with the message of the start. Props: project (Project), analyses (list of AnalysisDetailView), totalPages (int), pageList (list), costMetric (string), severity (string), message (string). #}
 <turbo-stream action="replace" method="morph" target="analysis-list"><template>{% include '@Insights/_reports_list.html.twig' with {analyses: analyses, project: project, page: 1, costMetric: costMetric, refusedDismissForm: null} only %}</template></turbo-stream>
+<turbo-stream action="replace" method="morph" target="analysis-pagination"><template>{% include '@Insights/_reports_pagination.html.twig' with {project: project, page: 1, totalPages: totalPages, pageList: pageList} only %}</template></turbo-stream>
 {% include '_flash.stream.html.twig' with {severity: severity, message: message} only %}

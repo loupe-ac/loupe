@@ -7,9 +7,10 @@ namespace App\Module\Insights\Controller;
 use App\Controller\AppController;
 use App\Module\Insights\Command\MoveSavedGraphCommand;
 use App\Module\Insights\Command\MoveSavedGraphHandler;
+use App\Module\Insights\Command\ShowDashboardCommand;
+use App\Module\Insights\Command\ShowDashboardHandler;
 use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\Entity\SavedGraphDirection;
-use App\Module\Insights\Service\DashboardStreamAnswers;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
@@ -17,6 +18,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Requirement\Requirement;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\UX\Turbo\TurboBundle;
 use Ubermuda\SymfonyExtra\Csrf\Attribute\CsrfToken;
 
 #[CsrfToken('insights-dashboard-graph-move')]
@@ -30,7 +32,7 @@ use Ubermuda\SymfonyExtra\Csrf\Attribute\CsrfToken;
 class MoveGraphController extends AppController
 {
     public function __construct(
-        private readonly DashboardStreamAnswers $answers,
+        private readonly ShowDashboardHandler $showDashboard,
         private readonly MoveSavedGraphHandler $moveGraph,
     ) {
     }
@@ -42,6 +44,9 @@ class MoveGraphController extends AppController
     ): Response {
         ($this->moveGraph)(new MoveSavedGraphCommand($graph, SavedGraphDirection::Up === $direction ? -1 : 1));
 
-        return $this->answers->grid($project);
+        $view = ($this->showDashboard)(new ShowDashboardCommand($project));
+        $html = $this->renderView('@Insights/_dashboard_change.stream.html.twig', ['project' => $view->project, 'view' => $view, 'removed' => null]);
+
+        return new Response($html, Response::HTTP_OK, ['Content-Type' => TurboBundle::STREAM_MEDIA_TYPE]);
     }
 }

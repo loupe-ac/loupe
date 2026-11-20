@@ -7,10 +7,11 @@ namespace App\Module\Insights\Controller;
 use App\Controller\AppController;
 use App\Module\Insights\Command\MoveSavedGraphCommand;
 use App\Module\Insights\Command\MoveSavedGraphHandler;
+use App\Module\Insights\Command\ShowDashboardCommand;
+use App\Module\Insights\Command\ShowDashboardHandler;
 use App\Module\Insights\Entity\InsightsSavedGraph;
 use App\Module\Insights\Form\DragGraphRequest;
 use App\Module\Insights\Service\DashboardGraphForms;
-use App\Module\Insights\Service\DashboardStreamAnswers;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
@@ -19,6 +20,8 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Requirement\Requirement;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Contracts\Translation\TranslatorInterface;
+use Symfony\UX\Turbo\TurboBundle;
 
 #[IsGranted(ProjectVoter::MANAGE, subject: 'project')]
 #[Route(
@@ -30,9 +33,10 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 class DragGraphController extends AppController
 {
     public function __construct(
-        private readonly DashboardStreamAnswers $answers,
+        private readonly ShowDashboardHandler $showDashboard,
         private readonly MoveSavedGraphHandler $handler,
         private readonly DashboardGraphForms $forms,
+        private readonly TranslatorInterface $translator,
     ) {
     }
 
@@ -46,11 +50,16 @@ class DragGraphController extends AppController
         $form->handleRequest($request);
 
         if (!$form->isSubmitted() || !$form->isValid()) {
-            return $this->answers->invalid();
+            $html = $this->renderView('_flash.stream.html.twig', ['severity' => 'error', 'message' => $this->translator->trans('analytics.dashboard.flash.invalid')]);
+
+            return new Response($html, Response::HTTP_UNPROCESSABLE_ENTITY, ['Content-Type' => TurboBundle::STREAM_MEDIA_TYPE]);
         }
 
         ($this->handler)(new MoveSavedGraphCommand($graph, $data->steps ?? throw new \LogicException('A valid step count is not null.')));
 
-        return $this->answers->grid($project);
+        $view = ($this->showDashboard)(new ShowDashboardCommand($project));
+        $html = $this->renderView('@Insights/_dashboard_change.stream.html.twig', ['project' => $view->project, 'view' => $view, 'removed' => null]);
+
+        return new Response($html, Response::HTTP_OK, ['Content-Type' => TurboBundle::STREAM_MEDIA_TYPE]);
     }
 }

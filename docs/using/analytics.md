@@ -710,7 +710,7 @@ estimated saving. A proposal is **Proposed** until you act on it.
 The page stays where it is when you press **Create the card**, **Create the rule**
 or **Dismiss**. Only the analysis that holds the proposal changes, and a message
 confirms it. A dismissal reason that is too long shows its error under the field.
-The new analysis of **Analyse** appears in the list through the live update.
+**Analyse** shows the new analysis at the top of the list in its own response, also when live updates are off.
 
 A proposal of the kind `bucket-rule` shows its pattern and its bucket. Press
 **Create the rule** on it to add the rule to the [time buckets](#time-buckets)

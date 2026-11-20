@@ -1,0 +1,4 @@
+{# The pagination of the Reports tab. Page 1 has the wrapper id that the stream of a start of an analysis targets. Props: project (Project), page (int), totalPages (int), pageList (list). #}
+<div{% if page == 1 %} id="analysis-pagination"{% endif %}>
+    <twig:Ds:Pagination route="app_project_analytics_reports" :page="page" :totalPages="totalPages" :pageList="pageList" :routeParams="{id: project.id}" />
+</div>

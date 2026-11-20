@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Insights\Controller;
 
+use App\Module\Insights\Command\ListReportsHandler;
 use App\Module\Insights\Entity\Analysis;
 use App\Module\Insights\Entity\AnalysisState;
 use App\Module\Insights\Entity\AnalysisTopic;
@@ -44,6 +45,31 @@ final class StartAnalysisControllerTest extends WebTestCase
         self::assertSame('ninety-days', $analyses[0]->scope->range->value);
         self::assertSame(AnalysisState::Waiting, $analyses[0]->state);
         self::assertNotNull($analyses[0]->workRequestId);
+    }
+
+    public function test_the_start_stream_adds_the_link_to_a_new_page_at_the_page_boundary(): void
+    {
+        $client = static::createClient();
+        $project = $this->scenarioProject('start-analysis-boundary');
+        $projectId = (string) $project->id;
+        $em = $this->em();
+        for ($i = 0; $i < ListReportsHandler::LIMIT; ++$i) {
+            $this->seedAnalysis($em, $project);
+        }
+        $em->flush();
+        $em->clear();
+
+        $client->loginUser($project->owner);
+        $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/analytics/reports');
+        $client->submitForm('Analyse', [
+            'start_analysis_form[topic]' => 'cost',
+            'start_analysis_form[range]' => 'ninety-days',
+        ]);
+
+        self::assertResponseIsSuccessful();
+        $content = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('target="analysis-pagination"', $content);
+        self::assertStringContainsString('page=2', $content);
     }
 
     public function test_the_time_topic_starts_an_analysis(): void

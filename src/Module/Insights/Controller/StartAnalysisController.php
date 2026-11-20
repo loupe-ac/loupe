@@ -60,10 +60,14 @@ class StartAnalysisController extends AppController
                     experiment: $data->experiment,
                 ));
 
+                $list = ($this->listReports)(new ListReportsCommand($project, 1));
+
                 return new Response(
                     $this->renderView('@Insights/_report_list.stream.html.twig', [
                         'project' => $project,
-                        'analyses' => ($this->listReports)(new ListReportsCommand($project, 1))->analyses,
+                        'analyses' => $list->analyses,
+                        'totalPages' => $list->totalPages,
+                        'pageList' => $list->pageList,
                         'costMetric' => Metric::Cost->valueType(),
                         'severity' => 'success',
                         'message' => $this->translator->trans('insights.reports.flash.started'),
