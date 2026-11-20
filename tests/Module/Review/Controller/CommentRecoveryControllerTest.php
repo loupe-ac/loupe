@@ -177,6 +177,38 @@ final class CommentRecoveryControllerTest extends WebTestCase
         self::assertNotNull($root->deletedAt);
     }
 
+    #[DataProvider('refusedReplyActions')]
+    public function test_a_refused_thread_action_answers_a_stream_that_keeps_the_page_in_place(string $action, string $message): void
+    {
+        $this->client->request(Request::METHOD_GET, $this->reviewUrl);
+        $this->client->request(Request::METHOD_POST, '/comments/'.$this->replyId.'/'.$action, ['_csrf_token' => 'csrf-token'], [], ['HTTP_ACCEPT' => 'text/vnd.turbo-stream.html']);
+
+        self::assertResponseIsSuccessful();
+        self::assertResponseHeaderSame('Content-Type', 'text/vnd.turbo-stream.html; charset=UTF-8');
+        $body = (string) $this->client->getResponse()->getContent();
+        self::assertStringContainsString('target="comment-threads"', $body);
+        self::assertStringContainsString($message, $body);
+    }
+
+    #[DataProvider('refusedReplyActions')]
+    public function test_a_refused_thread_action_flashes_and_redirects_without_a_stream(string $action, string $message): void
+    {
+        $this->client->request(Request::METHOD_GET, $this->reviewUrl);
+        $this->client->request(Request::METHOD_POST, '/comments/'.$this->replyId.'/'.$action, ['_csrf_token' => 'csrf-token']);
+
+        self::assertResponseRedirects($this->reviewUrl);
+        $this->client->followRedirect();
+        self::assertSelectorTextContains('.lp-flash--error', $message);
+    }
+
+    /** @return iterable<string, array{string, string}> */
+    public static function refusedReplyActions(): iterable
+    {
+        yield 'resolve' => ['resolve', 'Only the top-level comment of a thread can be resolved.'];
+        yield 'reopen' => ['reopen', 'Only the top-level comment of a thread can be reopened.'];
+        yield 'delete' => ['delete', 'Select the whole thread instead of a reply.'];
+    }
+
     /** @return iterable<string, array{string}> */
     public static function deleteFormats(): iterable
     {
