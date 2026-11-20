@@ -94,6 +94,14 @@ corrupt the database. Recreate the service with `docker compose up -d database`
 from the main checkout, and only while no bridge worker runs, because it drops
 every connection.
 
+The service also sets `idle_session_timeout` to 60 seconds. Under PHP-FPM the
+app keeps its database connections open between requests. One php-fpm serves
+every worktree, so each of its workers keeps two connections for each worktree
+database it served. Without the timeout, a few active worktrees fill the 100
+connections of the server, and `createdb` fails with `too many clients
+already`. Postgres now closes an idle kept connection, and the next request
+connects again.
+
 The `database_data` volume holds the dev database and every worktree database.
 To rebuild a corrupt volume:
 

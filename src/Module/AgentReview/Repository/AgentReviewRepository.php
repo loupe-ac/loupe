@@ -58,6 +58,40 @@ class AgentReviewRepository extends ServiceEntityRepository
     }
 
     /**
+     * The failed reviews of the pull request up to $to, newest first, back to the newest one before $from, so the
+     * oldest work in the window shows the finding it answered.
+     *
+     * @return list<AgentReview>
+     */
+    public function findFailedOfPullRequestBetween(ForgePullRequest $pullRequest, \DateTimeImmutable $from, \DateTimeImmutable $to): array
+    {
+        $before = $this->createQueryBuilder('r')
+            ->select('r.createdAt')
+            ->where('r.pullRequest = :pullRequest AND r.conclusion = :conclusion AND r.createdAt < :from')
+            ->setParameter('pullRequest', $pullRequest)
+            ->setParameter('conclusion', AgentReviewConclusion::Failure)
+            ->setParameter('from', $from)
+            ->orderBy('r.createdAt', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        /** @var list<AgentReview> $reviews */
+        $reviews = $this->createQueryBuilder('r')
+            ->where('r.pullRequest = :pullRequest AND r.conclusion = :conclusion AND r.createdAt <= :to AND r.createdAt >= :from')
+            ->setParameter('pullRequest', $pullRequest)
+            ->setParameter('conclusion', AgentReviewConclusion::Failure)
+            ->setParameter('from', \is_array($before) ? $before['createdAt'] : $from)
+            ->setParameter('to', $to)
+            ->orderBy('r.createdAt', 'DESC')
+            ->addOrderBy('r.id', 'DESC')
+            ->getQuery()
+            ->getResult();
+
+        return $reviews;
+    }
+
+    /**
      * @param list<ForgePullRequest> $pullRequests
      *
      * @return list<AgentReview> the reviews of the card on those pull requests that no check shows yet, oldest first

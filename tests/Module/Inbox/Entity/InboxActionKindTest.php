@@ -23,4 +23,18 @@ final class InboxActionKindTest extends TestCase
     {
         self::assertSame($expected, $kind->sendsAgent());
     }
+
+    #[DataProvider('answeringKinds')]
+    public function test_only_a_session_leaves_the_wait_unanswered(InboxActionKind $kind, bool $expected): void
+    {
+        self::assertSame($expected, $kind->answersWait());
+    }
+
+    /** @return iterable<string, array{InboxActionKind, bool}> */
+    public static function answeringKinds(): iterable
+    {
+        foreach (InboxActionKind::cases() as $kind) {
+            yield $kind->value => [$kind, InboxActionKind::StartSession !== $kind];
+        }
+    }
 }
