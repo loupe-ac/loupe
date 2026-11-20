@@ -18,6 +18,9 @@ export const MAX_CHANGED_ROWS = 50;
 
 const VIEW_FRAME = 'inbox-view';
 
+/** The frame name that the route reads with no session write, as a visit does not. */
+const LIVE_FRAME = 'inbox-live';
+
 const STREAM_TYPE = 'text/vnd.turbo-stream.html';
 
 /**
@@ -127,7 +130,7 @@ export default class extends Controller {
         const headers = {
             Accept: 'text/html',
             'X-Loupe-Live-Refresh': '1',
-            'Turbo-Frame': VIEW_FRAME,
+            'Turbo-Frame': LIVE_FRAME,
         };
         if (pane?.dataset.inboxAskOpen === 'true') {
             headers['X-Loupe-Inbox-Watching'] = pane.dataset.inboxAskId;

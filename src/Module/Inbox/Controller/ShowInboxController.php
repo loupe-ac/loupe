@@ -11,6 +11,7 @@ use App\Module\Inbox\Service\InboxAvailability;
 use App\Module\Inbox\View\InboxView;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
+use App\Session\ReadOnlyAwareSessionHandler;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -20,12 +21,16 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[Route(
     '/projects/{id:project}/inbox',
     name: 'app_project_inbox',
+    defaults: [ReadOnlyAwareSessionHandler::READ_ONLY => ShowInboxController::LIVE_FRAME],
     methods: ['GET'],
 )]
 final class ShowInboxController extends AppController
 {
     /** The request attribute a refused answer, done or decline form is forwarded under. */
     public const string REFUSED_FORM = 'refusedForm';
+
+    /** The frame name of a background refresh, which reads the session and writes nothing. A visit keeps the writable `inbox-view` frame, so it reads the status flash. */
+    public const string LIVE_FRAME = 'inbox-live';
 
     public function __construct(
         private readonly ShowInboxHandler $showInbox,

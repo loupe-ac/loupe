@@ -22,6 +22,7 @@ use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Entity\InboxReview;
 use App\Module\Inbox\Service\InboxSearchIndexer;
 use App\Module\Review\Entity\Document;
+use App\Session\ReadOnlyAwareSessionHandler;
 use App\Tests\Module\Board\BoardColumnFixtures;
 use App\Tests\Module\Inbox\InboxScenario;
 use App\Tests\Support\MercureCookies;
@@ -222,6 +223,14 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertCount(1, $crawler->filter('[data-inbox-item-number="1"]'));
     }
 
+    public function test_only_the_live_frame_reads_the_session_without_writing_it(): void
+    {
+        $route = static::getContainer()->get('router')->getRouteCollection()->get('app_project_inbox');
+        self::assertNotNull($route);
+        // A visit sends no frame or the inbox-view frame, and consumes the status flash, so it must stay writable.
+        self::assertSame('inbox-live', $route->getDefault(ReadOnlyAwareSessionHandler::READ_ONLY));
+    }
+
     public function test_a_live_refresh_says_why_the_watched_ask_closed(): void
     {
         $owner = $this->signedUpUser($this->em, 'inbox-live-closed');
@@ -233,7 +242,7 @@ final class ShowInboxControllerTest extends WebTestCase
         $ask = $this->askHolding($this->em, $project, [$item], closedAt: new \DateTimeImmutable('-1 minute'));
         $this->setInboxFlag(true);
         $uri = '/projects/'.$project->id.'/inbox?ask='.$ask->id;
-        $refresh = ['HTTP_X_LOUPE_LIVE_REFRESH' => '1', 'HTTP_TURBO_FRAME' => 'inbox-view'];
+        $refresh = ['HTTP_X_LOUPE_LIVE_REFRESH' => '1', 'HTTP_TURBO_FRAME' => 'inbox-live'];
 
         $this->client->loginUser($owner);
         $this->client->request(Request::METHOD_GET, $uri, server: $refresh + ['HTTP_X_LOUPE_INBOX_WATCHING' => (string) $ask->id]);
@@ -266,7 +275,7 @@ final class ShowInboxControllerTest extends WebTestCase
         $this->client->loginUser($owner);
         $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox?ask='.$ask->id, server: [
             'HTTP_X_LOUPE_LIVE_REFRESH' => '1',
-            'HTTP_TURBO_FRAME' => 'inbox-view',
+            'HTTP_TURBO_FRAME' => 'inbox-live',
             'HTTP_X_LOUPE_INBOX_WATCHING' => (string) $ask->id,
         ]);
 

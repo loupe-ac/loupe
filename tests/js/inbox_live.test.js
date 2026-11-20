@@ -157,7 +157,7 @@ it('reads the view once for a burst of changes, with the frame and the watched a
     const [url, options] = fetch.mock.calls[0];
     expect(new URL(url).searchParams.get('ask')).toBe(ASK);
     expect(options.headers).toMatchObject({
-        'Turbo-Frame': 'inbox-view',
+        'Turbo-Frame': 'inbox-live',
         'X-Loupe-Live-Refresh': '1',
         'X-Loupe-Inbox-Watching': ASK,
     });
