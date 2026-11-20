@@ -165,7 +165,8 @@ test('a row click swaps only the detail and keeps the list in place', async ({
         'true',
     );
 
-    // The back link reloads the whole view, so no row stays current.
+    // The back link shows only on a narrow screen. It reloads the whole view, so no row stays current.
+    await page.setViewportSize({ width: 390, height: 900 });
     await page.getByRole('link', { name: 'All asks' }).click();
     await expect(page).toHaveURL(inboxUrl);
     await expect(page.locator('.lp-inbox-rows[data-kept]')).toHaveCount(0);
