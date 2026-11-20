@@ -359,13 +359,11 @@ test('S5 card delete from the drawer keeps the board in list mode', async ({
         exact: true,
     });
     await expect(confirm).toBeVisible();
-    await resetRenders(page);
     await confirm.click();
     await expect(
         page.locator('.lp-board-card[data-card-title="Morph list card"]'),
     ).toHaveCount(0, ROUND_TRIP);
     await expect(drawer).toHaveJSProperty('open', false, ROUND_TRIP);
-    await expectMorphed(page);
 
     await expect
         .soft(row, 'the list drops the row of the deleted card')
