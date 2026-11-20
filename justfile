@@ -631,9 +631,10 @@ phpunit-coverage-shard shard of="4":
     bin/worktrees/compose-exec.sh env XDEBUG_MODE=coverage vendor/bin/paratest --processes={{phpunit_processes}} --max-batch-size=100 --configuration=var/phpunit-shard-{{shard}}.xml --coverage-php=var/phpunit-coverage/shard-{{shard}}.cov --log-junit=var/phpunit-coverage/junit-{{shard}}.xml
 
 # Joins the shards of `phpunit-coverage-shard` into the reports of `phpunit-coverage`.
-# Run it where the shard files sit in var/phpunit-coverage.
+# Run it where the shard files sit in var/phpunit-coverage. A shard file is about
+# 750 MB, and the merge holds all four, so 2G is not enough.
 phpunit-coverage-merge:
-    bin/worktrees/compose-exec.sh php -d memory_limit=2G vendor/bin/phpcov merge var/phpunit-coverage --html var/phpunit-coverage/html --clover var/phpunit-coverage/clover.xml --text var/phpunit-coverage/summary.txt --xml var/phpunit-coverage/coverage-xml
+    bin/worktrees/compose-exec.sh php -d memory_limit=12G vendor/bin/phpcov merge var/phpunit-coverage --html var/phpunit-coverage/html --clover var/phpunit-coverage/clover.xml --text var/phpunit-coverage/summary.txt --xml var/phpunit-coverage/coverage-xml
     bin/worktrees/compose-exec.sh sh -c 'php bin/merge-junit.php var/phpunit-coverage/junit.xml var/phpunit-coverage/junit-*.xml'
 
 open-phpunit-coverage:

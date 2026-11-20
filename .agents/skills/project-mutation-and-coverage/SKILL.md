@@ -240,6 +240,14 @@ raises the limit to 2G in the generated shard config only, and the recipes run
 `phpcov merge` under `php -d memory_limit=2G`. To read such a failure, pass
 `--tmp-dir=var/...`: a dead worker leaves a `status` file and no `test_result`.
 
+`phpcov merge` of the four PHPUnit shard files runs under 12G. One shard file is
+about 750 MB, and the merge holds all four.
+
+`DevSeedRestoreTest` runs 37 tests of two full dev seeds each, in one ParaTest
+worker. It takes about 17 s per test, and about 91 minutes under coverage. A
+shard that holds it looks hung near the end, with one worker at full CPU and the
+rest idle. Read `junit-N.xml` for the slowest classes before you suspect a hang.
+
 This project does not use `--path-coverage`. Path coverage held 492 MB for 51
 tests and killed the container at about 250 of 2,262 tests, so it does not fit
 this suite.

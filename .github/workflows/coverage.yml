@@ -36,7 +36,7 @@ jobs:
   phpunit-coverage:
     name: phpunit-coverage-${{ matrix.shard }}
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 170
     strategy:
       fail-fast: false
       matrix:
@@ -58,8 +58,11 @@ jobs:
       # Writes var/phpunit-coverage. Never var/coverage, which the e2e legs
       # below delete at the start of their own run. ParaTest runs four workers,
       # each restarting after 100 test files, so memory stays bounded per process.
+      # Shard 1 took 97 minutes in run 44660442947, and 91 of them were
+      # DevSeedRestoreTest, which seeds twice in each of 37 tests in one worker.
+      # The other shards took 16 to 20 minutes.
       - run: just phpunit-coverage-shard ${{ matrix.shard }} 4
-        timeout-minutes: 100
+        timeout-minutes: 150
 
       - name: Raw coverage and test log of this shard
         if: always()
