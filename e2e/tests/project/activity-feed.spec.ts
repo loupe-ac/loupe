@@ -85,7 +85,7 @@ test('the events list links, searches and filters through the URL', async ({
 
     await page.goto(activityUrl);
     await expect(rows).toHaveCount(2);
-    await expect(page.locator('.lp-filter-count')).toHaveText('2 events');
+    await expect(page.locator('.lp-list-count')).toHaveText('2 events');
     const moved = rows.filter({ hasText: 'Backlog → Next' });
     await expect(moved.locator('.lp-tag')).toHaveText('Board');
     await expect(moved.locator('.lp-status-chip')).toBeVisible();
@@ -105,7 +105,10 @@ test('the events list links, searches and filters through the URL', async ({
     await expect(page.locator('.lp-data-table__target')).toHaveCount(0);
 
     await page.getByRole('link', { name: 'Clear', exact: true }).click();
-    await expect(page).toHaveURL(new RegExp(`${activityUrl}$`), NAVIGATION);
+    await expect(page).toHaveURL(
+        new RegExp(`${activityUrl}(\\?search=&family=)?$`),
+        NAVIGATION,
+    );
     await expect(rows).toHaveCount(2);
 
     const family = page.getByRole('combobox', {
@@ -113,7 +116,7 @@ test('the events list links, searches and filters through the URL', async ({
     });
     await family.selectOption({ label: 'Needs you' });
     await expect(page).toHaveURL(/[?&]family=inbox(&|$)/, NAVIGATION);
-    await expect(page.locator('[data-activity-filtered-empty]')).toHaveText(
+    await expect(page.locator('[data-activity-filtered-empty]')).toContainText(
         'No activity matches these filters.',
     );
     await expect(search).toBeVisible();

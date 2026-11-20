@@ -208,10 +208,13 @@ final class AnalyticsLiveRegionsTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $frame = $this->frame($crawler, 'analytics-bucket-rules');
         self::assertSame('{"analytics.changed":{"area":"bucket_rules"}}', $frame->attr('data-live-region-match-type-value'));
-        self::assertSame($this->base($project).'/time-buckets?range=thirty-days', $frame->attr('data-live-region-url-value'));
+        self::assertSame($this->base($project).'/time-buckets', $frame->attr('data-live-region-url-value'));
         self::assertCount(0, $frame->filter('[data-bucket-rule-form]'));
         self::assertCount(1, $crawler->filter('[data-bucket-rule-form]'));
-        self::assertCount(1, $frame->filter('[data-bucket-summary]'));
+        $summary = $this->frame($crawler, 'analytics-bucket-summary');
+        self::assertSame($this->base($project).'/time-buckets?range=thirty-days', $summary->attr('data-live-region-url-value'));
+        self::assertSame('{"analytics.changed":{"area":"bucket_rules"}}', $summary->attr('data-live-region-match-type-value'));
+        self::assertCount(0, $summary->filter('select[name="range"]'));
         self::assertTrue($this->subscribes($crawler, $project));
     }
 

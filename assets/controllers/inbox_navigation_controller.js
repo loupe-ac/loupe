@@ -4,6 +4,7 @@ const VIEW_FRAME = 'inbox-view';
 const DETAIL_FRAME = 'inbox-detail';
 const FOCUS_TITLE = 'h2.lp-inbox-ask__title';
 const SEARCH_FIELD_ID = 'inbox-search';
+const SEARCH_FORM = '[data-inbox-search-form]';
 
 /* stimulusFetch: 'eager' */
 /**
@@ -12,7 +13,10 @@ const SEARCH_FIELD_ID = 'inbox-search';
  * current at once, the page shows a spinner until the frame renders, and the
  * request list keeps its scroll across a view render. Focus follows the action:
  * a row moves it to the title of the new request, and a filter, a tab or the
- * search returns it to the control that was used.
+ * search returns it to the control that was used. The search form sits outside
+ * the view frame, so a render never replaces the field being typed into. After
+ * a render the form copies the query, the side and the type from the address
+ * the frame loaded, and leaves the field alone while it has focus.
  */
 export default class extends Controller {
     connect() {
@@ -71,6 +75,11 @@ export default class extends Controller {
             }
             const focusSelector = this.focusSelector;
             this.settle();
+            if (event.target.id === VIEW_FRAME) {
+                this.#syncSearchForm(
+                    event.detail?.fetchResponse?.response?.url,
+                );
+            }
             if (this.scrollTop !== null) {
                 const list = this.element.querySelector('[data-inbox-scroll]');
                 if (list !== null) {
@@ -102,6 +111,36 @@ export default class extends Controller {
         document.removeEventListener('turbo:frame-render', this.restore);
         document.removeEventListener('turbo:fetch-request-error', this.failed);
         document.removeEventListener('turbo:frame-missing', this.failed);
+    }
+
+    #syncSearchForm(address) {
+        const form = this.element.querySelector(SEARCH_FORM);
+        if (form === null) {
+            return;
+        }
+        let params;
+        try {
+            params = new URL(
+                address ?? window.location.href,
+                window.location.href,
+            ).searchParams;
+        } catch {
+            return;
+        }
+        const field = form.querySelector(`#${SEARCH_FIELD_ID}`);
+        if (field !== null && document.activeElement !== field) {
+            field.value = params.get('q') ?? '';
+        }
+        const side = form.elements.namedItem('side');
+        if (side !== null) {
+            side.value =
+                params.get('side') ?? side.dataset.default ?? side.value;
+        }
+        const type = form.elements.namedItem('type');
+        if (type !== null) {
+            type.value = params.get('type') ?? '';
+            type.disabled = type.value === '';
+        }
     }
 
     #split() {

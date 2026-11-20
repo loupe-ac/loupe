@@ -132,7 +132,7 @@ final class ActivityPageTest extends WebTestCase
         self::assertSame('mystery', trim($crawler->filter('[data-activity-event-id="'.$failed->id.'"] .lp-tag')->text()));
         self::assertSame('mystery.event', trim($crawler->filter('[data-activity-event-id="'.$failed->id.'"] .lp-data-table__title')->text()));
         self::assertCount(1, $crawler->filter('#activity-family option[value="pull-request"]'));
-        self::assertSame('4 events', trim($crawler->filter('.lp-filter-count')->text()));
+        self::assertSame('4 events', trim($crawler->filter('.lp-list-count')->text()));
         self::assertCount(1, $crawler->filter('.lp-list-filters form[data-controller="autosearch"]'));
         self::assertCount(0, $crawler->filter('[data-activity-empty]'));
     }
@@ -163,7 +163,7 @@ final class ActivityPageTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSame(array_slice($ids, 20), $this->rowIds($crawler));
         self::assertSame('2', $crawler->filter('.lp-pagination [aria-current="page"]')->text());
-        self::assertSame('25 events', trim($crawler->filter('.lp-filter-count')->text()));
+        self::assertSame('25 events', trim($crawler->filter('.lp-list-count')->text()));
     }
 
     public function test_the_page_links_keep_the_filters(): void
@@ -207,7 +207,7 @@ final class ActivityPageTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSame([(string) $moved->id], $this->rowIds($crawler));
         self::assertSame('Implementation', $crawler->filter('#activity-search')->attr('value'));
-        self::assertSame('1 event', trim($crawler->filter('.lp-filter-count')->text()));
+        self::assertSame('1 event', trim($crawler->filter('.lp-list-count')->text()));
 
         $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/activity?search=renamed');
         self::assertSame([(string) $renamed->id], $this->rowIds($crawler));
@@ -358,7 +358,10 @@ final class ActivityPageTest extends WebTestCase
         $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/activity?page=2');
 
         self::assertResponseIsSuccessful();
-        self::assertCount(1, $crawler->filter('turbo-frame#activity-frame [data-activity-event-id][data-live-row]'));
+        self::assertCount(1, $crawler->filter('turbo-frame#activity-list [data-activity-event-id][data-live-row]'));
+        self::assertCount(1, $crawler->filter('form#activity-filter[data-turbo-frame="activity-list"][data-turbo-action="advance"]'));
+        self::assertCount(0, $crawler->filter('turbo-frame#activity-list form#activity-filter'));
+        self::assertNotCount(0, $crawler->filter('turbo-frame#activity-list nav.lp-pagination a[data-turbo-frame="activity-list"]'));
         $region = $crawler->filter('[data-controller="live-region"][data-live-region-mode-value="rows"]');
         self::assertCount(1, $region);
         self::assertStringContainsString('/projects/'.$project->id.'/activity/rows', (string) $region->attr('data-live-region-url-value'));

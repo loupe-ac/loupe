@@ -22,6 +22,19 @@
 
     {% include '@Notification/_stopped_device_warning_live.html.twig' only %}
 
+    {# A GET form, so the search lands in the address. It sits outside the view frame, so a search never replaces the field being typed into. The navigation controller copies the query, the side and the type from the address after each render. #}
+    <div class="lp-inbox-search">
+        <twig:Ds:FilterBar
+            :action="path('app_project_inbox', {id: inbox.project.id})"
+            :formAttributes="{'data-turbo-frame': 'inbox-view', 'data-turbo-action': 'advance', 'data-autosearch-ignore-value': ['side', 'type']|json_encode, 'data-inbox-search-form': true}"
+            :search="{id: 'inbox-search', name: 'q', value: view.query, label: 'inbox.search.label'|trans, placeholder: 'inbox.search.placeholder'|trans}">
+            <twig:block name="secondary">
+                <input type="hidden" name="side" value="{{ view.side.value }}" data-default="{{ openSide.value }}">
+                <input type="hidden" name="type" value="{{ view.type ? view.type.value : '' }}"{% if not view.type %} disabled{% endif %}>
+            </twig:block>
+        </twig:Ds:FilterBar>
+    </div>
+
     {# The frame holds the whole view, so a row, the switch, a filter, the search and the pager each reload it and move the address on.
        A link or a form outside the view leaves the frame, which is why the frame targets the page. #}
     <turbo-frame id="inbox-view" class="lp-inbox-frame" target="_top" data-turbo-action="advance">
@@ -43,20 +56,14 @@
                                {%- if not view.isSearch and view.side == closedSide %} aria-current="page"{% endif %}>{{ 'inbox.view.closed'|trans }}</a>
                         </twig:Ds:Tabs>
 
-                        {# A GET form, so the search lands in the address. A new search starts at page one and keeps the side and the type. #}
-                        <twig:Ds:FilterBar
-                            :action="path('app_project_inbox', {id: inbox.project.id})"
-                            :formAttributes="{'data-turbo-frame': 'inbox-view', 'data-autosearch-ignore-value': ['side', 'type']|json_encode}"
-                            :search="{id: 'inbox-search', name: 'q', value: view.query, label: 'inbox.search.label'|trans, placeholder: 'inbox.search.placeholder'|trans}"
-                            :clearHref="view.query != '' ? path('app_project_inbox', {id: inbox.project.id}|merge(view.withQuery('').toQuery)) : null"
-                            :clearLabel="'inbox.search.clear'|trans"
-                            :clearAttributes="{'data-turbo-frame': 'inbox-view'}"
-                            :count="view.isSearch ? 'inbox.search.count'|trans({'%count%': inbox.total}) : null">
-                            <twig:block name="secondary">
-                                <input type="hidden" name="side" value="{{ view.side.value }}">
-                                {% if view.type %}<input type="hidden" name="type" value="{{ view.type.value }}">{% endif %}
-                            </twig:block>
-                        </twig:Ds:FilterBar>
+                        {% if view.isSearch %}
+                            <twig:Ds:FilterBar
+                                class="lp-inbox-search-state"
+                                :clearHref="path('app_project_inbox', {id: inbox.project.id}|merge(view.withQuery('').toQuery))"
+                                :clearLabel="'inbox.search.clear'|trans"
+                                :clearAttributes="{'data-turbo-frame': 'inbox-view'}"
+                                :count="'inbox.search.count'|trans({'%count%': inbox.total})" />
+                        {% endif %}
 
                         <div class="lp-inbox-filter" role="group" aria-label="{{ 'inbox.filter.label'|trans }}">
                             <a class="lp-inbox-filter__button lp-inbox-filter__button--all"
