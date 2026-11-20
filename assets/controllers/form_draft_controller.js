@@ -45,6 +45,7 @@ export default class extends Controller {
 
     onMorph = (event) => {
         if (event.target !== this.element) return;
+        this.freshGuards = this.guards();
         this.element.dataset.formDraftFreshGuards = JSON.stringify(
             this.freshGuards,
         );

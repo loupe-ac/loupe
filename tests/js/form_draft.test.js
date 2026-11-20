@@ -313,3 +313,24 @@ it('takes the new server values as the baseline after a morph with no draft', as
     controller.remember();
     expect(formDraft('document')).toBeUndefined();
 });
+
+it('takes the morphed guard values as the fresh guards', async () => {
+    const controller =
+        await mount(`<form data-controller="form-draft" data-form-draft-owner-value="${owner}" data-form-draft-key-value="document">
+        <input name="title" value="Original" data-form-draft-target="field">
+        <input type="hidden" name="version" value="1" data-form-draft-target="guard">
+        <p data-form-draft-target="stale" hidden></p>
+    </form>`);
+    controller.guardTargets[0].value = '2';
+    controller.element.dispatchEvent(
+        new CustomEvent('turbo:morph-element', { bubbles: true }),
+    );
+    expect(controller.staleTarget.hidden).toBe(true);
+    controller.fieldTargets[0].value = 'Typed title';
+    controller.remember();
+    controller.discard();
+    controller.cleared({
+        detail: { key: 'document', identity: controller.identity },
+    });
+    expect(controller.guardTargets[0].value).toBe('2');
+});
