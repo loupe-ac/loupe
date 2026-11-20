@@ -48,7 +48,9 @@ jobs:
           [ -n "$PROJECT" ] || { echo '::error::The repository variable LOUPE_PROJECT is empty.'; exit 1; }
           [ -n "$TITLE" ] || TITLE="Weekly run failed: $WORKFLOW"
           BODY="The run failed on $(date -u +%F): $RUN_URL"
-          [ -z "$DETAIL" ] || BODY="$DETAIL"$'\n\n'"$BODY"
+          # A fence keeps the line breaks and the indentation of tool output in the Markdown body.
+          DETAIL=$(printf '%s' "$DETAIL")
+          [ -z "$DETAIL" ] || BODY="~~~~text"$'\n'"$DETAIL"$'\n'"~~~~"$'\n\n'"$BODY"
           payload=$(jq -n \
             --arg title "$TITLE" \
             --arg body "$BODY" \
