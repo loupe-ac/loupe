@@ -70,6 +70,7 @@ test('a verdict and its undo keep the page and close the sheet', async ({
     await dialog
         .getByRole('radio', { name: 'Request changes', exact: true })
         .check();
+    await dialog.getByRole('textbox').fill('Please tighten the prose.');
     await dialog.getByRole('button', { name: 'Submit review' }).click();
     await expect(dialog).toBeHidden(ROUND_TRIP);
     await expect(

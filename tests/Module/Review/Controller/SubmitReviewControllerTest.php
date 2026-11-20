@@ -313,6 +313,8 @@ final class SubmitReviewControllerTest extends WebTestCase
         self::assertStringContainsString('<turbo-stream action="replace" target="finish-review-form" data-closes-dialog>', $body);
         self::assertStringContainsString('target="main-content"', $body);
         self::assertStringContainsString('lp-verdict-chip--approved', $body);
+        self::assertStringContainsString('<turbo-stream action="remove" target="review-bar-finish">', $body);
+        self::assertStringNotContainsString('target="review-bar"', $body);
 
         preg_match('/name="undo_verdict_form\[reviewId\]"[^>]*value="([^"]+)"/', $body, $matches);
         $reviewId = $matches[1] ?? null;
@@ -324,6 +326,7 @@ final class SubmitReviewControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertStringContainsString('target="review-topbar-actions"', (string) $client->getResponse()->getContent());
         self::assertStringNotContainsString('lp-verdict-chip--approved', (string) $client->getResponse()->getContent());
+        self::assertStringContainsString('<turbo-stream action="append" target="review-bar">', (string) $client->getResponse()->getContent());
     }
 
     public function test_a_recognised_verdict_is_persisted_and_flashes_success(): void
