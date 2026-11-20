@@ -82,7 +82,7 @@ final class CoverageShardScriptsTest extends TestCase
         self::assertSame(1, $limit->length);
         $value = $limit->item(0);
         \assert($value instanceof \DOMElement);
-        self::assertSame('2G', $value->getAttribute('value'));
+        self::assertSame('6G', $value->getAttribute('value'));
     }
 
     public function test_a_shard_number_beyond_the_shard_count_is_refused(): void

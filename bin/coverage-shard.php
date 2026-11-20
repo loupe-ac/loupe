@@ -81,10 +81,11 @@ if ('phpunit-config' === $command) {
 
     $xpath = new DOMXPath($dist);
     // A worker writes its coverage after its last test file, and 512M is too
-    // little for that on a batch of 100 files: the worker dies with no message.
+    // little for that: the worker dies with no message. The paratest parent reads
+    // the same limit while it joins the worker coverage, and 2G is too little there.
     foreach ($xpath->query('//php/ini[@name="memory_limit"]') ?: [] as $ini) {
         if ($ini instanceof DOMElement) {
-            $ini->setAttribute('value', '2G');
+            $ini->setAttribute('value', '6G');
         }
     }
     foreach ($xpath->query('//source/include/directory') ?: [] as $directory) {
