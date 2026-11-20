@@ -5,6 +5,7 @@ let answerHref = null;
 let submission = null;
 let fromSubmission = false;
 let submissionVisit = null;
+let answerHtml;
 
 function navigator() {
     return window.Turbo?.session?.navigator ?? null;
@@ -18,6 +19,7 @@ document.addEventListener('turbo:submit-start', () => {
     answerHref = null;
     submission = null;
     fromSubmission = false;
+    answerHtml = undefined;
 });
 
 document.addEventListener('turbo:submit-end', (event) => {
@@ -28,7 +30,26 @@ document.addEventListener('turbo:submit-end', (event) => {
             ? (response.location?.href ?? null)
             : null;
     submission = answerHref ? (event.detail?.formSubmission ?? null) : null;
+    if (submission) {
+        Promise.resolve(response.responseHTML).then((html) => {
+            answerHtml = html;
+            verifyVisit();
+        });
+    }
 });
+
+// A response-backed visit to the same URL can come from a frame fallback while
+// the navigator still holds the submission. Only the visit that carries the
+// body of the form answer is the answer.
+function verifyVisit() {
+    if (
+        submissionVisit !== null &&
+        answerHtml !== undefined &&
+        submissionVisit.response?.responseHTML !== answerHtml
+    ) {
+        submissionVisit = null;
+    }
+}
 
 // Turbo proposes the visit of a form answer while the navigator still holds
 // that submission, and drops the submission when any other visit starts. So
@@ -46,6 +67,7 @@ document.addEventListener('turbo:visit', () => {
         submissionVisit = visit;
         submission = null;
         answerHref = null;
+        verifyVisit();
     }
     fromSubmission = false;
 });
