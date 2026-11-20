@@ -7,7 +7,8 @@
 {% set thread = inbox_thread(item, hostCardId ?? null) %}
 {% set card = thread.replyCard %}
 {% set actionParams = {projectId: item.project.id, itemId: item.id}|merge(inbox.actionQuery) %}
-{% set responseFrame = app.request.headers.get('Turbo-Frame') == 'card-drawer-frame' ? 'card-drawer-frame' : '_top' %}
+{# The inbox page answers inside its view frame. The card drawer keeps its own frame, and any other page leaves it. #}
+{% set responseFrame = app.request.headers.get('Turbo-Frame') == 'card-drawer-frame' ? 'card-drawer-frame' : ((cardDrawer ?? false) ? 'inbox-view' : '_top') %}
 {% set review = item.kind.value == 'review' and not item.isAutomatic() ? inbox_review(item) : null %}
 {% set granted = home and open and is_granted(constant('App\\Module\\Inbox\\Security\\InboxItemVoter::ANSWER'), item) %}
 {% set reviewDenied = granted and card and card.review and card.review.document and not is_granted(constant('App\\Module\\Inbox\\Security\\InboxItemVoter::REVIEW_DOCUMENT'), item) %}

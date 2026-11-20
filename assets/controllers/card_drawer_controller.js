@@ -176,6 +176,16 @@ export default class extends ModalController {
             emit('board.columns_changed');
             return;
         }
+        // The stream that answers a delete removes the card from the board.
+        if (
+            event.target.closest?.('[data-card-drawer-deletes-card]') &&
+            (event.detail.fetchResponse?.contentType ?? '').startsWith(
+                STREAM_TYPE,
+            )
+        ) {
+            this.close();
+            return;
+        }
         const form = event.target.closest?.('[data-card-drawer-saves-card]');
         if (!form) return;
         this.dispatch('saved');

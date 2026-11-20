@@ -10,8 +10,6 @@ final readonly class ShowDashboardCommand
 {
     public function __construct(
         public Project $project,
-        /** The id from the `removed` query parameter, or null. Any text is safe. */
-        public ?string $removedGraphId = null,
     ) {
     }
 }

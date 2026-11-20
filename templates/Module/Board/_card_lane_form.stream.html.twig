@@ -1,0 +1,4 @@
+{#- Redraws the lane button of the card drawer. Props: card (Card, an epic). -#}
+<turbo-stream action="replace" target="card-lane-form-{{ card.id }}-card">
+    <template>{% include '@Board/_card_lane_form.html.twig' with {card: card, returnTo: 'card'} only %}</template>
+</turbo-stream>

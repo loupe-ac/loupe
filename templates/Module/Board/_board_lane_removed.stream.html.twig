@@ -1,0 +1,2 @@
+{#- Takes the lane of a deleted epic off the board page, so the placement stream finds no lane. Props: cardId (string). -#}
+<turbo-stream action="remove" target="board-lane-{{ cardId }}"></turbo-stream>

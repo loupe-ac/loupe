@@ -10,6 +10,7 @@ use App\Module\Insights\Command\UpdateSavedGraphFieldsCommand;
 use App\Module\Insights\Command\UpdateSavedGraphFieldsHandler;
 use App\Module\Insights\Form\SavedGraphFormType;
 use App\Module\Insights\Form\SavedGraphRequest;
+use App\Module\Insights\Service\SavedGraphCap;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
 use Symfony\Component\HttpFoundation\Request;
@@ -17,6 +18,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Contracts\Translation\TranslatorInterface;
+use Symfony\UX\Turbo\TurboBundle;
 
 #[IsGranted(ProjectVoter::MANAGE, subject: 'project')]
 #[Route(
@@ -27,6 +29,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 class UpdateGraphController extends AppController
 {
     public function __construct(
+        private readonly SavedGraphCap $cap,
         private readonly UpdateSavedGraphFieldsHandler $updateGraph,
         private readonly TranslatorInterface $translator,
     ) {
@@ -37,26 +40,37 @@ class UpdateGraphController extends AppController
         $data = new SavedGraphRequest();
         $form = $this->createForm(SavedGraphFormType::class, $data);
         $form->handleRequest($request);
-        $params = ['id' => (string) $project->id, 'graph' => $graphId] + $data->settings();
 
         if (!$form->isSubmitted() || !$form->isValid()) {
-            $this->addFlash('error', $this->translator->trans('analytics.metrics.saved_graph.flash.invalid'));
+            $html = $this->renderView('_flash.stream.html.twig', ['severity' => 'error', 'message' => $this->translator->trans('analytics.metrics.saved_graph.flash.invalid')]);
 
-            return $this->redirectToRoute('app_project_analytics_metrics', $params);
+            return new Response($html, Response::HTTP_UNPROCESSABLE_ENTITY, ['Content-Type' => TurboBundle::STREAM_MEDIA_TYPE]);
         }
 
         try {
             $result = ($this->updateGraph)(new UpdateSavedGraphFieldsCommand($project, $graphId, name: $data->name, settings: $data->settings()));
         } catch (DomainErrors $e) {
-            foreach ($e->errors as $field => $translationKey) {
-                $this->addFlash('error', $this->translator->trans($translationKey, $e->parameters[$field] ?? []));
-            }
+            $html = $this->renderView('_flash.stream.html.twig', ['severity' => 'error', 'message' => implode(' ', array_map(
+                fn (string $field, string $translationKey): string => $this->translator->trans($translationKey, $e->parameters[$field] ?? []),
+                array_keys($e->errors),
+                $e->errors,
+            ))]);
 
-            return $this->redirectToRoute('app_project_analytics_metrics', $params);
+            return new Response($html, Response::HTTP_UNPROCESSABLE_ENTITY, ['Content-Type' => TurboBundle::STREAM_MEDIA_TYPE]);
         }
 
-        $this->addFlash('success', $this->translator->trans('analytics.metrics.saved_graph.flash.updated'));
+        $saveForm = $this->createForm(SavedGraphFormType::class, $data, ['action' => $this->generateUrl('app_project_analytics_save_graph', ['id' => (string) $project->id])]);
+        $html = $this->renderView('@Insights/_metrics_save.stream.html.twig', [
+            'project' => $project,
+            'graph' => $result->graph,
+            'saveForm' => $saveForm->createView(),
+            'capReached' => $this->cap->isReached($project),
+            'capLimit' => $this->cap->limit(),
+            'saved' => false,
+            'severity' => 'success',
+            'message' => $this->translator->trans('analytics.metrics.saved_graph.flash.updated'),
+        ]);
 
-        return $this->redirectToRoute('app_project_analytics_metrics', ['id' => (string) $project->id, 'graph' => (string) $result->graph->id] + ($result->query?->routeParams() ?? []));
+        return new Response($html, Response::HTTP_OK, ['Content-Type' => TurboBundle::STREAM_MEDIA_TYPE]);
     }
 }

@@ -9,7 +9,6 @@ use App\Module\Insights\Command\ShowDashboardCommand;
 use App\Module\Insights\Command\ShowDashboardHandler;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
-use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
@@ -28,9 +27,9 @@ class ShowDashboardController extends AppController
     ) {
     }
 
-    public function __invoke(Project $project, Request $request): Response
+    public function __invoke(Project $project): Response
     {
-        $view = ($this->showDashboard)(new ShowDashboardCommand($project, $request->query->getString('removed') ?: null));
+        $view = ($this->showDashboard)(new ShowDashboardCommand($project));
 
         return $this->render('@Insights/show_dashboard.html.twig', [
             'project' => $view->project,

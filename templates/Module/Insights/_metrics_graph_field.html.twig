@@ -1,0 +1,2 @@
+{# The hidden field that keeps the edited graph in each reload of the Metrics controls. Props: graph (InsightsSavedGraph or null). #}
+<span id="metrics-graph-field" class="contents">{% if graph is not null %}<input type="hidden" name="graph" value="{{ graph.id }}">{% endif %}</span>
