@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const EAGER = [
+    'autosearch',
     'board_deck',
     'board_drag',
     'board_lane',
