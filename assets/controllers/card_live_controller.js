@@ -92,12 +92,15 @@ export default class extends Controller {
     }
 
     /**
-     * A run signal that names cards and not this one changes nothing here. One
-     * that names no card is a change to any run, so the frame reads it again.
+     * A run signal that names cards and not this one changes nothing here, and
+     * neither does one that names runs of no card. Only a signal with no run
+     * and no card is a change to any run, so the frame reads it again.
      */
     runsChanged(change) {
         const cardIds = Array.isArray(change.cardIds) ? change.cardIds : [];
-        if (cardIds.length > 0 && !cardIds.includes(this.cardIdValue)) {
+        const runIds = Array.isArray(change.runIds) ? change.runIds : [];
+        const named = cardIds.length > 0 || runIds.length > 0;
+        if (named && !cardIds.includes(this.cardIdValue)) {
             return;
         }
         clearTimeout(this.runsTimeout);

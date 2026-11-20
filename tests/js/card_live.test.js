@@ -362,6 +362,16 @@ describe('a worker run change', () => {
         expect(fetch).not.toHaveBeenCalled();
     });
 
+    it('ignores a named run that belongs to no card', async () => {
+        await mount();
+        const frame = runsFrame();
+        runSignal({ runIds: ['run-3'], cardIds: [] });
+        await settle();
+        expect(frame.setAttribute).not.toHaveBeenCalled();
+        expect(frame.reload).not.toHaveBeenCalled();
+        expect(fetch).not.toHaveBeenCalled();
+    });
+
     it('reloads once for a burst', async () => {
         await mount();
         const frame = runsFrame(RUNS_PATH);
