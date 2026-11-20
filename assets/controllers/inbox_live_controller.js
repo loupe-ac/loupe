@@ -275,10 +275,13 @@ function keepUnpicked(fresh) {
 /**
  * A status line says what the last action did, or why the open ask closed. The
  * fresh view has none of its own, so the lines the reader saw stay until the
- * reader moves to another view.
+ * reader moves to another view. They go inside the detail frame, so a row
+ * pick, which swaps only that frame, clears them.
  */
 function keepNotices(current, fresh) {
-    const detail = fresh.querySelector('.lp-inbox-request-detail');
+    const detail =
+        fresh.querySelector('turbo-frame#inbox-detail') ??
+        fresh.querySelector('.lp-inbox-request-detail');
     ['data-inbox-status', 'data-inbox-closed-notice'].forEach((marker) => {
         current.querySelectorAll(`[${marker}]`).forEach((notice) => {
             if (detail && !fresh.querySelector(`[${marker}]`)) {

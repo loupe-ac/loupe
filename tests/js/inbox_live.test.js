@@ -53,7 +53,7 @@ function view({
     number = 1,
     actions = true,
 } = {}) {
-    return `<turbo-frame id="inbox-view"><div class="lp-inbox-rows">${rows.join('')}</div><div class="lp-inbox-request-detail">${status}${notice}<section class="lp-inbox-ask" data-inbox-ask-id="${ASK}" data-inbox-ask-open="${open}">${item({ open, note, number, actions })}</section></div></turbo-frame>`;
+    return `<turbo-frame id="inbox-view"><div class="lp-inbox-rows">${rows.join('')}</div><div class="lp-inbox-request-detail"><turbo-frame id="inbox-detail">${status}${notice}<section class="lp-inbox-ask" data-inbox-ask-id="${ASK}" data-inbox-ask-open="${open}">${item({ open, note, number, actions })}</section></turbo-frame></div></turbo-frame>`;
 }
 
 function page(html) {
@@ -200,6 +200,28 @@ it('shows the typed reply with a Discard button when the item closed', async () 
     expect(draft.dataset.inboxReplyDraftKeyValue).toBe('item-1');
     expect(document.querySelector('form')).toBeNull();
     expect(document.querySelector('[data-inbox-closed-notice]')).not.toBeNull();
+});
+
+it('keeps a closed notice inside the detail frame', async () => {
+    await mount();
+    answer(view({ open: false }));
+    changed();
+    await settle();
+    answer(
+        view({
+            open: false,
+            notice: '<p class="lp-inbox-status" data-inbox-closed-notice="withdrawn">Withdrawn by the agent.</p>',
+        }),
+    );
+    changed();
+    await settle();
+    answer(view({ open: false }));
+    changed();
+    await settle();
+
+    const notice = document.querySelector('[data-inbox-closed-notice]');
+    expect(notice).not.toBeNull();
+    expect(notice.closest('turbo-frame#inbox-detail')).not.toBeNull();
 });
 
 it('keeps the unsent reply through the next read', async () => {
