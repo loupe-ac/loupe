@@ -21,6 +21,14 @@ beforeEach(() => {
     document.dispatchEvent(new CustomEvent('turbo:load'));
 });
 
+function answer(type = 'text/html') {
+    document.dispatchEvent(
+        new CustomEvent('turbo:submit-end', {
+            detail: { fetchResponse: { header: () => type } },
+        }),
+    );
+}
+
 function submit(id) {
     document
         .getElementById(id)
@@ -32,6 +40,7 @@ function submit(id) {
 it('scrolls the section of the submitted form into view when it is out of view', () => {
     place(900, 1100);
     submit('identity-form');
+    answer();
     document.dispatchEvent(new CustomEvent('turbo:morph'));
     expect(section.scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
 });
@@ -39,6 +48,7 @@ it('scrolls the section of the submitted form into view when it is out of view',
 it('leaves a section that is already in view where it is', () => {
     place(100, 300);
     submit('identity-form');
+    answer();
     document.dispatchEvent(new CustomEvent('turbo:morph'));
     expect(section.scrollIntoView).not.toHaveBeenCalled();
 });
@@ -46,6 +56,7 @@ it('leaves a section that is already in view where it is', () => {
 it('finds the section again when the morph replaced its element', () => {
     place(900, 1100);
     submit('identity-form');
+    answer();
     const replacement = section.cloneNode(true);
     replacement.scrollIntoView = vi.fn();
     replacement.getBoundingClientRect = () => ({ top: 900, bottom: 1100 });
@@ -57,6 +68,7 @@ it('finds the section again when the morph replaced its element', () => {
 it('does nothing for a form outside every marked section', () => {
     place(900, 1100);
     submit('other-form');
+    answer();
     document.dispatchEvent(new CustomEvent('turbo:morph'));
     expect(section.scrollIntoView).not.toHaveBeenCalled();
 });
@@ -72,7 +84,34 @@ it('forgets the section after a full visit', () => {
 it('uses a stored section once', () => {
     place(900, 1100);
     submit('identity-form');
+    answer();
     document.dispatchEvent(new CustomEvent('turbo:morph'));
+    document.dispatchEvent(new CustomEvent('turbo:morph'));
+    expect(section.scrollIntoView).toHaveBeenCalledOnce();
+});
+
+it('forgets the section when the answer is a stream', () => {
+    place(900, 1100);
+    submit('identity-form');
+    answer('text/vnd.turbo-stream.html');
+    document.dispatchEvent(new CustomEvent('turbo:morph'));
+    expect(section.scrollIntoView).not.toHaveBeenCalled();
+});
+
+it('forgets the section when the request fails', () => {
+    place(900, 1100);
+    submit('identity-form');
+    document.dispatchEvent(new CustomEvent('turbo:submit-end', { detail: {} }));
+    document.dispatchEvent(new CustomEvent('turbo:morph'));
+    expect(section.scrollIntoView).not.toHaveBeenCalled();
+});
+
+it('keeps the section through a morph that arrives before the answer', () => {
+    place(900, 1100);
+    submit('identity-form');
+    document.dispatchEvent(new CustomEvent('turbo:morph'));
+    expect(section.scrollIntoView).not.toHaveBeenCalled();
+    answer();
     document.dispatchEvent(new CustomEvent('turbo:morph'));
     expect(section.scrollIntoView).toHaveBeenCalledOnce();
 });
