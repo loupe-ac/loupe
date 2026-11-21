@@ -196,38 +196,26 @@ else
 fi
 
 # 5 to 8. Access sets against the snapshot, and no change after the baseline.
-declare -A paths exprs labels
 order=(deploy_keys secrets homebrew_secrets webhooks rulesets environments collaborators invitations)
-paths[deploy_keys]="$api/keys"
-exprs[deploy_keys]='.[] | {k: (.id | tostring), t: (.created_at // "")}'
-labels[deploy_keys]="5 Deploy keys"
-paths[secrets]="$api/actions/secrets"
-exprs[secrets]='.secrets[] | {k: .name, t: (.updated_at // "")}'
-labels[secrets]="6 Repository secrets"
-paths[homebrew_secrets]="$api/environments/homebrew/secrets"
-exprs[homebrew_secrets]='.secrets[] | {k: .name, t: (.updated_at // "")}'
-labels[homebrew_secrets]="6 Homebrew environment secrets"
-paths[webhooks]="$api/hooks"
-exprs[webhooks]='.[] | {k: (.id | tostring), t: (.updated_at // "")}'
-labels[webhooks]="7 Webhooks"
-paths[rulesets]="$api/rulesets"
-exprs[rulesets]='.[] | {k: (.id | tostring), t: (.updated_at // "")}'
-labels[rulesets]="7 Rulesets"
-paths[environments]="$api/environments"
-exprs[environments]='.environments[] | {k: .name, t: (.updated_at // "")}'
-labels[environments]="7 Environments"
-paths[collaborators]="$api/collaborators"
-exprs[collaborators]='.[] | {k: (.login + ":" + (.role_name // "")), t: ""}'
-labels[collaborators]="8 Collaborators (login:role)"
-paths[invitations]="$api/invitations"
-exprs[invitations]='.[] | {k: ((.id | tostring) + ":" + (.invitee.login // "") + ":" + (.permissions // "")), t: (.created_at // "")}'
-labels[invitations]="8 Open invitations"
+# spec <name>: sets path, expr and label. A case keeps it on bash 3.2, which has no associative arrays.
+spec() {
+  case "$1" in
+    deploy_keys) path="$api/keys"; expr='.[] | {k: (.id | tostring), t: (.created_at // "")}'; label="5 Deploy keys" ;;
+    secrets) path="$api/actions/secrets"; expr='.secrets[] | {k: .name, t: (.updated_at // "")}'; label="6 Repository secrets" ;;
+    homebrew_secrets) path="$api/environments/homebrew/secrets"; expr='.secrets[] | {k: .name, t: (.updated_at // "")}'; label="6 Homebrew environment secrets" ;;
+    webhooks) path="$api/hooks"; expr='.[] | {k: (.id | tostring), t: (.updated_at // "")}'; label="7 Webhooks" ;;
+    rulesets) path="$api/rulesets"; expr='.[] | {k: (.id | tostring), t: (.updated_at // "")}'; label="7 Rulesets" ;;
+    environments) path="$api/environments"; expr='.environments[] | {k: .name, t: (.updated_at // "")}'; label="7 Environments" ;;
+    collaborators) path="$api/collaborators"; expr='.[] | {k: (.login + ":" + (.role_name // "")), t: ""}'; label="8 Collaborators (login:role)" ;;
+    invitations) path="$api/invitations"; expr='.[] | {k: ((.id | tostring) + ":" + (.invitee.login // "") + ":" + (.permissions // "")), t: (.created_at // "")}'; label="8 Open invitations" ;;
+  esac
+}
 
 snapshot='{}'
 all_read=true
 for name in "${order[@]}"; do
-  label="${labels[$name]}"
-  if ! current="$(collect "$name" "${paths[$name]}" "${exprs[$name]}")"; then
+  spec "$name"
+  if ! current="$(collect "$name" "$path" "$expr")"; then
     blind "$label cannot be read."
     all_read=false
     continue
