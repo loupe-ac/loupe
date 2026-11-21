@@ -17,6 +17,7 @@ use App\Module\Bridge\Service\CardHolds;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Bridge\ValueObject\BridgeCommandCause;
 use App\Module\Bridge\ValueObject\BridgeCommandKind;
+use App\Module\Bridge\ValueObject\WorkerRunChangeKind;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Outbox\OutboxWriter;
@@ -164,7 +165,7 @@ final readonly class RequestBridgeCommandHandler
             ],
             new AuditSubject('bridge_command', (string) $result->id),
         );
-        $this->runsChanged->runsChanged($run->project);
+        $this->runsChanged->runsChanged($run->project, WorkerRunChangeKind::State, [$run]);
 
         return $result;
     }

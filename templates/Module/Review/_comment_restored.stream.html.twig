@@ -1,0 +1,3 @@
+{# Props: severity, message. Clears the undo block of a deleted thread and shows one flash. #}
+<turbo-stream action="update" target="comment-recovery"><template></template></turbo-stream>
+{% include '_flash.stream.html.twig' with {severity: severity, message: message} only %}

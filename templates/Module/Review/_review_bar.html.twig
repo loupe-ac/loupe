@@ -3,7 +3,7 @@
    referenceCount, decisionRows, decisionsUrl, answeredDecisions,
    showResolvedToggle, showVerdict, diffMode, diffFromVersion, diffViewValue,
    showComments, canComment, comments, openCommentCount. #}
-<div class="lp-review-bar" role="group" aria-label="{{ 'review.bar.label'|trans }}" data-controller="review-jump">
+<div id="review-bar" class="lp-review-bar" role="group" aria-label="{{ 'review.bar.label'|trans }}" data-controller="review-jump">
     {% if showContents %}
     <div class="lp-review-bar__group" data-controller="sheet">
         <twig:Ds:Button variant="icon" type="button" class="lp-review-bar__button"
@@ -189,8 +189,6 @@
     {% endif %}
 
     {% if showVerdict %}
-    <twig:Ds:Button variant="primary" type="button" class="lp-review-bar__finish" data-controller="review-finish" data-action="click->review-finish#open">
-        {{ 'review.document.finish.title'|trans }}
-    </twig:Ds:Button>
+    {% include '@Review/_review_bar_finish.html.twig' with {} only %}
     {% endif %}
 </div>

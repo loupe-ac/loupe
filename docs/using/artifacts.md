@@ -242,7 +242,7 @@ open the library.
 
 The two buttons at the end of a row copy the link of the artifact and archive
 it. An archived artifact is hidden. Turn on **Show archived** to list it, and
-restore it with the same button.
+restore it with the same button. The switch and the button change the list in place, and the archived view stays.
 
 A card page lists the artifacts that link to the card, under **Artifacts**,
 with the newest version of each.

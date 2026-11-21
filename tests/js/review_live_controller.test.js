@@ -323,6 +323,47 @@ it('keeps a form that holds typed text out of a morph', () => {
     ).toBe(true);
 });
 
+it('lets the form that is submitting take the answer of its request', async () => {
+    document.body.innerHTML =
+        '<form id="old"><textarea></textarea></form><form id="new"><textarea></textarea></form>';
+    const current = document.getElementById('old');
+    current.querySelector('textarea').value = 'typed';
+    current.dispatchEvent(
+        new CustomEvent('turbo:submit-start', { bubbles: true }),
+    );
+    expect(
+        morphEvent(current, document.getElementById('new')).defaultPrevented,
+    ).toBe(true);
+    current.dispatchEvent(
+        new CustomEvent('turbo:submit-end', {
+            bubbles: true,
+            detail: {
+                fetchResponse: {
+                    header: () => 'text/html',
+                    responseHTML: Promise.resolve(
+                        '<html><body>a</body></html>',
+                    ),
+                },
+            },
+        }),
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+    document.dispatchEvent(
+        new CustomEvent('turbo:before-render', {
+            detail: {
+                newBody: new DOMParser().parseFromString(
+                    '<html><body>a</body></html>',
+                    'text/html',
+                ).body,
+            },
+        }),
+    );
+    expect(
+        morphEvent(current, document.getElementById('new')).defaultPrevented,
+    ).toBe(false);
+});
+
 it('keeps a form that a script opened out of a morph', () => {
     document.body.innerHTML =
         '<form id="old"></form><form id="new" hidden></form>';
@@ -343,4 +384,24 @@ it('lets an untouched form morph', () => {
             document.getElementById('new'),
         ).defaultPrevented,
     ).toBe(false);
+});
+
+it('reads the threads flag again when a morph lands on the page', async () => {
+    await mount({ threadsLive: true });
+    answer();
+    signal({ type: 'review.version_published', versionNumber: 3 });
+    await settle();
+
+    document
+        .querySelector('#root')
+        .dispatchEvent(new CustomEvent('turbo:morph-element'));
+    answer();
+    signal({
+        type: 'review.thread_changed',
+        commentId: 'c-1',
+        scope: 'thread',
+    });
+    await settle();
+
+    expect(fetched().some((url) => url.includes('/review/threads'))).toBe(true);
 });

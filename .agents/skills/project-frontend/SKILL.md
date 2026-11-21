@@ -106,6 +106,8 @@ A CSS `max-height` transition animates a `<details>` for a simple one-shot discl
 
 Setting `canvas.width` clears the canvas. ResizeObserver callbacks fire after `requestAnimationFrame` in the rendering pipeline. A resize inside the callback therefore leaves a blank canvas in the paint queue until the next rAF. Call your draw function immediately after you resize the canvas inside the callback. Do not wait for the next frame.
 
+A page morph keeps the element and runs no `connect()` again. A controller that reads server-rendered state in `connect()`, such as a value, a data attribute, or the text or class of an element, also reads it on a morph. Do it with a `*ValueChanged` callback, or with a listener for `turbo:morph` that `disconnect()` removes. Add a Vitest case that morphs the element and checks the new state.
+
 Read `references/board-drag.md` before you change the board drag controller, or before you write any pointer-driven drag with an optimistic update. It carries the 5-pixel threshold, the three pointer traps, `turbo:submit-end` as the one failure hook, restore-by-following-card, and the test race that an optimistic move introduces.
 
 ## Turbo patterns
@@ -144,6 +146,8 @@ return $this->forward(SomeController::class, $params)
 ```
 
 Add `data-turbo-frame="_top"` to a form inside a `<turbo-frame>` that redirects page-level. Without it the redirect is frame-scoped. The frame morphs in place, and flash messages rendered outside the frame are dropped with no warning. The vendor admin-bundle list frames set this on their own forms. Any form you add inside a frame must do the same, unless you want an in-frame update.
+
+A same-page redirect with a fragment, such as `redirectToRoute(..., ['_fragment' => 'git-identity'])`, morphs the page and drops the fragment. Put `data-morph-anchor` on the element that the fragment names. `assets/lib/morph_anchor.js` then brings it into view after the morph when it is out of view.
 
 Turbo Stream animations are opt-in. Hook `turbo:before-stream-render` globally to fade elements in and out, and add a `data-` attribute to opt a target element in.
 

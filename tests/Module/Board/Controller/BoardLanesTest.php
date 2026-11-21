@@ -192,6 +192,29 @@ final class BoardLanesTest extends WebTestCase
         self::assertCount(1, $crawler->filter('.lp-board-lane[data-lane="'.$epicId.'"]'));
     }
 
+    public function test_a_lane_toggle_from_the_card_drawer_redraws_its_own_button(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $owner = $this->user($em, 'lanes-card-stream@example.com');
+        $project = $this->project($em, $owner);
+        $this->addTriageColumn($project);
+        $em->flush();
+        $epic = $this->typed($em, $this->card($em, $project, 'Drawer epic', 'next'), 'epic');
+        $this->childOf($em, $epic, $this->card($em, $project, 'Child'));
+        [$projectId, $epicId] = [(string) $project->id, (string) $epic->id];
+        $em->clear();
+
+        $client->loginUser($owner);
+        $this->postLaneAsStream($client, $projectId, $epicId, '0', 'card');
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertStringStartsWith(TurboBundle::STREAM_MEDIA_TYPE, (string) $client->getResponse()->headers->get('Content-Type'));
+        $stream = new Crawler((string) $client->getResponse()->getContent());
+        self::assertCount(1, $stream->filter('turbo-stream[action="replace"][target="card-lane-form-'.$epicId.'-card"]'));
+        self::assertStringContainsString('input type="hidden"', $stream->html());
+    }
+
     public function test_a_refused_lane_toggle_on_the_board_prepends_its_message_and_leaves_no_flash(): void
     {
         $client = static::createClient();
@@ -217,7 +240,7 @@ final class BoardLanesTest extends WebTestCase
         $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/board');
         self::assertResponseIsSuccessful();
         // The Move sheet keeps a flash in a template, which draws nothing.
-        self::assertCount(0, $crawler->filterXPath('//*[contains(@class, "lp-flash") and not(ancestor::template)]'));
+        self::assertCount(0, $crawler->filterXPath('//*[contains(concat(" ", normalize-space(@class), " "), " lp-flash ") and not(ancestor::template)]'));
     }
 
     public function test_a_done_epic_shows_as_one_card_and_its_children_leave_the_board(): void
@@ -352,12 +375,12 @@ final class BoardLanesTest extends WebTestCase
         return $reads;
     }
 
-    private function postLaneAsStream(KernelBrowser $client, string $projectId, string $epicId, string $laneEnabled): void
+    private function postLaneAsStream(KernelBrowser $client, string $projectId, string $epicId, string $laneEnabled, string $returnTo = 'board'): void
     {
         $client->request(
             Request::METHOD_POST,
             '/projects/'.$projectId.'/board/cards/'.$epicId.'/lane',
-            [SetCardLaneFormType::PREFIX.$epicId => ['laneEnabled' => $laneEnabled, 'returnTo' => 'board', '_token' => 'csrf-token']],
+            [SetCardLaneFormType::PREFIX.$epicId => ['laneEnabled' => $laneEnabled, 'returnTo' => $returnTo, '_token' => 'csrf-token']],
             server: [
                 'HTTP_REFERER' => 'http://localhost/projects/'.$projectId.'/board',
                 'HTTP_ACCEPT' => TurboBundle::STREAM_MEDIA_TYPE,

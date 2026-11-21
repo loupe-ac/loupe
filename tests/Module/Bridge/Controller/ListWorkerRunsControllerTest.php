@@ -879,15 +879,28 @@ final class ListWorkerRunsControllerTest extends WebTestCase
 
         $crawler = $client->request(Request::METHOD_GET, '/projects/'.$fullId.'/worker-runs');
         self::assertResponseIsSuccessful();
-        $refresh = $crawler->filter('[data-controller="worker-run-refresh"]');
-        self::assertSame('false', $refresh->attr('data-worker-run-refresh-whole-value'));
-        self::assertSame(['worker-runs-shown', 'worker-runs-count'], json_decode((string) $refresh->attr('data-worker-run-refresh-frames-value'), true));
+        self::assertCount(0, $crawler->filter('[data-controller="worker-run-refresh"]'));
+        $region = $crawler->filter('turbo-frame#worker-runs-frame [data-controller="live-region"]');
+        self::assertCount(1, $region);
+        self::assertSame('stream', $region->attr('data-live-region-mode-value'));
+        self::assertSame('/projects/'.$fullId.'/worker-runs/live?page=1', $region->attr('data-live-region-url-value'));
         self::assertCount(1, $crawler->filter('turbo-frame#worker-runs-shown .lp-topbar__meta'));
-        self::assertCount(1, $crawler->filter('turbo-frame#worker-runs-count .lp-filter-count'));
+        self::assertCount(1, $crawler->filter('turbo-frame#worker-runs-frame p.lp-list-count'));
+        self::assertCount(1, $crawler->filter('form#worker-run-filter[data-turbo-frame="worker-runs-frame"][data-turbo-action="advance"]'));
+        self::assertCount(0, $crawler->filter('turbo-frame#worker-runs-frame form#worker-run-filter'));
 
         $crawler = $client->request(Request::METHOD_GET, '/projects/'.$emptyId.'/worker-runs');
         self::assertResponseIsSuccessful();
         self::assertSame('true', $crawler->filter('[data-controller="worker-run-refresh"]')->attr('data-worker-run-refresh-whole-value'));
+        self::assertCount(0, $crawler->filter('[data-controller="live-region"]'));
+        self::assertCount(1, $crawler->filter('turbo-frame#worker-runs-frame [data-controller="worker-run-refresh"][data-worker-run-refresh-target="frame"]'));
+
+        // The Clear link of a filtered empty list swaps this frame alone, so the listener travels inside it.
+        $client->request(Request::METHOD_GET, '/projects/'.$emptyId.'/worker-runs', [], [], ['HTTP_TURBO_FRAME' => 'worker-runs-frame']);
+        self::assertResponseIsSuccessful();
+        $body = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('data-controller="worker-run-refresh"', $body);
+        self::assertStringNotContainsString('data-controller="live-region"', $body);
     }
 
     /** A run with no history rows, as the previous image writes one during a deploy, shows its start and its outcome. */
@@ -986,7 +999,7 @@ final class ListWorkerRunsControllerTest extends WebTestCase
         $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/worker-runs');
 
         self::assertResponseIsSuccessful();
-        self::assertCount(1, $crawler->filter('[data-controller="worker-run-refresh"] turbo-frame#worker-runs-frame[target="_top"][data-worker-run-refresh-target="frame"] [data-worker-run-id]'));
+        self::assertCount(1, $crawler->filter('turbo-frame#worker-runs-frame[target="_top"] [data-worker-run-id]'));
         self::assertContains($runTopic, self::subscribedTopics($client->getResponse()) ?? []);
         self::assertContains($runTopic, $crawler->filter('form#mercure-subscriptions input[data-mercure-topic]')->each(static fn (Crawler $input): ?string => $input->attr('value')));
         // The filters stay outside the frame, so a reload never takes the search field from under the reader.
@@ -1139,7 +1152,7 @@ final class ListWorkerRunsControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $form = $crawler->filter('[data-worker-run-id="'.$runId.'"] form[data-worker-run-control="rerun"]');
         self::assertCount(1, $form);
-        self::assertSame('/projects/'.$projectId.'/worker-runs/'.$runId.'/rerun', $form->attr('action'));
+        self::assertSame('/projects/'.$projectId.'/worker-runs/'.$runId.'/rerun?page=1', $form->attr('action'));
         self::assertSame('Run again', trim($form->filter('button')->text()));
         self::assertNull($form->filter('button')->attr('disabled'));
     }
@@ -1295,7 +1308,7 @@ final class ListWorkerRunsControllerTest extends WebTestCase
         self::assertCount(1, $row->filter('form[data-worker-run-control]'));
         $form = $row->filter('dialog .lp-drawer__footer form[data-worker-run-control]');
         self::assertCount(1, $form);
-        self::assertSame('/projects/'.$projectId.'/worker-runs/'.$runId.'/resume', $form->attr('action'));
+        self::assertSame('/projects/'.$projectId.'/worker-runs/'.$runId.'/resume?page=1', $form->attr('action'));
         self::assertSame('_top', $form->attr('data-turbo-frame'));
         self::assertNotEmpty($form->filter('input[name="_csrf_token"]')->attr('value'));
         self::assertSame('Resume', $form->filter('button')->text());
@@ -1349,7 +1362,7 @@ final class ListWorkerRunsControllerTest extends WebTestCase
         $row = $crawler->filter('[data-worker-run-id="'.$runId.'"]');
         self::assertSame(['Stop requested', 'Stop requested'], $row->filter('[data-worker-run-control-label]')->each(static fn (Crawler $label): string => $label->text()));
         $form = $row->filter('.lp-drawer__footer form[data-worker-run-control]');
-        self::assertSame('/projects/'.$projectId.'/worker-runs/'.$runId.'/cancel-command', $form->attr('action'));
+        self::assertSame('/projects/'.$projectId.'/worker-runs/'.$runId.'/cancel-command?page=1', $form->attr('action'));
         self::assertSame('Cancel request', $form->filter('button')->text());
     }
 

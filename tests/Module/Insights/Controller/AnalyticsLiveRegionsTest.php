@@ -67,7 +67,7 @@ final class AnalyticsLiveRegionsTest extends WebTestCase
         self::assertTrue($this->subscribes($crawler, $project));
     }
 
-    public function test_the_first_page_of_the_cards_is_a_frame(): void
+    public function test_the_first_page_of_the_cards_reads_its_rows_by_id_with_no_band_and_no_cursor(): void
     {
         [$client, $project] = $this->signedIn('live-cards');
         $card = $this->experimentCard($this->em(), $project, 1);
@@ -76,11 +76,13 @@ final class AnalyticsLiveRegionsTest extends WebTestCase
         $crawler = $this->visit($client, $project, '/experiments/model-test/cards?variant=a');
 
         self::assertResponseIsSuccessful();
-        $frame = $this->frame($crawler, 'analytics-experiment-cards');
-        self::assertSame('frame', $frame->attr('data-live-region-mode-value'));
-        self::assertSame($this->base($project).'/experiments/model-test/cards?variant=a', $frame->attr('data-live-region-url-value'));
-        self::assertSame((string) $card->id, $frame->filter('[data-live-row]')->attr('data-live-row'));
+        $region = $crawler->filter('[data-live-region-mode-value="rows"]');
+        self::assertCount(1, $region);
+        self::assertSame($this->base($project).'/experiments/model-test/cards/rows?variant=a', $region->attr('data-live-region-url-value'));
+        self::assertSame((string) $card->id, $region->filter('[data-live-row]')->attr('data-live-row'));
         self::assertCount(0, $crawler->filter('[data-live-since]'));
+        self::assertCount(0, $crawler->filter('#experiment-cards-newer'));
+        self::assertCount(0, $crawler->filter('turbo-frame#analytics-experiment-cards'));
         self::assertSame($this->base($project).'/experiments/model-test/cards?variant=a', $this->frame($crawler, 'analytics-experiment-heading')->attr('data-live-region-url-value'));
         self::assertTrue($this->subscribes($crawler, $project));
     }
@@ -101,7 +103,7 @@ final class AnalyticsLiveRegionsTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $region = $crawler->filter('[data-live-region-mode-value="rows"]');
         self::assertCount(1, $region);
-        self::assertSame($this->base($project).'/experiments/model-test/cards/rows', $region->attr('data-live-region-url-value'));
+        self::assertSame($this->base($project).'/experiments/model-test/cards/rows?page=2', $region->attr('data-live-region-url-value'));
         self::assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}[+-]\d{2}:\d{2}$/', (string) $region->attr('data-live-since'));
         self::assertSame([$ids[20]], $region->filter('[data-live-row]')->each(static fn (Crawler $row): ?string => $row->attr('data-live-row')));
         self::assertCount(0, $crawler->filter('turbo-frame#analytics-experiment-cards'));
@@ -208,10 +210,13 @@ final class AnalyticsLiveRegionsTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $frame = $this->frame($crawler, 'analytics-bucket-rules');
         self::assertSame('{"analytics.changed":{"area":"bucket_rules"}}', $frame->attr('data-live-region-match-type-value'));
-        self::assertSame($this->base($project).'/time-buckets?range=thirty-days', $frame->attr('data-live-region-url-value'));
+        self::assertSame($this->base($project).'/time-buckets', $frame->attr('data-live-region-url-value'));
         self::assertCount(0, $frame->filter('[data-bucket-rule-form]'));
         self::assertCount(1, $crawler->filter('[data-bucket-rule-form]'));
-        self::assertCount(1, $frame->filter('[data-bucket-summary]'));
+        $summary = $this->frame($crawler, 'analytics-bucket-summary');
+        self::assertSame($this->base($project).'/time-buckets?range=thirty-days', $summary->attr('data-live-region-url-value'));
+        self::assertSame('{"analytics.changed":{"area":"bucket_rules"}}', $summary->attr('data-live-region-match-type-value'));
+        self::assertCount(0, $summary->filter('select[name="range"]'));
         self::assertTrue($this->subscribes($crawler, $project));
     }
 

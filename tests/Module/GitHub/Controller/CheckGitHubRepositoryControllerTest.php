@@ -84,6 +84,26 @@ final class CheckGitHubRepositoryControllerTest extends WebTestCase
         self::assertSame([AuditOutcome::Success, AuditOutcome::Success], array_map(static fn ($event): AuditOutcome => $event->outcome, $audit->records('github.repository_check_requested')));
     }
 
+    public function test_the_row_form_gets_the_fresh_row_as_a_stream_and_the_inbox_form_still_redirects(): void
+    {
+        $owner = $this->signedUpUser('stream');
+        $project = $this->projectOf($owner);
+        $repository = $this->forgeRepositoryOf($project, 'acme/app');
+        $repositoryId = $repository->id;
+        $this->reader->answers = [FakeRepositorySettingsReader::blocking(), FakeRepositorySettingsReader::blocking()];
+        $this->em()->clear();
+        $this->client->loginUser($owner);
+        $url = '/projects/'.$project->id.'/repositories/'.$repositoryId.'/check';
+
+        $this->client->request(Request::METHOD_POST, $url.'?inline=1', ['_csrf_token' => 'csrf-token'], server: ['HTTP_ORIGIN' => 'http://localhost', 'HTTP_ACCEPT' => 'text/vnd.turbo-stream.html']);
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('text/vnd.turbo-stream.html', (string) $this->client->getResponse()->headers->get('Content-Type'));
+        self::assertStringContainsString('<turbo-stream action="replace" target="forge-repository-'.$repositoryId.'">', (string) $this->client->getResponse()->getContent());
+
+        $this->client->request(Request::METHOD_POST, $url, ['_csrf_token' => 'csrf-token'], server: ['HTTP_ORIGIN' => 'http://localhost', 'HTTP_ACCEPT' => 'text/vnd.turbo-stream.html']);
+        self::assertResponseRedirects('/projects/'.$project->id.'/settings/repositories');
+    }
+
     public function test_an_unreadable_read_still_redirects_and_the_row_shows_the_failed_read_banner(): void
     {
         $owner = $this->signedUpUser('unreadable');

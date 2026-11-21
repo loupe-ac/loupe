@@ -60,7 +60,7 @@ final readonly class ListDocumentsHandler
             projectTags: $this->tags->findByProject($command->project),
             projectSeries: $this->series->findByProject($command->project),
             clampedPage: PageList::clampedPage($listQuery->page, $total, $perPage),
-            newest: $this->documents->findNewestPosition($command->project),
+            newest: $listQuery->page > 1 ? $this->documents->findNewestPosition($command->project) : null,
             knownIds: $listQuery->page > 1 ? $this->documents->findMatchingIds($command->project, self::MAX_KNOWN_IDS, $listQuery->includeArchived, $listQuery->search, $listQuery->status, $listQuery->tagName, $listQuery->seriesName) : null,
         );
     }

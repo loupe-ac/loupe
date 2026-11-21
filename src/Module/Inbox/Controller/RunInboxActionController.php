@@ -7,10 +7,12 @@ namespace App\Module\Inbox\Controller;
 use App\Controller\AppController;
 use App\Exception\DomainErrors;
 use App\Module\Account\Entity\User;
+use App\Module\Board\Entity\Card;
 use App\Module\Inbox\Command\RunInboxActionCommand;
 use App\Module\Inbox\Command\RunInboxActionHandler;
 use App\Module\Inbox\Entity\InboxActionKind;
 use App\Module\Inbox\Entity\InboxItem;
+use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Form\RunInboxActionFormType;
 use App\Module\Inbox\Form\RunInboxActionRequest;
 use App\Module\Inbox\Security\InboxItemVoter;
@@ -30,6 +32,7 @@ use Symfony\Component\Routing\Requirement\EnumRequirement;
 use Symfony\Component\Routing\Requirement\Requirement;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Contracts\Translation\TranslatorInterface;
+use Symfony\UX\Turbo\TurboBundle;
 
 /**
  * Runs one action or one response of the owner on an item. Every kind needs the right to answer the item.
@@ -109,6 +112,16 @@ final class RunInboxActionController extends AppController
                     InboxActionKind::SubmitReview => InboxActionVerb::Reviewed,
                     default => InboxActionVerb::Declined,
                 };
+
+                $card = 'app_board_card' === $saved->route ? $this->linkedCard($item, (string) ($saved->routeParameters['cardId'] ?? '')) : null;
+                if (null !== $card && 'card-drawer-frame' === $request->headers->get('Turbo-Frame') && TurboBundle::STREAM_FORMAT === $request->getPreferredFormat()) {
+                    return new Response(
+                        $this->renderView('@Inbox/_linked_inbox_section.stream.html.twig', ['card' => $card]).$this->renderView('_flash.stream.html.twig', ['severity' => 'success', 'message' => $this->feedback->message($item, $verb)]),
+                        Response::HTTP_OK,
+                        ['Content-Type' => TurboBundle::STREAM_MEDIA_TYPE],
+                    );
+                }
+
                 $this->feedback->saved($saved, $item, $verb);
 
                 return $this->redirectToRoute($saved->route, $saved->routeParameters);
@@ -121,6 +134,11 @@ final class RunInboxActionController extends AppController
             ...$return->attributes,
             ShowInboxController::REFUSED_FORM => $form->createView(),
         ], $return->query)->setStatusCode(Response::HTTP_UNPROCESSABLE_ENTITY);
+    }
+
+    private function linkedCard(InboxItem $item, string $cardId): ?Card
+    {
+        return $item->cards->findFirst(static fn (int $key, InboxItemCard $link): bool => (string) $link->card->id === $cardId)?->card;
     }
 
     /**

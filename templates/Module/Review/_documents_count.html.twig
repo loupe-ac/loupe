@@ -1,0 +1,2 @@
+{# The count line of the documents list, hidden when the list shows none. Props: listQuery, totalDocuments, filteredTotal. #}
+<p id="documents-count" class="lp-list-count"{{ totalDocuments > 0 and not listQuery.includeArchived ? '' : ' hidden' }}>{{ 'review.dashboard.filter.count'|trans({'%matching%': filteredTotal, '%total%': totalDocuments}) }}</p>

@@ -43,9 +43,18 @@ export default class extends Controller {
                 onReconnect: () => this.catchUp(),
             },
         );
+        this.element.addEventListener('turbo:morph-element', this.#onMorph);
     }
 
+    // The server renders no stopped notice, so a morph clears one that still holds.
+    #onMorph = (event) => {
+        if (event.target === this.element && this.fetcher?.stopped) {
+            this.showStopped();
+        }
+    };
+
     disconnect() {
+        this.element.removeEventListener('turbo:morph-element', this.#onMorph);
         this.fetcher?.stop();
         this.unsubscribe?.();
         this.unsubscribe = undefined;

@@ -291,6 +291,44 @@ final class SubmitReviewControllerTest extends WebTestCase
         );
     }
 
+    public function test_a_verdict_and_its_undo_answer_streams_that_update_the_page_in_place(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        [$owner, , $projectId, $docId] = $this->seedOwnerAndDocument($em, 'stream');
+        $stream = ['HTTP_ACCEPT' => 'text/vnd.turbo-stream.html'];
+
+        $client->loginUser($owner);
+        $client->request(Request::METHOD_GET, "/projects/$projectId/documents/$docId/review");
+        $client->request(Request::METHOD_POST, "/projects/$projectId/documents/$docId/review/submit", [
+            'submit_review_form' => ['_token' => 'csrf-token', 'verdict' => 'approved', 'versionNumber' => 1],
+        ], [], $stream);
+
+        self::assertResponseIsSuccessful();
+        self::assertResponseHeaderSame('Content-Type', 'text/vnd.turbo-stream.html; charset=UTF-8');
+        $body = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('target="review-topbar-actions"', $body);
+        self::assertStringContainsString('target="history-topbar-actions"', $body);
+        self::assertStringContainsString('target="draft-band"', $body);
+        self::assertStringContainsString('<turbo-stream action="replace" target="finish-review-form" data-closes-dialog>', $body);
+        self::assertStringContainsString('target="main-content"', $body);
+        self::assertStringContainsString('lp-verdict-chip--approved', $body);
+        self::assertStringContainsString('<turbo-stream action="remove" target="review-bar-finish">', $body);
+        self::assertStringNotContainsString('target="review-bar"', $body);
+
+        preg_match('/name="undo_verdict_form\[reviewId\]"[^>]*value="([^"]+)"/', $body, $matches);
+        $reviewId = $matches[1] ?? null;
+        self::assertNotEmpty($reviewId);
+        $client->request(Request::METHOD_POST, "/projects/$projectId/documents/$docId/review/undo", [
+            'undo_verdict_form' => ['_token' => 'csrf-token', 'reviewId' => $reviewId],
+        ], [], $stream);
+
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('target="review-topbar-actions"', (string) $client->getResponse()->getContent());
+        self::assertStringNotContainsString('lp-verdict-chip--approved', (string) $client->getResponse()->getContent());
+        self::assertStringContainsString('<turbo-stream action="append" target="review-bar">', (string) $client->getResponse()->getContent());
+    }
+
     public function test_a_recognised_verdict_is_persisted_and_flashes_success(): void
     {
         $client = static::createClient();

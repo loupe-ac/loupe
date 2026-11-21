@@ -170,7 +170,9 @@
                 <main id="main-content" class="lp-main lp-main--{% block main_surface 'app' %}" tabindex="-1">
                     {% block flash_messages %}
                         {# Read notification types only; other flash values can contain credentials. #}
-                        {% include '_flash_messages.html.twig' with {flashes: app.flashes(['success', 'error', 'warning', 'info'])} only %}
+                        <div id="flash-region" class="lp-flash-region">
+                            {% include '_flash_messages.html.twig' with {flashes: app.flashes(['success', 'error', 'warning', 'info']), autoDismiss: true} only %}
+                        </div>
                     {% endblock %}
                     {% block body %}{% endblock %}
                 </main>

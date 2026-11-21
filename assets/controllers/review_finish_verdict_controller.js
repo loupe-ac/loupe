@@ -47,6 +47,11 @@ export default class extends Controller {
         };
         this.element.addEventListener('change', this.remember);
         document.addEventListener('form-draft:cleared', this.forget);
+        this.element.addEventListener('turbo:morph-element', this.#onMorph);
+        this.#settleBlocked();
+    }
+
+    #settleBlocked() {
         if (!this.hasApproveTarget || !this.approveTarget.disabled) return;
 
         // The server rendered Approve blocked. A restored pick can still hold
@@ -57,9 +62,16 @@ export default class extends Controller {
         }
     }
 
+    #onMorph = (event) => {
+        if (event.target === this.element) {
+            this.#settleBlocked();
+        }
+    };
+
     disconnect() {
         this.element.removeEventListener('change', this.remember);
         document.removeEventListener('form-draft:cleared', this.forget);
+        this.element.removeEventListener('turbo:morph-element', this.#onMorph);
     }
 
     async refresh() {

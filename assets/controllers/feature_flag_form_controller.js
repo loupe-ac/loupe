@@ -12,9 +12,21 @@ export default class extends Controller {
     ];
 
     connect() {
+        this.element.addEventListener('turbo:morph-element', this.#onMorph);
         this.updateType();
         this._wireOptionsSync();
     }
+
+    disconnect() {
+        this.element.removeEventListener('turbo:morph-element', this.#onMorph);
+    }
+
+    #onMorph = (event) => {
+        if (event.target === this.element) {
+            this.updateType();
+            this._syncOptions?.();
+        }
+    };
 
     updateType() {
         const type = this.typeSelectTarget.value;
@@ -53,6 +65,7 @@ export default class extends Controller {
             if (lines.includes(previousValue)) select.value = previousValue;
         };
 
+        this._syncOptions = sync;
         textarea.addEventListener('input', sync);
         sync();
     }

@@ -32,6 +32,7 @@ export default class extends Controller {
         };
         this.element.addEventListener('overflow-cue:step', this.onStep);
         document.addEventListener('board:structure-changed', this.onStructure);
+        document.addEventListener('turbo:morph', this.onStructure);
         this.#bind();
     }
 
@@ -41,6 +42,7 @@ export default class extends Controller {
             'board:structure-changed',
             this.onStructure,
         );
+        document.removeEventListener('turbo:morph', this.onStructure);
         this.#unbind();
         clearTimeout(this.settleTimer);
     }

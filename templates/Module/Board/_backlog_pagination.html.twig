@@ -1,0 +1,4 @@
+{#- The paging of the Backlog. The wrapper stays when there is one page. Props: project (Project), view (ListBacklogCardsView), listQuery (BacklogListQuery). -#}
+<div id="backlog-pagination">
+    <twig:Ds:Pagination route="app_project_board_backlog" :page="listQuery.page" :totalPages="view.totalPages" :pageList="view.pageList" :routeParams="{projectId: project.id}|merge(listQuery.routeParams)" frame="backlog-list" />
+</div>

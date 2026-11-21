@@ -134,7 +134,25 @@ final class ListArtifactsControllerTest extends WebTestCase
         self::assertSame('frame', $frame->attr('data-live-region-mode-value'));
         self::assertSame('/projects/'.$projectId.'/artifacts', $frame->attr('data-live-region-url-value'));
         self::assertCount(1, $frame->filter('[data-live-row="'.$artifactId.'"]'));
-        self::assertCount(1, $frame->filter('.lp-filter-bar, [data-artifact-count]'));
+        self::assertCount(1, $frame->filter('[data-filter-needed][data-artifact-count]'));
+    }
+
+    public function test_the_filter_and_the_row_archive_swap_the_list_frame_that_holds_the_live_frame(): void
+    {
+        $client = static::createClient();
+        $project = $this->switchedOnProject('list-frame@example.com');
+        $this->storedArtifact($project, 'Framed row', [['index.html' => 'a']]);
+        $projectId = (string) $project->id;
+        $this->em()->clear();
+
+        $client->loginUser($project->owner);
+        $crawler = $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, '/projects/'.$projectId.'/artifacts');
+
+        self::assertCount(1, $crawler->filter('turbo-frame#artifacts-list > turbo-frame#artifacts-frame[data-controller="live-region"]'));
+        self::assertCount(0, $crawler->filter('turbo-frame#artifacts-list form[data-turbo-action="advance"]'));
+        self::assertCount(1, $crawler->filter('.lp-filter-gated form#artifacts-filter[data-turbo-frame="artifacts-list"][data-turbo-action="advance"] input[data-artifact-archived-toggle]'));
+        self::assertCount(1, $crawler->filter('.lp-filter-gated ~ turbo-frame#artifacts-list'));
+        self::assertCount(1, $crawler->filter('#artifacts-frame form.lp-document-row__action-form[data-turbo-frame="artifacts-list"]'));
     }
 
     public function test_a_project_with_no_artifact_shows_the_empty_state(): void

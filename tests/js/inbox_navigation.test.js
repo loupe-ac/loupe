@@ -211,3 +211,123 @@ it('moves no focus when a render follows no action of the owner', async () => {
 
     expect(document.activeElement).toBe(document.body);
 });
+
+async function mountWithDetail() {
+    document.body.innerHTML =
+        '<div data-controller="inbox-navigation"><turbo-frame id="inbox-view"><div class="lp-inbox-split" data-inbox-picked="false"><div data-inbox-scroll><a class="lp-list-row" id="second" href="#"></a></div><turbo-frame id="inbox-detail"></turbo-frame></div></turbo-frame></div>';
+    application = Application.start();
+    application.register('inbox-navigation', InboxNavigationController);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+function renderDetail(html) {
+    const frame = document.getElementById('inbox-detail');
+    frame.dispatchEvent(
+        new CustomEvent('turbo:before-frame-render', { bubbles: true }),
+    );
+    frame.innerHTML = html;
+    frame.dispatchEvent(
+        new CustomEvent('turbo:frame-render', { bubbles: true }),
+    );
+}
+
+it('shows the detail pane at once on a row pick and hides the spinner when the detail frame renders', async () => {
+    await mountWithDetail();
+    const root = document.querySelector('[data-controller="inbox-navigation"]');
+    const split = document.querySelector('.lp-inbox-split');
+
+    document
+        .getElementById('second')
+        .dispatchEvent(new MouseEvent('click', { bubbles: true, button: 0 }));
+    expect(split.dataset.inboxPicked).toBe('true');
+    expect(root.hasAttribute('data-inbox-loading')).toBe(true);
+
+    renderDetail('<a class="lp-inbox-back" href="#"></a>');
+    expect(root.hasAttribute('data-inbox-loading')).toBe(false);
+    expect(split.dataset.inboxPicked).toBe('true');
+});
+
+it('shows the list again when the detail frame renders with no back link', async () => {
+    await mountWithDetail();
+    const split = document.querySelector('.lp-inbox-split');
+    split.dataset.inboxPicked = 'true';
+
+    renderDetail('<p>No request is picked.</p>');
+
+    expect(split.dataset.inboxPicked).toBe('false');
+});
+
+it('restores the pick state when the detail request fails', async () => {
+    await mountWithDetail();
+    const split = document.querySelector('.lp-inbox-split');
+
+    document
+        .getElementById('second')
+        .dispatchEvent(new MouseEvent('click', { bubbles: true, button: 0 }));
+    document.dispatchEvent(new CustomEvent('turbo:fetch-request-error'));
+
+    expect(split.dataset.inboxPicked).toBe('false');
+});
+
+async function mountWithOutsideSearch() {
+    document.body.innerHTML =
+        '<div data-controller="inbox-navigation"><form id="search-form" data-inbox-search-form><input id="inbox-search" name="q"><input type="hidden" name="side" value="open" data-default="open"><input type="hidden" name="type" value="" disabled></form><turbo-frame id="inbox-view"><a class="lp-filter-clear" id="clear" data-turbo-frame="inbox-view" href="#"></a></turbo-frame></div>';
+    application = Application.start();
+    application.register('inbox-navigation', InboxNavigationController);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+function renderViewFrom(address) {
+    const frame = document.getElementById('inbox-view');
+    frame.dispatchEvent(
+        new CustomEvent('turbo:before-frame-render', { bubbles: true }),
+    );
+    frame.dispatchEvent(
+        new CustomEvent('turbo:frame-render', {
+            bubbles: true,
+            detail: { fetchResponse: { response: { url: address } } },
+        }),
+    );
+}
+
+it('keeps the typed query while the field has focus across a view render', async () => {
+    await mountWithOutsideSearch();
+    const field = document.getElementById('inbox-search');
+    field.focus();
+    field.value = 'abc';
+
+    renderViewFrom('https://example.test/inbox?q=ab&side=open');
+
+    expect(document.activeElement).toBe(field);
+    expect(field.value).toBe('abc');
+});
+
+it('copies the query, the side and the type from the loaded address', async () => {
+    await mountWithOutsideSearch();
+    const form = document.getElementById('search-form');
+    form.elements.namedItem('q').value = 'old';
+
+    renderViewFrom(
+        'https://example.test/inbox?side=closed&type=question&q=new',
+    );
+
+    expect(form.elements.namedItem('q').value).toBe('new');
+    expect(form.elements.namedItem('side').value).toBe('closed');
+    expect(form.elements.namedItem('type').value).toBe('question');
+    expect(form.elements.namedItem('type').disabled).toBe(false);
+});
+
+it('empties the query and the type when the address holds none', async () => {
+    await mountWithOutsideSearch();
+    const form = document.getElementById('search-form');
+    form.elements.namedItem('q').value = 'old';
+    form.elements.namedItem('side').value = 'closed';
+    form.elements.namedItem('type').value = 'question';
+    form.elements.namedItem('type').disabled = false;
+
+    renderViewFrom('https://example.test/inbox');
+
+    expect(form.elements.namedItem('q').value).toBe('');
+    expect(form.elements.namedItem('side').value).toBe('open');
+    expect(form.elements.namedItem('type').disabled).toBe(true);
+});

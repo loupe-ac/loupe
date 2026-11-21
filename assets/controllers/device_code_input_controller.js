@@ -20,6 +20,13 @@ export default class extends Controller {
     };
 
     connect() {
+        this.element.addEventListener('turbo:morph-element', this.#onMorph);
+        this.build();
+    }
+
+    // A morph renders the plain field again, so the boxes are built anew.
+    build() {
+        this.boxesTarget.replaceChildren();
         this.boxes = [];
         for (let index = 0; index < this.lengthValue; index++) {
             if (index > 0 && index % this.groupValue === 0) {
@@ -38,11 +45,18 @@ export default class extends Controller {
     }
 
     disconnect() {
+        this.element.removeEventListener('turbo:morph-element', this.#onMorph);
         this.boxesTarget.replaceChildren();
         this.boxesTarget.hidden = true;
         this.fieldTarget.hidden = false;
         this.fieldTarget.required = this.fieldWasRequired;
     }
+
+    #onMorph = (event) => {
+        if (event.target === this.element) {
+            this.build();
+        }
+    };
 
     buildBox(index) {
         const box = document.createElement('input');

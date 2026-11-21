@@ -1,0 +1,32 @@
+{# The answer to a live read of page one: each shown row in place, each new row where the page puts it, each gone row removed, and the count and paging. Props: project, listQuery, families, view, changes (RowChanges). #}
+{% set filtered = view.entries|length > 0 or listQuery.isNarrowed %}
+{% if changes.replaceAll %}
+<turbo-stream action="replace" target="activity-results">
+    <template>{% include 'outbox/_activity_results.html.twig' with {project: project, listQuery: listQuery, entries: view.entries, filtered: filtered, filteredTotal: view.filteredTotal, page: 1, totalPages: view.totalPages, pageList: view.pageList} only %}</template>
+</turbo-stream>
+<turbo-stream action="update" target="activity-filters">
+    <template>{% if filtered %}{% include 'outbox/_activity_filters.html.twig' with {project: project, listQuery: listQuery, families: families} only %}{% endif %}</template>
+</turbo-stream>
+{% else %}
+{% for entry in changes.kept %}
+<turbo-stream action="replace" method="morph" target="activity-row-{{ entry.event.id }}">
+    <template>{% include 'outbox/_activity_row.html.twig' with {entry: entry} only %}</template>
+</turbo-stream>
+{% endfor %}
+{% for id in changes.goneIds %}
+<turbo-stream action="remove" target="activity-row-{{ id }}"></turbo-stream>
+{% endfor %}
+{% for insert in changes.inserts %}
+<turbo-stream action="{{ insert.beforeId is null ? 'append' : 'before' }}" target="{{ insert.beforeId is null ? 'activity-rows' : 'activity-row-' ~ insert.beforeId }}">
+    <template>{% include 'outbox/_activity_row.html.twig' with {entry: insert.item} only %}</template>
+</turbo-stream>
+{% endfor %}
+{% if not view.entries is empty %}
+<turbo-stream action="update" targets="[data-activity-count]">
+    <template>{{ 'activity.count'|trans({'%count%': view.filteredTotal}) }}</template>
+</turbo-stream>
+<turbo-stream action="update" target="activity-pagination">
+    <template>{% include 'outbox/_activity_pagination.html.twig' with {project: project, listQuery: listQuery, page: 1, totalPages: view.totalPages, pageList: view.pageList} only %}</template>
+</turbo-stream>
+{% endif %}
+{% endif %}

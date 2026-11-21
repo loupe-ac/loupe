@@ -376,3 +376,17 @@ it.each([
         }
     },
 );
+
+it('places the rows again after a morph changes the text of the document', async () => {
+    await mount();
+    document.querySelector(
+        '[data-comment-anchor-target="doc"]',
+    ).firstChild.data = 'delta beta gamma alpha';
+    document.dispatchEvent(new Event('turbo:morph'));
+    await settle();
+    const order = [
+        ...document.querySelectorAll('[data-comment-anchor-target="row"]'),
+    ].map((each) => each.id);
+
+    expect(order).toEqual(['comment-row-late', 'comment-row-early']);
+});

@@ -1,0 +1,20 @@
+{#- The live frame of the Agents page. Props: project, connections (list of AgentConnection). -#}
+{% set canManage = is_granted('project.manage', project) %}
+<turbo-frame id="agents-frame" class="lp-live-frame" target="_top" refresh="morph" data-live-content
+    data-controller="live-region"
+    data-live-region-types-value="{{ ['worker_run.changed']|json_encode }}"
+    data-live-region-url-value="{{ path('app_project_agents_frame', {id: project.id}) }}">
+    {% if connections is not empty %}
+    <div class="lp-agent-grid">
+        {% for connection in connections %}
+        {% set bridge = connection.bridge %}
+        {% include '@Bridge/_agent_connection.html.twig' with {project: project, connection: connection, canManage: canManage} only %}
+        {% endfor %}
+    </div>
+    {% else %}
+    <twig:Ds:EmptyState icon="lucide:unplug" :title="'bridge.agents.empty.title'|trans" data-agent-empty>
+        <p>{{ 'bridge.agents.empty.description'|trans }}</p>
+        <twig:Ds:Button variant="primary" href="{{ path('app_project_connect', {id: project.id}) }}">{{ 'bridge.agents.empty.action'|trans }}</twig:Ds:Button>
+    </twig:Ds:EmptyState>
+    {% endif %}
+</turbo-frame>

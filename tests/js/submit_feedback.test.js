@@ -66,3 +66,14 @@ it('stops the timer when the form leaves the page', async () => {
     await vi.advanceTimersByTimeAsync(3000);
     expect(button.textContent).toBe('Saved');
 });
+
+it('shows the saved label when a morph flips the saved flag on', async () => {
+    const button = await mount(false);
+    const form = document.querySelector('form');
+
+    form.setAttribute('data-submit-feedback-saved-value', 'true');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(button.textContent).toBe('Saved');
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(button.textContent).toBe('Save card');
+});

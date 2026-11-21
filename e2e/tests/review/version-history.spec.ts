@@ -92,8 +92,14 @@ test('the History tab records a verdict and its withdrawal', async ({
         reviewDialog.getByRole('radio', { name: 'Approve', exact: true }),
     ).toBeChecked();
     await reviewDialog.getByRole('button', { name: 'Submit review' }).click();
-    // The allowance review-loop gives the same assertion. This one missed its
-    // 5 second default once on a loaded machine, at a measured 2.8 seconds.
+    // The verdict updates the History page in place: the sheet closes and the
+    // Finish review button leaves. The verdict chip lives on the review page.
+    await expect(reviewDialog).toBeHidden({ timeout: 20000 });
+    await expect(
+        page.getByRole('button', { name: 'Finish review', exact: true }),
+    ).toHaveCount(0);
+    await expect(page).toHaveURL(`${seeded.reviewUrl}/history`);
+    await page.goto(seeded.reviewUrl);
     await expect(page.locator('.lp-verdict-chip--approved')).toBeVisible({
         timeout: 20000,
     });

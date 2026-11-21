@@ -1,0 +1,16 @@
+{# The answer to a live read of page one of the Cards tab: each shown card in place, each new card where the page puts it, each dropped card removed, and the filter bar. Props: project, report, query, routeParams, changes (RowChanges). #}
+{% if changes.replaceAll %}
+<turbo-stream action="replace" target="experiment-cards-results"><template>{% include '@Insights/_experiment_cards_results.html.twig' with {report: report, project: project, query: query, routeParams: routeParams} only %}</template></turbo-stream>
+{% else %}
+{% for card in changes.kept %}
+<turbo-stream action="replace" method="morph" target="experiment-card-{{ card.cardId.toRfc4122() }}"><template>{% include '@Insights/_experiment_card_row.html.twig' with {card: card, project: project} only %}</template></turbo-stream>
+{% endfor %}
+{% for id in changes.goneIds %}
+<turbo-stream action="remove" target="experiment-card-{{ id }}"></turbo-stream>
+{% endfor %}
+{% for insert in changes.inserts %}
+<turbo-stream action="{{ insert.beforeId is null ? 'append' : 'before' }}" target="{{ insert.beforeId is null ? 'experiment-cards-rows' : 'experiment-card-' ~ insert.beforeId }}"><template>{% include '@Insights/_experiment_card_row.html.twig' with {card: insert.item, project: project} only %}</template></turbo-stream>
+{% endfor %}
+<turbo-stream action="update" target="experiment-cards-pagination"><template>{% include '@Insights/_experiment_cards_pagination.html.twig' with {report: report, query: query, routeParams: routeParams} only %}</template></turbo-stream>
+{% endif %}
+<turbo-stream action="replace" method="morph" target="experiment-cards-filter"><template>{% include '@Insights/_experiment_cards_filter.html.twig' with {report: report, query: query, routeParams: routeParams} only %}</template></turbo-stream>

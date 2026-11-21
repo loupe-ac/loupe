@@ -188,9 +188,14 @@ final class ListTerminalColumnCardsControllerTest extends WebTestCase
             $topics->forBoard($projectId),
             $first->filter('form#mercure-subscriptions input[data-mercure-topic]')->each(static fn (Crawler $input): ?string => $input->attr('value')),
         );
-        $region = $first->filter('turbo-frame#terminal-live[data-controller="live-region"]');
+        self::assertCount(0, $first->filter('turbo-frame#terminal-live'));
+        $region = $first->filter('turbo-frame#terminal-list div#terminal-live[data-controller="live-region"]');
         self::assertCount(1, $region);
-        self::assertSame('frame', $region->attr('data-live-region-mode-value'));
+        self::assertSame('rows', $region->attr('data-live-region-mode-value'));
+        self::assertSame($url.'/rows?page=1', $region->attr('data-live-region-url-value'));
+        self::assertNull($region->attr('data-live-since'));
+        self::assertCount(1, $region->filter('#terminal-rows'));
+        self::assertCount(1, $region->filter('#terminal-pagination'));
         self::assertSame('["board.card_changed"]', $region->attr('data-live-region-types-value'));
         self::assertCount(ListTerminalColumnCardsHandler::PER_PAGE, $region->filter('[data-live-row][data-live-fade]'));
         self::assertCount(1, $region->filter('#terminal-total'));

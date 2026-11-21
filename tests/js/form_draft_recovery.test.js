@@ -156,3 +156,15 @@ it('hides a server-rendered draft when the owner discards it', () => {
     expect(fallback.hidden).toBe(true);
     expect(controller.element.hidden).toBe(true);
 });
+
+it('renders the draft again after a morph resets the panel', () => {
+    controller.panelTarget.hidden = true;
+    controller.textTarget.textContent = '';
+    controller.optionsTarget.replaceChildren();
+    controller.element.dispatchEvent(
+        new CustomEvent('turbo:morph-element', { bubbles: true }),
+    );
+    expect(controller.panelTarget.hidden).toBe(false);
+    expect(controller.textTarget.textContent).toBe('<b>Unsent text</b>');
+    expect(controller.optionsTarget.textContent).toBe('JSON');
+});

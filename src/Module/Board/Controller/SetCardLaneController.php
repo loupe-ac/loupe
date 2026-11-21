@@ -66,7 +66,17 @@ final class SetCardLaneController extends AppController
         if (SetCardLaneRequest::RETURN_TO_BOARD === $data->returnTo && TurboBundle::STREAM_FORMAT === $request->getPreferredFormat()) {
             // A saved change reaches every open board through the live columns update, so it needs no stream.
             return new Response(
-                null === $refusal ? '' : $this->renderView('@Board/_card_lane_refused.stream.html.twig', ['error' => $this->translator->trans($refusal)]),
+                null === $refusal ? '' : $this->renderView('_flash.stream.html.twig', ['severity' => 'error', 'message' => $this->translator->trans($refusal)]),
+                null === $refusal ? Response::HTTP_OK : Response::HTTP_UNPROCESSABLE_ENTITY,
+                ['Content-Type' => TurboBundle::STREAM_MEDIA_TYPE],
+            );
+        }
+
+        if (SetCardLaneRequest::RETURN_TO_BOARD !== $data->returnTo && TurboBundle::STREAM_FORMAT === $request->getPreferredFormat()) {
+            return new Response(
+                null === $refusal
+                    ? $this->renderView('@Board/_card_lane_form.stream.html.twig', ['card' => $card])
+                    : $this->renderView('_flash.stream.html.twig', ['severity' => 'error', 'message' => $this->translator->trans($refusal)]),
                 null === $refusal ? Response::HTTP_OK : Response::HTTP_UNPROCESSABLE_ENTITY,
                 ['Content-Type' => TurboBundle::STREAM_MEDIA_TYPE],
             );

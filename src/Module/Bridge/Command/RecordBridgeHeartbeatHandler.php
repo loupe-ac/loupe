@@ -33,6 +33,7 @@ use App\Module\Bridge\ValueObject\AccountReadingReport;
 use App\Module\Bridge\ValueObject\BridgeHostSampleReport;
 use App\Module\Bridge\ValueObject\BridgeSessionReading;
 use App\Module\Bridge\ValueObject\SkippedWorkRequest;
+use App\Module\Bridge\ValueObject\WorkerRunChangeKind;
 use App\Module\Bridge\ValueObject\WorkerRunCloseReason;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Project\Contract\ProjectMilestones;
@@ -279,7 +280,7 @@ final readonly class RecordBridgeHeartbeatHandler
         $cameBack = $wasQuiet && null !== $bridge->workerPools;
         if ($pauseChanged || $poolsChanged || $followedChanged || $cameBack || $usageChanged) {
             foreach ($this->projects->findOwnedBy($command->owner, array_values(array_unique([...$followedBefore, ...$projects]))) as $project) {
-                $this->runsChanged->runsChanged($project);
+                $this->runsChanged->runsChanged($project, WorkerRunChangeKind::State);
             }
         }
 

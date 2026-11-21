@@ -21,6 +21,7 @@ bridge that also serves another project counts the workers of both. It shows
 nothing when no bridge reports worker pools. It updates as runs and pools change,
 with a delay of up to 10 seconds for a pool change.
 The open runs also show on the [Workshop](workshop.md), under In motion.
+A search, a filter or a page change on the Runs tab swaps only the list. The search box keeps its focus and the address bar follows. A live update keeps the filter you chose.
 
 The Activity page has two tabs. **Runs** lists the runs, and the rest of this
 page describes it. **Events** lists the [project events](activity.md).
@@ -207,6 +208,10 @@ close icon in the **Outcome** cell of the row in the list.
 | **Run again** | a command run ended as Failed, Timed out or Lost | asks the bridge to run the command again as a new run |
 | **Close session** | an interactive run is Running | closes the session at once and shows it as **Closed**. It sends nothing to a bridge, and the terminal of the session stays open |
 | **Cancel request** | a stop, a resume or a rerun still waits for the bridge | withdraws the request |
+
+A control on the Runs list, in the row or in the drawer, updates the list where
+you are. The list keeps its filters and its page, and the page does not reload.
+A refused request shows its reason as a message at the top of the page.
 
 A request waits until the bridge takes it. The row then shows the label of the
 request: **Stop requested**, **Resume requested** or **Run again requested**.
@@ -521,6 +526,10 @@ The page lists only bridges that follow the current project.
 Its summary distinguishes no connections, healthy connections, stale connections, and a mix of healthy and stale connections.
 Heartbeat health does not show whether an individual worker is running or available for work.
 
+**Pause new work**, **Resume new work** and **Try now** update the card of that
+bridge where it stands. The page does not reload, and a refused request shows
+its reason as a message at the top of the page.
+
 Each bridge card shows the name of the bridge as its heading. The bridge sets
 the name in its rule file, and the host name of its machine is the default. A
 bridge with no name shows the last 12 characters of its id. The run list, the
@@ -607,6 +616,10 @@ request expires. A pause or a bridge that reports its pause reloads them too. Th
 reconnects to the hub, for any change the page missed. This needs a Mercure hub
 and the `live_updates.enabled` flag. Without them, the page shows a change on
 its next load.
+
+On the Runs list, one read refreshes the rows, the counts and the page numbers
+together, and keeps your filters and your page. The Agents page reloads only its
+cards.
 
 An open drawer holds the reload. The list reloads when you close the drawer.
 

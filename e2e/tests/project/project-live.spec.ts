@@ -48,9 +48,12 @@ test('a rename saved in one browser shows in the projects list and the open form
     await expect(band).toBeHidden();
 
     // A full navigation would drop this marker, and an in-place update keeps it.
-    await listWatcher.evaluate(() => {
+    // The mark on the row shows that the row element survives, so no frame replaced the list.
+    await listWatcher.evaluate((id) => {
         (window as unknown as { stayed: boolean }).stayed = true;
-    });
+        const row = document.querySelector(`[data-live-row="${id}"]`);
+        (row as unknown as { kept: boolean }).kept = true;
+    }, projectId);
 
     // The hub keeps no history, so a save before a watcher connects is lost.
     // Each attempt saves a new name until both watchers have heard one.
@@ -70,6 +73,18 @@ test('a rename saved in one browser shows in the projects list and the open form
     expect(
         await listWatcher.evaluate(
             () => (window as unknown as { stayed?: boolean }).stayed,
+        ),
+    ).toBe(true);
+
+    expect(
+        await listWatcher.evaluate(
+            (id) =>
+                (
+                    document.querySelector(
+                        `[data-live-row="${id}"]`,
+                    ) as unknown as { kept?: boolean }
+                ).kept,
+            projectId,
         ),
     ).toBe(true);
 

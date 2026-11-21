@@ -1,0 +1,9 @@
+{# The grid and the Undo notice after a move, a remove or an undo. Props: project (Project), view (DashboardView), removed (InsightsSavedGraph or null, the graph that Undo brings back). #}
+<turbo-stream action="replace" target="dashboard-grid">
+    <template>
+        {% include '@Insights/_dashboard_grid.html.twig' with {project: project, view: view} only %}
+    </template>
+</turbo-stream>
+<turbo-stream action="update" target="dashboard-notice">
+    <template>{% if removed is not null %}{% include '@Insights/_dashboard_undo.html.twig' with {project: project, graph: removed} only %}{% endif %}</template>
+</turbo-stream>

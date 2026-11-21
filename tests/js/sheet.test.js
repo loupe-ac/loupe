@@ -141,3 +141,49 @@ it('starts from the first view each time it opens', async () => {
         true,
     );
 });
+
+function morphOpenRemoval() {
+    const event = new CustomEvent('turbo:before-morph-attribute', {
+        bubbles: true,
+        cancelable: true,
+        detail: { attributeName: 'open', mutationType: 'remove' },
+    });
+    dialog.dispatchEvent(event);
+
+    return event;
+}
+
+it('closes through its own slide when a morph removes open', async () => {
+    await mount();
+    controller.open();
+    expect(morphOpenRemoval().defaultPrevented).toBe(true);
+    expect(dialog.animate.mock.calls[1][0]).toEqual(SLIDE_DOWN);
+});
+
+it('stays open when a morph removes open and the sheet is marked to reopen', async () => {
+    await mount();
+    controller.reopenValue = true;
+    controller.open();
+    expect(morphOpenRemoval().defaultPrevented).toBe(true);
+    expect(dialog.animate).toHaveBeenCalledOnce();
+    expect(dialog.close).not.toHaveBeenCalled();
+});
+
+it('keeps the drilled-down view after a morph resets the markup', async () => {
+    await mount();
+    document.getElementById('to-versions').click();
+    const views = [...dialog.querySelectorAll('[data-sheet-view]')];
+    views.forEach((view, index) => {
+        view.hidden = index !== 0;
+    });
+    dialog.querySelector('[data-sheet-target="back"]').hidden = true;
+
+    document.body.firstElementChild.dispatchEvent(
+        new Event('turbo:morph-element', { bubbles: true }),
+    );
+
+    expect(visibleViews()).toEqual(['versions']);
+    expect(dialog.querySelector('[data-sheet-target="back"]').hidden).toBe(
+        false,
+    );
+});

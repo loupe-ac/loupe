@@ -7,7 +7,7 @@
     :subtitle="inbox_review_target(row.items)"
     :current="inbox.selected and inbox.selected.key == row.key"
     href="{{ path('app_project_inbox', {id: inbox.project.id}|merge(row.pickedIn(inbox.view).toQuery)) }}"
-    data-turbo-frame="inbox-view"
+    data-turbo-frame="inbox-detail"
     data-inbox-request="{{ row.key }}"
     icon:data-inbox-kind="{{ row.kind.value }}">
     <twig:block name="icon">{% include '@Inbox/_inbox_kind_icon.html.twig' with {kind: row.kind.value} only %}</twig:block>

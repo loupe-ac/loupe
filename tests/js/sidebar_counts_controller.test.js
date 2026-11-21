@@ -243,3 +243,23 @@ it('stops listening when it disconnects', async () => {
 
     expect(subscription().removed).toBe(true);
 });
+
+it('shows the stopped notice again when a morph clears it', async () => {
+    await mount();
+    const status = document.querySelector('p');
+    const element = document.querySelector('[data-controller]');
+    answer(503);
+    subscription().handler(OWN_SIGNAL);
+    await settle();
+    for (const wait of RETRY_MILLISECONDS) {
+        answer(503);
+        await vi.advanceTimersByTimeAsync(wait);
+    }
+
+    element.removeAttribute('data-sidebar-counts-stopped');
+    status.textContent = '';
+    element.dispatchEvent(new CustomEvent('turbo:morph-element'));
+
+    expect(element.hasAttribute('data-sidebar-counts-stopped')).toBe(true);
+    expect(status.textContent).toBe('Live updates stopped.');
+});

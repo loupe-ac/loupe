@@ -19,6 +19,7 @@ use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Bridge\Service\WorkerRunSearchIndexer;
 use App\Module\Bridge\Service\WorkerRunUsageRecorder;
+use App\Module\Bridge\ValueObject\WorkerRunChangeKind;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\WorkSubject\WorkSubjectHandlers;
@@ -153,7 +154,7 @@ final readonly class ReportWorkerRunStateHandler
         [$result, $closes, $shownChanged, $awaited] = $outcome;
         // A repeat of a state the run already held changes nothing a page shows, unless it moves the pool or names the harness.
         if (($result->newState || $shownChanged) && null !== $result->run) {
-            $this->publisher->runsChanged($result->run->project);
+            $this->publisher->runsChanged($result->run->project, WorkerRunChangeKind::State, [$result->run]);
             foreach (WorkerRunChanged::ofRuns([$result->run]) as $event) {
                 $this->events->dispatch($event);
             }

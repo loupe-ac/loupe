@@ -25,9 +25,17 @@ export default class extends Controller {
         ) {
             this.#show('list');
         }
+        this.element.addEventListener('turbo:morph-element', this.#onMorph);
     }
 
+    #onMorph = (event) => {
+        if (event.target === this.element) {
+            this.#show(this.view);
+        }
+    };
+
     disconnect() {
+        this.element.removeEventListener('turbo:morph-element', this.#onMorph);
         if (this.stateKey !== null) {
             savedViews.set(
                 this.stateKey,
@@ -88,6 +96,7 @@ export default class extends Controller {
 
     #show(view) {
         const board = view === 'board';
+        this.view = view;
 
         this.boardTarget.hidden = !board;
         this.listTarget.hidden = board;

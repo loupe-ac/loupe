@@ -183,11 +183,15 @@ export default class extends Controller {
 
     // A page morph drops what the server never rendered, so the controls built
     // here are permanent and the agent mark is drawn again after each morph.
+    // A block that arrived with the morph gets its controls here.
     markAgentBlocks() {
         for (const block of this.element.querySelectorAll(
             'fieldset[data-decision-id]',
-        ))
-            this.markAgent(block);
+        )) {
+            if (block.querySelector('[data-decision-note-controls]'))
+                this.markAgent(block);
+            else this.decorate(block);
+        }
     }
 
     markAgent(block) {

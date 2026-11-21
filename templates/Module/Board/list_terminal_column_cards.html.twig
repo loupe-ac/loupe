@@ -15,29 +15,21 @@
     <h1 class="lp-workspace-title lp-workspace-title--doc">{{ column.label|trans }}</h1>
     <p class="lp-workspace-desc">{{ 'board.terminal.page.description'|trans }}</p>
 
+    {# One frame on every page, so a page change swaps only the list. The live region sits inside it, so each swap brings the address of the new page. #}
+    <turbo-frame id="terminal-list" target="_top">
     {% set liveRows = page > 1 %}
-    {% set liveTag = liveRows ? 'div' : 'turbo-frame' %}
-    <{{ liveTag }} id="terminal-live"{{ liveRows ? '' : ' target="_top"' }}
+    <div id="terminal-live"
         data-controller="live-region"
         data-live-region-types-value="{{ ['board.card_changed']|json_encode }}"
-        data-live-region-mode-value="{{ liveRows ? 'rows' : 'frame' }}"
-        data-live-region-url-value="{{ path(liveRows ? 'app_project_board_terminal_column_rows' : 'app_project_board_terminal_column', routeParams|merge({page: page})) }}"
+        data-live-region-mode-value="rows"
+        data-live-region-url-value="{{ path('app_project_board_terminal_column_rows', routeParams|merge({page: page})) }}"
         {% if liveRows %}data-live-since="{{ since }}"{% endif %}>
     {% if liveRows %}<div id="terminal-live-band" aria-live="polite"></div>{% endif %}
     <p id="terminal-total" class="lp-workspace-desc">{{ 'board.terminal.meta.total'|trans({'%count%': total}) }}</p>
-    {% if items|length > 0 %}
-    <div class="lp-done-list">
-        {% for card in items %}
-        {% include '@Board/_terminal_row.html.twig' with {project: project, card: card} only %}
-        {% endfor %}
+    <div id="terminal-results">
+        {% include '@Board/_terminal_results.html.twig' with {project: project, items: items, page: page, totalPages: totalPages, pageList: pageList, routeParams: routeParams} only %}
     </div>
-
-    <twig:Ds:Pagination route="app_project_board_terminal_column" :page="page" :totalPages="totalPages" :pageList="pageList" :routeParams="routeParams" />
-    {% else %}
-    <twig:Ds:EmptyState icon="lucide:square-check-big" :title="'board.terminal.empty.title'|trans" :body="'board.terminal.empty.body'|trans">
-        <twig:Ds:Button href="{{ path('app_project_board', {id: project.id}) }}">{{ 'board.terminal.empty.action'|trans }}</twig:Ds:Button>
-    </twig:Ds:EmptyState>
-    {% endif %}
-    </{{ liveTag }}>
+    </div>
+    </turbo-frame>
 </twig:Ds:Workspace>
 {% endblock %}

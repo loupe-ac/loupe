@@ -17,6 +17,7 @@ use App\Module\Bridge\Service\WorkRequestPayload;
 use App\Module\Bridge\ValueObject\AccountReadingChange;
 use App\Module\Bridge\ValueObject\NetworkHandBack;
 use App\Module\Bridge\ValueObject\UsageLimitHandBack;
+use App\Module\Bridge\ValueObject\WorkerRunChangeKind;
 use App\Module\Bridge\ValueObject\WorkRequestRefusal;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\WorkSubject\WorkSubjectHandlers;
@@ -110,7 +111,7 @@ final readonly class SettleWorkRequestHandler
         // The Agents page and the usage rules read the new reading, and a later heartbeat with it stores nothing new.
         if ([] !== $result->usageFollowers) {
             foreach ($this->projects->findOwnedBy($command->owner, $result->usageFollowers) as $project) {
-                $this->runsChanged->runsChanged($project);
+                $this->runsChanged->runsChanged($project, WorkerRunChangeKind::State);
             }
             if ($result->readingStored) {
                 $this->events->dispatch(new BridgeAccountReadingsStored($result->usageFollowers));

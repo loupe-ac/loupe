@@ -1,6 +1,7 @@
 import { Controller } from '@hotwired/stimulus';
 import { renderStreamMessage } from '@hotwired/turbo';
 import { on } from '../lib/live.js';
+import { isSubmitted } from '../lib/morph_typed_forms.js';
 import {
     /* stimulusFetch: 'lazy' */
     LiveFetcher,
@@ -19,11 +20,15 @@ const TEXT_FIELDS =
 
 /**
  * A form that holds text the reader typed, or that a script opened, is not the
- * server's to redraw: the new markup renders it empty and hidden.
+ * server's to redraw: the new markup renders it empty and hidden. The form
+ * that is submitting takes the answer of its own request, such as its errors.
  */
 export function keepLocalForm(event) {
     const { currentElement, newElement } = event.detail;
     if (!(currentElement instanceof HTMLFormElement) || !newElement) {
+        return;
+    }
+    if (isSubmitted(currentElement)) {
         return;
     }
     const typed = [...currentElement.querySelectorAll(TEXT_FIELDS)].some(
@@ -78,7 +83,14 @@ export default class extends Controller {
         );
         this.removeLostListener = onLostAccess(() => this.halt());
         document.addEventListener('turbo:before-morph-element', keepLocalForm);
+        this.element.addEventListener('turbo:morph-element', this.rereadFlag);
     }
+
+    rereadFlag = (event) => {
+        if (event.target === this.element) {
+            this.threadsLiveFlag = this.threadsLiveValue;
+        }
+    };
 
     disconnect() {
         this.halt();
@@ -92,6 +104,10 @@ export default class extends Controller {
         this.threadFetcher?.stop();
         this.unsubscribe?.();
         this.unsubscribe = undefined;
+        this.element.removeEventListener(
+            'turbo:morph-element',
+            this.rereadFlag,
+        );
         document.removeEventListener(
             'turbo:before-morph-element',
             keepLocalForm,

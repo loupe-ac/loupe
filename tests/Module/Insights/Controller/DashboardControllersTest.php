@@ -15,10 +15,8 @@ use App\Module\Insights\Service\InsightsResultKeeper;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Insights\InsightsScenario;
 use PHPUnit\Framework\Attributes\DataProvider;
-use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
@@ -254,14 +252,14 @@ final class DashboardControllersTest extends WebTestCase
 
         $tile = $crawler->filter('#dashboard-graph-'.$firstId);
         $client->submit($tile->filter('button[value="full"]')->form());
-        self::assertResponseRedirects($base);
+        self::assertResponseIsSuccessful();
         $client->submit($tile->filter('button[name$="[show]"]')->form());
-        self::assertResponseRedirects($base);
+        self::assertResponseIsSuccessful();
         $client->submit($tile->filter('form[data-graph-tile-target="renameForm"]')->form(['rename_graph_'.$firstId.'[name]' => 'Renamed']));
-        self::assertResponseRedirects($base);
+        self::assertResponseIsSuccessful();
         $drag = $crawler->filter('#dashboard-graph-'.$firstId.' form[data-graph-drag-form]')->form(['drag_graph_'.$firstId.'[steps]' => '1']);
         $client->submit($drag);
-        self::assertResponseRedirects($base);
+        self::assertResponseIsSuccessful();
 
         $this->em()->clear();
         $stored = static::getContainer()->get(InsightsSavedGraphRepository::class)->find($firstId);
@@ -367,33 +365,25 @@ final class DashboardControllersTest extends WebTestCase
         }
     }
 
-    public function test_the_undo_notice_shows_for_a_graph_that_is_removed_and_for_no_other(): void
+    public function test_the_page_has_an_empty_slot_for_the_undo_notice_and_ignores_a_removed_query_value(): void
     {
         $client = static::createClient();
         $project = $this->scenarioProject('notice');
         $removed = $this->seedSavedGraph($project, 'Cost <b>trend</b>', 0, new \DateTimeImmutable('-1 hour'));
-        $active = $this->seedSavedGraph($project, 'Active', 1);
-        $theirs = $this->seedSavedGraph($this->scenarioProject('notice-theirs'), 'Theirs', 0, new \DateTimeImmutable('-1 hour'));
-        $expired = $this->seedSavedGraph($project, 'Expired', 2, new \DateTimeImmutable('-25 hours'));
+        $this->seedSavedGraph($project, 'Active', 1);
         $base = '/projects/'.$project->id.self::BASE;
-        $ids = [(string) $removed->id, (string) $active->id, (string) $theirs->id, (string) $expired->id, 'junk'];
+        $removedId = (string) $removed->id;
         $this->em()->clear();
 
         $client->loginUser($project->owner);
-        $crawler = $client->request(Request::METHOD_GET, $base.'?removed='.$ids[0]);
-        $undo = $crawler->filter('[data-dashboard-undo]');
-        self::assertCount(1, $undo);
-        self::assertSame($base.'/graphs/'.$ids[0].'/undo', $undo->attr('action'));
-        self::assertStringContainsString('Removed “Cost &lt;b&gt;trend&lt;/b&gt;” from the Dashboard.', (string) $client->getResponse()->getContent());
+        $crawler = $client->request(Request::METHOD_GET, $base.'?removed='.$removedId);
 
-        foreach (array_slice($ids, 1) as $id) {
-            $crawler = $client->request(Request::METHOD_GET, $base.'?removed='.$id);
-            self::assertResponseIsSuccessful();
-            self::assertCount(0, $crawler->filter('[data-dashboard-undo]'), $id);
-        }
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $crawler->filter('#dashboard-notice'));
+        self::assertCount(0, $crawler->filter('[data-dashboard-undo]'));
     }
 
-    public function test_a_remove_redirects_to_the_dashboard_with_the_id_and_the_undo_brings_the_graph_back(): void
+    public function test_a_remove_answers_the_grid_and_the_undo_notice_and_the_undo_brings_the_graph_back(): void
     {
         $client = static::createClient();
         $project = $this->scenarioProject('remove-undo');
@@ -406,16 +396,22 @@ final class DashboardControllersTest extends WebTestCase
 
         $client->loginUser($project->owner);
         $client->request(Request::METHOD_POST, $path.'/remove', ['_csrf_token' => 'csrf-token'], [], self::HEADERS);
-        self::assertResponseRedirects('/projects/'.$projectId.self::BASE.'?removed='.$firstId);
+        self::assertResponseIsSuccessful();
+        $stream = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('<turbo-stream action="replace" target="dashboard-grid">', $stream);
+        self::assertStringContainsString('<turbo-stream action="update" target="dashboard-notice">', $stream);
+        self::assertStringContainsString($path.'/undo', $stream);
+        self::assertStringNotContainsString('dashboard-graph-'.$firstId, $stream);
         self::assertSame(['Second'], $this->activeNames($projectId));
 
         $client->request(Request::METHOD_POST, $path.'/undo', ['_csrf_token' => 'csrf-token'], [], self::HEADERS);
-        self::assertResponseRedirects('/projects/'.$projectId.self::BASE);
+        self::assertResponseIsSuccessful();
+        self::assertStringNotContainsString('data-dashboard-undo', (string) $client->getResponse()->getContent());
         self::assertSame(['First', 'Second'], $this->activeNames($projectId));
         self::assertNotSame('', (string) $second->id);
     }
 
-    public function test_an_undo_at_the_cap_flashes_the_cap_message_and_keeps_the_notice(): void
+    public function test_an_undo_at_the_cap_answers_the_cap_message_with_a_422_and_keeps_the_notice(): void
     {
         $client = static::createClient();
         $project = $this->scenarioProject('undo-cap');
@@ -430,12 +426,13 @@ final class DashboardControllersTest extends WebTestCase
         $client->loginUser($project->owner);
         $client->request(Request::METHOD_POST, '/projects/'.$projectId.self::BASE.'/graphs/'.$removedId.'/undo', ['_csrf_token' => 'csrf-token'], [], self::HEADERS);
 
-        self::assertResponseRedirects('/projects/'.$projectId.self::BASE.'?removed='.$removedId);
-        self::assertSame(['error' => ['The dashboard holds at most 12 graphs. Remove a graph first.']], $this->flashes($client));
+        self::assertResponseStatusCodeSame(422);
+        self::assertStringContainsString('The dashboard holds at most 12 graphs. Remove a graph first.', (string) $client->getResponse()->getContent());
+        self::assertStringNotContainsString('target="dashboard-notice"', (string) $client->getResponse()->getContent());
         self::assertCount(12, $this->activeNames($projectId));
     }
 
-    public function test_a_rename_a_resize_and_a_legend_switch_change_the_graph_and_return_to_the_dashboard(): void
+    public function test_a_rename_a_resize_and_a_legend_switch_change_the_graph_and_answer_its_tile(): void
     {
         $client = static::createClient();
         $project = $this->scenarioProject('forms-ok');
@@ -447,11 +444,12 @@ final class DashboardControllersTest extends WebTestCase
 
         $client->loginUser($project->owner);
         $client->request(Request::METHOD_POST, $base.'/rename', ['rename_graph_'.$graphId => ['name' => 'New name', '_token' => 'csrf-token']], [], self::HEADERS);
-        self::assertResponseRedirects('/projects/'.$projectId.self::BASE);
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('New name', (string) $client->getResponse()->getContent());
         $client->request(Request::METHOD_POST, $base.'/width', ['graph_width_'.$graphId => ['width' => 'full', '_token' => 'csrf-token']], [], self::HEADERS);
-        self::assertResponseRedirects();
+        self::assertResponseIsSuccessful();
         $client->request(Request::METHOD_POST, $base.'/legend', ['graph_legend_'.$graphId => ['show' => 'off', '_token' => 'csrf-token']], [], self::HEADERS);
-        self::assertResponseRedirects();
+        self::assertResponseIsSuccessful();
 
         $this->em()->clear();
         $stored = $this->em()->find(InsightsSavedGraph::class, $graphId) ?? throw new \LogicException();
@@ -472,7 +470,7 @@ final class DashboardControllersTest extends WebTestCase
 
     /** @param array<string, string> $fields */
     #[DataProvider('invalidForms')]
-    public function test_an_invalid_form_changes_nothing_and_flashes_an_error(string $action, array $fields): void
+    public function test_an_invalid_form_changes_nothing_and_answers_a_422_with_an_error(string $action, array $fields): void
     {
         $client = static::createClient();
         $project = $this->scenarioProject('forms-bad-'.uniqid());
@@ -485,8 +483,8 @@ final class DashboardControllersTest extends WebTestCase
         $client->loginUser($project->owner);
         $client->request(Request::METHOD_POST, '/projects/'.$projectId.self::BASE.'/graphs/'.$graphId.'/'.$action, [$name => $fields + ['_token' => 'csrf-token']], [], self::HEADERS);
 
-        self::assertResponseRedirects('/projects/'.$projectId.self::BASE);
-        self::assertSame(['error' => ['Loupe could not change the graph. Try again.']], $this->flashes($client));
+        self::assertResponseStatusCodeSame(422);
+        self::assertStringContainsString('Loupe could not change the graph. Try again.', (string) $client->getResponse()->getContent());
         $this->em()->clear();
         $stored = $this->em()->find(InsightsSavedGraph::class, $graphId) ?? throw new \LogicException();
         self::assertSame('Old', $stored->name);
@@ -509,18 +507,18 @@ final class DashboardControllersTest extends WebTestCase
 
         $client->loginUser($project->owner);
         $client->request(Request::METHOD_POST, $base.$bId.'/move/up', ['_csrf_token' => 'csrf-token'], [], self::HEADERS);
-        self::assertResponseRedirects('/projects/'.$projectId.self::BASE);
+        self::assertResponseIsSuccessful();
         self::assertSame(['B', 'A', 'C'], $this->activeNames($projectId));
 
         $client->request(Request::METHOD_POST, $base.$bId.'/move/down', ['_csrf_token' => 'csrf-token'], [], self::HEADERS);
         self::assertSame(['A', 'B', 'C'], $this->activeNames($projectId));
 
         $client->request(Request::METHOD_POST, $base.$cId.'/drag', ['drag_graph_'.$cId => ['steps' => '-2', '_token' => 'csrf-token']], [], self::HEADERS);
-        self::assertResponseRedirects('/projects/'.$projectId.self::BASE);
+        self::assertResponseIsSuccessful();
         self::assertSame(['C', 'A', 'B'], $this->activeNames($projectId));
     }
 
-    public function test_a_drag_with_a_bad_step_count_changes_nothing(): void
+    public function test_a_drag_with_a_bad_step_count_changes_nothing_and_answers_a_422(): void
     {
         $client = static::createClient();
         $project = $this->scenarioProject('drag-bad');
@@ -533,8 +531,8 @@ final class DashboardControllersTest extends WebTestCase
         $client->loginUser($project->owner);
         foreach (['', 'x', '99999'] as $steps) {
             $client->request(Request::METHOD_POST, '/projects/'.$projectId.self::BASE.'/graphs/'.$aId.'/drag', ['drag_graph_'.$aId => ['steps' => $steps, '_token' => 'csrf-token']], [], self::HEADERS);
-            self::assertResponseRedirects();
-            self::assertArrayHasKey('error', $this->flashes($client), $steps);
+            self::assertResponseStatusCodeSame(422, $steps);
+            self::assertStringContainsString('Loupe could not change the graph. Try again.', (string) $client->getResponse()->getContent());
         }
         self::assertSame(['A', 'B'], $this->activeNames($projectId));
     }
@@ -651,15 +649,6 @@ final class DashboardControllersTest extends WebTestCase
         self::assertInstanceOf(InsightsSavedGraphRepository::class, $repository);
 
         return array_map(static fn (InsightsSavedGraph $graph): string => $graph->name, $repository->findActive($project));
-    }
-
-    /** @return array<string, list<string>> */
-    private function flashes(KernelBrowser $client): array
-    {
-        $session = $client->getRequest()->getSession();
-        self::assertInstanceOf(FlashBagAwareSessionInterface::class, $session);
-
-        return $session->getFlashBag()->all();
     }
 
     private function keep(string $graphId): void

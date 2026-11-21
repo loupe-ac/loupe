@@ -10,6 +10,7 @@ use App\Module\Bridge\Event\WorkerRunChanged;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Bridge\ValueObject\HeldRunKey;
+use App\Module\Bridge\ValueObject\WorkerRunChangeKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
@@ -63,12 +64,13 @@ final readonly class ReportBridgeRunsHandler
             return $changed;
         });
 
-        $projects = [];
+        /** @var array<string, list<WorkerRun>> $byProject */
+        $byProject = [];
         foreach ($changed as $run) {
-            $projects[(string) $run->project->id] = $run->project;
+            $byProject[(string) $run->project->id][] = $run;
         }
-        foreach ($projects as $project) {
-            $this->publisher->runsChanged($project);
+        foreach ($byProject as $projectRuns) {
+            $this->publisher->runsChanged($projectRuns[0]->project, WorkerRunChangeKind::State, $projectRuns);
         }
         foreach (WorkerRunChanged::ofRuns($changed) as $event) {
             $this->events->dispatch($event);

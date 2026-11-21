@@ -15,6 +15,8 @@ use App\Module\Bridge\Command\CancelBridgeCommandCommand;
 use App\Module\Bridge\Command\CancelBridgeCommandHandler;
 use App\Module\Bridge\Command\ExpireBridgeCommandsCommand;
 use App\Module\Bridge\Command\ExpireBridgeCommandsHandler;
+use App\Module\Bridge\Command\RecordBilledCostCommand;
+use App\Module\Bridge\Command\RecordBilledCostHandler;
 use App\Module\Bridge\Command\RecordBridgeHeartbeatCommand;
 use App\Module\Bridge\Command\RecordBridgeHeartbeatHandler;
 use App\Module\Bridge\Command\ReportBridgeRunsCommand;
@@ -28,6 +30,8 @@ use App\Module\Bridge\Command\RequestBridgeCommandCommand;
 use App\Module\Bridge\Command\RequestBridgeCommandHandler;
 use App\Module\Bridge\Command\SetBridgePauseCommand;
 use App\Module\Bridge\Command\SetBridgePauseHandler;
+use App\Module\Bridge\Command\WriteWorkerRunFactsCommand;
+use App\Module\Bridge\Command\WriteWorkerRunFactsHandler;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Repository\WorkerRunRepository;
@@ -35,9 +39,11 @@ use App\Module\Bridge\Scheduler\TimeOutQuietWorkerRunsTask;
 use App\Module\Bridge\Service\InteractiveRuns;
 use App\Module\Bridge\Service\SidebarCountsSignal;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
+use App\Module\Bridge\ValueObject\BilledCostState;
 use App\Module\Bridge\ValueObject\BridgeCommandKind;
 use App\Module\Bridge\ValueObject\BridgeCommandState;
 use App\Module\Bridge\ValueObject\HeldRunKey;
+use App\Module\Bridge\ValueObject\WorkerRunChangeKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkerRunUsageReport;
 use App\Module\Bridge\ValueObject\WorkerRunUsageSource;
@@ -93,7 +99,7 @@ final class WorkerRunChangedPublisherTest extends KernelTestCase
 
         self::assertCount(0, $this->published);
         $this->assertPublishedAtTerminate(3);
-        $this->assertSignalsTheProject($this->published[0]);
+        $this->assertSignalsTheProject($this->published[0], cardIds: [(string) $cardId]);
         self::assertSame([(string) $cardId], $this->warnedCards());
     }
 
@@ -141,6 +147,24 @@ final class WorkerRunChangedPublisherTest extends KernelTestCase
         self::assertSame([$this->boardTopic()], $this->published[0]->getTopics());
         self::assertTrue($this->published[0]->isPrivate());
         self::assertSame('{"type":"worker_run.card_warning_changed","cardId":"'.$cardId.'","origin":null}', $this->published[0]->getData());
+    }
+
+    public function test_a_change_that_names_a_card_and_no_run_names_the_card_only(): void
+    {
+        $cardId = $this->newCard();
+
+        $this->service(WorkerRunChangedPublisher::class)->runsChanged($this->project, WorkerRunChangeKind::State, cardIds: [$cardId]);
+
+        $this->assertPublishedAtTerminate(1);
+        $this->assertSignalsTheProject($this->published[0], runCount: 0, cardIds: [(string) $cardId]);
+    }
+
+    public function test_a_change_that_names_no_run_and_no_card_reads_as_a_change_to_any_run(): void
+    {
+        $this->service(WorkerRunChangedPublisher::class)->runsChanged($this->project, WorkerRunChangeKind::State);
+
+        $this->assertPublishedAtTerminate(1);
+        $this->assertSignalsTheProject($this->published[0], runCount: 0);
     }
 
     public function test_an_output_append_signals_the_run_pages_with_the_run_and_the_length(): void
@@ -221,7 +245,7 @@ final class WorkerRunChangedPublisherTest extends KernelTestCase
 
         self::assertCount(1, $inventory(new ReportBridgeRunsCommand($this->owner, $bridgeId, [])));
         $this->assertPublishedAtTerminate(3);
-        $this->assertSignalsTheProject($this->published[0]);
+        $this->assertSignalsTheProject($this->published[0], cardIds: [(string) $run->subjectId]);
         self::assertSame([(string) $run->subjectId], $this->warnedCards());
     }
 
@@ -238,10 +262,36 @@ final class WorkerRunChangedPublisherTest extends KernelTestCase
 
         self::assertSame(1, $handler($command)->updated);
         $this->assertPublishedAtTerminate(1);
-        $this->assertSignalsTheProject($this->published[0]);
+        $this->assertSignalsTheProject($this->published[0], 'usage', cardIds: [(string) $run->subjectId]);
 
         self::assertSame(0, $handler($command)->updated);
         $this->assertPublishedAtTerminate(1);
+    }
+
+    public function test_a_billed_cost_names_its_run_and_its_card(): void
+    {
+        $run = $this->seedRun($this->em(), $this->project, runKey: Uuid::v4());
+        $row = $this->seedBilledCost($this->em(), $run, BilledCostState::Pending, null);
+        $this->assertPublishedAtTerminate(0);
+
+        $this->service(RecordBilledCostHandler::class)(new RecordBilledCostCommand($row->runId, BilledCostState::Billed, costUsd: '0.036000', attempts: 1));
+
+        $this->assertPublishedAtTerminate(1);
+        $this->assertSignalsTheProject($this->published[0], 'usage', cardIds: [(string) $run->subjectId]);
+        self::assertSame([(string) $run->id], $this->payload($this->published[0])['runIds']);
+    }
+
+    public function test_a_fact_write_names_the_runs_it_wrote_and_their_cards(): void
+    {
+        $run = $this->seedRun($this->em(), $this->project);
+        $this->em()->getConnection()->executeStatement('DELETE FROM bridge_worker_run_facts WHERE run_id = ?', [(string) $run->id]);
+        $this->assertPublishedAtTerminate(0);
+
+        $this->service(WriteWorkerRunFactsHandler::class)(new WriteWorkerRunFactsCommand($this->project->requireId(), [$run->id ?? throw new \LogicException('The run has no id.')]));
+
+        $this->assertPublishedAtTerminate(1);
+        $this->assertSignalsTheProject($this->published[0], cardIds: [(string) $run->subjectId]);
+        self::assertSame([(string) $run->id], $this->payload($this->published[0])['runIds']);
     }
 
     /**
@@ -387,7 +437,7 @@ final class WorkerRunChangedPublisherTest extends KernelTestCase
             },
         );
 
-        new WorkerRunChangedPublisher($this->service(ProjectTopicBuilder::class), $live, $this->service(SidebarCountsSignal::class))->runsChanged($this->project);
+        new WorkerRunChangedPublisher($this->service(ProjectTopicBuilder::class), $live, $this->service(SidebarCountsSignal::class))->runsChanged($this->project, WorkerRunChangeKind::State);
         $live->publish();
 
         self::assertFalse($hubBuilt);
@@ -424,8 +474,8 @@ final class WorkerRunChangedPublisherTest extends KernelTestCase
 
         $publisher = new WorkerRunChangedPublisher($this->service(ProjectTopicBuilder::class), $live, $this->service(SidebarCountsSignal::class));
 
-        $publisher->runsChanged($this->project);
-        $publisher->runsChanged($other);
+        $publisher->runsChanged($this->project, WorkerRunChangeKind::State);
+        $publisher->runsChanged($other, WorkerRunChangeKind::State);
         $live->publish();
 
         self::assertCount(1, $this->published);
@@ -526,7 +576,7 @@ final class WorkerRunChangedPublisherTest extends KernelTestCase
         ));
         foreach ($runsChanged as $update) {
             self::assertTrue($update->isPrivate());
-            self::assertSame('{"type":"worker_run.changed","origin":null}', $update->getData());
+            self::assertSame('worker_run.changed', $this->payload($update)['type']);
         }
         self::assertEqualsCanonicalizing(
             array_map($this->runTopic(...), $projects),
@@ -534,12 +584,31 @@ final class WorkerRunChangedPublisherTest extends KernelTestCase
         );
     }
 
-    private function assertSignalsTheProject(Update $update): void
+    /**
+     * @param list<string> $cardIds
+     */
+    private function assertSignalsTheProject(Update $update, string $kind = 'state', int $runCount = 1, array $cardIds = []): void
     {
         self::assertSame([$this->runTopic($this->project)], $update->getTopics());
         self::assertTrue($update->isPrivate());
-        // No run data: what a page shows depends on who looks at it.
-        self::assertSame('{"type":"worker_run.changed","origin":null}', $update->getData());
+        // Ids only: what a page shows depends on who looks at it.
+        $payload = $this->payload($update);
+        self::assertSame('worker_run.changed', $payload['type']);
+        self::assertSame($kind, $payload['kind']);
+        self::assertCount($runCount, $payload['runIds']);
+        self::assertSame($cardIds, $payload['cardIds']);
+        self::assertSame(['type', 'kind', 'runIds', 'cardIds', 'origin'], array_keys($payload));
+    }
+
+    /**
+     * @return array{type: string, kind: string, runIds: list<string>, cardIds: list<string>, origin: ?string}
+     */
+    private function payload(Update $update): array
+    {
+        /** @var array{type: string, kind: string, runIds: list<string>, cardIds: list<string>, origin: ?string} $payload */
+        $payload = json_decode($update->getData(), true, flags: \JSON_THROW_ON_ERROR);
+
+        return $payload;
     }
 
     private function runTopic(Project $project): string

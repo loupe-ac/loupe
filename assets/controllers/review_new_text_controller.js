@@ -13,17 +13,29 @@ export default class extends Controller {
     };
 
     connect() {
-        this.title = this.element.getAttribute('title') ?? '';
         this.anchors = null;
         this.request = 0;
+        this.element.addEventListener('turbo:morph-element', this.#onMorph);
+        this.#restore();
+    }
+
+    disconnect() {
+        this.request++;
+        this.element.removeEventListener('turbo:morph-element', this.#onMorph);
+    }
+
+    #restore() {
+        this.title = this.element.getAttribute('title') ?? '';
         if (!this.#isDisabled() && this.#remembered()) {
             this.#turn(true);
         }
     }
 
-    disconnect() {
-        this.request++;
-    }
+    #onMorph = (event) => {
+        if (event.target === this.element) {
+            this.#restore();
+        }
+    };
 
     toggle() {
         if (this.#isDisabled()) {

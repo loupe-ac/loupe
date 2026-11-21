@@ -1,15 +1,15 @@
 {# The count and the variant links of the Cards tab. A later page replaces it through the rows stream. #}
 <twig:Ds:FilterBar id="experiment-cards-filter" class="lp-cost-controls" :count="'bridge.experiments.card_count'|trans({'%count%': report.filteredTotal})">
     <nav class="lp-cost-toggle" aria-label="{{ 'bridge.experiments.cards.filter_label'|trans }}" data-experiment-filter>
-        <a class="lp-cost-toggle__option"
+        <a class="lp-cost-toggle__option" data-turbo-frame="experiment-cards-list" data-turbo-action="advance"
            href="{{ path('app_project_analytics_experiment_cards', routeParams) }}"
            {% if query.variant is null and not query.leftOutOnly %}aria-current="true"{% endif %}>{{ 'bridge.experiments.cards.all'|trans }}</a>
         {% for variant in report.variants %}
-            <a class="lp-cost-toggle__option"
+            <a class="lp-cost-toggle__option" data-turbo-frame="experiment-cards-list" data-turbo-action="advance"
                href="{{ path('app_project_analytics_experiment_cards', routeParams|merge({variant: variant.name})) }}"
                {% if query.variant == variant.name %}aria-current="true"{% endif %}>{{ variant.name }}</a>
         {% endfor %}
-        <a class="lp-cost-toggle__option"
+        <a class="lp-cost-toggle__option" data-turbo-frame="experiment-cards-list" data-turbo-action="advance"
            href="{{ path('app_project_analytics_experiment_cards', routeParams|merge({'left-out': 1})) }}"
            {% if query.leftOutOnly %}aria-current="true"{% endif %}>{{ 'bridge.experiments.cards.left_out'|trans }}</a>
     </nav>

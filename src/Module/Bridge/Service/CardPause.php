@@ -6,6 +6,7 @@ namespace App\Module\Bridge\Service;
 
 use App\Module\Account\Entity\User;
 use App\Module\Bridge\BridgeEventType;
+use App\Module\Bridge\ValueObject\WorkerRunChangeKind;
 use App\Module\Project\Entity\Project;
 use App\Outbox\OutboxWriter;
 use App\Security\CurrentApiKeyActor;
@@ -62,6 +63,6 @@ final readonly class CardPause
             ['projectId' => (string) $project->id, 'cardId' => (string) $cardId],
             new AuditSubject('card', (string) $cardId),
         );
-        $this->runsChanged->runsChanged($project);
+        $this->runsChanged->runsChanged($project, WorkerRunChangeKind::State, cardIds: [$cardId]);
     }
 }
