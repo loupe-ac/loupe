@@ -483,6 +483,15 @@
         color: var(--accent-ink);
     }
 
+    /* The notice that the shown ask closed since the page loaded. */
+    .lp-core-inbox .lp-flash.lp-inbox-closed-notice {
+        @apply mx-0 mt-0 mb-5;
+    }
+
+    .lp-core-inbox .lp-inbox-closed-notice a {
+        @apply ml-1 text-accent-ink underline;
+    }
+
     /* Its own stacking context, so no layer inside the pane, such as the entry
        animation of a reply card, paints above the loading cover. */
     .lp-core-inbox .lp-inbox-request-detail {

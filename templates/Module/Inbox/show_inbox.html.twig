@@ -123,18 +123,14 @@
                         {% set watched = app.request.headers.get('X-Loupe-Inbox-Watching') %}
                         {% if watched and inbox.selected and inbox.selected.ask and inbox.selected.ask.closedAt and (inbox.selected.ask.id ~ '') == watched %}
                             {% set closedOutcome = inbox.selected.outcome %}
-                            {% set closedReason = inbox.selected.closing.note ?? null %}
-                            <p class="lp-inbox-status" role="status" data-inbox-closed-notice="{{ closedOutcome ? closedOutcome.key : 'closed' }}">
-                                <span>
-                                    {%- if closedOutcome and inbox.selected.closing.state.value == 'cancelled' -%}
-                                        {{ 'inbox.live.closed.cancelled'|trans({'%outcome%': closedOutcome.key|trans(closedOutcome.parameters)}) }}
-                                    {%- else -%}
-                                        {{ 'inbox.live.closed.other'|trans({'%outcome%': closedOutcome ? closedOutcome.key|trans(closedOutcome.parameters) : 'inbox.row.closed'|trans}) }}
-                                    {%- endif -%}
-                                    {%- if closedReason %} {{ closedReason }}{% endif -%}
-                                </span>
+                            <twig:Ds:Flash severity="info" class="lp-inbox-closed-notice" data-inbox-closed-notice="{{ closedOutcome ? closedOutcome.key : 'closed' }}">
+                                {%- if closedOutcome and inbox.selected.closing.state.value == 'cancelled' -%}
+                                    {{ 'inbox.live.closed.cancelled'|trans({'%outcome%': closedOutcome.key|trans(closedOutcome.parameters)}) }}
+                                {%- else -%}
+                                    {{ 'inbox.live.closed.other'|trans({'%outcome%': closedOutcome ? closedOutcome.key|trans(closedOutcome.parameters) : 'inbox.row.closed'|trans}) }}
+                                {%- endif %}
                                 <a href="{{ path('app_project_inbox', {id: inbox.project.id}|merge(view.onSide(openSide).withoutSelection.toQuery)) }}" data-turbo-frame="inbox-view">{{ 'inbox.live.next'|trans }}</a>
-                            </p>
+                            </twig:Ds:Flash>
                         {% endif %}
                         {% if view.isPicked %}
                             <a class="lp-inbox-back"

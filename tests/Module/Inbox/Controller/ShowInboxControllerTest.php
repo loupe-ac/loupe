@@ -257,7 +257,7 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertSelectorNotExists('[data-inbox-closed-notice]');
     }
 
-    public function test_the_closed_notice_reads_the_reason_of_the_item_that_closed_the_ask(): void
+    public function test_the_closed_notice_reads_the_outcome_and_leaves_the_note_to_the_thread(): void
     {
         $owner = $this->signedUpUser($this->em, 'inbox-live-closing');
         $project = $this->inboxProject($this->em, $owner);
@@ -280,7 +280,10 @@ final class ShowInboxControllerTest extends WebTestCase
         ]);
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('[data-inbox-closed-notice]', 'Withdrawn by the agent. The plan changed.');
+        self::assertSelectorExists('.lp-flash[data-inbox-closed-notice]');
+        self::assertSelectorTextContains('[data-inbox-closed-notice]', 'Withdrawn by the agent.');
+        self::assertSelectorTextNotContains('[data-inbox-closed-notice]', 'The plan changed.');
+        self::assertAnySelectorTextContains('.lp-comment-body', 'The plan changed.');
         self::assertSelectorTextNotContains('[data-inbox-closed-notice]', 'An earlier note.');
     }
 
