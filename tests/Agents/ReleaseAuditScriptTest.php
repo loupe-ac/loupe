@@ -110,7 +110,7 @@ final class ReleaseAuditScriptTest extends TestCase
         new Filesystem()->remove($this->dir);
     }
 
-    private const string BASH4_SYNTAX = '/\b(declare|typeset|local|export|readonly)\s+-\w*[AnN]|\bmapfile\b|\breadarray\b|\bcoproc\b|\$\{[\w!]+(,|\^|@[UuLlQEPAa])|\|&|&>>|;;?&|\[\[\s+-[vR]\b|\bwait\s+-\w*n|\{[\w-]+\.\.[\w-]+\.\.[\w-]+\}|\bread\s+(-\w+\s+)*-t\s*[0-9]*\.|%\([^)]*\)T|\$BASHPID|\$EPOCH(SECONDS|REALTIME)|\bglobstar\b/';
+    private const string BASH4_SYNTAX = '/\b(declare|typeset|local|export|readonly)\s+-(?=\w*[^\WafFirxp])\w+|\bmapfile\b|\breadarray\b|\bcoproc\b|\$\{[\w!]+(,|\^|@[UuLlQEPAa])|\|&|&>>|;;?&|\[\[\s+-[vR]\b|\bwait\s+-\w*n|\{[\w-]+\.\.[\w-]+\.\.[\w-]+\}|\bread\s+(-\w+\s+)*-t\s*[0-9]*\.|%\([^)]*\)T|\$BASHPID|\$EPOCH(SECONDS|REALTIME)|\bglobstar\b/';
 
     public function test_it_runs_on_the_macos_system_bash(): void
     {
@@ -128,6 +128,10 @@ final class ReleaseAuditScriptTest extends TestCase
         yield 'test-next case' => ['case x in x) true ;;& esac'];
         yield 'associative array' => ['declare -A map'];
         yield 'local nameref' => ['local -n ref=x'];
+        yield 'lowercase attribute' => ['declare -l x=ABC'];
+        yield 'uppercase attribute' => ['declare -u x=abc'];
+        yield 'capitalize attribute' => ['typeset -c x=abc'];
+        yield 'global declare' => ['declare -g x=1'];
         yield 'case conversion' => ['echo "${v^^}" "${v,,}" "${v^}" "${v,}"'];
         yield 'transform' => ['echo "${v@U}"'];
         yield 'pipe stderr' => ['a |& b'];
