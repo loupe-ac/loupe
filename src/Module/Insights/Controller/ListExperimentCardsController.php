@@ -11,7 +11,6 @@ use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\View\ExperimentCardsQuery;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
-use App\Session\ReadOnlyAwareSessionHandler;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -23,7 +22,6 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     '/projects/{id:project}/analytics/experiments/{experiment}/cards',
     name: 'app_project_analytics_experiment_cards',
     requirements: ['experiment' => WorkerRun::EXPERIMENT_NAME],
-    defaults: [ReadOnlyAwareSessionHandler::READ_ONLY => 'analytics-experiment-cards'],
     methods: ['GET'],
 )]
 class ListExperimentCardsController extends AppController

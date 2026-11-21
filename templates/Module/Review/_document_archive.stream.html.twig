@@ -1,0 +1,5 @@
+{#- The answer of an archive or unarchive posted from a list row: one flash, then a reload of the list frame. Props: severity (success or error), message (string), listUrl (string). -#}
+{% include '_flash.stream.html.twig' with {severity: severity, message: message} only %}
+<turbo-stream action="replace" target="documents-list">
+    <template><turbo-frame id="documents-list" target="_top" src="{{ listUrl }}"></turbo-frame></template>
+</turbo-stream>

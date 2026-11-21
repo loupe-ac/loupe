@@ -162,7 +162,7 @@ test('projects header keeps its action reachable with enlarged text', async ({
     ).toBeFocused();
 });
 
-test('the list head keeps the switch, the search and the type filter in reach', async ({
+test('the list head and the search keep the switch, the search and the type filter in reach', async ({
     page,
 }) => {
     const head = page.locator('.lp-inbox-list-head');
@@ -170,7 +170,7 @@ test('the list head keeps the switch, the search and the type filter in reach', 
         await page.setViewportSize({ width, height: 900 });
         await expect(head).toBeVisible();
         await expect(head.locator('.lp-tabs__tab')).toHaveCount(2);
-        await expect(head.locator('#inbox-search')).toBeVisible();
+        await expect(page.locator('#inbox-search')).toBeVisible();
         await expect(head.locator('[data-inbox-type]')).toHaveCount(6);
         expect(
             await page.evaluate(
@@ -221,6 +221,24 @@ test('inbox search shows Clear only while a search is active', async ({
     await expect(
         page.locator('[data-inbox-section="open-asks"]'),
     ).toBeVisible();
+});
+
+test('typing in the inbox search survives the frame swap of each response', async ({
+    page,
+}) => {
+    const search = page.locator('#inbox-search');
+    await search.focus();
+    const swapped = page.waitForResponse(
+        (response) =>
+            response.url().includes('q=') &&
+            response.request().headers()['turbo-frame'] === 'inbox-view',
+    );
+    await search.pressSequentially('un', { delay: 450 });
+    await swapped;
+    await search.pressSequentially('matched', { delay: 20 });
+    await expect(search).toBeFocused();
+    await expect(search).toHaveValue('unmatched');
+    await expect(page.locator('[data-inbox-search-empty]')).toBeVisible();
 });
 
 test('the note field marks focus at one height', async ({ page, inbox }) => {
@@ -304,6 +322,11 @@ test('the owner answers a question and declines a to-do', async ({
 
     const question = page.locator(`#inbox-item-${inbox.questionNumber}`);
     await expect(question).toContainText('Which format should the export use?');
+    // An answer swaps the view frame and leaves the page and the sidebar in place.
+    await page.evaluate(() => {
+        (window as unknown as { stayed: boolean }).stayed = true;
+        document.querySelector('.lp-sidebar')?.setAttribute('data-kept', '');
+    });
     await question.getByText('CSV', { exact: true }).click();
     await question
         .getByLabel('Note for the agent')
@@ -344,9 +367,16 @@ test('the owner answers a question and declines a to-do', async ({
     ).toBeVisible();
     await page.getByRole('link', { name: 'View it' }).click();
     await expect(todo).toContainText('dismissed it at');
-    await expect(sidebarPill).toHaveCount(0);
+    expect(
+        await page.evaluate(
+            () => (window as unknown as { stayed?: boolean }).stayed,
+        ),
+    ).toBe(true);
+    await expect(page.locator('.lp-sidebar[data-kept]')).toHaveCount(1);
 
+    // The pill follows a live signal, which this spec stubs, so a reload shows the new count.
     await page.reload();
+    await expect(sidebarPill).toHaveCount(0);
     await expect(question.locator('[data-inbox-response]')).toContainText(
         'The importer reads CSV.',
     );

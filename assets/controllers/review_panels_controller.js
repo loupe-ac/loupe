@@ -32,6 +32,18 @@ export default class extends Controller {
             this.filterTarget.open = false;
         };
         this.onFilterResize = () => this.placeFilter();
+        this.element.addEventListener('turbo:morph-element', this.#onMorph);
+        this.#restorePanels();
+
+        this.activeFilter = this.element.classList.contains(
+            'lp-review-block--hide-resolved',
+        )
+            ? 'open'
+            : 'all';
+        this.refreshFilter();
+    }
+
+    #restorePanels() {
         const stored = this.modeValue === 'columns' ? [] : this.#storedPanels();
         if (stored !== null) {
             for (const button of this.buttonTargets) {
@@ -42,14 +54,14 @@ export default class extends Controller {
         if (this.modeValue === 'compare') {
             this.#show('outline', true);
         }
-
-        this.activeFilter = this.element.classList.contains(
-            'lp-review-block--hide-resolved',
-        )
-            ? 'open'
-            : 'all';
-        this.refreshFilter();
     }
+
+    #onMorph = (event) => {
+        if (event.target === this.element) {
+            this.#restorePanels();
+            this.refreshFilter();
+        }
+    };
 
     threadTargetConnected() {
         this.refreshFilter();
@@ -130,6 +142,7 @@ export default class extends Controller {
     }
 
     disconnect() {
+        this.element.removeEventListener('turbo:morph-element', this.#onMorph);
         this.#unwatchFilter();
     }
 

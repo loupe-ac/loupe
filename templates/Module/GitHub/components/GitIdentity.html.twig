@@ -1,5 +1,5 @@
 {% if visible %}
-<twig:Ds:Panel as="section" id="git-identity" data-testid="git-identity">
+<twig:Ds:Panel as="section" id="git-identity" data-morph-anchor data-testid="git-identity">
     <twig:Ds:SectionHeading>{{ 'github.identity.title'|trans }}</twig:Ds:SectionHeading>
 
     {{ form_start(form, {attr: {'data-controller': 'submit-on-change', 'data-action': 'change->submit-on-change#submit'}}) }}

@@ -1,0 +1,2 @@
+{# The paging links of the Cards tab. Props: report, query, routeParams. #}
+<twig:Ds:Pagination route="app_project_analytics_experiment_cards" :page="report.page" :totalPages="report.totalPages" :pageList="report.pageList" :routeParams="routeParams|merge(query.routeParams)" frame="experiment-cards-list" />

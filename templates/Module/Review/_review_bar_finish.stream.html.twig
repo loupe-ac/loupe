@@ -1,0 +1,7 @@
+{# Props: document. Drops the Finish review button of the review bar after a verdict, and puts it back after an undo. #}
+<turbo-stream action="remove" target="review-bar-finish"></turbo-stream>
+{% if document.status.value in ['draft', 'in-review'] %}
+<turbo-stream action="append" target="review-bar">
+    <template>{% include '@Review/_review_bar_finish.html.twig' with {} only %}</template>
+</turbo-stream>
+{% endif %}

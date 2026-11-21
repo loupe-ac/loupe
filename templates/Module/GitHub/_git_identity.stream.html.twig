@@ -1,0 +1,4 @@
+{#- Replaces the Git identity panel of the Connections page. Props: project (Project). -#}
+<turbo-stream action="replace" target="git-identity">
+    <template><twig:GitIdentity :project="project" /></template>
+</turbo-stream>

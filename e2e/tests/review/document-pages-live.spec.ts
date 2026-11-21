@@ -136,6 +136,37 @@ test('a new version, a comment and a later page follow another actor', async ({
     );
     await expect(history.locator('#history-compare option')).toHaveCount(6);
 
+    // A new document appears in place on the first page of the documents list.
+    const first = await author.context().newPage();
+    await open(
+        first,
+        `/projects/${body.projectId}/documents`,
+        '#documents-live[data-controller="live-region"]',
+    );
+    await first
+        .locator('[data-document-id]')
+        .first()
+        .evaluate((row) => {
+            (row as unknown as { kept: boolean }).kept = true;
+        });
+    const fresh = await author.request.post('/dev/seed/document', {
+        form: { title: 'Arrives on page one', markdown: '# One' },
+    });
+    expect(fresh.status()).toBe(201);
+    await expect(first.locator('[data-document-id]').first()).toContainText(
+        'Arrives on page one',
+        LIVE,
+    );
+    expect(
+        await first
+            .locator('[data-document-id]')
+            .nth(1)
+            .evaluate(
+                (row) => (row as unknown as { kept?: boolean }).kept === true,
+            ),
+    ).toBe(true);
+    await expect(first.locator('#documents-live-band')).toHaveCount(0);
+
     // A new document counts on a later page of the documents list.
     for (let index = 0; index < PER_PAGE; index++) {
         const extra = await author.request.post('/dev/seed/document', {

@@ -8,6 +8,7 @@ let resizeCallback;
 let disconnectObserver;
 let reducedMotion;
 let scrollIntoView;
+let observed;
 
 const markup = (mode = 'scroll', withActiveTarget = false) => `
     <div data-controller="overflow-cue" data-overflow-cue-mode-value="${mode}">
@@ -48,6 +49,7 @@ const viewport = () => document.querySelector('nav');
 beforeEach(() => {
     reducedMotion = false;
     disconnectObserver = vi.fn();
+    observed = [];
     scrollIntoView = vi.fn();
     Element.prototype.scrollIntoView = scrollIntoView;
     vi.stubGlobal(
@@ -56,7 +58,9 @@ beforeEach(() => {
             constructor(callback) {
                 resizeCallback = callback;
             }
-            observe() {}
+            observe(target) {
+                observed.push(target);
+            }
             disconnect() {
                 disconnectObserver();
             }
@@ -305,4 +309,16 @@ it('marks the edges of a strip with no arrows', async () => {
     geometry(viewport(), { scrollWidth: 600, clientWidth: 300, scrollLeft: 0 });
     expect(() => resizeCallback()).not.toThrow();
     expect(root().hasAttribute('data-overflow-end')).toBe(true);
+});
+
+it('observes the children a morph brings in', async () => {
+    await start(markup());
+    const added = document.createElement('a');
+    viewport().append(added);
+    observed.length = 0;
+    root().dispatchEvent(
+        new CustomEvent('turbo:morph-element', { bubbles: true }),
+    );
+    expect(observed).toContain(added);
+    expect(observed).toContain(viewport());
 });

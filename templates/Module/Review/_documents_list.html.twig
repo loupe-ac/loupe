@@ -1,65 +1,10 @@
-{# Props: project, listQuery, totalDocuments, items, filteredTotal, page, totalPages, pageList, statuses, projectTags, projectSeries. #}
+{# The rows, the count and the paging of the documents list, inside the swapped frame. The filter bar lives in `_documents_filter.html.twig`, outside it. Props: project, listQuery, totalDocuments, items, filteredTotal, page, totalPages, pageList. #}
 
-{# Six controls in front of a project that has nothing to filter are six dead
-   controls, so the bar waits for a first document — but it stays once a
-   filter or the archived view is on, whatever the counts say: a filter that
-   disappears the moment it matches nothing is a dead end. #}
-{% if totalDocuments > 0 or listQuery.isNarrowed or listQuery.includeArchived %}
-{# A GET form, so every control lands in the URL and the view stays shareable. `page` is not a field: a changed filter starts at page one. #}
-{# The field target restores focus and caret after a debounced submit, because the full Turbo visit replaces the field mid-word. #}
-{# The count covers live documents only, so it is left out while archived ones show. #}
-<twig:Ds:FilterBar
-    :action="path('app_project_documents', {id: project.id})"
-    :search="{id: 'document-search', name: 'search', value: listQuery.search, label: 'review.dashboard.filter.search_label'|trans, placeholder: 'review.dashboard.filter.search_placeholder'|trans}"
-    :switch="{name: 'archived', label: 'review.dashboard.filter.show_archived'|trans, checked: listQuery.includeArchived}"
-    :clearHref="path('app_project_documents', {id: project.id})"
-    :clearLabel="'review.dashboard.filter.clear'|trans"
-    :count="totalDocuments > 0 and not listQuery.includeArchived ? 'review.dashboard.filter.count'|trans({'%matching%': filteredTotal, '%total%': totalDocuments}) : null">
-    <label class="sr-only" for="document-status">{{ 'review.dashboard.filter.status_label'|trans }}</label>
-    <twig:Ds:Select id="document-status"
-            name="status"
-            data-action="change->autosearch#search">
-        <option value="">{{ 'review.dashboard.filter.all_statuses'|trans }}</option>
-        {% for status in statuses %}
-            <option value="{{ status.value }}"{{ listQuery.status == status ? ' selected' : '' }}>{{ status.translationKey()|trans }}</option>
-        {% endfor %}
-    </twig:Ds:Select>
-
-    <twig:block name="secondary">
-        {% if projectTags|length > 0 %}
-            <label class="sr-only" for="document-tag">{{ 'review.dashboard.filter.tag_label'|trans }}</label>
-            <twig:Ds:Select id="document-tag"
-                    name="tag"
-                    data-action="change->autosearch#search">
-                <option value="">{{ 'review.dashboard.filter.all_tags'|trans }}</option>
-                {% for tag in projectTags %}
-                    <option value="{{ tag.name }}"{{ listQuery.tagName == tag.name ? ' selected' : '' }}>{{ tag.name }}</option>
-                {% endfor %}
-            </twig:Ds:Select>
-        {% endif %}
-
-        {# Filtering by series is also what puts the list in the series's own
-           order, so the control stays out of the way until a series exists. #}
-        {% if projectSeries|length > 0 %}
-            <label class="sr-only" for="document-series">{{ 'review.dashboard.filter.series_label'|trans }}</label>
-            <twig:Ds:Select id="document-series"
-                    name="series"
-                    data-action="change->autosearch#search">
-                <option value="">{{ 'review.dashboard.filter.all_series'|trans }}</option>
-                {# The option carries the spelling and the comparison uses the
-                   key, because listQuery.seriesName is already folded. #}
-                {% for series in projectSeries %}
-                    <option value="{{ series.name }}"{{ listQuery.seriesName == series.normalizedName ? ' selected' : '' }}>{{ series.name }}</option>
-                {% endfor %}
-            </twig:Ds:Select>
-        {% endif %}
-    </twig:block>
-</twig:Ds:FilterBar>
-{% endif %}
+{% include '@Review/_documents_count.html.twig' with {listQuery: listQuery, totalDocuments: totalDocuments, filteredTotal: filteredTotal} only %}
 
 {% if items|length > 0 %}
 {% set cardLinkMap = document_card_link_map(items) %}
-<twig:Ds:DataTable modifier="documents" :label="'review.dashboard.table.label'|trans" :columns="[
+<twig:Ds:DataTable id="documents-rows" modifier="documents" :label="'review.dashboard.table.label'|trans" :columns="[
     {label: 'review.dashboard.table.document'|trans},
     {label: 'review.dashboard.table.status'|trans},
     {label: 'review.dashboard.table.author'|trans},
@@ -72,12 +17,12 @@
     {% endfor %}
 </twig:Ds:DataTable>
 
-<twig:Ds:Pagination route="app_project_documents" :page="page" :totalPages="totalPages" :pageList="pageList" :routeParams="{id: project.id}|merge(listQuery.routeParams)" />
+{% include '@Review/_documents_pagination.html.twig' with {project: project, listQuery: listQuery, page: page, totalPages: totalPages, pageList: pageList} only %}
 {% elseif listQuery.isNarrowed %}
 {# "No documents yet" is wrong once a filter is on — the project may be full
    of documents that simply did not match. #}
 <twig:Ds:EmptyState icon="lucide:search-x" iconSize="xl" :title="'review.dashboard.empty_filtered.title'|trans">
-    <twig:Ds:Button href="{{ path('app_project_documents', {id: project.id}) }}">{{ 'review.dashboard.filter.clear_filters'|trans }}</twig:Ds:Button>
+    <twig:Ds:Button href="{{ path('app_project_documents', {id: project.id}) }}" data-clear-filter-form="documents-filter">{{ 'review.dashboard.filter.clear_filters'|trans }}</twig:Ds:Button>
 </twig:Ds:EmptyState>
 {% else %}
 {# A project holds no credential any more, so the page cannot tell a

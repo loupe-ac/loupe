@@ -1,4 +1,26 @@
-{#- The live read of a terminal column page after the first. Props: project (Project), column (BoardColumn), view (ListTerminalColumnRowsView). -#}
+{#- The live read of the open terminal column page. Props: project (Project), column (BoardColumn), view (ListTerminalColumnRowsView), routeParams (array).
+    Page one draws its own rows: a row that stays morphs, a row that left goes, a row that entered is inserted where the page puts it.
+    A later page keeps its rows in place, and the band counts new cards. -#}
+{% if view.changes is not null %}
+    {% if view.changes.replaceAll %}
+<turbo-stream action="update" target="terminal-results"><template>{% include '@Board/_terminal_results.html.twig' with {project: project, items: view.page.items, page: 1, totalPages: view.page.totalPages, pageList: view.page.pageList, routeParams: routeParams} only %}</template></turbo-stream>
+    {% else %}
+        {% for card in view.changes.kept %}
+<turbo-stream action="replace" method="morph" target="terminal-row-{{ card.id }}">
+    <template>{% include '@Board/_terminal_row.html.twig' with {project: project, card: card} only %}</template>
+</turbo-stream>
+        {% endfor %}
+        {% for goneId in view.changes.goneIds %}
+<turbo-stream action="remove" target="terminal-row-{{ goneId }}"></turbo-stream>
+        {% endfor %}
+        {% for insert in view.changes.inserts %}
+<turbo-stream action="{{ insert.beforeId is null ? 'append' : 'before' }}" target="{{ insert.beforeId is null ? 'terminal-rows' : 'terminal-row-' ~ insert.beforeId }}">
+    <template>{% include '@Board/_terminal_row.html.twig' with {project: project, card: insert.item} only %}</template>
+</turbo-stream>
+        {% endfor %}
+<turbo-stream action="replace" target="terminal-pagination"><template>{% include '@Board/_terminal_pagination.html.twig' with {page: 1, totalPages: view.page.totalPages, pageList: view.page.pageList, routeParams: routeParams} only %}</template></turbo-stream>
+    {% endif %}
+{% else %}
 {% for card in view.items %}
 <turbo-stream action="replace" method="morph" target="terminal-row-{{ card.id }}">
     <template>{% include '@Board/_terminal_row.html.twig' with {project: project, card: card} only %}</template>
@@ -7,9 +29,6 @@
 {% for goneId in view.goneIds %}
 <turbo-stream action="remove" target="terminal-row-{{ goneId }}"></turbo-stream>
 {% endfor %}
-<turbo-stream action="update" target="terminal-total">
-    <template>{{ 'board.terminal.meta.total'|trans({'%count%': view.total}) }}</template>
-</turbo-stream>
 <turbo-stream action="update" target="terminal-live-band">
     <template>{% if view.newerCount > 0 %}
         <twig:Ds:Flash severity="info">
@@ -17,4 +36,8 @@
             <twig:block name="actions"><a href="{{ path('app_project_board_terminal_column', {projectId: project.id, columnId: column.id}) }}">{{ 'board.terminal.live.first_page'|trans }}</a></twig:block>
         </twig:Ds:Flash>
     {% endif %}</template>
+</turbo-stream>
+{% endif %}
+<turbo-stream action="update" target="terminal-total">
+    <template>{{ 'board.terminal.meta.total'|trans({'%count%': view.total}) }}</template>
 </turbo-stream>

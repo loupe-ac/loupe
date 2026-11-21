@@ -1,0 +1,7 @@
+{#- The answer of a refused archive posted from an experiments list row: the messages, then a reload of the list frame. Props: messages (list of string), listUrl (string). -#}
+{% for message in messages %}
+{% include '_flash.stream.html.twig' with {severity: 'error', message: message} only %}
+{% endfor %}
+<turbo-stream action="replace" target="experiments-list">
+    <template><turbo-frame id="experiments-list" target="_top" src="{{ listUrl }}"></turbo-frame></template>
+</turbo-stream>

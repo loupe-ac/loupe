@@ -94,6 +94,19 @@ afterEach(async () => {
     vi.useRealTimers();
 });
 
+it('marks the region once the hub accepts the subscription', async () => {
+    await mount(STREAM);
+    const region = document.getElementById('region');
+    expect(region.hasAttribute('data-live-region-connected')).toBe(false);
+
+    subscription().options.onOpen();
+    expect(region.hasAttribute('data-live-region-connected')).toBe(true);
+
+    region.remove();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(region.hasAttribute('data-live-region-connected')).toBe(false);
+});
+
 it('listens for its types and stops on disconnect', async () => {
     await mount(
         `data-live-region-types-value='["artifact.changed","board.card_changed"]' data-live-region-url-value="/x" data-live-region-mode-value="stream"`,
@@ -287,6 +300,21 @@ it('reads again after a reconnect', async () => {
     subscription().options.onReconnect();
     await settle();
     expect(fetch).toHaveBeenCalledTimes(1);
+});
+
+it('rows mode sends no cursor when the region has none', async () => {
+    await mount(
+        `data-live-region-types-value='["activity.changed"]' data-live-region-url-value="/rows" data-live-region-mode-value="rows"`,
+        '<li data-live-row="r1"></li>',
+    );
+    answer(200, '<turbo-stream></turbo-stream>');
+    signal({ type: 'activity.changed' });
+    await settle();
+    const url = new URL(fetch.mock.calls[0][0]);
+    expect(url.searchParams.get('ids')).toBe('r1');
+    expect(url.searchParams.has('since')).toBe(false);
+    expect(url.searchParams.has('sinceId')).toBe(false);
+    expect(url.searchParams.has('total')).toBe(false);
 });
 
 it('rows mode names the shown rows and the cursor', async () => {

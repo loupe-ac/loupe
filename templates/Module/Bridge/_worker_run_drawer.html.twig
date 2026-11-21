@@ -148,7 +148,7 @@
     <twig:block name="footer">
         <p role="status" data-worker-run-output-target="status"></p>
         {% if item.control and item.control.action and is_granted('project.manage', project) %}
-        {% include '@Bridge/_worker_run_control_form.html.twig' with {project: project, run: run, control: item.control, frame: '_top', compact: false} only %}
+        {% include '@Bridge/_worker_run_control_form.html.twig' with {project: project, run: run, control: item.control, frame: '_top', compact: false, query: listQuery.routeParams} only %}
         {% endif %}
         <twig:Ds:Button type="button"  data-action="worker-run-output#copy">{{ 'bridge.worker_runs.details.copy'|trans }}</twig:Ds:Button>
     </twig:block>

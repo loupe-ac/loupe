@@ -19,42 +19,18 @@
 
     {% if not app.request.headers.has('Turbo-Frame') %}{% do mercure_subscribe(activity_topic(project)) %}{% endif %}
     {% set rowsUrl = path('app_project_activity_rows', {id: project.id}|merge(listQuery.routeParams)) %}
-    {% if page > 1 and filtered %}{% include 'outbox/_activity_filters.html.twig' with {project: project, listQuery: listQuery, families: families, filteredTotal: filteredTotal} only %}{% endif %}
-    {# Page one morphs as a frame. A later page refreshes its rows by id, so a new event never moves them. #}
-    <div class="lp-live-frame"{% if page > 1 %} data-controller="live-region" data-live-content
+    {# The filter bar stays outside the swapped frame, so a search keeps its field and focus. #}
+    <div id="activity-filters" class="lp-live-frame">{% if filtered %}{% include 'outbox/_activity_filters.html.twig' with {project: project, listQuery: listQuery, families: families} only %}{% endif %}</div>
+    {# One frame on every page, so a filter or a page swaps only the list. The live region sits inside it, so each swap brings the address of the new filter and page. A signal reads the rows by id, so a new event never moves a row. #}
+    <turbo-frame id="activity-list" target="_top">
+    <div class="lp-live-frame" data-controller="live-region" data-live-content
          data-live-region-types-value="{{ ['activity.changed']|json_encode }}"
          data-live-region-mode-value="rows"
          data-live-region-url-value="{{ rowsUrl }}"
-         data-live-since="{{ highestSequence }}"{% endif %}>
-    {% if page > 1 %}<div id="activity-live-band"></div>{% endif %}
-    <turbo-frame id="activity-frame" class="lp-live-frame" target="_top"{% if page == 1 %} refresh="morph" data-live-content
-         data-controller="live-region"
-         data-live-region-types-value="{{ ['activity.changed']|json_encode }}"
-         data-live-region-mode-value="frame"
-         data-live-region-url-value="{{ app.request.requestUri }}"{% endif %}>
-    {% if page == 1 and filtered %}{% include 'outbox/_activity_filters.html.twig' with {project: project, listQuery: listQuery, families: families, filteredTotal: filteredTotal} only %}{% endif %}
-    {% if entries|length > 0 %}
-    <twig:Ds:DataTable modifier="events" :label="'activity.table.label'|trans" :columns="[
-        {label: 'activity.column.event'|trans},
-        {label: 'activity.column.delivery'|trans},
-        {label: 'activity.column.family'|trans},
-        {label: 'activity.column.sequence'|trans, align: 'end'},
-        {label: 'activity.column.recorded'|trans},
-    ]">
-        {% for entry in entries %}
-        {% include 'outbox/_activity_row.html.twig' with {entry: entry} only %}
-        {% endfor %}
-    </twig:Ds:DataTable>
-
-    <twig:Ds:Pagination route="app_project_activity" :page="page" :totalPages="totalPages" :pageList="pageList" :routeParams="{id: project.id}|merge(listQuery.routeParams)" />
-    {% elseif listQuery.isNarrowed %}
-    <twig:Ds:EmptyState icon="lucide:search-x" :title="'activity.filter.empty'|trans" data-activity-filtered-empty />
-    {% else %}
-    <twig:Ds:EmptyState icon="lucide:activity" :title="'activity.empty.title'|trans" data-activity-empty>
-        <p>{{ 'activity.empty.description'|trans }}</p>
-    </twig:Ds:EmptyState>
-    {% endif %}
-    </turbo-frame>
+         {% if page > 1 %}data-live-since="{{ highestSequence }}"{% endif %}>
+        {% if page > 1 %}<div id="activity-live-band"></div>{% endif %}
+        {% include 'outbox/_activity_results.html.twig' with {project: project, listQuery: listQuery, entries: entries, filtered: filtered, filteredTotal: filteredTotal, page: page, totalPages: totalPages, pageList: pageList} only %}
     </div>
+    </turbo-frame>
 </twig:Ds:Workspace>
 {% endblock %}

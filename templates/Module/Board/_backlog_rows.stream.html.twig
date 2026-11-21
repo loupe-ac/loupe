@@ -1,4 +1,26 @@
-{#- The live read of a Backlog page after the first. Props: project (Project), view (ListBacklogRowsView), listQuery (BacklogListQuery). -#}
+{#- The live read of the open Backlog page. Props: project (Project), view (ListBacklogRowsView), listQuery (BacklogListQuery), types (list of card types).
+    Page one draws its own rows: a row that stays morphs, a row that left goes, a row that entered is inserted where the page puts it.
+    A later page keeps its rows in place, and the band counts new cards. -#}
+{% if view.changes is not null %}
+    {% if view.changes.replaceAll %}
+<turbo-stream action="update" target="backlog-results"><template>{% include '@Board/_backlog_results.html.twig' with {project: project, view: view.page, listQuery: listQuery} only %}</template></turbo-stream>
+    {% else %}
+        {% for card in view.changes.kept %}
+<turbo-stream action="replace" method="morph" target="backlog-row-{{ card.id }}">
+    <template>{% include '@Board/_backlog_row.html.twig' with {project: project, card: card, listQuery: listQuery, pendingComments: view.pendingComments, boardColumns: view.boardColumns} only %}</template>
+</turbo-stream>
+        {% endfor %}
+        {% for goneId in view.changes.goneIds %}
+<turbo-stream action="remove" target="backlog-row-{{ goneId }}"></turbo-stream>
+        {% endfor %}
+        {% for insert in view.changes.inserts %}
+<turbo-stream action="{{ insert.beforeId is null ? 'append' : 'before' }}" target="{{ insert.beforeId is null ? 'backlog-rows' : 'backlog-row-' ~ insert.beforeId }}">
+    <template>{% include '@Board/_backlog_row.html.twig' with {project: project, card: insert.item, listQuery: listQuery, pendingComments: view.pendingComments, boardColumns: view.boardColumns} only %}</template>
+</turbo-stream>
+        {% endfor %}
+<turbo-stream action="replace" target="backlog-pagination"><template>{% include '@Board/_backlog_pagination.html.twig' with {project: project, view: view.page, listQuery: listQuery} only %}</template></turbo-stream>
+    {% endif %}
+{% else %}
 {% for card in view.items %}
 <turbo-stream action="replace" method="morph" target="backlog-row-{{ card.id }}">
     <template>{% include '@Board/_backlog_row.html.twig' with {project: project, card: card, listQuery: listQuery, pendingComments: view.pendingComments, boardColumns: view.boardColumns} only %}</template>
@@ -7,12 +29,6 @@
 {% for goneId in view.goneIds %}
 <turbo-stream action="remove" target="backlog-row-{{ goneId }}"></turbo-stream>
 {% endfor %}
-<turbo-stream action="replace" method="morph" target="backlog-bulk-form">
-    <template>{% include '@Board/_backlog_bulk.html.twig' with {project: project, listQuery: listQuery, nextColumn: view.nextColumn, boardColumns: view.boardColumns} only %}</template>
-</turbo-stream>
-<turbo-stream action="update" target="backlog-filter-count">
-    <template>{% include '@Board/_backlog_count.html.twig' with {view: view, listQuery: listQuery} only %}</template>
-</turbo-stream>
 <turbo-stream action="update" target="backlog-live-band">
     <template>{% if view.newerCount > 0 %}
         <twig:Ds:Flash severity="info">
@@ -21,3 +37,9 @@
         </twig:Ds:Flash>
     {% endif %}</template>
 </turbo-stream>
+{% endif %}
+<turbo-stream action="replace" method="morph" target="backlog-filter-slot"><template><div id="backlog-filter-slot">{% include '@Board/_backlog_filter.html.twig' with {project: project, view: view, listQuery: listQuery, types: types} only %}</div></template></turbo-stream>
+<turbo-stream action="replace" method="morph" target="backlog-bulk-form">
+    <template>{% include '@Board/_backlog_bulk.html.twig' with {project: project, listQuery: listQuery, nextColumn: view.nextColumn, boardColumns: view.boardColumns} only %}</template>
+</turbo-stream>
+<turbo-stream action="replace" method="morph" target="backlog-count"><template>{% include '@Board/_backlog_count_line.html.twig' with {view: view, listQuery: listQuery} only %}</template></turbo-stream>

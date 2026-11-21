@@ -8,6 +8,7 @@ use App\Exception\DomainErrors;
 use App\Module\Bridge\BridgeEventType;
 use App\Module\Bridge\Service\CardHolds;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
+use App\Module\Bridge\ValueObject\WorkerRunChangeKind;
 use App\Outbox\OutboxWriter;
 use App\Security\CurrentApiKeyActor;
 use Doctrine\DBAL\LockMode;
@@ -69,6 +70,6 @@ final readonly class ReleaseCardAgentsHandler
             ['projectId' => (string) $project->id, 'cardId' => (string) $cardId],
             new AuditSubject('card', (string) $cardId),
         );
-        $this->runsChanged->runsChanged($project);
+        $this->runsChanged->runsChanged($project, WorkerRunChangeKind::State, cardIds: [$cardId]);
     }
 }

@@ -66,7 +66,7 @@
     </div>
 
     {% if foldable %}
-    {% set checkAgainUrl = path('app_github_repository_check', {id: project.id, repositoryId: repository.id}) %}
+    {% set checkAgainUrl = path('app_github_repository_check', {id: project.id, repositoryId: repository.id, inline: 1}) %}
     <div class="lp-repository-fold{{ open ? ' open' }}" id="{{ checksId }}" data-disclosure-target="content" data-testid="forge-repository-fold">
     <div class="lp-repository-check" data-testid="forge-repository-check">
         {% if check is null %}

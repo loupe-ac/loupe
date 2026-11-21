@@ -233,6 +233,8 @@ test('filters that match nothing offer to clear them', async ({
     );
 
     await page.getByRole('link', { name: 'Clear filters' }).click();
-    await expect(page).toHaveURL(new RegExp(`${backlog.backlogUrl}$`));
+    await expect(page).toHaveURL(
+        new RegExp(`${backlog.backlogUrl}(\\?search=&type=&epic=)?$`),
+    );
     await expect(row(page, card)).toBeVisible();
 });

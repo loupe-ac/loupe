@@ -199,7 +199,7 @@ from 1 to 30 days under **Finished work on the board** in board settings.
 through, however old it is.
 
 The history page of a terminal column updates on its own when a card changes.
-Page 1 shows a card that finishes in its place. On page 2 and later, the rows
+Page 1 updates by row: a card that finishes appears at its place, and a card that leaves goes. The rows you see do not move. On page 2 and later, the rows
 keep their order, a card that leaves the column fades out, and a band counts
 the cards that finished since you opened the page, with a link to the first page.
 
@@ -369,6 +369,7 @@ template declares.
 The epic filter offers **Any epic**, **No epic**, and each epic with a card in
 Backlog. **Clear** removes every filter, and a count shows how many cards
 match.
+A search, a filter, a sort or a page change swaps only the list. The search box keeps its focus and the address bar follows, so the view stays linkable. A live update keeps the filter and the sort that you chose.
 
 The list shows the newest cards first. Click the **Type**, **Epic** or
 **Added** column header to sort by that column, and click it again to reverse
@@ -386,9 +387,10 @@ An empty Backlog shows **The Backlog is empty**. Filters that match no card
 show **No card matches** and a **Clear filters** button.
 
 The page updates on its own when someone else changes a card or the columns
-of the board, also outside the Backlog. On page 1, rows move into their sorted
-place and unchanged rows stay as they are. A row that you ticked stays ticked,
-and an open menu holds the update until it closes. On page 2 and later, the
+of the board, also outside the Backlog. On page 1, the update works by row. A
+changed row updates in place, a row that left goes, and a card that moves up
+from page 2 joins at the end. The rows you see keep their order. A row that you
+ticked stays ticked, and an open menu holds the update until it closes. On page 2 and later, the
 rows keep their order. A row that left the Backlog or no longer matches a
 filter fades out. A band shows how many new cards match the filters, with a
 link to the first page. The count of cards updates too. A change made on this
@@ -575,7 +577,8 @@ typed. A move to another column alone shows no notice. When someone deletes the
 card, the drawer shows **This card was deleted** and offers no save.
 
 **Delete** asks for a confirmation first, then removes the card, its
-links and its feedback. A delete cannot be undone, and the number the card held is not
+links and its feedback. In the drawer, the drawer closes and the card leaves the
+board with no reload. A delete cannot be undone, and the number the card held is not
 issued again.
 
 The create form and the edit form carry a **Linked cards** block. Each row picks
@@ -635,6 +638,12 @@ of pause, the reason, the time and the condition that ends the pause. The
 workflow pauses a card when a rule of the template asks for it, when too many
 attempts are refused, when no bridge takes the work in time, or when a rule
 reaches its work limit.
+
+**Retry** on a paused card releases the pause and keeps the card open in the
+drawer. The same holds for resolving or reopening a feedback note, for the lane
+button of an epic and for revoking a preview sign-in: each changes only its own
+part of the drawer. Answering an inbox item of the card in the drawer redraws only
+the inbox section of the card and shows the confirmation.
 
 The panel also shows the slot of the card, the condition that the card waits
 for and the next action. It also shows the last refusal, with its reason, its

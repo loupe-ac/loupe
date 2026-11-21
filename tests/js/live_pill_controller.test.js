@@ -205,3 +205,39 @@ it('stops a pending retry when it disconnects', async () => {
 
     expect(frame.reload).toHaveBeenCalledTimes(1);
 });
+
+it('keeps the connected marker and the stopped line through a morph', async () => {
+    mount();
+    await Promise.resolve();
+    const { options } = live.subscriptions[0];
+    options.onOpen();
+    link.removeAttribute('data-live-pill-connected');
+    link.dispatchEvent(
+        new CustomEvent('turbo:morph-element', { bubbles: true }),
+    );
+    expect(link.hasAttribute('data-live-pill-connected')).toBe(true);
+
+    link.dispatchEvent(
+        new CustomEvent('turbo:fetch-request-error', { bubbles: true }),
+    );
+    expect(link.hasAttribute('data-live-pill-stopped')).toBe(false);
+    for (let attempt = 0; attempt <= RETRY_MILLISECONDS.length; attempt++) {
+        link.dispatchEvent(
+            new CustomEvent('turbo:frame-missing', {
+                bubbles: true,
+                cancelable: true,
+                detail: { response: { statusCode: 404 } },
+            }),
+        );
+    }
+    expect(link.hasAttribute('data-live-pill-stopped')).toBe(true);
+    link.removeAttribute('data-live-pill-stopped');
+    document.querySelector('p').textContent = '';
+    link.dispatchEvent(
+        new CustomEvent('turbo:morph-element', { bubbles: true }),
+    );
+    expect(link.hasAttribute('data-live-pill-stopped')).toBe(true);
+    expect(document.querySelector('p').textContent).toBe(
+        'Live updates stopped.',
+    );
+});

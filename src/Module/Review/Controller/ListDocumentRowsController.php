@@ -19,8 +19,8 @@ use Symfony\Component\Uid\Uuid;
 use Symfony\UX\Turbo\TurboBundle;
 
 /**
- * The rows that a later page of the documents list shows, as the open page
- * reads them after a signal. The list state travels in the query, like the list.
+ * The rows that the open page of the documents list shows, as the page reads
+ * them after a signal. The list state travels in the query, like the list.
  */
 #[IsGranted(ProjectVoter::VIEW, subject: 'project')]
 #[Route(
@@ -53,9 +53,7 @@ final class ListDocumentRowsController extends AppController
         $html = $this->renderView('@Review/_document_rows.stream.html.twig', [
             'project' => $project,
             'listQuery' => $listQuery,
-            'items' => $view->items,
-            'removedIds' => $view->removedIds,
-            'newerCount' => $view->newerCount,
+            'view' => $view,
         ]);
 
         return new Response($html, Response::HTTP_OK, ['Content-Type' => TurboBundle::STREAM_MEDIA_TYPE]);

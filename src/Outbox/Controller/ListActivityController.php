@@ -11,7 +11,6 @@ use App\Outbox\ActivityFamily;
 use App\Outbox\Command\ListActivityPageCommand;
 use App\Outbox\Command\ListActivityPageHandler;
 use App\Outbox\View\ActivityListQuery;
-use App\Session\ReadOnlyAwareSessionHandler;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -22,7 +21,6 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[Route(
     '/projects/{id:project}/activity',
     name: 'app_project_activity',
-    defaults: [ReadOnlyAwareSessionHandler::READ_ONLY => 'activity-frame'],
     methods: ['GET'],
 )]
 final class ListActivityController extends AppController

@@ -14,11 +14,29 @@ export default class extends Controller {
 
     connect() {
         this.animation = null;
+        this.element.addEventListener('turbo:morph-element', this.#onMorph);
+        this.readServerState();
+    }
+
+    disconnect() {
+        this.element.removeEventListener('turbo:morph-element', this.#onMorph);
+    }
+
+    #onMorph = (event) => {
+        if (event.target !== this.element) {
+            return;
+        }
+        this.animation?.cancel();
+        this.animation = null;
+        this.readServerState();
+    };
+
+    readServerState() {
         // A real <details> reflects `.open` at connect time; a plain wrapper div
         // does not — `.open` is undefined even when the server rendered it open.
-        // Derive the initial state from the server-rendered class, or the first
+        // Derive the state from the server-rendered class, or the first
         // click re-expands an already-open panel.
-        if (undefined === this.disclosureElement.open) {
+        if (!(this.disclosureElement instanceof HTMLDetailsElement)) {
             this.disclosureElement.open =
                 this.disclosureElement.classList.contains('disclosure-open');
         }

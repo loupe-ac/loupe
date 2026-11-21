@@ -1389,3 +1389,24 @@ it('keeps the controls it builds through a page morph', async () => {
             .hasAttribute('data-turbo-permanent'),
     ).toBe(true);
 });
+
+it('builds the controls of a block that a page morph adds', async () => {
+    await mount({ notes: { a: 'Kept' } });
+    const added = document
+        .querySelector('fieldset[data-decision-id="a"]')
+        .cloneNode(true);
+    added.dataset.decisionId = 'added';
+    added.querySelector('[data-decision-note-controls]').remove();
+    added.querySelector('[data-decision-clear-control]').remove();
+    document.querySelector('fieldset[data-decision-id="a"]').after(added);
+    document.dispatchEvent(new Event('turbo:morph'));
+
+    expect(
+        added.querySelectorAll('[data-decision-note-controls]'),
+    ).toHaveLength(1);
+    expect(
+        document.querySelectorAll(
+            'fieldset[data-decision-id="a"] [data-decision-note-controls]',
+        ),
+    ).toHaveLength(1);
+});

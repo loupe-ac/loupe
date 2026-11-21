@@ -11,6 +11,7 @@ use App\Module\Bridge\Event\WorkerRunChanged;
 use App\Module\Bridge\Messenger\CollectSessionUsage;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
+use App\Module\Bridge\ValueObject\WorkerRunChangeKind;
 use App\Module\Bridge\ValueObject\WorkerRunCloseReason;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
@@ -159,7 +160,7 @@ final readonly class InteractiveRuns
         });
 
         if ($outcome[2]) {
-            $this->publisher->runsChanged($outcome[0]->project);
+            $this->publisher->runsChanged($outcome[0]->project, WorkerRunChangeKind::State, [$outcome[0]]);
         }
         if ($outcome[1]) {
             $this->announce([$outcome[0]]);
@@ -234,7 +235,7 @@ final readonly class InteractiveRuns
 
         // A retry that only names the harness reloads the Runs page and announces nothing.
         if ($outcome[2]) {
-            $this->publisher->runsChanged($outcome[0]->project);
+            $this->publisher->runsChanged($outcome[0]->project, WorkerRunChangeKind::State, [$outcome[0]]);
         }
         if ($outcome[1]) {
             $this->announce([$outcome[0]]);
@@ -356,7 +357,7 @@ final readonly class InteractiveRuns
         });
 
         if ([] !== $closed) {
-            $this->publisher->runsChanged($closed[0]->project);
+            $this->publisher->runsChanged($closed[0]->project, WorkerRunChangeKind::State, $closed);
             $this->announce($closed);
         }
     }
@@ -399,7 +400,7 @@ final readonly class InteractiveRuns
 
         [$run, $closed] = $outcome;
         if ($closed && null !== $run) {
-            $this->publisher->runsChanged($run->project);
+            $this->publisher->runsChanged($run->project, WorkerRunChangeKind::State, [$run]);
             $this->announce([$run]);
         }
 
@@ -425,12 +426,13 @@ final readonly class InteractiveRuns
             return $runs;
         });
 
-        $projects = [];
+        /** @var array<string, list<WorkerRun>> $byProject */
+        $byProject = [];
         foreach ($closed as $run) {
-            $projects[(string) $run->project->id] = $run->project;
+            $byProject[(string) $run->project->id][] = $run;
         }
-        foreach ($projects as $project) {
-            $this->publisher->runsChanged($project);
+        foreach ($byProject as $projectRuns) {
+            $this->publisher->runsChanged($projectRuns[0]->project, WorkerRunChangeKind::State, $projectRuns);
         }
         if ([] !== $closed) {
             $this->announce($closed);

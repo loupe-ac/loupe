@@ -1,0 +1,4 @@
+{#- Shows one flash message at the top of the page. Props: severity (success, error, warning or info), message (string). -#}
+<turbo-stream action="prepend" target="main-content">
+    <template>{% include '_flash_messages.html.twig' with {flashes: {(severity): [message]}} only %}</template>
+</turbo-stream>

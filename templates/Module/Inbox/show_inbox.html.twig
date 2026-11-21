@@ -17,10 +17,23 @@
 {% set liveRefresh = app.request.headers.has('X-Loupe-Live-Refresh') %}
 {% do mercure_subscribe(inbox_page_topic(inbox.project)) %}
 {% do mercure_subscribe(worker_runs_topic(inbox.project)) %}
-<twig:Ds:SplitView width="full" class="lp-needs-you lp-core-prototype-page lp-core-inbox" data-live-content data-controller="inbox-anchor inbox-live inbox-navigation card-drawer">
+<twig:Ds:SplitView width="full" class="lp-needs-you lp-core-prototype-page lp-core-inbox" data-live-content data-controller="inbox-anchor inbox-live inbox-navigation card-drawer" data-inbox-live-rows-url-value="{{ path('app_project_inbox_rows', {id: inbox.project.id}) }}">
     <h1 class="sr-only">{{ 'inbox.page.title'|trans }}</h1>
 
     {% include '@Notification/_stopped_device_warning_live.html.twig' only %}
+
+    {# A GET form, so the search lands in the address. It sits outside the view frame, so a search never replaces the field being typed into. The navigation controller copies the query, the side and the type from the address after each render. #}
+    <div class="lp-inbox-search">
+        <twig:Ds:FilterBar
+            :action="path('app_project_inbox', {id: inbox.project.id})"
+            :formAttributes="{'data-turbo-frame': 'inbox-view', 'data-turbo-action': 'advance', 'data-autosearch-ignore-value': ['side', 'type']|json_encode, 'data-inbox-search-form': true}"
+            :search="{id: 'inbox-search', name: 'q', value: view.query, label: 'inbox.search.label'|trans, placeholder: 'inbox.search.placeholder'|trans}">
+            <twig:block name="secondary">
+                <input type="hidden" name="side" value="{{ view.side.value }}" data-default="{{ openSide.value }}">
+                <input type="hidden" name="type" value="{{ view.type ? view.type.value : '' }}"{% if not view.type %} disabled{% endif %}>
+            </twig:block>
+        </twig:Ds:FilterBar>
+    </div>
 
     {# The frame holds the whole view, so a row, the switch, a filter, the search and the pager each reload it and move the address on.
        A link or a form outside the view leaves the frame, which is why the frame targets the page. #}
@@ -33,6 +46,7 @@
                             <a class="lp-tabs__tab"
                                href="{{ path('app_project_inbox', {id: inbox.project.id}|merge(view.onSide(openSide).toQuery)) }}"
                                data-turbo-frame="inbox-view"
+                               id="inbox-open-tab"
                                data-inbox-side="open"
                                {%- if not view.isSearch and view.side == openSide %} aria-current="page"{% endif %}>{{ 'inbox.view.open'|trans({'%count%': inbox.openCount}) }}</a>
                             <a class="lp-tabs__tab"
@@ -42,20 +56,14 @@
                                {%- if not view.isSearch and view.side == closedSide %} aria-current="page"{% endif %}>{{ 'inbox.view.closed'|trans }}</a>
                         </twig:Ds:Tabs>
 
-                        {# A GET form, so the search lands in the address. A new search starts at page one and keeps the side and the type. #}
-                        <twig:Ds:FilterBar
-                            :action="path('app_project_inbox', {id: inbox.project.id})"
-                            :formAttributes="{'data-turbo-frame': 'inbox-view', 'data-autosearch-ignore-value': ['side', 'type']|json_encode}"
-                            :search="{id: 'inbox-search', name: 'q', value: view.query, label: 'inbox.search.label'|trans, placeholder: 'inbox.search.placeholder'|trans}"
-                            :clearHref="view.query != '' ? path('app_project_inbox', {id: inbox.project.id}|merge(view.withQuery('').toQuery)) : null"
-                            :clearLabel="'inbox.search.clear'|trans"
-                            :clearAttributes="{'data-turbo-frame': 'inbox-view'}"
-                            :count="view.isSearch ? 'inbox.search.count'|trans({'%count%': inbox.total}) : null">
-                            <twig:block name="secondary">
-                                <input type="hidden" name="side" value="{{ view.side.value }}">
-                                {% if view.type %}<input type="hidden" name="type" value="{{ view.type.value }}">{% endif %}
-                            </twig:block>
-                        </twig:Ds:FilterBar>
+                        {% if view.isSearch %}
+                            <twig:Ds:FilterBar
+                                class="lp-inbox-search-state"
+                                :clearHref="path('app_project_inbox', {id: inbox.project.id}|merge(view.withQuery('').toQuery))"
+                                :clearLabel="'inbox.search.clear'|trans"
+                                :clearAttributes="{'data-turbo-frame': 'inbox-view'}"
+                                :count="'inbox.search.count'|trans({'%count%': inbox.total})" />
+                        {% endif %}
 
                         <div class="lp-inbox-filter" role="group" aria-label="{{ 'inbox.filter.label'|trans }}">
                             <a class="lp-inbox-filter__button lp-inbox-filter__button--all"
@@ -78,7 +86,7 @@
                         </div>
                     </div>
 
-                    <div class="lp-inbox-rows" data-inbox-scroll>
+                    <div class="lp-inbox-rows" id="inbox-rows" data-inbox-scroll>
                         {% for row in inbox.rows %}
                             {% include '@Inbox/_inbox_request.html.twig' with {row: row, inbox: inbox} only %}
                         {% endfor %}
@@ -93,56 +101,59 @@
                 </div>
 
                 <div class="lp-inbox-request-detail lp-split-pane">
-                    {# What the last response did, read once. Only this page reads the flash type. #}
-                    {% for status in liveRefresh ? [] : app.flashes('inbox_status') %}
-                        {% set verb = ('inbox.status.verb.' ~ status.verb)|trans %}
-                        <p class="lp-inbox-status" role="status" data-inbox-status>
-                            <twig:ux:icon name="lucide:check" class="lp-inbox-status__icon" />
-                            {% if status.ask %}
-                                <span>{{ 'inbox.status.ask_closed'|trans({'%verb%': verb}) }}</span>
-                                <span class="lp-inbox-status__detail">{{ 'inbox.status.ask_closed_detail'|trans({'%title%': status.title|reference_plain}) }}</span>
-                                <a href="{{ path('app_project_inbox', {id: inbox.project.id, side: 'closed', ask: status.ask}) }}" data-turbo-frame="inbox-view">{{ 'inbox.status.view'|trans }}</a>
-                            {% elseif status.left > 0 %}
-                                <span>{{ 'inbox.status.ask_left'|trans({'%verb%': verb, '%count%': status.left}) }}</span>
-                            {% else %}
-                                <span>{{ 'inbox.status.item'|trans({'%verb%': verb, '%number%': status.number}) }}</span>
-                            {% endif %}
-                        </p>
-                    {% endfor %}
-                    {# The ask that the page showed open has closed since: say why, and point to the next open ask. Only a live refresh that names the ask asks for it. #}
-                    {% set watched = app.request.headers.get('X-Loupe-Inbox-Watching') %}
-                    {% if watched and inbox.selected and inbox.selected.ask and inbox.selected.ask.closedAt and (inbox.selected.ask.id ~ '') == watched %}
-                        {% set closedOutcome = inbox.selected.outcome %}
-                        <twig:Ds:Flash severity="info" class="lp-inbox-closed-notice" data-inbox-closed-notice="{{ closedOutcome ? closedOutcome.key : 'closed' }}">
-                            {%- if closedOutcome and inbox.selected.closing.state.value == 'cancelled' -%}
-                                {{ 'inbox.live.closed.cancelled'|trans({'%outcome%': closedOutcome.key|trans(closedOutcome.parameters)}) }}
-                            {%- else -%}
-                                {{ 'inbox.live.closed.other'|trans({'%outcome%': closedOutcome ? closedOutcome.key|trans(closedOutcome.parameters) : 'inbox.row.closed'|trans}) }}
-                            {%- endif %}
-                            <a href="{{ path('app_project_inbox', {id: inbox.project.id}|merge(view.onSide(openSide).withoutSelection.toQuery)) }}" data-turbo-frame="inbox-view">{{ 'inbox.live.next'|trans }}</a>
-                        </twig:Ds:Flash>
-                    {% endif %}
-                    {% if view.isPicked %}
-                        <a class="lp-inbox-back"
-                           href="{{ path('app_project_inbox', {id: inbox.project.id}|merge(view.withoutSelection.toQuery)) }}"
-                           data-turbo-frame="inbox-view">
-                            <twig:ux:icon name="lucide:arrow-left" class="lp-icon lp-icon--md" />
-                            {{ 'inbox.pane.back'|trans }}
-                        </a>
-                    {% endif %}
-                    {% if inbox.selected %}
-                        {% include '@Inbox/_inbox_detail.html.twig' with {row: inbox.selected, inbox: inbox, refusedForm: refusedForm, cardDrawer: true} only %}
-                    {% elseif inbox.pickedNothing %}
-                        <twig:Ds:EmptyState :title="'inbox.pane.missing'|trans" data-inbox-pane-missing />
-                    {% elseif view.isSearch %}
-                        <twig:Ds:EmptyState :title="'inbox.search.empty'|trans" data-inbox-search-empty />
-                    {% elseif view.type %}
-                        <twig:Ds:EmptyState :title="'inbox.filter.empty'|trans" data-inbox-type-empty />
-                    {% elseif view.side == closedSide %}
-                        <twig:Ds:EmptyState :title="'inbox.closed.empty'|trans" data-inbox-queue-empty="closed-asks" />
-                    {% else %}
-                        <twig:Ds:EmptyState icon="lucide:inbox" :title="'inbox.empty.title'|trans" :body="'inbox.empty.body'|trans" data-inbox-queue-empty="open-asks" />
-                    {% endif %}
+                    {# A row pick swaps only this frame, so the list keeps its place. Every other link and form of the pane targets the view frame. #}
+                    <turbo-frame id="inbox-detail" target="_top" data-turbo-action="advance">
+                        {# What the last response did, read once. Only this page reads the flash type. #}
+                        {% for status in liveRefresh ? [] : app.flashes('inbox_status') %}
+                            {% set verb = ('inbox.status.verb.' ~ status.verb)|trans %}
+                            <p class="lp-inbox-status" role="status" data-inbox-status>
+                                <twig:ux:icon name="lucide:check" class="lp-inbox-status__icon" />
+                                {% if status.ask %}
+                                    <span>{{ 'inbox.status.ask_closed'|trans({'%verb%': verb}) }}</span>
+                                    <span class="lp-inbox-status__detail">{{ 'inbox.status.ask_closed_detail'|trans({'%title%': status.title|reference_plain}) }}</span>
+                                    <a href="{{ path('app_project_inbox', {id: inbox.project.id, side: 'closed', ask: status.ask}) }}" data-turbo-frame="inbox-view">{{ 'inbox.status.view'|trans }}</a>
+                                {% elseif status.left > 0 %}
+                                    <span>{{ 'inbox.status.ask_left'|trans({'%verb%': verb, '%count%': status.left}) }}</span>
+                                {% else %}
+                                    <span>{{ 'inbox.status.item'|trans({'%verb%': verb, '%number%': status.number}) }}</span>
+                                {% endif %}
+                            </p>
+                        {% endfor %}
+                        {# The ask that the page showed open has closed since: say why, and point to the next open ask. Only a live refresh that names the ask asks for it. #}
+                        {% set watched = app.request.headers.get('X-Loupe-Inbox-Watching') %}
+                        {% if watched and inbox.selected and inbox.selected.ask and inbox.selected.ask.closedAt and (inbox.selected.ask.id ~ '') == watched %}
+                            {% set closedOutcome = inbox.selected.outcome %}
+                            <twig:Ds:Flash severity="info" class="lp-inbox-closed-notice" data-inbox-closed-notice="{{ closedOutcome ? closedOutcome.key : 'closed' }}">
+                                {%- if closedOutcome and inbox.selected.closing.state.value == 'cancelled' -%}
+                                    {{ 'inbox.live.closed.cancelled'|trans({'%outcome%': closedOutcome.key|trans(closedOutcome.parameters)}) }}
+                                {%- else -%}
+                                    {{ 'inbox.live.closed.other'|trans({'%outcome%': closedOutcome ? closedOutcome.key|trans(closedOutcome.parameters) : 'inbox.row.closed'|trans}) }}
+                                {%- endif %}
+                                <a href="{{ path('app_project_inbox', {id: inbox.project.id}|merge(view.onSide(openSide).withoutSelection.toQuery)) }}" data-turbo-frame="inbox-view">{{ 'inbox.live.next'|trans }}</a>
+                            </twig:Ds:Flash>
+                        {% endif %}
+                        {% if view.isPicked %}
+                            <a class="lp-inbox-back"
+                               href="{{ path('app_project_inbox', {id: inbox.project.id}|merge(view.withoutSelection.toQuery)) }}"
+                               data-turbo-frame="inbox-view">
+                                <twig:ux:icon name="lucide:arrow-left" class="lp-icon lp-icon--md" />
+                                {{ 'inbox.pane.back'|trans }}
+                            </a>
+                        {% endif %}
+                        {% if inbox.selected %}
+                            {% include '@Inbox/_inbox_detail.html.twig' with {row: inbox.selected, inbox: inbox, refusedForm: refusedForm, cardDrawer: true} only %}
+                        {% elseif inbox.pickedNothing %}
+                            <twig:Ds:EmptyState :title="'inbox.pane.missing'|trans" data-inbox-pane-missing />
+                        {% elseif view.isSearch %}
+                            <twig:Ds:EmptyState :title="'inbox.search.empty'|trans" data-inbox-search-empty />
+                        {% elseif view.type %}
+                            <twig:Ds:EmptyState :title="'inbox.filter.empty'|trans" data-inbox-type-empty />
+                        {% elseif view.side == closedSide %}
+                            <twig:Ds:EmptyState :title="'inbox.closed.empty'|trans" data-inbox-queue-empty="closed-asks" />
+                        {% else %}
+                            <twig:Ds:EmptyState icon="lucide:inbox" :title="'inbox.empty.title'|trans" :body="'inbox.empty.body'|trans" data-inbox-queue-empty="open-asks" />
+                        {% endif %}
+                    </turbo-frame>
                 </div>
                 {# Covers the detail pane, outside its scroll, while a picked row loads, as the board's card drawer does. #}
                 <div class="lp-inbox-pane-loading" role="status">

@@ -21,6 +21,14 @@
     .lp-filter-count {
         @apply ml-auto font-mono text-fg-dim text-xs;
     }
+    /* The count of a bar whose form stays outside the swapped frame, drawn at the top of the frame content. */
+    .lp-list-count {
+        @apply mt-2 text-right font-mono text-fg-dim text-xs;
+    }
+    /* A bar outside its swapped frame shows only while the frame holds a filter-needed marker, so it appears and goes away with the list. */
+    .lp-filter-gated:not(:has(~ turbo-frame [data-filter-needed])) {
+        @apply hidden;
+    }
     .lp-filter-form {
         @apply flex flex-1 basis-full sm:basis-auto min-w-0 flex-wrap items-center gap-2;
     }

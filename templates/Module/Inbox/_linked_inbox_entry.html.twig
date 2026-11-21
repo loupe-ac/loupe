@@ -1,5 +1,5 @@
 {% set ask = inbox.latestAsk(item) %}
-<div class="lp-inbox-linked__entry" data-inbox-linked-entry>
+<div class="lp-inbox-linked__entry" data-inbox-linked-entry{% if item.state.value == 'open' %} data-card-drawer-inbox-open="{{ item.number }}"{% endif %}>
     {% if ask and ask.context|trim is not empty %}
     <div class="lp-inbox-linked__context" data-inbox-linked-context>
         <span class="lp-inbox-linked__asked">{{ 'inbox.linked.asked'|trans({'%time%': ask.createdAt|relative_time}) }}</span>{# @design-system-ignore #}

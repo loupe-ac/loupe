@@ -17,6 +17,15 @@
 
     {% set canManage = is_granted(constant('App\\Module\\Project\\Security\\ProjectVoter::MANAGE'), project) %}
     {% set shares = experiment_share_states(project, experiments|map(row => row.name)) %}
+    {# The filter form sits outside the swapped frame, so a swap never replaces the control that started it. It shows while the frame holds a filter-needed marker. #}
+    <twig:Ds:FilterBar
+        class="lp-filter-gated"
+        :action="path('app_project_analytics_experiments', {id: project.id})"
+        :frame="'experiments-list'"
+        :formAttributes="{id: 'experiments-filter', 'data-autosearch-sync-value': 'true'}"
+        :switch="{name: 'archived', label: 'bridge.experiments.show_archived'|trans, checked: includeArchived, attributes: {'data-experiment-archived-toggle': true}}" />
+    {# The outer frame swaps on a filter and on a row archive. The live frame sits inside it, so each swap brings the live address of the new filter. #}
+    <turbo-frame id="experiments-list" target="_top">
     <turbo-frame id="analytics-experiments" refresh="morph" target="_top" class="lp-live-frame"
                  data-controller="live-region"
                  data-live-region-types-value="{{ ['analytics.changed']|json_encode }}"
@@ -25,11 +34,7 @@
                  data-live-region-mode-value="frame"
                  data-live-content>
     {% if archivedCount > 0 or includeArchived %}
-    <twig:Ds:FilterBar
-        :action="path('app_project_analytics_experiments', {id: project.id})"
-        :switch="{name: 'archived', label: 'bridge.experiments.show_archived'|trans, checked: includeArchived, attributes: {'data-experiment-archived-toggle': true}}"
-        :count="'bridge.experiments.count'|trans({'%count%': experiments|length})"
-        :countAttributes="{'data-experiment-count': true}" />
+    <p class="lp-list-count" data-filter-needed data-experiment-count>{{ 'bridge.experiments.count'|trans({'%count%': experiments|length}) }}</p>
     {% endif %}
 
     {% if experiments is not empty %}
@@ -59,7 +64,7 @@
                 {% if canManage %}
                 {% include '@Insights/_share_experiment_dialog.html.twig' with {project: project, experiment: experiment.name, share: shares[experiment.name], archived: experiment.archived, iconOnly: true} only %}
                 {# Both states are written out, because the icon importer sees only literal names. #}
-                <form method="post" class="lp-document-row__action-form"
+                <form method="post" class="lp-document-row__action-form" data-turbo-frame="experiments-list"
                       action="{{ path(experiment.archived ? 'app_project_analytics_experiment_unarchive' : 'app_project_analytics_experiment_archive', {id: project.id, experiment: experiment.name}) }}">
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token(experiment.archived ? 'experiment-unarchive' : 'experiment-archive') }}">
                     <input type="hidden" name="from" value="list">
@@ -80,15 +85,16 @@
     </twig:Ds:DataTable>
     {% elseif includeArchived %}
     <twig:Ds:EmptyState icon="lucide:archive" :title="'bridge.experiments.archived_empty.title'|trans" :body="'bridge.experiments.archived_empty.description'|trans" data-experiments-archived-empty>
-        <twig:Ds:Button href="{{ path('app_project_analytics_experiments', {id: project.id}) }}" data-experiments-archived-empty-back>{{ 'bridge.experiments.archived_empty.back'|trans }}</twig:Ds:Button>
+        <twig:Ds:Button href="{{ path('app_project_analytics_experiments', {id: project.id}) }}" data-experiments-archived-empty-back data-turbo-frame="experiments-list" data-turbo-action="advance">{{ 'bridge.experiments.archived_empty.back'|trans }}</twig:Ds:Button>
     </twig:Ds:EmptyState>
     {% elseif archivedCount > 0 %}
     <twig:Ds:EmptyState icon="lucide:archive" :title="'bridge.experiments.all_archived.title'|trans" :body="'bridge.experiments.all_archived.description'|trans" data-experiments-all-archived>
-        <twig:Ds:Button href="{{ path('app_project_analytics_experiments', {id: project.id, archived: 1}) }}" data-experiments-all-archived-show>{{ 'bridge.experiments.show_archived'|trans }}</twig:Ds:Button>
+        <twig:Ds:Button href="{{ path('app_project_analytics_experiments', {id: project.id, archived: 1}) }}" data-experiments-all-archived-show data-turbo-frame="experiments-list" data-turbo-action="advance">{{ 'bridge.experiments.show_archived'|trans }}</twig:Ds:Button>
     </twig:Ds:EmptyState>
     {% else %}
     <twig:Ds:EmptyState icon="lucide:chart-column" :title="'bridge.experiments.empty.title'|trans" :body="'bridge.experiments.empty.description'|trans" linkHref="{{ app_docs_url }}/extending/cli-bridge/#experiments" :linkLabel="'bridge.experiments.empty.docs'|trans" data-experiments-empty />
     {% endif %}
+    </turbo-frame>
     </turbo-frame>
 </twig:Ds:Workspace>
 {% endblock %}

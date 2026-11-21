@@ -63,8 +63,8 @@ const contains = (rectangle, x, y) =>
  * tile. The slot moves under the pointer and the other tiles slide around it, so
  * the grid always shows the order that a release gives. The drop moves the tile
  * at once and posts its move form with the step count. The server answers with
- * a redirect, so the page shows the saved order, and a refused move puts the
- * tile back. The Move up and Move down menu items are the keyboard way. The grid
+ * the grid, so the page shows the saved order, and a refused move (a 422) puts
+ * the tile back. The Move up and Move down menu items are the keyboard way. The grid
  * carries `data-dragging` during a drag, so the live update waits.
  */
 export default class extends Controller {

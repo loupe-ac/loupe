@@ -96,9 +96,6 @@
         </twig:Ds:Disclosure>
     </div>
 
-    {% set pagination %}
-        <twig:Ds:Pagination route="app_project_analytics_reports" :page="page" :totalPages="totalPages" :pageList="pageList" :routeParams="{id: project.id}" />
-    {% endset %}
     {% if page == 1 %}
     {# Page 1 morphs as a whole. A later page reads its own rows by id, so a new report never moves them. #}
     <turbo-frame id="analytics-reports" refresh="morph" target="_top" class="lp-live-frame"
@@ -109,7 +106,7 @@
                  data-live-region-mode-value="frame"
                  data-live-content>
         {% include '@Insights/_reports_list.html.twig' with {analyses: analyses, project: project, page: page, costMetric: costMetric, refusedDismissForm: refusedDismissForm} only %}
-        {% if analyses is not empty %}{{ pagination }}{% endif %}
+        {% include '@Insights/_reports_pagination.html.twig' with {project: project, page: page, totalPages: totalPages, pageList: pageList} only %}
     </turbo-frame>
     {% else %}
     <div data-controller="live-region"
@@ -122,7 +119,7 @@
         <div id="analysis-newer" data-analyses-newer></div>
         {% include '@Insights/_reports_list.html.twig' with {analyses: analyses, project: project, page: page, costMetric: costMetric, refusedDismissForm: refusedDismissForm} only %}
     </div>
-    {% if analyses is not empty %}{{ pagination }}{% endif %}
+    {% include '@Insights/_reports_pagination.html.twig' with {project: project, page: page, totalPages: totalPages, pageList: pageList} only %}
     {% endif %}
 </twig:Ds:Workspace>
 {% endblock %}

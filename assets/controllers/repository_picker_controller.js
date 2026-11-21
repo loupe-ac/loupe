@@ -10,8 +10,19 @@ export default class extends Controller {
     static values = { none: String, one: String, many: String };
 
     connect() {
+        this.element.addEventListener('turbo:morph-element', this.#onMorph);
         this.update();
     }
+
+    disconnect() {
+        this.element.removeEventListener('turbo:morph-element', this.#onMorph);
+    }
+
+    #onMorph = (event) => {
+        if (event.target === this.element) {
+            this.update();
+        }
+    };
 
     filter() {
         const term = this.searchTarget.value.trim().toLowerCase();

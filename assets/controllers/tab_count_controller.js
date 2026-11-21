@@ -10,13 +10,18 @@ const PREFIX = /^\(\d+\) /;
 export default class extends Controller {
     connect() {
         this.sync();
+        document.addEventListener('turbo:morph', this.sync);
     }
 
-    sync() {
+    disconnect() {
+        document.removeEventListener('turbo:morph', this.sync);
+    }
+
+    sync = () => {
         const counter = this.element.querySelector('[data-inbox-open-total]');
         const total = Number.parseInt(counter?.textContent ?? '', 10) || 0;
         const title = document.title.replace(PREFIX, '');
 
         document.title = total > 0 ? `(${total}) ${title}` : title;
-    }
+    };
 }

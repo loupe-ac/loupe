@@ -1,5 +1,5 @@
 {# The project list of the account inbox, in a live region. The page and the fragment route render it. Props: inbox (AccountInboxDetailView). #}
-<turbo-frame id="account-inbox-list" refresh="morph" data-live-content data-controller="live-region" data-live-region-types-value="{{ ['inbox.open_count_changed', 'account.changed']|json_encode }}" data-live-region-match-value="{{ {area: ['projects', null]}|json_encode }}" data-live-region-url-value="{{ path('app_account_inbox_frame') }}" data-live-region-mode-value="frame">
+<turbo-frame id="account-inbox-list" refresh="morph" data-live-content data-controller="live-region" data-live-region-types-value="{{ ['inbox.open_count_changed', 'account.changed']|json_encode }}" data-live-region-match-value="{{ {area: [null]}|json_encode }}" data-live-region-url-value="{{ path('app_account_inbox_frame') }}" data-live-region-mode-value="frame">
     {% if inbox.isEmpty %}
     <twig:Ds:EmptyState icon="lucide:inbox" iconClass="text-accent" :title="'inbox.account.page.empty'|trans" />
     {% else %}

@@ -50,6 +50,16 @@ When the project has no reported connections, Your crew links to connection setu
 Each connection shows its own health. This does not report whether an individual agent is available or running.
 Agent configuration and rules remain read-only in Loupe. Configure them through the CLI and its rule file.
 
+## Saving keeps your place
+
+A save that returns to the same page updates the page in place. The page keeps its scroll position, and it does not jump to the top.
+
+A save in a section keeps that section in view. Examples are the notification preferences, the Git identity and the GitHub webhook. When the save moves the section out of view, the page scrolls back to it.
+
+A form in a dialog closes the dialog when the save works. When Loupe refuses the save, the dialog stays open and shows the errors next to the fields.
+
+The save message shows as a toast fixed at the top of the window, so you see it wherever you saved. A success message fades after a few seconds. An error, a warning or an info message stays until you dismiss it.
+
 ## The setup page
 
 A new project is not set up. A project is set up when `loupe init` has finished once and a bridge has connected once. Both facts stay true, so a project that is set up stays set up.

@@ -279,3 +279,58 @@ it.each(['expectedReviewId', 'expectedUrl'])(
         expect(controller.element.querySelector('p').hidden).toBe(false);
     },
 );
+
+it('restores the draft, the notice and the identity after a morph', async () => {
+    const controller =
+        await mount(`<form data-controller="form-draft" data-form-draft-owner-value="${owner}" data-form-draft-key-value="document">
+        <input name="title" value="Original" data-form-draft-target="field">
+        <p data-form-draft-target="notice" hidden></p>
+    </form>`);
+    controller.fieldTargets[0].value = 'Typed title';
+    controller.remember();
+    const identity = controller.identity;
+    const form = controller.element;
+    delete form.dataset.formDraftIdentity;
+    controller.fieldTargets[0].value = 'Original';
+    controller.noticeTarget.hidden = true;
+    form.dispatchEvent(
+        new CustomEvent('turbo:morph-element', { bubbles: true }),
+    );
+    expect(controller.fieldTargets[0].value).toBe('Typed title');
+    expect(controller.noticeTarget.hidden).toBe(false);
+    expect(form.dataset.formDraftIdentity).toBe(identity);
+});
+
+it('takes the new server values as the baseline after a morph with no draft', async () => {
+    const controller =
+        await mount(`<form data-controller="form-draft" data-form-draft-owner-value="${owner}" data-form-draft-key-value="document">
+        <input name="title" value="Original" data-form-draft-target="field">
+    </form>`);
+    controller.fieldTargets[0].value = 'Server update';
+    controller.element.dispatchEvent(
+        new CustomEvent('turbo:morph-element', { bubbles: true }),
+    );
+    controller.remember();
+    expect(formDraft('document')).toBeUndefined();
+});
+
+it('takes the morphed guard values as the fresh guards', async () => {
+    const controller =
+        await mount(`<form data-controller="form-draft" data-form-draft-owner-value="${owner}" data-form-draft-key-value="document">
+        <input name="title" value="Original" data-form-draft-target="field">
+        <input type="hidden" name="version" value="1" data-form-draft-target="guard">
+        <p data-form-draft-target="stale" hidden></p>
+    </form>`);
+    controller.guardTargets[0].value = '2';
+    controller.element.dispatchEvent(
+        new CustomEvent('turbo:morph-element', { bubbles: true }),
+    );
+    expect(controller.staleTarget.hidden).toBe(true);
+    controller.fieldTargets[0].value = 'Typed title';
+    controller.remember();
+    controller.discard();
+    controller.cleared({
+        detail: { key: 'document', identity: controller.identity },
+    });
+    expect(controller.guardTargets[0].value).toBe('2');
+});

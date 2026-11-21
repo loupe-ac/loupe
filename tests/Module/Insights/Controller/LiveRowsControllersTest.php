@@ -117,7 +117,7 @@ final class LiveRowsControllersTest extends WebTestCase
         $ghost = (string) Uuid::v7();
         $since = new \DateTimeImmutable('-1 hour')->format(\DATE_ATOM);
 
-        $this->read($client, $project, '/experiments/model-test/cards/rows', ['ids' => $a->id.','.$b->id.','.$ghost, 'since' => $since, 'variant' => 'a']);
+        $this->read($client, $project, '/experiments/model-test/cards/rows', ['page' => '2', 'ids' => $a->id.','.$b->id.','.$ghost, 'since' => $since, 'variant' => 'a']);
 
         self::assertResponseIsSuccessful();
         self::assertStringStartsWith(self::STREAM, (string) $client->getResponse()->headers->get('Content-Type'));
@@ -132,6 +132,64 @@ final class LiveRowsControllersTest extends WebTestCase
         self::assertStringContainsString('href="'.$this->base($project).'/experiments/model-test/cards?variant=a"', $body);
         self::assertStringContainsString('<turbo-stream action="replace" method="morph" target="experiment-cards-filter">', $body, 'The count and the variant links refresh with the rows.');
         self::assertStringContainsString('2 cards', $body, 'The count covers every card of the filter, not only the shown rows.');
+    }
+
+    public function test_the_first_page_of_cards_morphs_a_shown_card_inserts_the_new_ones_and_removes_a_dropped_one(): void
+    {
+        [$client, $project] = $this->signedIn('rows-cards-first');
+        $em = $this->em();
+        $a = $this->experimentCard($em, $project, 1);
+        $b = $this->experimentCard($em, $project, 2);
+        $c = $this->experimentCard($em, $project, 3);
+        $this->experimentRun($em, $project, $a, 'a', at: '-3 hours');
+        $this->experimentRun($em, $project, $b, 'a', at: '-2 hours');
+        $this->experimentRun($em, $project, $c, 'a', at: '-1 hours');
+        $ghost = (string) Uuid::v7();
+
+        $this->read($client, $project, '/experiments/model-test/cards/rows', ['ids' => $a->id.','.$ghost]);
+
+        self::assertResponseIsSuccessful();
+        $body = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('<turbo-stream action="replace" method="morph" target="experiment-card-'.$a->id.'">', $body);
+        self::assertSame(2, substr_count($body, '<turbo-stream action="before"') + substr_count($body, '<turbo-stream action="append" target="experiment-cards-rows">'));
+        self::assertStringContainsString('data-live-row="'.$b->id.'"', $body);
+        self::assertStringContainsString('data-live-row="'.$c->id.'"', $body);
+        self::assertStringContainsString('<turbo-stream action="remove" target="experiment-card-'.$ghost.'">', $body);
+        self::assertStringContainsString('target="experiment-cards-pagination"', $body);
+        self::assertStringContainsString('target="experiment-cards-filter"', $body);
+        self::assertStringNotContainsString('experiment-cards-newer', $body);
+        self::assertStringNotContainsString('target="experiment-cards-results"', $body);
+    }
+
+    public function test_the_first_page_of_cards_replaces_the_whole_list_when_it_goes_from_empty_to_cards(): void
+    {
+        [$client, $project] = $this->signedIn('rows-cards-fill');
+        $em = $this->em();
+        $this->experimentRun($em, $project, $this->experimentCard($em, $project, 1), 'a');
+
+        $this->read($client, $project, '/experiments/model-test/cards/rows', []);
+
+        self::assertResponseIsSuccessful();
+        $body = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('<turbo-stream action="replace" target="experiment-cards-results">', $body);
+        self::assertStringContainsString('data-live-row=', $body);
+        self::assertStringNotContainsString('action="before"', $body);
+    }
+
+    public function test_the_first_page_of_cards_replaces_the_whole_list_when_the_last_card_goes(): void
+    {
+        [$client, $project] = $this->signedIn('rows-cards-drain');
+        $em = $this->em();
+        $this->experimentRun($em, $project, $this->experimentCard($em, $project, 1), 'a');
+        $ghost = (string) Uuid::v7();
+
+        $this->read($client, $project, '/experiments/model-test/cards/rows', ['ids' => $ghost, 'variant' => 'no-such-variant']);
+
+        self::assertResponseIsSuccessful();
+        $body = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('<turbo-stream action="replace" target="experiment-cards-results">', $body);
+        self::assertStringContainsString('data-experiment-cards-empty', $body);
+        self::assertStringNotContainsString('data-live-row=', $body);
     }
 
     public function test_the_card_rows_of_an_unknown_experiment_are_not_found(): void

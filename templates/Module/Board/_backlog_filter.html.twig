@@ -1,0 +1,22 @@
+{#- The Backlog filter bar, drawn once the list holds a card or a filter narrows it. `page` is not a field, so a changed filter starts at page one. Props: project (Project), view (ListBacklogCardsView), listQuery (BacklogListQuery), types (list of card types). -#}
+{% set backlogPath = path('app_project_board_backlog', {projectId: project.id}) %}
+{% if view.total > 0 or listQuery.isNarrowed %}
+<twig:Ds:FilterBar
+    :action="backlogPath"
+    :frame="'backlog-list'"
+    :formAttributes="{id: 'backlog-filter'}"
+    :search="{id: 'backlog-search', name: 'search', value: listQuery.search, label: 'board.backlog.filter.search_label'|trans, placeholder: 'board.backlog.filter.search_placeholder'|trans}"
+    :clearHref="backlogPath"
+    :clearLabel="'board.backlog.filter.clear'|trans">
+    <label class="sr-only" for="backlog-type">{{ 'board.backlog.filter.type_label'|trans }}</label>
+    <twig:Ds:Select id="backlog-type" name="type" data-action="change->autosearch#search">
+        <option value="">{{ 'board.backlog.filter.all_types'|trans }}</option>
+        {% for type in types %}
+        <option value="{{ type.key }}"{{ listQuery.type == type.key ? ' selected' : '' }}>{{ type.label|trans }}</option>
+        {% endfor %}
+    </twig:Ds:Select>
+
+    <label class="sr-only" for="backlog-epic">{{ 'board.backlog.filter.epic_label'|trans }}</label>
+    {% include '@Board/_backlog_epic_select.html.twig' with {view: view, listQuery: listQuery} only %}
+</twig:Ds:FilterBar>
+{% endif %}

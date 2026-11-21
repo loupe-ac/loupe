@@ -44,15 +44,28 @@ export default class extends Controller {
 
     connect() {
         // The offset stays on the element, so a page that Turbo restores from its cache keeps it.
-        if (!this.hasOffsetValue) {
-            this.offsetValue = this.nowValue - Date.now() / 1000;
-        }
+        this.connected = true;
+        this.measureOffset();
         this.timer = setInterval(() => this.render(), MINUTE * 1000);
         this.render();
     }
 
     disconnect() {
+        this.connected = false;
         clearInterval(this.timer);
+    }
+
+    // A morph drops the offset attribute the server never renders.
+    offsetValueChanged() {
+        if (this.connected) {
+            this.measureOffset();
+        }
+    }
+
+    measureOffset() {
+        if (!this.hasOffsetValue) {
+            this.offsetValue = this.nowValue - Date.now() / 1000;
+        }
     }
 
     render() {

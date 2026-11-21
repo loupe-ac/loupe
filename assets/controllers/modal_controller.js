@@ -61,6 +61,13 @@ export default class extends Controller {
         }
     }
 
+    // A morph can turn the value on after connect, such as a 422 re-render.
+    reopenValueChanged(value, previous) {
+        if (value && previous === false && !this.dialogTarget.open) {
+            this.open();
+        }
+    }
+
     disconnect() {
         this.closeRequest = null;
         this.closingAnimation = null;
@@ -73,11 +80,35 @@ export default class extends Controller {
 
     dialogTargetConnected(dialog) {
         dialog.addEventListener('click', this.#onDialogClick);
+        dialog.addEventListener(
+            'turbo:before-morph-attribute',
+            this.#onBeforeMorphAttribute,
+        );
     }
 
     dialogTargetDisconnected(dialog) {
         dialog.removeEventListener('click', this.#onDialogClick);
+        dialog.removeEventListener(
+            'turbo:before-morph-attribute',
+            this.#onBeforeMorphAttribute,
+        );
     }
+
+    // A page morph copies the new HTML onto the open dialog and removes its
+    // `open` attribute. The dialog then stays in the top layer with no way to
+    // dismiss it, and the page behind it stays inert. Keep the attribute, and
+    // either close through the controller or, when the server asked for it
+    // with the reopen value, leave the dialog open to show its errors.
+    #onBeforeMorphAttribute = (event) => {
+        const { attributeName, mutationType } = event.detail;
+        if (attributeName !== 'open' || mutationType !== 'remove') {
+            return;
+        }
+        event.preventDefault();
+        if (!this.reopenValue) {
+            this.close();
+        }
+    };
 
     #onDialogClick = (event) => {
         if (event.target === this.dialogTarget) {
@@ -184,12 +215,15 @@ export default class extends Controller {
         if (action !== 'remove' && action !== 'replace') return;
 
         const target = document.getElementById(stream.getAttribute('target'));
-        if (!target?.contains(this.element)) return;
         if (!this.dialogTarget.open) return;
+        const closesInside =
+            stream.hasAttribute('data-closes-dialog') &&
+            this.dialogTarget.contains(target);
+        if (!closesInside && !target?.contains(this.element)) return;
 
         const originalRender = event.detail.render;
         event.detail.render = async (streamElement) => {
-            await this.#animateOutAsync();
+            await (closesInside ? this.close() : this.#animateOutAsync());
             await originalRender(streamElement);
         };
     };

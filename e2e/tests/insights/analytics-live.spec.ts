@@ -3,8 +3,8 @@
  * browser shows in a second browser with no navigation there, and a settings
  * change in one browser raises the band over the settings form of the other.
  * The hub delivers the signal, so the run needs a Mercure hub the browser can
- * reach. The experiment pages have no spec here, because the suite has no way
- * to make an experiment. PHPUnit covers their signals and regions.
+ * reach. The experiment lists have their live cases in
+ * `board/list-frames.spec.ts`, and PHPUnit covers their signals and regions.
  */
 
 import {

@@ -14,10 +14,13 @@ export default class extends Controller {
         duration: { type: Number, default: 3000 },
     };
 
-    connect() {
+    // Runs at connect and again when a morph flips the flag.
+    savedValueChanged() {
         if (!this.savedValue || !this.hasButtonTarget) {
             return;
         }
+        clearTimeout(this.announceTimer);
+        clearTimeout(this.timer);
         const button = this.buttonTarget;
         const label = button.innerHTML;
         button.textContent = this.savedLabelValue;

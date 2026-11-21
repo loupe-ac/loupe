@@ -1,0 +1,4 @@
+{# The pagination of the documents list. The wrapper stays when there is one page. Props: project, listQuery, page, totalPages, pageList. #}
+<div id="documents-pagination">
+    <twig:Ds:Pagination route="app_project_documents" :page="page" :totalPages="totalPages" :pageList="pageList" :routeParams="{id: project.id}|merge(listQuery.routeParams)" frame="documents-list" />
+</div>

@@ -14,12 +14,14 @@ use App\Module\Review\Entity\Document;
 use App\Module\Review\Form\SubmitReviewFormType;
 use App\Module\Review\Form\SubmitReviewRequest;
 use App\Module\Review\Security\DocumentVoter;
+use App\Module\Review\Service\DocumentStateStreams;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Contracts\Translation\TranslatorInterface;
+use Symfony\UX\Turbo\TurboBundle;
 
 #[IsGranted(DocumentVoter::CONTRIBUTE, subject: 'document')]
 #[Route(
@@ -31,6 +33,7 @@ final class SubmitReviewController extends AppController
 {
     public function __construct(
         private readonly SubmitReviewHandler $submitReviewHandler,
+        private readonly DocumentStateStreams $streams,
         private readonly TranslatorInterface $translator,
     ) {
     }
@@ -65,7 +68,12 @@ final class SubmitReviewController extends AppController
                     expectedReviewId: $data->expectedReviewId,
                 ));
 
-                $this->addFlash('success', $this->translator->trans('review.document.flash.verdict_submitted'));
+                $message = $this->translator->trans('review.document.flash.verdict_submitted');
+                if (TurboBundle::STREAM_FORMAT === $request->getPreferredFormat()) {
+                    return $this->streams->answer($document, $user, 'success', $message);
+                }
+
+                $this->addFlash('success', $message);
 
                 return $this->redirectToRoute('app_document_review', [
                     'projectId' => (string) $project->id,
