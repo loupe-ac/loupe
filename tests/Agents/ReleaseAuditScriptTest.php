@@ -113,7 +113,7 @@ final class ReleaseAuditScriptTest extends TestCase
     {
         $source = (string) file_get_contents(\dirname(__DIR__, 2).'/bin/agents/release-audit');
 
-        self::assertDoesNotMatchRegularExpression('/declare -A|local -A|\bmapfile\b|\breadarray\b|\$\{\w+(,,|\^\^)/', $source);
+        self::assertDoesNotMatchRegularExpression('/\b(declare|typeset|local)\s+-\w*[AnN]|\bmapfile\b|\breadarray\b|\bcoproc\b|\$\{\w+(,,|\^\^|@[UuLlQEPAa])|\|&|&>>|;;&|\[\[\s+-v\b|\bwait\s+-n\b/', $source);
     }
 
     public function test_it_reports_no_baseline_then_passes_after_accept(): void
@@ -375,7 +375,7 @@ final class ReleaseAuditScriptTest extends TestCase
         if ('' === $deployed) {
             $deployed = trim($this->gitOutput($this->repo, 'rev-parse', 'HEAD'));
         }
-        $command = [$this->script, 'cli/v1.1.0', $deployed];
+        $command = [$this->bash(), $this->script, 'cli/v1.1.0', $deployed];
         if ('' !== $flag) {
             $command[] = $flag;
         }
@@ -388,6 +388,14 @@ final class ReleaseAuditScriptTest extends TestCase
         $process->run();
 
         return $process;
+    }
+
+    private function bash(): string
+    {
+        $probe = new Process(['/bin/bash', '-c', 'echo "${BASH_VERSINFO[0]}"']);
+        $probe->run();
+
+        return '3' === trim($probe->getOutput()) ? '/bin/bash' : 'bash';
     }
 
     /**
