@@ -109,6 +109,13 @@ final class ReleaseAuditScriptTest extends TestCase
         new Filesystem()->remove($this->dir);
     }
 
+    public function test_it_runs_on_the_macos_system_bash(): void
+    {
+        $source = (string) file_get_contents(\dirname(__DIR__, 2).'/bin/agents/release-audit');
+
+        self::assertDoesNotMatchRegularExpression('/declare -A|local -A|\bmapfile\b|\breadarray\b|\$\{\w+(,,|\^\^)/', $source);
+    }
+
     public function test_it_reports_no_baseline_then_passes_after_accept(): void
     {
         $first = $this->audit();
