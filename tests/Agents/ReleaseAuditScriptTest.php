@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Agents;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Process\Process;
@@ -109,11 +110,41 @@ final class ReleaseAuditScriptTest extends TestCase
         new Filesystem()->remove($this->dir);
     }
 
+    private const string BASH4_SYNTAX = '/\b(declare|typeset|local|export|readonly)\s+-\w*[AnN]|\bmapfile\b|\breadarray\b|\bcoproc\b|\$\{[\w!]+(,|\^|@[UuLlQEPAa])|\|&|&>>|;;?&|\[\[\s+-[vR]\b|\bwait\s+-\w*n|\{[\w-]+\.\.[\w-]+\.\.[\w-]+\}|\bread\s+(-\w+\s+)*-t\s*[0-9]*\.|%\([^)]*\)T|\$BASHPID|\$EPOCH(SECONDS|REALTIME)|\bglobstar\b/';
+
     public function test_it_runs_on_the_macos_system_bash(): void
     {
         $source = (string) file_get_contents(\dirname(__DIR__, 2).'/bin/agents/release-audit');
 
-        self::assertDoesNotMatchRegularExpression('/\b(declare|typeset|local)\s+-\w*[AnN]|\bmapfile\b|\breadarray\b|\bcoproc\b|\$\{\w+(,,|\^\^|@[UuLlQEPAa])|\|&|&>>|;;&|\[\[\s+-v\b|\bwait\s+-n\b/', $source);
+        self::assertDoesNotMatchRegularExpression(self::BASH4_SYNTAX, $source);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function bash4Snippets(): iterable
+    {
+        yield 'fallthrough case' => ['case x in x) true ;& esac'];
+        yield 'test-next case' => ['case x in x) true ;;& esac'];
+        yield 'associative array' => ['declare -A map'];
+        yield 'local nameref' => ['local -n ref=x'];
+        yield 'case conversion' => ['echo "${v^^}" "${v,,}" "${v^}" "${v,}"'];
+        yield 'transform' => ['echo "${v@U}"'];
+        yield 'pipe stderr' => ['a |& b'];
+        yield 'append both' => ['a &>> f'];
+        yield 'mapfile' => ['mapfile -t lines < f'];
+        yield 'variable test' => ['[[ -v name ]]'];
+        yield 'wait any' => ['wait -n'];
+        yield 'step range' => ['echo {1..10..2}'];
+        yield 'fractional read timeout' => ['read -t 0.5 line'];
+        yield 'printf time' => ["printf '%(%s)T' -1"];
+        yield 'BASHPID' => ['echo $BASHPID'];
+    }
+
+    #[DataProvider('bash4Snippets')]
+    public function test_the_syntax_check_flags_bash4_forms(string $snippet): void
+    {
+        self::assertMatchesRegularExpression(self::BASH4_SYNTAX, $snippet);
     }
 
     public function test_it_reports_no_baseline_then_passes_after_accept(): void
