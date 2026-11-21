@@ -21,7 +21,10 @@ The recipe names do not make the difference obvious.
 | `just mutation` | mutation, all of `src`. CI passes `--coverage=var/phpunit-coverage --skip-initial-tests`, so it reuses the coverage run | `var/infection/` |
 | `just mutation-diff [BASE]` | mutation, the `src/` files you changed | `var/infection/` |
 | `just phpunit-coverage` | coverage, the PHPUnit suites, through ParaTest with four workers | `var/phpunit-coverage/`, with `coverage-xml/` and `junit.xml` for Infection |
-| `just e2e-coverage` | coverage, the Playwright suite | `var/coverage/` |
+| `just e2e-coverage` | coverage, the Playwright suite. It warms the parse cache first, and writes `baseline.cov` before the merge | `var/coverage/` |
+| `just phpunit-coverage-shard N 4` | one quarter of the PHPUnit test files, as the weekly run does | `var/phpunit-coverage/shard-N.cov` and `junit-N.xml` |
+| `just phpunit-coverage-merge` | joins the shard files into the reports of `phpunit-coverage` | `var/phpunit-coverage/` |
+| `just mutation-shard N 4` | mutation of one quarter of the `src` files, from the merged coverage | `var/infection/` |
 
 A hook refuses a bare `just phpunit-coverage` for an agent. Pass a path, such as
 `just phpunit-coverage tests/Module/Review`, or fetch the weekly CI report.
@@ -68,8 +71,8 @@ holds the report yet.
 
 | Report | Workflow | Job | Artifact | Holds | Retention |
 |---|---|---|---|---|---|
-| mutation | `Coverage report` | `infection` | `infection-report` | `summary.log`, `infection.log` | 90 days |
-| PHPUnit coverage | `Coverage report` | `phpunit-coverage` | `phpunit-coverage` | `summary.txt`, `clover.xml`, `html/` | 90 days |
+| mutation | `Coverage report` | `infection` (four shards), added up by `infection-report` | `infection-report` | `summary.log`, `infection.log` | 90 days |
+| PHPUnit coverage | `Coverage report` | `phpunit-coverage` (four shards), merged by `phpunit-coverage-merge` | `phpunit-coverage` | `summary.txt`, `clover.xml`, `html/` | 90 days |
 | e2e coverage | `Coverage report` | `e2e-coverage-leg` (eight legs), merged by `e2e-coverage` | `e2e-coverage` | `summary.txt`, `clover.xml`, `html/` | 90 days |
 | e2e timing | `CI` | `e2e-<leg>`, one per matrix leg | `e2e-timing-<leg>`, such as `e2e-timing-chromium-3` | `results.json` | 30 days |
 | PHPUnit timing | `CI` | `phpunit` | `phpunit-timing` | `junit.xml` | 30 days |
@@ -122,6 +125,65 @@ that never came up.
 `Timed Out mutants:`, `Skipped mutants:` and `Not Covered mutants:`. An escaped
 mutant names a test that asserts nothing about a line it covers. Judge each one,
 because some are harmless.
+
+## How the weekly run is split
+
+A shard takes every Nth file of a sorted list (`bin/coverage-shard.php`), so a
+new test file or a new `src` file joins a shard by itself and no file is left
+out. `bin/merge-junit.php` joins the JUnit logs for Infection, and refuses an
+empty log, because a shard that died would otherwise drop its tests without a
+sound. `bin/merge-infection-logs.php` adds the shard summaries. The `src`
+filter of a mutation shard is one command line argument, so the script fails
+above 100,000 bytes. Raise the shard count when it does.
+
+## A covered browser request must not parse all of `src`
+
+The `X-Coverage` header makes `CoverageSubscriber` of `ubermuda/symfony-extra`
+record the request. At its end the coverage library parses each file it counts
+to find the executable lines. Counting all of `src` costs about 40 s on a hosted
+runner, and PHP stops a request at 30 s. The page then comes back with an error
+page appended, and every spec fails on it. The legs of 2026-11-16 looked like a
+missing stylesheet. The `tailwind:build failed on attempt` text in their logs
+is only the retry script that GitHub echoes.
+
+The fix has three parts. The subscriber lists only the files that the request
+ran (`excludeUncoveredFiles()`). It reads their parse from
+`.phpunit.cache/code-coverage` (`cacheStaticAnalysis()`), which
+`phpunit --warm-coverage-cache` fills at the start of `just e2e-coverage`. The
+files that no browser test reaches come back through `bin/coverage-baseline.php`,
+which writes `var/coverage/baseline.cov` with every file of `src` and no line
+run. Without that file the merged report leaves out the files that no spec
+reaches, and its percentages read too high.
+
+Read a leg that fails again like this:
+
+- `MaxExecutionTimeError` in `var/log/dev.log` means a request parsed too much.
+  Look for a warm step that printed cache misses.
+- `No "*.cov" files found` means no request lived long enough to write one.
+- The shared dev stack runs with `XDEBUG_MODE=off`, so a local run of
+  `just e2e-coverage` answers 500 with `XdebugNotEnabledException`. Prove the
+  collector on a hosted runner, or call `CoverageSubscriber` from a CLI script
+  with `XDEBUG_MODE=coverage`.
+
+## The MSI leaves out the mutants that Infection skips
+
+Infection never runs a mutant when the covering tests, added up from `junit.xml`,
+take longer than `timeout` in `infection.json5`. It counts the mutant as skipped
+and leaves it out of the MSI. Its console prints that count as "N mutants
+required more time than configured", which reads like a timeout, and the real
+timeouts are the line "N time outs were encountered".
+
+The junit times come from the coverage run, where xdebug makes a test about ten
+times slower. A line that a request listener runs is covered by thousands of
+tests: one such line in `src/Api` had 4,476 covering tests that add up to 3,086 s
+against a timeout of 90 s. So code that every HTTP test touches is skipped, and
+run 44768687240 skipped 33,316 of 82,697 mutants (40%). Its MSI of 91 to 92% is
+the score of the other 60%. `bin/merge-infection-logs.php` writes the skipped share
+into `summary.log` for that reason. Read it before you trust a score.
+
+Raising `timeout` runs more of them, and it costs: a killed mutant stops at its
+first failing test, but a survivor runs every covering test, and the same value
+is the kill time of the mutant process.
 
 ## A wall-clock assertion is a landmine
 
@@ -191,13 +253,36 @@ still died at exactly 536870912 bytes. Change the value in `phpunit.dist.xml`.
 This also raises the ceiling for `just phpunit` and the gate, which gives a
 memory regression more room to hide.
 
+A coverage worker needs more than 512M to write its coverage after a batch of
+100 test files. It dies with no message, and ParaTest then reports
+`MissingResultsException` after every dot printed. `bin/coverage-shard.php`
+raises the limit to 2G in the generated shard config only, and the recipes run
+`phpcov merge` under `php -d memory_limit=2G`. To read such a failure, pass
+`--tmp-dir=var/...`: a dead worker leaves a `status` file and no `test_result`.
+
+`phpcov merge` of the four PHPUnit shard files runs under 12G. One shard file is
+about 750 MB, and the merge holds all four.
+
+The `DevSeedRestore*Test` classes run 37 tests of two full dev seeds each. That is
+about 17 s per test, and about 91 minutes under coverage, so they sit in four
+files that four shards run: ParaTest runs a file in one worker, and a shard
+takes every fourth file of a sorted list, so four neighbouring files land in four
+shards. Keep the four names next to each other in the sort order, and keep the
+classes balanced, or one shard looks hung near its end with one worker at full CPU
+and the rest idle. `CoverageShardScriptsTest` checks the spread. Read
+`junit-N.xml` for the slowest classes before you suspect a hang.
+
 This project does not use `--path-coverage`. Path coverage held 492 MB for 51
 tests and killed the container at about 250 of 2,262 tests, so it does not fit
 this suite.
 
-## Infection needs 2 GB
+## Infection needs 2 GB, and 6 GB on the whole of `src`
 
-Both recipes run Infection under `php -d memory_limit=2G`. Infection deletes
+`just mutation-diff` runs Infection under `php -d memory_limit=2G`. `just mutation`
+and `just mutation-shard` run it under 6G, because the parent holds the parse of
+a quarter or all of `src` and the coverage of the whole suite. At 2G the four
+shards of run 44733675596 died, two while they read the source files and two
+after the mutation summary. Infection deletes
 about 8,500 mutant directories when it finishes, and `Filesystem::remove()`
 materialises that tree before it deletes it. At 512M the process dies in the
 cleanup, after it writes the reports, so the failure looks like something else.

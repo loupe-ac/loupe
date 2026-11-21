@@ -70,7 +70,7 @@ echo "run $run: $run_workflow, $run_date, $run_conclusion"
 newer=$(for wf in "$workflow" ${fallback:+"$fallback"}; do
     gh run list --repo "$repo" --workflow "$wf" --branch main --status completed \
         --limit 20 --json databaseId,conclusion,createdAt \
-        -q ".[] | select(.databaseId > $run and .conclusion != \"success\")"
+        -q ".[] | select(.databaseId > $run and .conclusion != \"success\")" || true
 done | jq -s 'sort_by(.createdAt)')
 newer_count=$(jq 'length' <<<"$newer")
 if [ "$newer_count" -gt 0 ]; then
