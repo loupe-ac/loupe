@@ -11,6 +11,7 @@ use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkerWaitRepository;
 use App\Module\Bridge\ValueObject\BridgeCommandCause;
 use App\Module\Bridge\ValueObject\BridgeCommandKind;
+use App\Module\Bridge\ValueObject\BridgeCommandState;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use Psr\Log\LoggerInterface;
 
@@ -62,7 +63,8 @@ final readonly class ResumeWaitingRunHandler
 
             return;
         }
-        if ($this->bridgeCommands->hasResumeOfRunSince($run, $wait->endedAt)) {
+        // An expired, refused or cancelled resume never reached the session, so only a pending or a done one counts.
+        if ($this->bridgeCommands->hasResumeOfRunSince($run, $wait->endedAt, [BridgeCommandState::Pending, BridgeCommandState::Done])) {
             $this->logger->info('bridge.wait_resume_skipped', $context + ['reason' => 'already_requested']);
 
             return;

@@ -14,6 +14,7 @@ use App\Module\Bridge\Repository\BridgeCommandRepository;
 use App\Module\Bridge\Service\BridgeCommandPayload;
 use App\Module\Bridge\ValueObject\BridgeCommandCause;
 use App\Module\Bridge\ValueObject\BridgeCommandKind;
+use App\Module\Bridge\ValueObject\BridgeCommandState;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkerWaitEndReason;
 use App\Module\Project\Entity\Project;
@@ -115,6 +116,34 @@ final class ResumeWaitingRunHandlerTest extends KernelTestCase
         $this->resume($wait);
 
         self::assertCount(1, $this->commands());
+    }
+
+    #[DataProvider('undeliveredStates')]
+    public function test_a_resume_that_never_reached_the_session_is_requested_again(BridgeCommandState $state): void
+    {
+        self::bootKernel();
+        [$project, $bridge] = $this->scenario('wait-resume-retry-'.$state->value);
+        $run = $this->seedRun($this->em(), $project, bridgeId: $bridge->id, state: WorkerRunState::Waiting);
+        $wait = $this->endedWait($project, $run, WorkerWaitEndReason::Condition);
+
+        $this->resume($wait);
+        $first = $this->commands()[0];
+        $first = $this->em()->find(BridgeCommand::class, $first->id);
+        self::assertInstanceOf(BridgeCommand::class, $first);
+        $first->settle($state, null, new \DateTimeImmutable());
+        $this->em()->flush();
+
+        $this->resume($wait);
+
+        self::assertCount(2, $this->commands());
+    }
+
+    /** @return iterable<string, array{BridgeCommandState}> */
+    public static function undeliveredStates(): iterable
+    {
+        yield 'expired' => [BridgeCommandState::Expired];
+        yield 'refused' => [BridgeCommandState::Refused];
+        yield 'cancelled' => [BridgeCommandState::Cancelled];
     }
 
     public function test_an_end_that_stops_the_run_resumes_nothing(): void

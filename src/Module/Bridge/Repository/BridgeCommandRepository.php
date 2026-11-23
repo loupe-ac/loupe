@@ -118,14 +118,24 @@ class BridgeCommandRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
-    /** Whether anyone asked to resume the run at or after the time. */
-    public function hasResumeOfRunSince(WorkerRun $run, \DateTimeImmutable $since): bool
+    /**
+     * Whether anyone asked to resume the run at or after the time. With $states, only a command in one of them counts.
+     *
+     * @param list<BridgeCommandState> $states
+     */
+    public function hasResumeOfRunSince(WorkerRun $run, \DateTimeImmutable $since, array $states = []): bool
     {
-        return null !== $this->createQueryBuilder('c')
+        $builder = $this->createQueryBuilder('c')
             ->select('1')
             ->andWhere('c.workerRun = :run')
             ->andWhere('c.kind = :resume')
-            ->andWhere('c.requestedAt >= :since')
+            ->andWhere('c.requestedAt >= :since');
+        if ([] !== $states) {
+            $builder->andWhere('c.state IN (:states)')
+                ->setParameter('states', array_map(static fn (BridgeCommandState $state): string => $state->value, $states));
+        }
+
+        return null !== $builder
             ->setParameter('run', $run)
             ->setParameter('resume', BridgeCommandKind::ResumeRun->value)
             ->setParameter('since', $since, Types::DATETIME_IMMUTABLE)
