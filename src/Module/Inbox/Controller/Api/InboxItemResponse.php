@@ -10,12 +10,14 @@ use OpenApi\Attributes as OA;
  * One whole inbox item, as the spec shows it. InboxItemPayload::forItem() builds the real body,
  * the same one inbox_get returns.
  */
-#[OA\Schema(required: ['itemId', 'number', 'kind', 'origin', 'title', 'state', 'closedBy', 'closeCause', 'dismissible', 'blocking', 'createdAt', 'updatedAt', 'closedAt', 'cardNumbers', 'body', 'options', 'multiple', 'freeText', 'selectedOptions', 'note', 'review', 'cards', 'documents', 'asks', 'cardId', 'waits', 'suggestedActions', 'actions', 'apiKey'])]
+#[OA\Schema(required: ['itemId', 'number', 'kind', 'origin', 'title', 'state', 'closedBy', 'closeCause', 'dismissible', 'blocking', 'createdAt', 'updatedAt', 'closedAt', 'cardNumbers', 'body', 'options', 'recommendedOption', 'confidence', 'optionCosts', 'details', 'multiple', 'freeText', 'selectedOptions', 'note', 'review', 'cards', 'documents', 'asks', 'cardId', 'waits', 'suggestedActions', 'actions', 'apiKey'])]
 final readonly class InboxItemResponse
 {
     /**
      * @param list<int>                            $cardNumbers
      * @param list<string>                         $options
+     * @param list<string>|null                    $optionCosts
+     * @param array<string, string>|null           $details
      * @param list<int>                            $selectedOptions
      * @param array<string, mixed>|null            $review
      * @param list<array<string, mixed>>           $cards
@@ -72,6 +74,18 @@ final readonly class InboxItemResponse
 
         #[OA\Property(type: 'array', items: new OA\Items(type: 'string'))]
         public array $options,
+
+        #[OA\Property(description: 'The index into `options` of the answer the agent recommends, counting from 0.', nullable: true)]
+        public ?int $recommendedOption,
+
+        #[OA\Property(description: 'How sure the agent is of the recommended option.', nullable: true, enum: ['high', 'moderate', 'low'])]
+        public ?string $confidence,
+
+        #[OA\Property(description: 'One cost line for each option, in the order of `options`.', type: 'array', items: new OA\Items(type: 'string'), nullable: true)]
+        public ?array $optionCosts,
+
+        #[OA\Property(description: 'Markdown by field name: the facts behind the question.', type: 'object', nullable: true, additionalProperties: new OA\AdditionalProperties(type: 'string'))]
+        public ?array $details,
         public bool $multiple,
         public bool $freeText,
 

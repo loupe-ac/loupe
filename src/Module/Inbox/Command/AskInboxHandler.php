@@ -62,6 +62,19 @@ final readonly class AskInboxHandler
     public const string REVIEW_TARGET_REQUIRED = 'inbox.review.error.target_required';
     public const string REVIEW_TARGET_WRONG_KIND = 'inbox.review.error.target_wrong_kind';
     public const string REVIEW_WITH_ANSWER = 'inbox.review.error.with_answer';
+    public const string RECOMMENDED_NEEDS_OPTIONS = 'inbox.item.error.recommended_needs_options';
+    public const string RECOMMENDED_OUT_OF_RANGE = 'inbox.item.error.recommended_out_of_range';
+    public const string CONFIDENCE_INVALID = 'inbox.item.error.confidence_invalid';
+    public const string CONFIDENCE_WITHOUT_RECOMMENDED = 'inbox.item.error.confidence_without_recommended';
+    public const string RECOMMENDED_WITHOUT_CONFIDENCE = 'inbox.item.error.recommended_without_confidence';
+    public const string COSTS_NEED_OPTIONS = 'inbox.item.error.costs_need_options';
+    public const string COSTS_COUNT = 'inbox.item.error.costs_count';
+    public const string COST_TOO_LONG = 'inbox.item.error.cost_too_long';
+    public const string TOO_MANY_DETAILS = 'inbox.item.error.too_many_details';
+    public const string DETAIL_NAME_INVALID = 'inbox.item.error.detail_name_invalid';
+    public const string DETAIL_NAME_TOO_LONG = 'inbox.item.error.detail_name_too_long';
+    public const string DETAIL_BLANK = 'inbox.item.error.detail_blank';
+    public const string DETAIL_TOO_LONG = 'inbox.item.error.detail_too_long';
     public const string SUGGESTION_UNKNOWN_ACTION = 'inbox.item.error.suggestion_unknown_action';
     public const string SUGGESTION_DUPLICATE = 'inbox.item.error.suggestion_duplicate';
     public const string SUGGESTION_TWO_RECOMMENDED = 'inbox.item.error.suggestion_two_recommended';
@@ -150,6 +163,10 @@ final readonly class AskInboxHandler
                     );
                     $item->suggestedActions = [] === $draft->suggestedActions ? null : $draft->suggestedActions;
                     $item->dismissible = $draft->dismissible;
+                    $item->recommendedOption = $draft->recommendedOption;
+                    $item->confidence = $draft->confidence;
+                    $item->optionCosts = $draft->optionCosts;
+                    $item->details = $draft->details;
                     foreach ($draft->cards as $card) {
                         $item->cards->add(new InboxItemCard($item, $card, $now));
                     }

@@ -243,6 +243,13 @@ Every item that takes a response shows its forms under its text.
   the right of the block heading to remove your pick. The page needs JavaScript
   to send the options you pick. A question with no options shows the same
   block with one field, where you write your answer.
+  An agent can recommend one option. That option sits first, already picked,
+  with three stars that show how sure the agent is: one star for low, two for
+  moderate and three for high confidence. Change the pick when you disagree.
+  An agent can also name the cost of each option, which shows as a short line
+  under the option. A **Details** section under the options holds the facts
+  behind the question, one field for each name. It starts closed. Select it to
+  read the fields.
 - **Mark a to-do done.** Write an optional note for the agent in the note
   field, then select **Mark complete**. The closed to-do shows your note.
 - **Dismiss an item.** Write an optional note for the agent in the note field,

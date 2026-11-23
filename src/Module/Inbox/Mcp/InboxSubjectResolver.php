@@ -117,6 +117,10 @@ final readonly class InboxSubjectResolver
                 reviewPullRequestId: null === ($item['reviewPullRequestId'] ?? null) ? null : $this->string($item, 'reviewPullRequestId', $index),
                 suggestedActions: $this->suggestions($item, $index),
                 dismissible: $this->bool($item, 'dismissible', $index) ?? true,
+                recommendedOption: $this->int($item, 'recommendedOption', $index),
+                confidence: null === ($item['confidence'] ?? null) ? null : $this->string($item, 'confidence', $index),
+                optionCosts: $this->strings($item, 'optionCosts', $index),
+                details: $this->details($item, $index),
             );
         }
 
@@ -218,6 +222,37 @@ final readonly class InboxSubjectResolver
         }
 
         return $value;
+    }
+
+    /** @param array<mixed> $item */
+    private function int(array $item, string $key, int $index): ?int
+    {
+        $value = $item[$key] ?? null;
+        if (null !== $value && !\is_int($value)) {
+            throw new ToolCallException(\sprintf('items[%d].%s must be a whole number.', $index, $key));
+        }
+
+        return $value;
+    }
+
+    /**
+     * @param array<mixed> $item
+     *
+     * @return array<string, string>
+     */
+    private function details(array $item, int $index): array
+    {
+        $value = $item['details'] ?? [];
+        if (!\is_array($value) || [] !== array_filter($value, static fn (mixed $text): bool => !\is_string($text))) {
+            throw new ToolCallException(\sprintf('items[%d].details must be an object of Markdown strings.', $index));
+        }
+
+        $details = [];
+        foreach ($value as $name => $text) {
+            $details[(string) $name] = $text;
+        }
+
+        return $details;
     }
 
     /** @param array<mixed> $item */

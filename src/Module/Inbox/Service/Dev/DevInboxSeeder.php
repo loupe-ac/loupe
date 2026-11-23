@@ -32,6 +32,7 @@ use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxAskItem;
 use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxCloser;
+use App\Module\Inbox\Entity\InboxConfidence;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemDocument;
@@ -186,6 +187,14 @@ final readonly class DevInboxSeeder implements DevSeederInterface
             'options' => ['Retry once, then let the customer decide', 'Always let the customer retry'],
             'freeText' => true,
         ]);
+        $retries->recommendedOption = 1;
+        $retries->confidence = InboxConfidence::Moderate;
+        $retries->optionCosts = ['An unexpected second charge attempt can confuse customers', 'A customer who leaves the page never pays'];
+        $retries->details = [
+            'Evidence' => 'Support logged **31 abandoned payments** last month, 9 of them after a card decline.',
+            'Risk' => 'A silent retry can charge twice when the first attempt only looks failed.',
+        ];
+        $this->em->flush();
         $this->linkCard($retries, $checkout);
         $this->ask($context, 'retries', $project, [$retries], 360, 'Working on the **checkout** card. I need one decision before I write the recovery flow.', DevSeedId::of('bridge/bridge/ask-retries'));
 

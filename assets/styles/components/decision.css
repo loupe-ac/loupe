@@ -46,6 +46,9 @@
     .lp-decision__option label {
         @apply flex-1;
     }
+    .lp-decision__cost {
+        @apply block text-xs font-normal text-fg-mute;
+    }
     .lp-decision__option input {
         @apply m-0 shrink-0;
     }

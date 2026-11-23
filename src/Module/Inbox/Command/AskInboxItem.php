@@ -31,6 +31,14 @@ final readonly class AskInboxItem
         public array $suggestedActions = [],
         /** Whether the owner may dismiss the item. */
         public bool $dismissible = true,
+        /** The index of the option the agent recommends. */
+        public ?int $recommendedOption = null,
+        /** `high`, `moderate` or `low`. Required with a recommended option. */
+        public ?string $confidence = null,
+        /** @var list<string> one cost line for each option */
+        public array $optionCosts = [],
+        /** @var array<string, string> Markdown by field name */
+        public array $details = [],
     ) {
     }
 }
