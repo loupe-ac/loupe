@@ -430,6 +430,8 @@ final class FactsBuilderTest extends KernelTestCase
             headSha: 'abc',
             number: $pullRequest->number,
             baseIsDefault: true,
+            forge: 'github',
+            repository: 'acme/widgets',
         ), $this->facts($card)->pullRequest);
 
         $pullRequest->checks = PullRequestChecks::Pending;

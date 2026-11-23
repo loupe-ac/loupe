@@ -310,7 +310,7 @@ final class ReportWorkerRunStateRequest
     public function validateOutcome(ExecutionContextInterface $context): void
     {
         $state = WorkerRunState::tryFrom($this->state ?? '');
-        if (null === $state || !$state->isOutcome()) {
+        if (null === $state || !$state->isOutcome() || $state->isInferred()) {
             return;
         }
 

@@ -389,6 +389,24 @@ The template is refused when the value is not `true` or `false`, or when the
 section holds a key that Loupe does not know. A stored copy with a bad value
 reads as the default.
 
+## Waits
+
+The top-level `waits:` section is optional. It limits how long a worker may wait
+for a card condition, and how often.
+
+```yaml
+waits:
+    maxMinutes: 120
+    maxPerRound: 10
+```
+
+- `maxMinutes` is the most minutes that a worker may wait in one wait. It takes a whole number from 1 to 1440. The default is 120.
+- `maxPerRound` is the most waits in one chain of resumed runs. It takes a whole number from 1 to 100. The default is 10.
+
+The Lifecycle template sets both values. A template with no `waits:` section
+uses the defaults. The template is refused when the section holds an unknown key
+or a value that is out of range.
+
 ## Slots and columns
 
 A slot links to a column by the column's id. A rename of the column keeps the

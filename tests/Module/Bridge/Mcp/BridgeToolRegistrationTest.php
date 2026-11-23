@@ -18,6 +18,7 @@ use App\Module\Bridge\Mcp\CardReleaseTool;
 use App\Module\Bridge\Mcp\ExperimentGetTool;
 use App\Module\Bridge\Mcp\MetricListTool;
 use App\Module\Bridge\Mcp\MetricQueryTool;
+use App\Module\Bridge\Mcp\RunWaitTool;
 use App\Module\Bridge\Mcp\WorkerRunGetTool;
 use App\Module\Bridge\Mcp\WorkerRunListTool;
 use App\Module\Bridge\Mcp\WorkerRunResumeTool;
@@ -66,6 +67,7 @@ final class BridgeToolRegistrationTest extends KernelTestCase
         yield 'card_hold' => [CardHoldTool::NAME, CardHoldTool::class];
         yield 'card_release' => [CardReleaseTool::NAME, CardReleaseTool::class];
         yield 'bridge_command_cancel' => [BridgeCommandCancelTool::NAME, BridgeCommandCancelTool::class];
+        yield 'run_wait' => [RunWaitTool::NAME, RunWaitTool::class];
     }
 
     /**
@@ -117,8 +119,8 @@ final class BridgeToolRegistrationTest extends KernelTestCase
         $bridgeList = array_search(BridgeListTool::NAME, $names, true);
         self::assertIsInt($bridgeList);
         self::assertSame(
-            [BridgeListTool::NAME, WorkerRunResumeTool::NAME, WorkerRunStopTool::NAME, CardHoldTool::NAME, CardReleaseTool::NAME, CardPauseReleaseTool::NAME, BridgeCommandCancelTool::NAME],
-            \array_slice($names, $bridgeList, 7),
+            [BridgeListTool::NAME, WorkerRunResumeTool::NAME, WorkerRunStopTool::NAME, CardHoldTool::NAME, CardReleaseTool::NAME, CardPauseReleaseTool::NAME, BridgeCommandCancelTool::NAME, RunWaitTool::NAME],
+            \array_slice($names, $bridgeList, 8),
         );
         $close = array_search(AutomationSettingsUpdateTool::NAME, $names, true);
         self::assertIsInt($close);
@@ -135,6 +137,18 @@ final class BridgeToolRegistrationTest extends KernelTestCase
         self::assertSame(['type' => 'string'], $runIds['items']);
         self::assertSame(1, $runIds['minItems']);
         self::assertSame(WorkerRunResumeTool::MAX_RUNS, $runIds['maxItems']);
+    }
+
+    public function test_run_wait_publishes_a_bounded_list_of_conditions_and_a_limit(): void
+    {
+        $schema = $this->registry->getTool(RunWaitTool::NAME)->tool->inputSchema;
+        $conditions = $schema['properties']['conditions'];
+
+        self::assertSame(['sessionId', 'conditions', 'limitMinutes'], $schema['required']);
+        self::assertSame(1, $conditions['minItems']);
+        self::assertSame(RunWaitTool::MAX_CONDITIONS, $conditions['maxItems']);
+        self::assertSame(['key'], $conditions['items']['required']);
+        self::assertSame(1, $schema['properties']['limitMinutes']['minimum']);
     }
 
     public function test_worker_run_list_publishes_its_filters_and_paging(): void

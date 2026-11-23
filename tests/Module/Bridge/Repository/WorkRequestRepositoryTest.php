@@ -760,6 +760,7 @@ final class WorkRequestRepositoryTest extends KernelTestCase
     public static function finishedRunStates(): iterable
     {
         yield 'waiting on the forge' => [WorkerRunState::WaitingOnForge];
+        yield 'waiting on a wait' => [WorkerRunState::Waiting];
         yield 'succeeded' => [WorkerRunState::Succeeded];
     }
 

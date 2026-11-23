@@ -9192,6 +9192,7 @@
                                     "unfinished",
                                     "blocked",
                                     "waiting-on-forge",
+                                    "waiting",
                                     "gave-up",
                                     "timed-out",
                                     "lost",
@@ -9796,7 +9797,7 @@
                     "Worker runs"
                 ],
                 "summary": "Resume a worker run",
-                "description": "Asks the bridge of a run to resume it. A resume continues the session of the run as a new run of the same series. The command waits for the bridge, which resumes the run when it reads the command, and the run list then shows it as `pendingCommand`. Only a run in the state blocked, gave-up, failed, no-result, unfinished, timed-out, lost, stopped or waiting-for-person can resume. A resume by an API key records the key on the command. `POST .../runs/resume` resumes up to 50 runs.",
+                "description": "Asks the bridge of a run to resume it. A resume continues the session of the run as a new run of the same series. The command waits for the bridge, which resumes the run when it reads the command, and the run list then shows it as `pendingCommand`. Only a run in the state blocked, gave-up, failed, no-result, unfinished, timed-out, lost, stopped, waiting-for-person or waiting can resume. A resume by an API key records the key on the command. `POST .../runs/resume` resumes up to 50 runs.",
                 "operationId": "resumeWorkerRun",
                 "parameters": [
                     {
