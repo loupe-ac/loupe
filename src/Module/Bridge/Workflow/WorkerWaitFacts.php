@@ -21,13 +21,17 @@ final readonly class WorkerWaitFacts implements TimedFacts
         return $this->wait?->limitAt;
     }
 
-    /** The conditions of the wait as one phrase, such as "checks passed on pr:owner/repo#12 or checks failed on pr:owner/repo#12". */
+    /** The conditions of the wait as one phrase, such as "the checks of pr:owner/repo#12 to pass or the checks of pr:owner/repo#12 to fail". */
     public function conditionsText(): string
     {
         $labels = array_map(static function ($condition): string {
-            $name = str_replace('_', ' ', substr(strrchr('.'.$condition->key, '.') ?: $condition->key, 1));
+            $on = null === $condition->token ? '' : ' of '.$condition->token;
 
-            return null === $condition->token ? $name : $name.' on '.$condition->token;
+            return match ($condition->key) {
+                'pr.checks_passed' => 'the checks'.$on.' to pass',
+                'pr.checks_failed' => 'the checks'.$on.' to fail',
+                default => str_replace('_', ' ', substr(strrchr('.'.$condition->key, '.') ?: $condition->key, 1)).(null === $condition->token ? '' : ' on '.$condition->token),
+            };
         }, $this->wait->conditions ?? []);
 
         return implode(' or ', $labels);
