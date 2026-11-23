@@ -426,6 +426,7 @@ The tool refuses the wait, with a plain reason, in these cases:
 - The run is not about a card.
 - `limitMinutes` is under 1, or over the longest wait. The reason names the maximum.
 - The chain already holds the most waits that the template allows. The reason says that the chain cap was reached.
+- The run already opened a wait, also one that ended. A run opens one wait, and Loupe resumes it in a new run.
 - The card already has an open wait. A card holds one wait at a time.
 - A condition is unknown, or its parameters are invalid.
 - A condition reads a pull request, and the call names none while the card links no open pull request, or several.

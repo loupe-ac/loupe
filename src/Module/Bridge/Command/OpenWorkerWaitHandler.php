@@ -21,7 +21,7 @@ use Ubermuda\AuditBundle\AuditSubject;
 
 /**
  * Opens the wait that a worker asked for, or refuses it with a reason the worker can read.
- * A card holds one open wait, a chain of resumed runs holds a limited number of waits,
+ * A run opens one wait, a card holds one open wait, a chain of resumed runs holds a limited number of waits,
  * and a wait names only conditions that are not true yet.
  *
  * @phpstan-import-type ConditionEntry from WorkerWait
@@ -29,6 +29,7 @@ use Ubermuda\AuditBundle\AuditSubject;
 final readonly class OpenWorkerWaitHandler
 {
     private const int MAX_CHAIN_DEPTH = 10_000;
+    private const string RUN_HAS_WAIT = 'This run already opened a wait. A run opens one wait, and Loupe resumes it in a new run. Stop and report what you have.';
 
     public function __construct(
         private WorkerRunRepository $workerRuns,
@@ -66,6 +67,9 @@ final readonly class OpenWorkerWaitHandler
         if ($this->workerWaits->countOfChain($chainRoot) >= $settings->maxPerRound) {
             throw new WorkerWaitRefused(\sprintf('The chain cap was reached: this run and the runs it resumes already held %d waits. Stop and report what you have.', $settings->maxPerRound));
         }
+        if ($this->workerWaits->existsOfRun($runId)) {
+            throw new WorkerWaitRefused(self::RUN_HAS_WAIT);
+        }
         if (null !== $this->workerWaits->findOpenOfCard($cardId)) {
             throw new WorkerWaitRefused('This card already has an open wait. A card holds one wait at a time.');
         }
@@ -94,7 +98,7 @@ final readonly class OpenWorkerWaitHandler
                 $this->em->flush();
             });
         } catch (UniqueConstraintViolationException $e) {
-            throw new WorkerWaitRefused('This card already has an open wait. A card holds one wait at a time.', previous: $e);
+            throw new WorkerWaitRefused(str_contains($e->getMessage(), 'uniq_bridge_worker_wait_run') ? self::RUN_HAS_WAIT : 'This card already has an open wait. A card holds one wait at a time.', previous: $e);
         }
 
         $this->auditor->record(

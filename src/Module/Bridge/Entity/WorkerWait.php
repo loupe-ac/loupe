@@ -20,10 +20,10 @@ use Symfony\Component\Uid\Uuid;
  * @phpstan-type ConditionEntry array{key: string, params: array<string, mixed>, pullRequestId: ?string, token: ?string}
  */
 #[ORM\Entity(repositoryClass: WorkerWaitRepository::class)]
-#[ORM\Index(name: 'idx_bridge_worker_waits_run', columns: ['run_id'])]
 #[ORM\Index(name: 'idx_bridge_worker_waits_chain', columns: ['chain_root_run_id'])]
 #[ORM\Table(name: 'bridge_worker_waits')]
 // The predicate is written the way Postgres stores it, so migrate-diff stays quiet.
+#[ORM\UniqueConstraint(name: 'uniq_bridge_worker_wait_run', columns: ['run_id'])]
 #[ORM\UniqueConstraint(name: 'uniq_bridge_worker_wait_open_card', columns: ['card_id'], options: ['where' => '(ended_at IS NULL)'])]
 class WorkerWait implements ProjectScopedSubject
 {

@@ -55,6 +55,19 @@ final class WorkerWaitRepositoryTest extends KernelTestCase
         $this->wait($cardId);
     }
 
+    public function test_a_run_holds_one_wait_even_when_it_ended(): void
+    {
+        $runId = Uuid::v7();
+        self::assertFalse($this->waits()->existsOfRun($runId));
+        $first = $this->wait(Uuid::v7(), $runId);
+        $first->end(WorkerWaitEndReason::Condition, new \DateTimeImmutable('2026-09-23 10:30:00'));
+        $this->em()->flush();
+        self::assertTrue($this->waits()->existsOfRun($runId));
+
+        $this->expectException(UniqueConstraintViolationException::class);
+        $this->wait(Uuid::v7(), $runId);
+    }
+
     public function test_the_wait_of_a_run_that_awaits_its_resume_is_found(): void
     {
         $runId = Uuid::v7();

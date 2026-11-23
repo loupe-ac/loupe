@@ -33,6 +33,17 @@ class WorkerWaitRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
+    /** Whether the run opened a wait, open or ended. */
+    public function existsOfRun(Uuid $runId): bool
+    {
+        return (int) $this->createQueryBuilder('w')
+            ->select('COUNT(w.id)')
+            ->andWhere('w.runId = :runId')
+            ->setParameter('runId', $runId, UuidType::NAME)
+            ->getQuery()
+            ->getSingleScalarResult() > 0;
+    }
+
     /** The wait of the run that is open, or that ended in a way that resumes and has no resume run yet. */
     public function findAwaitingResumeOfRun(Uuid $runId): ?WorkerWait
     {

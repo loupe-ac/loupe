@@ -229,6 +229,17 @@ final class RunWaitToolTest extends KernelTestCase
         self::assertSame(1, $this->waitCount());
     }
 
+    public function test_a_run_whose_wait_ended_before_it_did_cannot_open_another(): void
+    {
+        $run = $this->workerRun();
+        $this->wait((string) $run->sessionId, [['key' => 'card.in_review']], 5);
+        $this->onlyOpenWait()->end(WorkerWaitEndReason::Condition, new \DateTimeImmutable(self::NOW));
+        $this->em()->flush();
+
+        $this->refused((string) $run->sessionId, [['key' => 'card.in_review']], 5, 'This run already opened a wait. A run opens one wait, and Loupe resumes it in a new run. Stop and report what you have.');
+        self::assertSame(1, $this->waitCount());
+    }
+
     public function test_a_race_for_the_open_wait_is_a_refusal_and_not_an_error(): void
     {
         $run = $this->workerRun();
