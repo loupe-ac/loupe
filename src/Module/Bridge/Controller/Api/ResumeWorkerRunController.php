@@ -28,7 +28,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     operationId: 'resumeWorkerRun',
     summary: 'Resume a worker run',
     tags: ['Worker runs'],
-    description: 'Asks the bridge of a run to resume it. A resume continues the session of the run as a new run of the same series. The command waits for the bridge, which resumes the run when it reads the command, and the run list then shows it as `pendingCommand`. Only a run in the state blocked, gave-up, failed, no-result, unfinished, timed-out, lost, stopped or waiting-for-person can resume. A resume by an API key records the key on the command. `POST .../runs/resume` resumes up to 50 runs.',
+    description: 'Asks the bridge of a run to resume it. A resume continues the session of the run as a new run of the same series. The command waits for the bridge, which resumes the run when it reads the command, and the run list then shows it as `pendingCommand`. Only a run in the state blocked, gave-up, failed, no-result, unfinished, timed-out, lost, stopped, waiting-for-person or waiting can resume. A resume by an API key records the key on the command. `POST .../runs/resume` resumes up to 50 runs.',
     parameters: [
         new OA\Parameter(name: 'project', description: 'A project id or a project slug. A slug changes when the project is renamed, so quote the id when it must stay valid.', in: 'path', required: true, schema: new OA\Schema(type: 'string'), example: 'my-project'),
         new OA\Parameter(name: 'run', description: 'The id of a worker run of the project, from the run list.', in: 'path', required: true, schema: new OA\Schema(type: 'string', format: 'uuid')),

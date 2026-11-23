@@ -372,6 +372,24 @@ twice. A marker with no pull request, document, run or pause, called a
 card-level marker, can be listed. It opens one inbox item for each spell of the
 marker on the card, and the item ends when the marker turns off.
 
+## Waits
+
+The top-level `waits:` section is optional. It limits how long a worker may wait
+for a card condition, and how often.
+
+```yaml
+waits:
+    maxMinutes: 120
+    maxPerRound: 10
+```
+
+- `maxMinutes` is the most minutes that a worker may wait in one wait. It takes a whole number from 1 to 1440. The default is 120.
+- `maxPerRound` is the most waits in one chain of resumed runs. It takes a whole number from 1 to 100. The default is 10.
+
+The Lifecycle template sets both values. A template with no `waits:` section
+uses the defaults. The template is refused when the section holds an unknown key
+or a value that is out of range.
+
 ## Slots and columns
 
 A slot links to a column by the column's id. A rename of the column keeps the

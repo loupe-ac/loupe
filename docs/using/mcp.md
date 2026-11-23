@@ -379,6 +379,61 @@ Roughly in the order an agent uses them:
 | `card_release` | Make an unmanaged card managed again. The queued runs on the card then start, and the workflow asks again for the work that the card still needs |
 | `card_pause_release` | End the workflow pause of a card, by `cardId` or `number`, so the paused rule runs again with a fresh budget. It ends a pause of kind `retries`, `work-limit` or `work-stopped`. It does not end a hold, which `card_release` ends |
 | `bridge_command_cancel` | Withdraw the resume or stop command that waits on a worker run, before its bridge reads it |
+| `run_wait` | Let a bridge worker wait for conditions of its card, with a time limit, and then end its turn. A refusal opens no wait. See [Waiting for a condition](#waiting-for-a-condition) |
+
+### Waiting for a condition
+
+A worker that a bridge runs calls `run_wait` when it needs a slow result.
+An example is the checks of a pull request that the worker just pushed.
+The worker names the conditions and a time limit, and then it ends its turn.
+The run then shows the state `waiting`, and it uses no model.
+Only a worker that a bridge runs can call the tool.
+The token of the run carries the right to call it.
+
+| Argument | Meaning |
+|---|---|
+| `sessionId` | The session id of the worker. A run credential accepts only the session of its own run |
+| `conditions` | One to ten conditions. Each is an object with a `key`, optional `params`, and an optional `pullRequestUrl` |
+| `limitMinutes` | How long to wait at most, in whole minutes, from 1 up to the longest wait of the workflow |
+
+A `key` is a condition of the workflow or a marker key of its template.
+`params` holds the parameters of the condition, as in a workflow rule.
+A condition that reads a pull request needs a pull request that the card links and that is open.
+Name it in `pullRequestUrl`.
+Leave `pullRequestUrl` out when the card links exactly one open pull request.
+Loupe then binds that one.
+A condition that reads no pull request ignores `pullRequestUrl`.
+
+The workflow template sets the longest wait and the number of waits in one chain.
+The `waits:` section of the template holds both values.
+A chain is a run and all the runs that resume it.
+The defaults are 120 minutes and 10 waits.
+
+When Loupe accepts the wait, the answer holds these fields:
+
+| Field | Meaning |
+|---|---|
+| `waiting` | Always `true` |
+| `waitId` | The id of the wait |
+| `limitAt` | The time the wait ends at the latest, in ISO 8601 |
+| `conditions` | Each condition with its `key` and `pullRequest`, which is the token of the bound pull request, such as `pr:owner/repo#12`, or null |
+| `message` | The instruction to end the turn now |
+
+The tool refuses the wait, with a plain reason, in these cases:
+
+- The session has no open bridge worker run. An interactive session has none, and a run that ended has none.
+- The run is not about a card.
+- `limitMinutes` is under 1, or over the longest wait. The reason names the maximum.
+- The chain already holds the most waits that the template allows. The reason says that the chain cap was reached.
+- The card already has an open wait. A card holds one wait at a time.
+- A condition is unknown, or its parameters are invalid.
+- A condition reads a pull request, and the call names none while the card links no open pull request, or several.
+- The pull request in `pullRequestUrl` is not linked to the card, or it is not open.
+- The same condition is named twice for the same pull request.
+- A condition is true already. The reason lists the true conditions, so the worker reads their result and does not wait.
+
+Each refusal names the condition key it is about.
+A refusal opens no wait, so the worker can fix the call and try again.
 
 ### Changing the project settings
 

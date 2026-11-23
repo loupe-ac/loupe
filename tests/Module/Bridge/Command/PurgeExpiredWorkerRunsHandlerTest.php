@@ -11,6 +11,7 @@ use App\Module\Bridge\Entity\ExperimentArchive;
 use App\Module\Bridge\Entity\ExperimentPin;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunBilledCost;
+use App\Module\Bridge\Entity\WorkerWait;
 use App\Module\Bridge\Repository\BridgeAccountReadingRepository;
 use App\Module\Bridge\Repository\BridgeAccountTryNowRepository;
 use App\Module\Bridge\Repository\BridgeHostSampleRepository;
@@ -18,6 +19,7 @@ use App\Module\Bridge\Repository\ExperimentArchiveRepository;
 use App\Module\Bridge\Repository\ExperimentPinRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkerRunUsageRepository;
+use App\Module\Bridge\Repository\WorkerWaitRepository;
 use App\Module\Bridge\Service\WorkerRunRetentionPolicy;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Bridge\BridgeScenario;
@@ -50,6 +52,28 @@ final class PurgeExpiredWorkerRunsHandlerTest extends KernelTestCase
         $em->clear();
         self::assertNull($em->find(WorkerRun::class, $expired->id));
         self::assertNotNull($em->find(WorkerRun::class, $fresh->id));
+    }
+
+    public function test_it_deletes_the_wait_of_a_swept_run_and_keeps_a_fresh_one(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $project = $this->project($em, $this->user($em, 'waits-sweep@example.com'), 'Swept Waits');
+        $old = new \DateTimeImmutable('2026-01-01 00:00:00');
+        $fresh = new \DateTimeImmutable('2026-09-01 00:00:00');
+        $expired = $this->seedRun($em, $project, $old);
+        $kept = $this->seedRun($em, $project, $fresh, cardNumber: 2);
+        $expiredWait = new WorkerWait($project, $expired->subjectId, $expired->id ?? throw new \LogicException('Seeded.'), $expired->id, Uuid::v4(), Uuid::v4(), [], $old, $old->modify('+1 hour'));
+        $keptWait = new WorkerWait($project, $kept->subjectId, $kept->id ?? throw new \LogicException('Seeded.'), $kept->id, Uuid::v4(), Uuid::v4(), [], $fresh, $fresh->modify('+1 hour'));
+        $em->persist($expiredWait);
+        $em->persist($keptWait);
+        $em->flush();
+
+        ($this->handler())(new PurgeExpiredWorkerRunsCommand());
+
+        $em->clear();
+        self::assertNull($em->find(WorkerWait::class, $expiredWait->id));
+        self::assertNotNull($em->find(WorkerWait::class, $keptWait->id));
     }
 
     /** The billed cost row has no foreign key to the run, so the sweep cannot take it. */
@@ -362,6 +386,7 @@ final class PurgeExpiredWorkerRunsHandlerTest extends KernelTestCase
 
         return new PurgeExpiredWorkerRunsHandler(
             new WorkerRunRepository($registry),
+            new WorkerWaitRepository($registry),
             new ExperimentPinRepository($registry),
             $archives ?? new ExperimentArchiveRepository($registry),
             new BridgeHostSampleRepository($registry),

@@ -750,13 +750,13 @@ class WorkRequestRepository extends ServiceEntityRepository
     }
 
     /**
-     * The worker run states that mean a fix round finished its work: it succeeded, or it waits on the forge.
+     * The worker run states that mean a fix round finished its work: it succeeded, or it waits on the forge or on a wait of its own.
      *
      * @return list<string>
      */
     private static function finishedRunStates(): array
     {
-        return [WorkerRunState::Succeeded->value, WorkerRunState::WaitingOnForge->value];
+        return [WorkerRunState::Succeeded->value, WorkerRunState::WaitingOnForge->value, WorkerRunState::Waiting->value];
     }
 
     /**

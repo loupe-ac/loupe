@@ -3294,6 +3294,10 @@
                 <source>project.connect.tool.bridge_command_cancel</source>
                 <target>Withdraw the resume or stop command that waits on a worker run, before its bridge reads it.</target>
             </trans-unit>
+            <trans-unit id="project.connect.tool.run_wait">
+                <source>project.connect.tool.run_wait</source>
+                <target>Wait for conditions of your card, such as the checks of a pull request, with a time limit. Loupe then resumes your session when a condition turns true or the limit passes.</target>
+            </trans-unit>
             <trans-unit id="project.connect.tool.inbox_ask">
                 <source>project.connect.tool.inbox_ask</source>
                 <target>Hand questions and to-dos to the project owner. The items go to the session's open ask, or to a new one, and each item gets a number.</target>
@@ -8242,6 +8246,10 @@ workflow:
             <trans-unit id="bridge.worker_runs.state.waiting_on_forge">
                 <source>bridge.worker_runs.state.waiting_on_forge</source>
                 <target>Waiting on the forge</target>
+            </trans-unit>
+            <trans-unit id="bridge.worker_runs.state.waiting">
+                <source>bridge.worker_runs.state.waiting</source>
+                <target>Waiting</target>
             </trans-unit>
             <trans-unit id="bridge.worker_runs.state.gave_up">
                 <source>bridge.worker_runs.state.gave_up</source>

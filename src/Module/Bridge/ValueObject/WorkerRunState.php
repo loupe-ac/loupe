@@ -63,6 +63,12 @@ enum WorkerRunState: string
     /** The worker said its work waits on the forge, such as checks on a pushed pull request. The bridge does not resume it. */
     case WaitingOnForge = 'waiting-on-forge';
 
+    /**
+     * The worker parked its session on a wait, or opened one that ended before the run did. Only the server sets it,
+     * from an unfinished, no-result or waiting-on-forge end of a run that has a wait. The session can resume.
+     */
+    case Waiting = 'waiting';
+
     /** The bridge used every resume the rule allows, and the run still did not finish. */
     case GaveUp = 'gave-up';
 
@@ -109,7 +115,7 @@ enum WorkerRunState: string
     /** @return list<self> */
     public static function resumableStates(): array
     {
-        return [self::Blocked, self::GaveUp, self::Failed, self::NoResult, self::Unfinished, self::TimedOut, self::Lost, self::Stopped, self::WaitingForPerson];
+        return [self::Blocked, self::GaveUp, self::Failed, self::NoResult, self::Unfinished, self::TimedOut, self::Lost, self::Stopped, self::WaitingForPerson, self::Waiting];
     }
 
     /** The ends of a command run that a person can run again. */
@@ -131,7 +137,7 @@ enum WorkerRunState: string
     /** How a worker process ended. Only these states carry an exit code or a failure reason. */
     public function isOutcome(): bool
     {
-        return \in_array($this, [self::Succeeded, self::Failed, self::NotStarted, self::NoResult, self::Unfinished, self::Blocked, self::WaitingOnForge, self::GaveUp, self::UsageLimit, self::Network], true);
+        return \in_array($this, [self::Succeeded, self::Failed, self::NotStarted, self::NoResult, self::Unfinished, self::Blocked, self::WaitingOnForge, self::Waiting, self::GaveUp, self::UsageLimit, self::Network], true);
     }
 
     /** The ends where the work broke. A stop for a person and work that remains are not failures. */
@@ -155,7 +161,7 @@ enum WorkerRunState: string
     /** The server infers these on its own, and a bridge never reports them. */
     public function isInferred(): bool
     {
-        return self::TimedOut === $this || self::Lost === $this;
+        return self::TimedOut === $this || self::Lost === $this || self::Waiting === $this;
     }
 
     /** A report whose state ranks lower than the run's current state never moves the run back. */
@@ -194,6 +200,7 @@ enum WorkerRunState: string
             self::Unfinished => 'bridge.worker_runs.state.unfinished',
             self::Blocked => 'bridge.worker_runs.state.blocked',
             self::WaitingOnForge => 'bridge.worker_runs.state.waiting_on_forge',
+            self::Waiting => 'bridge.worker_runs.state.waiting',
             self::GaveUp => 'bridge.worker_runs.state.gave_up',
             self::TimedOut => 'bridge.worker_runs.state.timed_out',
             self::Lost => 'bridge.worker_runs.state.lost',
@@ -209,7 +216,7 @@ enum WorkerRunState: string
             self::Failed, self::NoResult, self::GaveUp, self::Dropped, self::TimedOut, self::Lost => 'failed',
             // The bridge or a person set these runs aside by design, so nothing waits and nothing failed.
             self::Replaced, self::Skipped, self::Stopped => 'resolved',
-            self::Queued, self::Resumed, self::Preparing, self::Running, self::Stopping, self::WaitingForPerson, self::UsageLimit, self::Network, self::NotStarted, self::Unfinished, self::Blocked, self::WaitingOnForge => 'pending',
+            self::Queued, self::Resumed, self::Preparing, self::Running, self::Stopping, self::WaitingForPerson, self::UsageLimit, self::Network, self::NotStarted, self::Unfinished, self::Blocked, self::WaitingOnForge, self::Waiting => 'pending',
         };
     }
 }

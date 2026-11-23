@@ -49,6 +49,7 @@ metrics:
       duration: { from: { earliest: [{ arrived: implementation }, pr-opened] }, to: ready-to-merge }
 agentReviewFailingSeverities: [important]
 approvalCoversConflictResolution: true
+waits: { maxMinutes: 120, maxPerRound: 10 }
 repositorySettings:
     - { key: approval-gate, mark: warning }
     - { key: ci-checks, mark: warning }

@@ -2798,6 +2798,55 @@
       }
     },
     {
+      "name": "run_wait",
+      "description": "Wait for one or more conditions of your card, with a time limit, and then end your turn. Call it when a slow result is due, such as the checks of a pull request you just pushed. Pass your sessionId, conditions and limitMinutes. Each condition is an object with a key, which is a condition of the workflow or a marker key of its template, and optional params. A condition that reads a pull request takes pullRequestUrl, the URL of a pull request the card links. Leave pullRequestUrl out when the card links exactly one open pull request. Pass 1 to 10 conditions. limitMinutes counts from 1, and the workflow sets the longest wait. When the tool accepts the wait, it answers waiting true with the waitId, limitAt and the conditions, and then you end your turn at once and do no more work. Loupe resumes this same session, with the result in the prompt, when one condition turns true or when the limit passes. The tool refuses when: the session has no open bridge worker run, such as an interactive session; the run has no card; limitMinutes is over the longest wait; the chain of resumed runs reached its cap of waits; the card already has an open wait; a condition is unknown, has invalid params, or needs a pull request that you did not name, that the card does not link or that is not open; a condition is named twice; or a condition is true already. The last refusal lists the true conditions, so you read their result and do not wait for it. A refusal opens no wait.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "description": "your own session id"
+          },
+          "conditions": {
+            "type": "array",
+            "description": "the conditions to wait for, 1 to 10 of them",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "description": "a condition of the workflow, or a marker key of its template"
+                },
+                "params": {
+                  "type": "object",
+                  "description": "the parameters of the condition, when it takes any"
+                },
+                "pullRequestUrl": {
+                  "type": "string",
+                  "description": "the URL of the pull request the condition reads. Leave it out when the card links exactly one open pull request"
+                }
+              },
+              "required": [
+                "key"
+              ]
+            },
+            "minItems": 1,
+            "maxItems": 10
+          },
+          "limitMinutes": {
+            "type": "integer",
+            "description": "how long to wait at most, in minutes",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "sessionId",
+          "conditions",
+          "limitMinutes"
+        ]
+      }
+    },
+    {
       "name": "series_list",
       "description": "List every series in the token's project, with how many documents each holds and the highest position number in use. Read this before you place a document, so a new item continues an existing series and takes the next free number instead of coining a near-duplicate name.",
       "inputSchema": {
@@ -2955,7 +3004,7 @@
     },
     {
       "name": "worker_run_resume",
-      "description": "Ask the bridge of each run to resume it. A resume continues the claude session of the run as a new run of the same series. Pass runIds, a list of 1 to 50 worker run ids from worker_run_list. The tool treats each run on its own and in order, so a refused run does not stop the others. results has one row per run id, in the same order. A row with outcome resumed carries commandId: the command waits for the bridge, which resumes the run when it reads the command. worker_run_list then shows the command as pendingCommand. A row with outcome refused carries code and message. The codes are: not-found (no run of this project has this id), no-bridge, unknown-bridge, bridge-outdated (the bridge is too old to take commands), pending (a command already waits on the run), not-controllable (an interactive session), no-session, not-resumable (the run did not end, or it succeeded), and card-held (a person paused the agents on the card). A row with outcome error says that an unexpected failure hit that run. Its message says that the outcome is unknown, so read worker_run_list to see whether a command waits on the run. The tool then stops, and each later row has outcome not-attempted. Call the tool again for those runs. Only a run in the state blocked, gave-up, failed, no-result, unfinished, timed-out, lost, stopped or waiting-for-person can resume.",
+      "description": "Ask the bridge of each run to resume it. A resume continues the claude session of the run as a new run of the same series. Pass runIds, a list of 1 to 50 worker run ids from worker_run_list. The tool treats each run on its own and in order, so a refused run does not stop the others. results has one row per run id, in the same order. A row with outcome resumed carries commandId: the command waits for the bridge, which resumes the run when it reads the command. worker_run_list then shows the command as pendingCommand. A row with outcome refused carries code and message. The codes are: not-found (no run of this project has this id), no-bridge, unknown-bridge, bridge-outdated (the bridge is too old to take commands), pending (a command already waits on the run), not-controllable (an interactive session), no-session, not-resumable (the run did not end, or it succeeded), and card-held (a person paused the agents on the card). A row with outcome error says that an unexpected failure hit that run. Its message says that the outcome is unknown, so read worker_run_list to see whether a command waits on the run. The tool then stops, and each later row has outcome not-attempted. Call the tool again for those runs. Only a run in the state blocked, gave-up, failed, no-result, unfinished, timed-out, lost, stopped, waiting-for-person or waiting can resume.",
       "inputSchema": {
         "type": "object",
         "properties": {

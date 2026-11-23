@@ -117,6 +117,7 @@ final class AdvertisedTools
         'card_release',
         'card_pause_release',
         'bridge_command_cancel',
+        'run_wait',
         'inbox_ask',
         'inbox_actions',
         'inbox_search',
