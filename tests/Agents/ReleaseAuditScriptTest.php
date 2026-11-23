@@ -110,7 +110,7 @@ final class ReleaseAuditScriptTest extends TestCase
         new Filesystem()->remove($this->dir);
     }
 
-    private const string BASH4_SYNTAX = '/\b(declare|typeset|local|export|readonly)\s+-(?=\w*[^\WafFirxp])\w+|\bmapfile\b|\breadarray\b|\bcoproc\b|\$\{[\w!]+(,|\^|@[UuLlQEPAa])|\|&|&>>|;;?&|\[\[\s+-[vR]\b|\bwait\s+-\w*n|\{[\w-]+\.\.[\w-]+\.\.[\w-]+\}|\bread\s+(-\w+\s+)*-t\s*[0-9]*\.|%\([^)]*\)T|\$BASHPID|\$EPOCH(SECONDS|REALTIME)|\bglobstar\b/';
+    private const string BASH4_SYNTAX = '/\b(declare|typeset|local|export|readonly)\s+-(?=\w*[^\WafFirxp])\w+|\bmapfile\b|\breadarray\b|\bcoproc\b|\$\{[\w!]+(,|\^|@[UuLlQEPAa])|\|&|&>>|;;?&|\[\[\s+-[vR]\b|\bwait\s+-\w*n|\{[\w-]+\.\.[\w-]+\.\.[\w-]+\}|\bread\s+(-\w+\s+)*-t\s*[0-9]*\.|%\([^)]*\)T|\$BASHPID|\$EPOCH(SECONDS|REALTIME)|\bread\s+(-\w+\s+)*-\w*[iN]\w*\b|\bunset\s+-\w*n|\bshopt\s+(-\w+\s+)*(globstar|lastpipe|autocd|dirspell|checkjobs|direxpand|compat\d+)\b|\bexec\s+\{\w+\}[<>]|\bglobstar\b/';
 
     public function test_it_runs_on_the_macos_system_bash(): void
     {
@@ -141,6 +141,11 @@ final class ReleaseAuditScriptTest extends TestCase
         yield 'wait any' => ['wait -n'];
         yield 'step range' => ['echo {1..10..2}'];
         yield 'fractional read timeout' => ['read -t 0.5 line'];
+        yield 'read initial text' => ['read -r -i abc -e line'];
+        yield 'read fixed count' => ['read -N 3 line'];
+        yield 'unset nameref' => ['unset -n ref'];
+        yield 'lastpipe' => ['shopt -s lastpipe'];
+        yield 'named fd' => ['exec {fd}>f'];
         yield 'printf time' => ["printf '%(%s)T' -1"];
         yield 'BASHPID' => ['echo $BASHPID'];
     }
