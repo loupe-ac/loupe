@@ -11,12 +11,13 @@ use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkerWaitRepository;
 use App\Module\Bridge\ValueObject\BridgeCommandCause;
 use App\Module\Bridge\ValueObject\BridgeCommandKind;
+use App\Module\Bridge\ValueObject\WorkerRunState;
 use Psr\Log\LoggerInterface;
 
 /**
  * Asks the bridge of a run to resume the session of a wait that ended. Loupe requests the resume, so it names no person.
  * A wait that a run resumed already, or that ended in a way that does not resume, gets none. A run that still runs gets
- * its resume when it ends. A resume that the request refuses leaves the wait ended with no resume run.
+ * its resume when it ends, unless it ends finished or blocked. A resume that the request refuses leaves the wait ended with no resume run.
  */
 final readonly class ResumeWaitingRunHandler
 {
@@ -52,6 +53,12 @@ final readonly class ResumeWaitingRunHandler
         // A live run takes no resume. Its end asks again, as it does for an ask that closed meanwhile.
         if ($run->state->isOpen()) {
             $this->logger->info('bridge.wait_resume_skipped', $context + ['reason' => 'run_live']);
+
+            return;
+        }
+        // A run that ended finished or blocked after its wait ended reported that it needs no resume.
+        if (WorkerRunState::Waiting !== $run->state) {
+            $this->logger->info('bridge.wait_resume_skipped', $context + ['reason' => 'run_not_waiting']);
 
             return;
         }

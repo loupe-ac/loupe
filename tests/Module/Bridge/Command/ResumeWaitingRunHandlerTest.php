@@ -18,6 +18,7 @@ use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkerWaitEndReason;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Bridge\BridgeScenario;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
 
@@ -62,6 +63,26 @@ final class ResumeWaitingRunHandlerTest extends KernelTestCase
         self::bootKernel();
         [$project, $bridge] = $this->scenario('wait-resume-live');
         $run = $this->seedRun($this->em(), $project, bridgeId: $bridge->id, state: WorkerRunState::Running);
+        $wait = $this->endedWait($project, $run, WorkerWaitEndReason::Condition);
+
+        $this->resume($wait);
+
+        self::assertSame([], $this->commands());
+    }
+
+    /** @return iterable<string, array{WorkerRunState}> */
+    public static function finishedStates(): iterable
+    {
+        yield 'blocked' => [WorkerRunState::Blocked];
+        yield 'succeeded' => [WorkerRunState::Succeeded];
+    }
+
+    #[DataProvider('finishedStates')]
+    public function test_a_run_that_finished_after_its_wait_ended_gets_no_resume(WorkerRunState $state): void
+    {
+        self::bootKernel();
+        [$project, $bridge] = $this->scenario('wait-resume-'.$state->value);
+        $run = $this->seedRun($this->em(), $project, bridgeId: $bridge->id, state: $state);
         $wait = $this->endedWait($project, $run, WorkerWaitEndReason::Condition);
 
         $this->resume($wait);
