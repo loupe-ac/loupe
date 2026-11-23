@@ -47,7 +47,7 @@ async function openDocument(
     { stub = true }: { stub?: boolean } = {},
 ): Promise<void> {
     if (stub) {
-        await page.route('**/vendor/mermaid/12.0.0/**', (route) =>
+        await page.route('**/vendor/mermaid/12.3.0/**', (route) =>
             route.fulfill({
                 contentType: 'application/javascript',
                 body: stubModule,
