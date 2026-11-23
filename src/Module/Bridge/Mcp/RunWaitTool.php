@@ -57,7 +57,10 @@ final readonly class RunWaitTool
             $project = $this->subjects->requireWritableProject();
             $session = $this->parseSession($sessionId);
             $held = $this->callerRun->workerSession();
-            if (null !== $held && !$held->equals($session)) {
+            if (null === $held) {
+                throw new ToolCallException('Only the bridge worker of a session can open its wait. Call this tool with the credential of your own run.');
+            }
+            if (!$held->equals($session)) {
                 throw new ToolCallException('sessionId must be the session of your own run.');
             }
             $requests = $this->requestsOf($conditions);

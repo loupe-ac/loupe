@@ -39,6 +39,7 @@ final class RunWaitToolTest extends KernelTestCase
     private Project $project;
     private Bridge $bridge;
     private Uuid $cardId;
+    private bool $autoCredential = false;
     private RecordingAuditor $audit;
 
     /** @var \ArrayObject<string, WaitConditionCheck> */
@@ -86,7 +87,7 @@ final class RunWaitToolTest extends KernelTestCase
     {
         $run = $this->workerRun();
 
-        $result = $this->tool()((string) $run->sessionId, [['key' => 'pr.checks_passed'], ['key' => 'pr.checks_failed', 'pullRequestUrl' => 'https://github.com/acme/app/pull/12']], 45);
+        $result = $this->wait((string) $run->sessionId, [['key' => 'pr.checks_passed'], ['key' => 'pr.checks_failed', 'pullRequestUrl' => 'https://github.com/acme/app/pull/12']], 45);
 
         $wait = $this->onlyWait();
         self::assertSame((string) $wait->id, $result['waitId']);
@@ -118,7 +119,7 @@ final class RunWaitToolTest extends KernelTestCase
     {
         $run = $this->workerRun();
 
-        $this->tool()((string) $run->sessionId, [['key' => 'card.in_review']], 5);
+        $this->wait((string) $run->sessionId, [['key' => 'card.in_review']], 5);
 
         self::assertEquals([['key' => 'card.in_review', 'params' => [], 'pullRequestId' => null, 'token' => null]], $this->onlyWait()->conditions);
     }
@@ -129,7 +130,7 @@ final class RunWaitToolTest extends KernelTestCase
         $second = $this->workerRun(continues: $first);
         $third = $this->workerRun(continues: $second);
 
-        $this->tool()((string) $third->sessionId, [['key' => 'card.in_review']], 5);
+        $this->wait((string) $third->sessionId, [['key' => 'card.in_review']], 5);
 
         $wait = $this->onlyWait();
         self::assertSame((string) $first->id, (string) $wait->chainRootRunId);
@@ -141,7 +142,7 @@ final class RunWaitToolTest extends KernelTestCase
         $first = $this->workerRun();
         $resumed = $this->workerRun(continues: $first, sessionId: $first->sessionId);
 
-        $this->tool()((string) $first->sessionId, [['key' => 'card.in_review']], 5);
+        $this->wait((string) $first->sessionId, [['key' => 'card.in_review']], 5);
 
         self::assertSame((string) $resumed->id, (string) $this->onlyWait()->runId);
     }
@@ -207,7 +208,7 @@ final class RunWaitToolTest extends KernelTestCase
         $first = $this->workerRun();
         $run = $first;
         for ($i = 0; $i < 3; ++$i) {
-            $this->tool()((string) $run->sessionId, [['key' => 'card.in_review']], 5);
+            $this->wait((string) $run->sessionId, [['key' => 'card.in_review']], 5);
             $wait = $this->onlyOpenWait();
             $wait->end(WorkerWaitEndReason::Condition, new \DateTimeImmutable(self::NOW));
             $this->em()->flush();
@@ -221,7 +222,7 @@ final class RunWaitToolTest extends KernelTestCase
     public function test_a_card_with_an_open_wait_is_refused(): void
     {
         $first = $this->workerRun();
-        $this->tool()((string) $first->sessionId, [['key' => 'card.in_review']], 5);
+        $this->wait((string) $first->sessionId, [['key' => 'card.in_review']], 5);
         $second = $this->workerRun();
 
         $this->refused((string) $second->sessionId, [['key' => 'card.in_review']], 5, 'This card already has an open wait. A card holds one wait at a time.');
@@ -244,7 +245,7 @@ final class RunWaitToolTest extends KernelTestCase
 
         $this->expectException(ToolCallException::class);
         $this->expectExceptionMessage('This card already has an open wait. A card holds one wait at a time.');
-        $this->tool()((string) $run->sessionId, [['key' => 'card.in_review']], 5);
+        $this->wait((string) $run->sessionId, [['key' => 'card.in_review']], 5);
     }
 
     public function test_a_condition_that_the_workflow_refuses_names_its_key_and_reason(): void
@@ -283,7 +284,7 @@ final class RunWaitToolTest extends KernelTestCase
         $run = $this->workerRun();
         $this->checks['pr.checks_passed'] = new WaitConditionCheck(pullRequestId: Uuid::fromString('0199a1b2-0000-7000-8000-000000000001'), pullRequestToken: 'pr:acme/app#12');
 
-        $result = $this->tool()((string) $run->sessionId, [['key' => 'pr.checks_passed'], ['key' => 'card.in_review']], 5);
+        $result = $this->wait((string) $run->sessionId, [['key' => 'pr.checks_passed'], ['key' => 'card.in_review']], 5);
 
         self::assertCount(2, $result['conditions']);
     }
@@ -307,11 +308,35 @@ final class RunWaitToolTest extends KernelTestCase
         $run = $this->workerRun();
         $other = $this->workerRun();
         $this->actAsWorker($run->sessionId ?? throw new \LogicException('Seeded.'));
+        $this->autoCredential = false;
 
         $this->refused((string) $other->sessionId, [['key' => 'card.in_review']], 5, 'sessionId must be the session of your own run.');
-        $this->tool()((string) $run->sessionId, [['key' => 'card.in_review']], 5);
+        $this->wait((string) $run->sessionId, [['key' => 'card.in_review']], 5);
 
         self::assertSame((string) $run->id, (string) $this->onlyWait()->runId);
+    }
+
+    public function test_a_run_that_a_report_closed_before_the_insert_is_refused(): void
+    {
+        $run = $this->workerRun();
+        // The entity still reads Running, as it does when a report commits after the handler read the run.
+        $this->em()->getConnection()->executeStatement('UPDATE bridge_worker_runs SET state = ? WHERE id = ?', [WorkerRunState::Succeeded->value, (string) $run->id]);
+
+        $this->refused((string) $run->sessionId, [['key' => 'card.in_review']], 5, 'The run of this session has ended, so it cannot start a wait.');
+        self::assertSame(0, $this->waitCount());
+    }
+
+    public function test_a_call_with_no_run_credential_is_refused(): void
+    {
+        $run = $this->workerRun();
+
+        try {
+            $this->tool()((string) $run->sessionId, [['key' => 'card.in_review']], 5);
+            self::fail('Expected a refusal.');
+        } catch (ToolCallException $e) {
+            self::assertStringStartsWith('Only the bridge worker of a session can open its wait.', $e->getMessage());
+        }
+        self::assertSame(0, $this->waitCount());
     }
 
     public function test_a_token_of_a_run_credential_with_the_worker_scopes_reaches_the_tool(): void
@@ -319,9 +344,27 @@ final class RunWaitToolTest extends KernelTestCase
         $run = $this->workerRun();
         $this->actAsWorker($run->sessionId ?? throw new \LogicException('Seeded.'));
 
-        $result = $this->tool()((string) $run->sessionId, [['key' => 'card.in_review']], 5);
+        $result = $this->wait((string) $run->sessionId, [['key' => 'card.in_review']], 5);
 
         self::assertSame((string) $run->id, (string) $this->onlyWait()->runId);
+    }
+
+    /**
+     * @param array<mixed>[] $conditions
+     *
+     * @return array<string, mixed>
+     */
+    private function wait(string $sessionId, array $conditions, int $limit): array
+    {
+        $storage = self::getContainer()->get('security.token_storage');
+        self::assertInstanceOf(TokenStorageInterface::class, $storage);
+        $held = AuthenticatedCredential::of($storage->getToken())?->workerSessionId;
+        if ((null === $held || $this->autoCredential) && Uuid::isValid($sessionId)) {
+            $this->actAsWorker(Uuid::fromString($sessionId));
+            $this->autoCredential = true;
+        }
+
+        return $this->tool()($sessionId, $conditions, $limit);
     }
 
     private function tool(): RunWaitTool
@@ -336,7 +379,7 @@ final class RunWaitToolTest extends KernelTestCase
     private function refused(string $sessionId, array $conditions, int $limit, string $message): void
     {
         try {
-            $this->tool()($sessionId, $conditions, $limit);
+            $this->wait($sessionId, $conditions, $limit);
             self::fail('Expected a refusal.');
         } catch (ToolCallException $e) {
             self::assertSame($message, $e->getMessage());

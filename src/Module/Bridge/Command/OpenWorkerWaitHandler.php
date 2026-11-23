@@ -85,7 +85,11 @@ final readonly class OpenWorkerWaitHandler
         );
 
         try {
-            $this->em->wrapInTransaction(function () use ($wait): void {
+            $this->em->wrapInTransaction(function () use ($wait, $run): void {
+                // A final report holds this row lock until it commits, so the run state read here is current.
+                if (!$this->workerRuns->lockedStateOf($run)->isOpen()) {
+                    throw new WorkerWaitRefused('The run of this session has ended, so it cannot start a wait.');
+                }
                 $this->em->persist($wait);
                 $this->em->flush();
             });

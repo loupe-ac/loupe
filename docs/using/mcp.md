@@ -421,6 +421,7 @@ When Loupe accepts the wait, the answer holds these fields:
 
 The tool refuses the wait, with a plain reason, in these cases:
 
+- The call does not use the credential of the run, or its `sessionId` is not the session of that run. Only the worker of a session opens its wait.
 - The session has no open bridge worker run. An interactive session has none, and a run that ended has none.
 - The run is not about a card.
 - `limitMinutes` is under 1, or over the longest wait. The reason names the maximum.

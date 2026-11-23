@@ -234,6 +234,21 @@ class WorkerRunRepository extends ServiceEntityRepository
     }
 
     /**
+     * The state the database holds for the run now, read under a row lock that lasts until the
+     * transaction ends. A scalar read never serves a stale entity, so a report that closed the
+     * run first shows here. The lock waits for the state report of the run, which holds the same row.
+     */
+    public function lockedStateOf(WorkerRun $run): WorkerRunState
+    {
+        $state = $this->getEntityManager()->getConnection()->fetchOne(
+            'SELECT state FROM bridge_worker_runs WHERE id = ? FOR UPDATE',
+            [(string) $run->id],
+        );
+
+        return \is_string($state) ? WorkerRunState::from($state) : throw new \LogicException('A stored run has a state.');
+    }
+
+    /**
      * The run the bridge gave this key, locked until the transaction ends, so no
      * inventory or timeout sweep writes the state between the read and the write.
      */
