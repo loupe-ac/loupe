@@ -142,6 +142,37 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertCount(1, $crawler->filter('.lp-inbox-ask__byline > .lp-inbox-ask__byline-actions > [data-inbox-linked-menu]'));
     }
 
+    public function test_the_open_list_groups_its_rows_by_card_and_lists_a_two_card_item_in_both_groups(): void
+    {
+        $owner = $this->signedUpUser($this->em, 'inbox-grouped');
+        $project = $this->inboxProject($this->em, $owner);
+        $this->seedColumns($project);
+        $first = new Card(project: $project, column: $this->column($project, 'backlog'), title: 'First card', body: 'Body', number: 1);
+        $second = new Card(project: $project, column: $this->column($project, 'backlog'), title: 'Second card', body: 'Body', number: 2);
+        $this->em->persist($first);
+        $this->em->persist($second);
+        $both = $this->question($this->em, $project, 1, title: 'Both cards?');
+        $both->cards->add(new InboxItemCard($both, $first));
+        $both->cards->add(new InboxItemCard($both, $second));
+        $this->question($this->em, $project, 2, title: 'No card here?');
+        $this->em->flush();
+        $this->setInboxFlag(true);
+        $projectId = (string) $project->id;
+        $this->em->clear();
+
+        $this->client->loginUser($owner);
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$projectId.'/inbox');
+
+        self::assertResponseIsSuccessful();
+        $groups = $crawler->filter('[data-inbox-group]');
+        self::assertCount(3, $groups);
+        self::assertSame('none', $groups->last()->attr('data-inbox-group'));
+        self::assertStringContainsString('No card', $groups->last()->text());
+        self::assertStringContainsString('No card here?', $groups->last()->text());
+        self::assertCount(2, $crawler->filter('[data-inbox-group]:not([data-inbox-group="none"]) [data-inbox-request]'));
+        self::assertCount(1, $crawler->filter('#inbox-rows[data-inbox-grouped]'));
+    }
+
     public function test_the_linked_menu_shows_three_rows_of_a_kind_and_holds_the_rest_behind_show_more(): void
     {
         $owner = $this->signedUpUser($this->em, 'inbox-linked-more');

@@ -201,7 +201,8 @@ export default class extends Controller {
     /**
      * Whether the signal names asks that the pane does not show, on the open
      * side of an unsearched list. Then the pane stays, and the list changes
-     * only in the rows of those asks.
+     * only in the rows of those asks. A grouped list reads whole, because a
+     * row can show in two groups.
      */
     rowsOnly(pane) {
         const askId = pane?.dataset.inboxAskId;
@@ -216,7 +217,8 @@ export default class extends Controller {
             !this.askIds.has(askId) &&
             !params.has('q') &&
             (params.get('side') ?? 'open') === 'open' &&
-            this.element.querySelector('[data-inbox-request]') !== null
+            this.element.querySelector('[data-inbox-request]') !== null &&
+            this.element.querySelector('[data-inbox-grouped]') === null
         );
     }
 

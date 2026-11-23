@@ -86,10 +86,28 @@
                         </div>
                     </div>
 
-                    <div class="lp-inbox-rows" id="inbox-rows" data-inbox-scroll>
-                        {% for row in inbox.rows %}
-                            {% include '@Inbox/_inbox_request.html.twig' with {row: row, inbox: inbox} only %}
-                        {% endfor %}
+                    <div class="lp-inbox-rows" id="inbox-rows" data-inbox-scroll{% if inbox.groups is not null %} data-inbox-grouped{% endif %}>
+                        {% if inbox.groups is not null %}
+                            {% for group in inbox.groups %}
+                                <section class="lp-inbox-group" data-inbox-group="{{ group.key }}" aria-labelledby="inbox-group-{{ group.key }}">
+                                    <h2 class="lp-inbox-group__heading" id="inbox-group-{{ group.key }}">
+                                        {%- if group.card -%}
+                                            <span class="lp-inbox-group__number">#{{ group.card.number }}</span>
+                                            <span class="lp-inbox-group__title">{{ group.card.title|reference_plain }}</span>
+                                        {%- else -%}
+                                            <span class="lp-inbox-group__title">{{ 'inbox.group.none'|trans }}</span>
+                                        {%- endif -%}
+                                    </h2>
+                                    {% for row in group.rows %}
+                                        {% include '@Inbox/_inbox_request.html.twig' with {row: row, inbox: inbox} only %}
+                                    {% endfor %}
+                                </section>
+                            {% endfor %}
+                        {% else %}
+                            {% for row in inbox.rows %}
+                                {% include '@Inbox/_inbox_request.html.twig' with {row: row, inbox: inbox} only %}
+                            {% endfor %}
+                        {% endif %}
                     </div>
 
                     {# The open side is whole, so only the closed side and the search results page. A wrapper frame sends the pager links to the view. #}

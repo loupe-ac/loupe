@@ -368,6 +368,25 @@
         gap: calc(var(--spacing) * 0.5);
     }
 
+    /* One card of the grouped open list, with its rows below the heading. */
+    .lp-core-inbox .lp-inbox-group {
+        display: flex;
+        flex-direction: column;
+        gap: calc(var(--spacing) * 0.5);
+        @apply pb-2;
+    }
+
+    .lp-core-inbox .lp-inbox-group__heading {
+        display: flex;
+        gap: calc(var(--spacing) * 1.5);
+        color: var(--text-mute);
+        @apply px-3 pt-2 text-xs font-semibold;
+    }
+
+    .lp-core-inbox .lp-inbox-group__title {
+        @apply truncate;
+    }
+
     /* The frame wraps the whole view, and the page flex column sees its children. */
     .lp-core-inbox .lp-inbox-frame {
         display: contents;
