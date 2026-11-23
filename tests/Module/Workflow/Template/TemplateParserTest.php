@@ -834,6 +834,36 @@ final class TemplateParserTest extends TestCase
         yield 'an explicit null' => [null];
     }
 
+    public function test_a_template_groups_the_inbox_by_card_unless_it_says_otherwise(): void
+    {
+        self::assertTrue($this->parser->parse(self::valid())->asks->groupByCard);
+        self::assertTrue($this->parser->parse(self::valid() + ['asks' => ['groupByCard' => true]])->asks->groupByCard);
+        self::assertFalse($this->parser->parse(self::valid() + ['asks' => ['groupByCard' => false]])->asks->groupByCard);
+    }
+
+    #[DataProvider('invalidAsks')]
+    public function test_an_asks_section_that_does_not_parse_is_refused_and_a_stored_copy_groups(mixed $value, string $error): void
+    {
+        $source = self::valid() + ['asks' => $value];
+
+        try {
+            $this->parser->parse($source);
+            self::fail('The template should be refused.');
+        } catch (InvalidTemplate $e) {
+            self::assertContains($error, $e->errors);
+        }
+        self::assertTrue($this->parser->parseStored($source)->asks->groupByCard);
+    }
+
+    /** @return iterable<string, array{mixed, string}> */
+    public static function invalidAsks(): iterable
+    {
+        yield 'a string value' => [['groupByCard' => 'no'], 'asks.groupByCard: must be true or false'];
+        yield 'an unknown key' => [['group' => false], 'asks: unknown key "group"'];
+        yield 'a list' => [[true], 'asks: must be a map'];
+        yield 'a string' => ['no', 'asks: must be a map'];
+    }
+
     #[DataProvider('invalidEpicBranches')]
     public function test_an_epic_branch_pattern_that_is_not_a_branch_name_with_one_placeholder_is_refused(mixed $value): void
     {

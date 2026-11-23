@@ -28159,6 +28159,10 @@
                     "cardNumbers",
                     "body",
                     "options",
+                    "recommendedOption",
+                    "confidence",
+                    "optionCosts",
+                    "details",
                     "multiple",
                     "freeText",
                     "selectedOptions",
@@ -28268,6 +28272,37 @@
                     "options": {
                         "type": "array",
                         "items": {
+                            "type": "string"
+                        }
+                    },
+                    "recommendedOption": {
+                        "description": "The index into `options` of the answer the agent recommends, counting from 0.",
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "confidence": {
+                        "description": "How sure the agent is of the recommended option.",
+                        "type": "string",
+                        "nullable": true,
+                        "enum": [
+                            "high",
+                            "moderate",
+                            "low"
+                        ]
+                    },
+                    "optionCosts": {
+                        "description": "One cost line for each option, in the order of `options`.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "nullable": true
+                    },
+                    "details": {
+                        "description": "Markdown by field name: the facts behind the question.",
+                        "type": "object",
+                        "nullable": true,
+                        "additionalProperties": {
                             "type": "string"
                         }
                     },
@@ -28461,6 +28496,38 @@
                     "freeText": {
                         "description": "Whether the owner may write an answer.",
                         "type": "boolean"
+                    },
+                    "recommendedOption": {
+                        "description": "The index, counting from 0, of the option you recommend. It needs options and a `confidence`. The owner sees that option first and picked, with stars.",
+                        "type": "integer",
+                        "minimum": 0
+                    },
+                    "confidence": {
+                        "description": "How sure you are of the recommended option. Required with `recommendedOption`.",
+                        "type": "string",
+                        "enum": [
+                            "high",
+                            "moderate",
+                            "low"
+                        ]
+                    },
+                    "optionCosts": {
+                        "description": "What each option costs: one short line for each option, in the order of `options`. An empty string names no cost.",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "maxLength": 300
+                        },
+                        "maxItems": 20
+                    },
+                    "details": {
+                        "description": "The facts behind the question, as Markdown by field name, such as `Evidence` or `Risk`. The owner opens them under a Details section.",
+                        "maxProperties": 10,
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string",
+                            "maxLength": 5000
+                        }
                     },
                     "blocking": {
                         "description": "Always false. Nothing waits on an item from the API, so `true` is refused.",

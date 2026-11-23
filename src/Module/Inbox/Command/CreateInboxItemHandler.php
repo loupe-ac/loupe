@@ -81,6 +81,10 @@ final readonly class CreateInboxItemHandler
             $item->apiKeyId = $command->apiKey?->keyId;
             $item->apiKeyName = $command->apiKey?->keyName;
             $item->dedupeKey = $command->dedupeKey;
+            $item->recommendedOption = $draft->recommendedOption;
+            $item->confidence = $draft->confidence;
+            $item->optionCosts = $draft->optionCosts;
+            $item->details = $draft->details;
             foreach ($draft->cards as $card) {
                 $item->cards->add(new InboxItemCard($item, $card, $now));
             }

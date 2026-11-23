@@ -115,6 +115,23 @@ group is oldest first. The **Open** side shows every row.
 
 The **Closed** side lists the closed asks, newest close first, ten to a page.
 
+### Grouping by card
+
+The **Open** side groups its rows by card. Each group has a heading with the
+card number and title. A row sits in the group of each card it links, so an ask
+with two cards shows in both groups. A row with no card sits in the **No card**
+group, which comes last. The group with the newest ask comes first. Inside a
+group, an ask that holds an open blocking item comes first, then the others,
+each oldest first.
+
+The grouping applies to the **Open** side only. The **Closed** side and the
+search results stay flat lists. The type filter still applies, so a group
+holds only the rows that match it. An ask that has no row left after the filter
+shows no group.
+
+A workflow template can turn the grouping off. See
+[The `asks:` section](workflows.md#the-asks-section).
+
 A row is one ask. It shows the icon of the first open item of the ask, and the
 icon of the first item of a closed ask. The title of the first item follows.
 A grey line below the title shows the first linked card and the age, such as
@@ -243,6 +260,13 @@ Every item that takes a response shows its forms under its text.
   the right of the block heading to remove your pick. The page needs JavaScript
   to send the options you pick. A question with no options shows the same
   block with one field, where you write your answer.
+  An agent can recommend one option. That option sits first, already picked,
+  with three stars that show how sure the agent is: one star for low, two for
+  moderate and three for high confidence. Change the pick when you disagree.
+  An agent can also name the cost of each option, which shows as a short line
+  under the option. A **Details** section under the options holds the facts
+  behind the question, one field for each name. It starts closed. Select it to
+  read the fields.
 - **Mark a to-do done.** Write an optional note for the agent in the note
   field, then select **Mark complete**. The closed to-do shows your note.
 - **Dismiss an item.** Write an optional note for the agent in the note field,

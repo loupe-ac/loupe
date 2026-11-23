@@ -308,6 +308,7 @@ final readonly class TemplateParser
         $metrics = $this->metricParser->metrics($source['metrics'] ?? null, $slotKeys, $outcomes, self::producedWork($rules, $childChoices, $onWorkFailed), $lenient, $errors);
         $markers = $this->markers($source['markers'] ?? [], $slotKeys, $types, $facts, $errors, $lenient);
         $inbox = self::inbox($source['inbox'] ?? [], $markers, $errors);
+        $asks = TemplateAsks::parse($source['asks'] ?? null, $lenient, $errors);
         $repositorySettings = \array_key_exists('repositorySettings', $source)
             ? self::repositorySettings($source['repositorySettings'], $lenient, $errors)
             : [];
@@ -341,7 +342,7 @@ final readonly class TemplateParser
             throw new InvalidTemplate($errors);
         }
 
-        return new Template($key, TemplateVersion::of($source), $slots, $rules, $manualMoves, $backoffMinutes, array_values($types ?? []), $defaultType, $onWorkFailed, $childChoices, $failingSeverities, $markers, $approvalCoversConflictResolution, $inbox, $outcomes, $metrics, $repositorySettings, $values, $skillPackages, $needsProfile, $settings, $requirements, $settingValues, $waits);
+        return new Template($key, TemplateVersion::of($source), $slots, $rules, $manualMoves, $backoffMinutes, array_values($types ?? []), $defaultType, $onWorkFailed, $childChoices, $failingSeverities, $markers, $approvalCoversConflictResolution, $inbox, $outcomes, $metrics, $repositorySettings, $values, $skillPackages, $needsProfile, $settings, $requirements, $settingValues, $asks, $waits);
     }
 
     /**

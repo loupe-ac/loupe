@@ -863,6 +863,17 @@ With `readerSessionId`, each `inbox_list` row also carries the response:
 `options`, `selectedOptions`, `note`, and `review`. Without it, a row is
 the short summary, and `inbox_get` reads the answer.
 
+A question can recommend an answer. Set `recommendedOption` to the index of the
+option, counting from 0, and `confidence` to `high`, `moderate` or `low`. Both
+are required together, and they need `options`. The owner sees the recommended
+option first and picked, with one to three stars. `optionCosts` names what each
+option costs: one line for each option, in the order of `options`, at most 300
+characters each. Use an empty string for an option with no cost to name.
+`details` holds the facts behind the question as an object of Markdown strings
+by field name, such as `Evidence` or `Risk`. It takes at most 10 fields, with a
+name of at most 60 characters and a text of at most 5,000 characters. The owner
+opens them under **Details**. `inbox_get` returns the four fields.
+
 Create a Review item with `kind: "review"` and exactly one `reviewDocumentId` or `reviewPullRequestId`.
 Read `pullRequestId` from `card_get`; it identifies a stored card link, not a code-host number.
 Review items take no question options, `multiple`, or `freeText`.

@@ -42,6 +42,24 @@ final class CreateInboxItemRequest
     #[OA\Property(description: 'Whether the owner may write an answer.')]
     public bool $freeText;
 
+    #[Assert\Type('int')]
+    #[OA\Property(description: 'The index, counting from 0, of the option you recommend. It needs options and a `confidence`. The owner sees that option first and picked, with stars.', minimum: 0)]
+    public int $recommendedOption;
+
+    #[Assert\Choice(choices: ['high', 'moderate', 'low'])]
+    #[OA\Property(description: 'How sure you are of the recommended option. Required with `recommendedOption`.', enum: ['high', 'moderate', 'low'])]
+    public string $confidence;
+
+    /** @var list<string> */
+    #[Assert\All(new Assert\Type('string'))]
+    #[OA\Property(description: 'What each option costs: one short line for each option, in the order of `options`. An empty string names no cost.', type: 'array', items: new OA\Items(type: 'string', maxLength: InboxLimits::MAX_OPTION_COST_LENGTH), maxItems: InboxLimits::MAX_OPTIONS)]
+    public array $optionCosts;
+
+    /** @var array<string, string> */
+    #[Assert\All(new Assert\Type('string'))]
+    #[OA\Property(description: 'The facts behind the question, as Markdown by field name, such as `Evidence` or `Risk`. The owner opens them under a Details section.', maxProperties: InboxLimits::MAX_DETAILS, type: 'object', additionalProperties: new OA\AdditionalProperties(type: 'string', maxLength: InboxLimits::MAX_DETAIL_LENGTH))]
+    public array $details;
+
     #[Assert\IsFalse(message: 'inbox.api.error.blocking_refused')]
     #[OA\Property(description: 'Always false. Nothing waits on an item from the API, so `true` is refused.', enum: [false])]
     public bool $blocking;

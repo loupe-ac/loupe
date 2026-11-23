@@ -369,6 +369,10 @@ lists the refusals.
 get <itemId>` reads it with the answer. A CI job can run
 `loupe inbox create --kind notice --title "The weekly run failed" --dedupe-key weekly-ci`
 with an API key, and the owner sees one open item for repeated failures.
+A question takes `--options`, `--recommended-option` with `--confidence`,
+`--option-costs`, and `--details` with a JSON object of Markdown by field name.
+A list flag splits on commas, so pass a cost that holds a comma with `--input`.
+These flags need a CLI release after `cli/v2.9.0`.
 The [API reference](api/index.md#inbox-items) gives the rules. The commands
 need a CLI release after `cli/v2.0.2`, and a server with the inbox routes and
 the inbox flag on.

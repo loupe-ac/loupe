@@ -6,6 +6,7 @@ namespace App\Tests\Module\Inbox\Controller;
 
 use App\Module\Inbox\Entity\InboxCloseCause;
 use App\Module\Inbox\Entity\InboxCloser;
+use App\Module\Inbox\Entity\InboxConfidence;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Inbox\InboxScenario;
@@ -56,6 +57,54 @@ final class InboxThreadPageTest extends WebTestCase
         self::assertCount(1, $crawler->filter('#inbox-item-1 .lp-inbox-item__head .lp-inbox-item__blocking'));
         self::assertCount(0, $crawler->filter('#inbox-item-2 .lp-inbox-item__blocking'));
         self::assertCount(2, $crawler->filter('.lp-inbox-item__head .lp-inbox-item__kind svg'));
+    }
+
+    public function test_a_recommended_option_comes_first_picked_with_stars_cost_and_details(): void
+    {
+        $question = $this->question($this->em, $this->project, 1);
+        $question->options = ['alpha', 'beta', 'gamma'];
+        $question->recommendedOption = 2;
+        $question->confidence = InboxConfidence::Moderate;
+        $question->optionCosts = ['', 'slower', 'a rename later'];
+        $question->details = ['Evidence' => 'Two **callers** use it.', 'Risk' => 'Low'];
+        $this->em->flush();
+        $this->askHolding($this->em, $this->project, [$question]);
+
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$this->project->id.'/inbox');
+
+        self::assertResponseIsSuccessful();
+        $options = $crawler->filter('#inbox-item-1 .lp-decision__option');
+        self::assertSame(['2', '0', '1'], $options->each(static fn (Crawler $node): string => (string) $node->filter('input')->attr('value')));
+        self::assertNotNull($options->eq(0)->filter('input')->attr('checked'));
+        self::assertNull($options->eq(1)->filter('input')->attr('checked'));
+        $badge = $options->eq(0)->filter('[data-inbox-recommended]');
+        self::assertSame('moderate', $badge->attr('data-decision-recommended'));
+        self::assertCount(2, $badge->filter('.lp-decision__star--filled'));
+        self::assertCount(3, $badge->filter('.lp-decision__star'));
+        self::assertCount(0, $options->eq(1)->filter('[data-inbox-recommended]'));
+        self::assertSame('Cost: a rename later', $options->eq(0)->filter('[data-inbox-option-cost]')->text());
+        self::assertSame('Cost: slower', $options->eq(2)->filter('[data-inbox-option-cost]')->text());
+        self::assertCount(0, $options->eq(1)->filter('[data-inbox-option-cost]'));
+        $details = $crawler->filter('#inbox-item-1 details[data-inbox-details]');
+        self::assertStringContainsString('Details (2)', $details->filter('summary')->text());
+        self::assertNull($details->attr('open'));
+        self::assertSame(['Evidence', 'Risk'], $details->filter('dt')->each(static fn (Crawler $node): string => $node->text()));
+        self::assertSame('callers', $details->filter('dd strong')->first()->text());
+    }
+
+    public function test_a_question_with_no_recommendation_keeps_its_order_and_shows_no_details(): void
+    {
+        $question = $this->question($this->em, $this->project, 1);
+        $question->options = ['alpha', 'beta'];
+        $this->em->flush();
+        $this->askHolding($this->em, $this->project, [$question]);
+
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$this->project->id.'/inbox');
+
+        $options = $crawler->filter('#inbox-item-1 .lp-decision__option');
+        self::assertSame(['0', '1'], $options->each(static fn (Crawler $node): string => (string) $node->filter('input')->attr('value')));
+        self::assertCount(0, $crawler->filter('#inbox-item-1 [data-inbox-recommended], #inbox-item-1 [data-inbox-details], #inbox-item-1 [data-inbox-option-cost]'));
+        self::assertCount(0, $crawler->filter('#inbox-item-1 .lp-decision__option input[checked]'));
     }
 
     public function test_an_ask_with_one_item_shows_no_item_head(): void

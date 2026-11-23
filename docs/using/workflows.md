@@ -372,6 +372,23 @@ twice. A marker with no pull request, document, run or pause, called a
 card-level marker, can be listed. It opens one inbox item for each spell of the
 marker on the card, and the item ends when the marker turns off.
 
+### The `asks:` section
+
+The top-level `asks:` section shapes the asks that agents put in the
+[inbox](inbox.md). It is optional. A template with no section, and a template
+copy stored before the section existed, use the default of each key.
+
+```yaml
+asks:
+    groupByCard: true
+```
+
+`groupByCard` says whether the open side of the inbox page groups its rows by
+card. It defaults to `true`. Set it to `false` for one flat list, oldest first.
+The template is refused when the value is not `true` or `false`, or when the
+section holds a key that Loupe does not know. A stored copy with a bad value
+reads as the default.
+
 ## Waits
 
 The top-level `waits:` section is optional. It limits how long a worker may wait

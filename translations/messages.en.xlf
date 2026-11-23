@@ -6702,6 +6702,26 @@ workflow:
                 <source>inbox.answer.pick_one</source>
                 <target>Pick one</target>
             </trans-unit>
+            <trans-unit id="inbox.answer.cost">
+                <source>inbox.answer.cost</source>
+                <target>Cost: %cost%</target>
+            </trans-unit>
+            <trans-unit id="inbox.answer.details">
+                <source>inbox.answer.details</source>
+                <target>Details (%count%)</target>
+            </trans-unit>
+            <trans-unit id="inbox.answer.recommended.high">
+                <source>inbox.answer.recommended.high</source>
+                <target>Recommended, high confidence</target>
+            </trans-unit>
+            <trans-unit id="inbox.answer.recommended.moderate">
+                <source>inbox.answer.recommended.moderate</source>
+                <target>Recommended, moderate confidence</target>
+            </trans-unit>
+            <trans-unit id="inbox.answer.recommended.low">
+                <source>inbox.answer.recommended.low</source>
+                <target>Recommended, low confidence</target>
+            </trans-unit>
             <trans-unit id="inbox.answer.pick_any">
                 <source>inbox.answer.pick_any</source>
                 <target>Pick any</target>
@@ -8676,6 +8696,8 @@ workflow:
             <trans-unit id="inbox.filter.kind.wait"><source>inbox.filter.kind.wait</source><target>Card waits</target></trans-unit>
             <trans-unit id="inbox.filter.kind.workflow"><source>inbox.filter.kind.workflow</source><target>Workflow</target></trans-unit>
             <trans-unit id="inbox.filter.empty"><source>inbox.filter.empty</source><target>No ask of this type.</target></trans-unit>
+            <trans-unit id="inbox.group.open"><source>inbox.group.open</source><target>%count% open</target></trans-unit>
+            <trans-unit id="inbox.group.none"><source>inbox.group.none</source><target>No card</target></trans-unit>
             <trans-unit id="inbox.row.more_cards"><source>inbox.row.more_cards</source><target>+%count%</target></trans-unit>
             <trans-unit id="inbox.row.closed"><source>inbox.row.closed</source><target>Closed</target></trans-unit>
             <trans-unit id="inbox.row.source.agent"><source>inbox.row.source.agent</source><target>Agent</target></trans-unit>
