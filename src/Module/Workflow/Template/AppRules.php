@@ -107,6 +107,7 @@ final class AppRules implements ProposalSlot
             $template->settings,
             $template->requirements,
             $template->settingValues,
+            $template->asks,
         );
     }
 

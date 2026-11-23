@@ -15,11 +15,13 @@ use App\Module\Inbox\Service\InboxOutcome;
 use App\Module\Inbox\Service\InboxReviewLookup;
 use App\Module\Inbox\Service\InboxThreadPreload;
 use App\Module\Inbox\Service\ShownInboxAsk;
+use App\Module\Inbox\View\InboxGroup;
 use App\Module\Inbox\View\InboxPageView;
 use App\Module\Inbox\View\InboxRow;
 use App\Module\Inbox\View\InboxSide;
 use App\Module\Inbox\View\InboxView;
 use App\Module\Project\Entity\Project;
+use App\Module\Workflow\Contract\InboxAskSettings;
 use App\Utils\PageList;
 
 final readonly class ShowInboxHandler
@@ -35,6 +37,7 @@ final readonly class ShowInboxHandler
         private InboxReviewLookup $inboxReviews,
         private InboxOutcome $outcome,
         private InboxThreadPreload $threadPreload,
+        private InboxAskSettings $askSettings,
     ) {
     }
 
@@ -84,6 +87,7 @@ final readonly class ShowInboxHandler
             pageList: PageList::build($page, $totalPages),
             bridgeStatuses: null === $bridgeId || null !== $selected?->ask?->closedAt ? [] : $this->bridgeLiveness->forOwner($project->owner, [$bridgeId]),
             pickedNothing: $view->isPicked() && null === $selected,
+            groups: !$view->isSearch() && InboxSide::Open === $view->side && $this->askSettings->groupByCard($project->id ?? throw new \LogicException('A shown project has an id.')) ? InboxGroup::build($rows) : null,
         );
     }
 

@@ -501,6 +501,22 @@ it('reads only the rows of the asks a signal names, and plays the stream', async
     ]);
 });
 
+it('reads the whole view when the list is grouped by card', async () => {
+    await mount(
+        rowsView().replace(
+            'class="lp-inbox-rows"',
+            'class="lp-inbox-rows" data-inbox-grouped',
+        ),
+        ROWS_URL,
+    );
+    answer(rowsView());
+    changed({ askIds: [OTHER] });
+    await settle();
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch.mock.calls[0][0]).not.toContain('/rows');
+});
+
 it('reads the whole view when the signal names the shown ask', async () => {
     await mount(rowsView(), ROWS_URL);
     answer(rowsView());
