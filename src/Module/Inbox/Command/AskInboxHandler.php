@@ -30,9 +30,11 @@ use App\Module\Inbox\Service\InboxRefusal;
 use App\Module\Inbox\Service\InboxSearchIndexer;
 use App\Module\Inbox\Service\InboxSessionAsks;
 use App\Module\Review\Entity\Document;
+use App\Module\Workflow\Contract\AskMode;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
@@ -75,6 +77,12 @@ final readonly class AskInboxHandler
     public const string DETAIL_NAME_TOO_LONG = 'inbox.item.error.detail_name_too_long';
     public const string DETAIL_BLANK = 'inbox.item.error.detail_blank';
     public const string DETAIL_TOO_LONG = 'inbox.item.error.detail_too_long';
+    public const string LABEL_INVALID = 'inbox.item.error.label_invalid';
+    public const string LABEL_NEEDS_QUESTION = 'inbox.item.error.label_needs_question';
+    public const string LABEL_NEEDS_BLOCKING = 'inbox.item.error.label_needs_blocking';
+    public const string LABEL_NO_MULTIPLE = 'inbox.item.error.label_no_multiple';
+    public const string LABEL_NEEDS_RECOMMENDED = 'inbox.item.error.label_needs_recommended';
+    public const string LABEL_FIELD_MISSING = 'inbox.item.error.label_field_missing';
     public const string SUGGESTION_UNKNOWN_ACTION = 'inbox.item.error.suggestion_unknown_action';
     public const string SUGGESTION_DUPLICATE = 'inbox.item.error.suggestion_duplicate';
     public const string SUGGESTION_TWO_RECOMMENDED = 'inbox.item.error.suggestion_two_recommended';
@@ -106,6 +114,7 @@ final readonly class AskInboxHandler
         private WorkerRunRepository $workerRuns,
         private RecordRunAskHandler $recordRunAsk,
         private MessageBusInterface $bus,
+        private LoggerInterface $logger,
     ) {
     }
 
@@ -124,16 +133,30 @@ final readonly class AskInboxHandler
             ? $this->askingBridge->find($command->project, $command->sessionId, $command->bridgeId)
             : null;
         $drafts = [];
+        $logged = [];
         foreach ($command->items as $index => $input) {
-            $drafts[] = $this->drafter->draft($command->project, $input, \sprintf('items[%d].', $index), $bridge);
+            $draft = $this->drafter->draft($command->project, $input, \sprintf('items[%d].', $index), $bridge);
+            if (AskMode::Log === $draft->mode) {
+                $logged[] = new AskInboxLogged($draft->label ?? '', $draft->title, $draft->options[$draft->recommendedOption ?? 0]);
+
+                continue;
+            }
+            $drafts[] = $draft;
         }
         if (null !== $command->context && mb_strlen($command->context) > InboxLimits::MAX_CONTEXT_LENGTH) {
             throw new DomainErrors(['context' => InboxSessionAsks::CONTEXT_TOO_LONG]);
         }
         $context = null === $command->context || '' === trim($command->context) ? null : trim($command->context);
 
+        // A call that logs every item opens no ask and writes no item, so nothing waits and no one is asked.
+        if ([] === $drafts) {
+            $this->logger->info('inbox.items_logged', ['projectId' => (string) $command->project->id, 'sessionId' => (string) $command->sessionId, 'labels' => implode(',', array_map(static fn (AskInboxLogged $entry): string => $entry->label, $logged))]);
+
+            return new AskInboxView(null, [], extended: false, logged: $logged);
+        }
+
         try {
-            $view = $this->em->wrapInTransaction(function () use ($command, $drafts, $context): AskInboxView|InboxRefusal {
+            $view = $this->em->wrapInTransaction(function () use ($command, $drafts, $context, $logged): AskInboxView|InboxRefusal {
                 // Serialises every ask in the project: the item numbers, and the
                 // lookup of the session's open ask that decides open or extend.
                 $this->em->lock($command->project, LockMode::PESSIMISTIC_WRITE);
@@ -167,6 +190,10 @@ final readonly class AskInboxHandler
                     $item->confidence = $draft->confidence;
                     $item->optionCosts = $draft->optionCosts;
                     $item->details = $draft->details;
+                    $item->label = $draft->label;
+                    $item->defaultsAt = AskMode::Default === $draft->mode && null !== $draft->defaultHours
+                        ? $now->modify(\sprintf('+%d hours', $draft->defaultHours))
+                        : null;
                     foreach ($draft->cards as $card) {
                         $item->cards->add(new InboxItemCard($item, $card, $now));
                     }
@@ -193,7 +220,7 @@ final readonly class AskInboxHandler
                     $this->searchIndexer->index($item);
                 }
 
-                return new AskInboxView($sessionAsk->ask, $created, extended: !$sessionAsk->opened);
+                return new AskInboxView($sessionAsk->ask, $created, extended: !$sessionAsk->opened, logged: $logged);
             });
         } catch (UniqueConstraintViolationException $e) {
             // The project lock serialises one project only. A session that asks in
@@ -208,7 +235,8 @@ final readonly class AskInboxHandler
         if ($view instanceof InboxRefusal) {
             throw new DomainErrors([$view->field => $view->key]);
         }
-        $this->inboxChanged->changed($command->project, [$view->ask->id ?? throw new \LogicException('A stored ask has an id.')]);
+        $ask = $view->ask ?? throw new \LogicException('An ask that kept an item has an ask.');
+        $this->inboxChanged->changed($command->project, [$ask->id ?? throw new \LogicException('A stored ask has an id.')]);
         $this->cardTiles->refresh(...$view->items);
         $reviewed = [];
         foreach ($drafts as $draft) {
@@ -226,15 +254,16 @@ final readonly class AskInboxHandler
             'inbox.items_asked',
             AuditOutcome::Success,
             [
-                'askId' => (string) $view->ask->id,
+                'askId' => (string) $ask->id,
                 'projectId' => (string) $command->project->id,
                 'sessionId' => (string) $command->sessionId,
                 'bridgeId' => null === $command->bridgeId ? null : (string) $command->bridgeId,
                 'itemNumbers' => implode(',', array_map(static fn (InboxItem $item): int => $item->number, $view->items)),
                 'extended' => $view->extended,
-                'closed' => null !== $view->ask->closedAt,
+                'closed' => null !== $ask->closedAt,
+                'logged' => \count($logged),
             ],
-            new AuditSubject('inbox_ask', (string) $view->ask->id),
+            new AuditSubject('inbox_ask', (string) $ask->id),
         );
 
         return $view;

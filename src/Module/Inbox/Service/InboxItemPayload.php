@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Module\Inbox\Service;
 
+use App\Module\Inbox\Command\AskInboxLogged;
+use App\Module\Inbox\Command\AskInboxView;
 use App\Module\Inbox\Entity\InboxAction;
 use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxCardWait;
@@ -33,6 +35,7 @@ use App\Module\Review\Repository\ReviewRepository;
  * @phpstan-type InboxSuggestedActionSummary array{action: string, reason: string, recommended: bool, cardId: ?string, command?: array{entry: string, branch: string, params: array<string, string>}|null, proposedEntry?: string|null, prompt?: string|null}
  * @phpstan-type InboxItemSummary array{itemId: string, number: int, kind: string, origin: string, title: string, state: string, closedBy: ?string, closeCause: ?string, dismissible: bool, blocking: bool, createdAt: string, updatedAt: string, closedAt: ?string, cardNumbers: list<int>, body: ?string, options: list<string>, recommendedOption: ?int, confidence: ?string, optionCosts: ?list<string>, details: ?array<string, string>, multiple: bool, freeText: bool, selectedOptions: list<int>, note: ?string, review: ?InboxReviewSummary, cards: list<InboxItemCardSummary>, documents: list<InboxItemDocumentSummary>, asks: list<InboxItemAskSummary>, cardId: ?string, waits: list<InboxCardWaitSummary>, suggestedActions: list<InboxSuggestedActionSummary>, actions: list<InboxActionSummary>, apiKey: ?array{id: string, name: string}}
  * @phpstan-type InboxAskSummary array{askId: string, extended: bool, closed: bool, items: list<InboxItemListSummary>}
+ * @phpstan-type InboxAskReply array{askId: ?string, extended: bool, closed: bool, items: list<InboxItemListSummary>, logged: list<array{label: string, title: string, option: string}>, message: string}
  */
 final readonly class InboxItemPayload
 {
@@ -207,6 +210,34 @@ final readonly class InboxItemPayload
             'extended' => $extended,
             'closed' => null !== $ask->closedAt,
             'items' => $this->forList($items),
+        ];
+    }
+
+    /**
+     * The reply of inbox_ask: the ask, when an item went to it, the asks the template logged, and what the agent does next.
+     *
+     * @return InboxAskReply
+     */
+    public function forAskCall(AskInboxView $view): array
+    {
+        $ask = $view->ask;
+        $message = array_map(
+            static fn (AskInboxLogged $entry): string => \sprintf('Logged "%s" as %s. Go on with "%s".', $entry->title, $entry->label, $entry->option),
+            $view->logged,
+        );
+        if (null !== $ask) {
+            $message[] = null === $ask->closedAt
+                ? 'Asked, stop your turn.'.(array_any($view->items, static fn (InboxItem $item): bool => null !== $item->defaultsAt) ? ' Loupe answers an item with your recommended option when its deadline passes, and resumes you.' : '')
+                : 'Asked. Nothing waits on it, so go on.';
+        }
+
+        return [
+            'askId' => null === $ask ? null : (string) $ask->id,
+            'extended' => $view->extended,
+            'closed' => null === $ask || null !== $ask->closedAt,
+            'items' => $this->forList($view->items),
+            'logged' => array_map(static fn (AskInboxLogged $entry): array => ['label' => $entry->label, 'title' => $entry->title, 'option' => $entry->option], $view->logged),
+            'message' => implode(' ', $message),
         ];
     }
 

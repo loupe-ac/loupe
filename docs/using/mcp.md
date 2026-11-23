@@ -819,6 +819,19 @@ by field name, such as `Evidence` or `Risk`. It takes at most 10 fields, with a
 name of at most 60 characters and a text of at most 5,000 characters. The owner
 opens them under **Details**. `inbox_get` returns the four fields.
 
+Give a question a `label` when the project template names its kind of choice,
+such as `naming` or `security`. The label has the lowercase form of the
+template, at most 40 characters. A labelled question needs `options`, a
+`recommendedOption` with its `confidence`, and every detail field that the
+template lists under `asks: fields`. The reply of `inbox_ask` says what Loupe
+did. A `log` label opens no item. The reply holds `logged`, a list of the label,
+the title and the option for each logged question, and a `message` such as
+"Logged \"Which name?\" as naming. Go on with \"beta\"." An `ask` or `default`
+label opens an item, and the `message` says "Asked, stop your turn." Loupe
+answers a `default` item with your recommended option when its deadline passes,
+and resumes your session. See
+[Labels, defaults and the log](inbox.md#labels-defaults-and-the-log).
+
 Create a Review item with `kind: "review"` and exactly one `reviewDocumentId` or `reviewPullRequestId`.
 Read `pullRequestId` from `card_get`; it identifies a stored card link, not a code-host number.
 Review items take no question options, `multiple`, or `freeText`.

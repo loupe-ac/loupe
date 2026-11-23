@@ -83,7 +83,11 @@ final readonly class InboxOutcome
             InboxCloser::OwnerThroughAgent => 'inbox.outcome.agent_for_owner.'.$what,
             InboxCloser::OwnerThroughApiKey => 'inbox.outcome.api_key_for_owner.'.$what,
             InboxCloser::Rule => null === $verdict ? 'inbox.outcome.rule.resolved' : 'inbox.outcome.rule.'.$what,
-            InboxCloser::Loupe => InboxCloseCause::CommandSucceeded === $item->closeCause ? 'inbox.outcome.loupe.command_succeeded' : 'inbox.outcome.loupe.resolved',
+            InboxCloser::Loupe => match ($item->closeCause) {
+                InboxCloseCause::CommandSucceeded => 'inbox.outcome.loupe.command_succeeded',
+                InboxCloseCause::Defaulted => 'inbox.outcome.loupe.defaulted',
+                default => 'inbox.outcome.loupe.resolved',
+            },
             default => 'inbox.outcome.resolved',
         };
     }

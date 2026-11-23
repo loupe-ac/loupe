@@ -6480,6 +6480,10 @@
                 <source>inbox.outcome.loupe.resolved</source>
                 <target>Resolved by Loupe</target>
             </trans-unit>
+            <trans-unit id="inbox.outcome.loupe.defaulted">
+                <source>inbox.outcome.loupe.defaulted</source>
+                <target>Answered by Loupe with the recommended option, after the deadline</target>
+            </trans-unit>
             <trans-unit id="inbox.outcome.loupe.card_deleted">
                 <source>inbox.outcome.loupe.card_deleted</source>
                 <target>Cancelled by Loupe: the card was deleted</target>
@@ -6701,6 +6705,10 @@ workflow:
             <trans-unit id="inbox.answer.cost">
                 <source>inbox.answer.cost</source>
                 <target>Cost: %cost%</target>
+            </trans-unit>
+            <trans-unit id="inbox.answer.deadline">
+                <source>inbox.answer.deadline</source>
+                <target>No answer by %time%? Loupe answers "%option%", the option the agent recommends.</target>
             </trans-unit>
             <trans-unit id="inbox.answer.details">
                 <source>inbox.answer.details</source>

@@ -39,6 +39,8 @@ final readonly class AskInboxItem
         public array $optionCosts = [],
         /** @var array<string, string> Markdown by field name */
         public array $details = [],
+        /** The label of the template that sets the mode of the ask, such as `naming`. */
+        public ?string $label = null,
     ) {
     }
 }

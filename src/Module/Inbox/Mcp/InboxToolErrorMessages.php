@@ -23,6 +23,7 @@ use App\Module\Inbox\Service\RunCommandResolver;
 use App\Module\Inbox\Service\RunSuggestions;
 use App\Module\Inbox\Service\SessionPromptLimit;
 use App\Module\Inbox\Service\SuggestedCommandCheck;
+use App\Module\Workflow\Contract\AskLabelRule;
 use Mcp\Exception\ToolCallException;
 
 /**
@@ -80,6 +81,12 @@ final readonly class InboxToolErrorMessages
             AskInboxHandler::DETAIL_NAME_TOO_LONG => \sprintf('A detail field name must be at most %d characters.', InboxLimits::MAX_DETAIL_NAME_LENGTH),
             AskInboxHandler::DETAIL_BLANK => 'A detail field must not be blank.',
             AskInboxHandler::DETAIL_TOO_LONG => \sprintf('A detail field must be at most %d characters.', InboxLimits::MAX_DETAIL_LENGTH),
+            AskInboxHandler::LABEL_INVALID => \sprintf('A label must be lowercase words joined by hyphens, at most %d characters, such as "naming".', AskLabelRule::MAX_NAME_LENGTH),
+            AskInboxHandler::LABEL_NEEDS_QUESTION => 'A label belongs on a question with options. A todo, a review and a question with only freeText take none.',
+            AskInboxHandler::LABEL_NEEDS_BLOCKING => 'A labelled ask blocks. Leave out blocking, or pass true.',
+            AskInboxHandler::LABEL_NO_MULTIPLE => 'A labelled ask takes one answer, so it accepts no multiple.',
+            AskInboxHandler::LABEL_NEEDS_RECOMMENDED => 'A labelled ask needs a recommendedOption with a confidence, because Loupe may answer it with that option.',
+            AskInboxHandler::LABEL_FIELD_MISSING => 'A labelled ask must carry this detail field. Write the facts behind your choice under it.',
             AskInboxHandler::SUGGESTION_UNKNOWN_ACTION => \sprintf('A suggested action must be one of: %s. inbox_actions lists them.', implode(', ', RunSuggestions::ACTIONS)),
             AskInboxHandler::SUGGESTION_DUPLICATE => 'Suggest each action once.',
             AskInboxHandler::SUGGESTION_TWO_RECOMMENDED => 'Mark at most one suggested action as recommended.',

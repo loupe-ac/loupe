@@ -38,6 +38,7 @@ use App\Module\Workflow\Action\ReleasePause;
 use App\Module\Workflow\Condition\CardInSlot;
 use App\Module\Workflow\Condition\Conditions;
 use App\Module\Workflow\Contract\Action;
+use App\Module\Workflow\Contract\AskMode;
 use App\Module\Workflow\Contract\CardValueType;
 use App\Module\Workflow\Contract\CardValueVisibility;
 use App\Module\Workflow\Contract\LabelTone;
@@ -840,6 +841,41 @@ final class TemplateParserTest extends TestCase
         self::assertFalse($this->parser->parse(self::valid() + ['asks' => ['groupByCard' => false]])->asks->groupByCard);
     }
 
+    public function test_an_asks_section_reads_the_labels_the_fields_and_the_switches(): void
+    {
+        $asks = $this->parser->parse(self::valid() + ['asks' => [
+            'defaultHours' => 6,
+            'defaults' => false,
+            'fields' => ['undo'],
+            'labels' => [['key' => 'naming', 'mode' => 'log'], ['key' => 'ordering', 'mode' => 'default'], ['key' => 'data', 'mode' => 'ask']],
+        ]])->asks;
+
+        self::assertSame(6, $asks->defaultHours);
+        self::assertSame(['undo'], $asks->fields);
+        self::assertSame(AskMode::Log, $asks->modeOf('naming'));
+        self::assertSame(AskMode::Ask, $asks->modeOf('ordering'), 'A default mode asks while the defaults switch is off.');
+        self::assertSame(AskMode::Ask, $asks->modeOf('data'));
+        self::assertSame(AskMode::Ask, $asks->modeOf('unlisted'));
+    }
+
+    public function test_a_log_label_asks_while_the_log_switch_is_off(): void
+    {
+        $asks = $this->parser->parse(self::valid() + ['asks' => ['log' => false, 'labels' => [['key' => 'naming', 'mode' => 'log']]]])->asks;
+
+        self::assertSame(AskMode::Ask, $asks->modeOf('naming'));
+    }
+
+    public function test_a_template_with_no_labels_has_the_defaults(): void
+    {
+        $asks = $this->parser->parse(self::valid())->asks;
+
+        self::assertSame(24, $asks->defaultHours);
+        self::assertTrue($asks->defaults);
+        self::assertTrue($asks->log);
+        self::assertSame([], $asks->fields);
+        self::assertSame([], $asks->labels);
+    }
+
     #[DataProvider('invalidAsks')]
     public function test_an_asks_section_that_does_not_parse_is_refused_and_a_stored_copy_groups(mixed $value, string $error): void
     {
@@ -859,6 +895,15 @@ final class TemplateParserTest extends TestCase
     {
         yield 'a string value' => [['groupByCard' => 'no'], 'asks.groupByCard: must be true or false'];
         yield 'an unknown key' => [['group' => false], 'asks: unknown key "group"'];
+        yield 'a bad hours value' => [['defaultHours' => 0], 'asks.defaultHours: must be a whole number from 1 to 720'];
+        yield 'a string for hours' => [['defaultHours' => '6'], 'asks.defaultHours: must be a whole number from 1 to 720'];
+        yield 'a string switch' => [['defaults' => 'yes'], 'asks.defaults: must be true or false'];
+        yield 'fields as a map' => [['fields' => ['undo' => 'x']], 'asks.fields: must be a list of at most 50 names'];
+        yield 'a bad field name' => [['fields' => ['Undo it']], 'asks.fields[0]: must be lowercase words joined by hyphens'];
+        yield 'a repeated field' => [['fields' => ['undo', 'undo']], 'asks.fields[1]: the field "undo" is listed twice'];
+        yield 'a label with no mode' => [['labels' => [['key' => 'naming']]], 'asks.labels[0]: must be a map with a "key" in lowercase words joined by hyphens and a "mode" of log, default or ask'];
+        yield 'a label with an unknown mode' => [['labels' => [['key' => 'naming', 'mode' => 'skip']]], 'asks.labels[0]: must be a map with a "key" in lowercase words joined by hyphens and a "mode" of log, default or ask'];
+        yield 'a repeated label' => [['labels' => [['key' => 'naming', 'mode' => 'log'], ['key' => 'naming', 'mode' => 'ask']]], 'asks.labels[1]: the label "naming" is listed twice'];
         yield 'a list' => [[true], 'asks: must be a map'];
         yield 'a string' => ['no', 'asks: must be a map'];
     }

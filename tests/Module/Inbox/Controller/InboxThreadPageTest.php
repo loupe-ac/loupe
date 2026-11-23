@@ -92,6 +92,21 @@ final class InboxThreadPageTest extends WebTestCase
         self::assertSame('callers', $details->filter('dd strong')->first()->text());
     }
 
+    public function test_a_question_with_a_deadline_says_when_loupe_answers_for_the_owner(): void
+    {
+        $question = $this->question($this->em, $this->project, 1);
+        $question->options = ['alpha', 'beta'];
+        $question->recommendedOption = 1;
+        $question->confidence = InboxConfidence::High;
+        $question->defaultsAt = new \DateTimeImmutable('2031-03-04 15:30:00');
+        $this->em->flush();
+        $this->askHolding($this->em, $this->project, [$question]);
+
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$this->project->id.'/inbox');
+
+        self::assertSame('No answer by 4 Mar 2031 15:30? Loupe answers "beta", the option the agent recommends.', $crawler->filter('#inbox-item-1 [data-inbox-deadline]')->text());
+    }
+
     public function test_a_question_with_no_recommendation_keeps_its_order_and_shows_no_details(): void
     {
         $question = $this->question($this->em, $this->project, 1);

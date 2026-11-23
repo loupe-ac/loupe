@@ -187,6 +187,8 @@ final readonly class DevInboxSeeder implements DevSeederInterface
             'options' => ['Retry once, then let the customer decide', 'Always let the customer retry'],
             'freeText' => true,
         ]);
+        $retries->label = 'ordering';
+        $retries->defaultsAt = $context->at(0)->modify('+20 hours');
         $retries->recommendedOption = 1;
         $retries->confidence = InboxConfidence::Moderate;
         $retries->optionCosts = ['An unexpected second charge attempt can confuse customers', 'A customer who leaves the page never pays'];

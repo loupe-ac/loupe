@@ -1052,6 +1052,23 @@ rules:
       when: { card.follows.finished: {} }
       then: { move: { to: next, from: '@backlog' } }
 
+asks:
+    defaultHours: 24
+    defaults: true
+    log: true
+    groupByCard: true
+    fields: [undo]
+    labels:
+        - { key: naming, mode: log }
+        - { key: wording, mode: log }
+        - { key: code-style, mode: log }
+        - { key: test-choice, mode: default }
+        - { key: ordering, mode: default }
+        - { key: data, mode: ask }
+        - { key: security, mode: ask }
+        - { key: cost, mode: ask }
+        - { key: public-api, mode: ask }
+        - { key: destructive, mode: ask }
 inbox: [waits-for-approval, document-in-review, epic-design-changes-requested, run-needs-you, paused, repository-misfit]
 markers:
     - key: paused

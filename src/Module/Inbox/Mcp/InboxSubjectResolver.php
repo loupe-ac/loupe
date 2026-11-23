@@ -121,6 +121,7 @@ final readonly class InboxSubjectResolver
                 confidence: null === ($item['confidence'] ?? null) ? null : $this->string($item, 'confidence', $index),
                 optionCosts: $this->strings($item, 'optionCosts', $index),
                 details: $this->details($item, $index),
+                label: null === ($item['label'] ?? null) ? null : $this->string($item, 'label', $index),
             );
         }
 
