@@ -14,6 +14,7 @@ use App\Module\Inbox\Command\AskInboxItem;
 use App\Module\Inbox\Command\AskInboxRunCommand;
 use App\Module\Inbox\Command\AskInboxSuggestion;
 use App\Module\Inbox\Entity\InboxActionKind;
+use App\Module\Inbox\Entity\InboxConfidence;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\InboxLimits;
@@ -104,6 +105,10 @@ final readonly class InboxItemDrafter
             throw new DomainErrors([$field('kind') => AskInboxHandler::REVIEW_TARGET_WRONG_KIND]);
         }
 
+        $recommendedOption = $this->recommendation($input, $options, $field);
+        $optionCosts = $this->costs($input, $options, $field);
+        $details = $this->details($input, $field);
+
         $cardIds = $input->cardIds;
         $documentIds = $input->documentIds;
         if ($reviewTarget instanceof Document) {
@@ -132,7 +137,101 @@ final readonly class InboxItemDrafter
             reviewTarget: $reviewTarget,
             suggestedActions: $this->suggestions($input->suggestedActions, $input->kind, $linkedCardIds, $field('suggestedActions'), $bridge),
             dismissible: $input->dismissible,
+            recommendedOption: $recommendedOption,
+            confidence: null === $recommendedOption ? null : InboxConfidence::from($input->confidence ?? ''),
+            optionCosts: $optionCosts,
+            details: $details,
         );
+    }
+
+    /**
+     * The recommended index, after the checks that bind it to the options and to a confidence.
+     *
+     * @param list<string>             $options
+     * @param \Closure(string): string $field
+     */
+    private function recommendation(AskInboxItem $input, array $options, \Closure $field): ?int
+    {
+        if (null !== $input->confidence && null === InboxConfidence::tryFrom($input->confidence)) {
+            throw new DomainErrors([$field('confidence') => AskInboxHandler::CONFIDENCE_INVALID]);
+        }
+        if (null === $input->recommendedOption) {
+            if (null !== $input->confidence) {
+                throw new DomainErrors([$field('confidence') => AskInboxHandler::CONFIDENCE_WITHOUT_RECOMMENDED]);
+            }
+
+            return null;
+        }
+        if ([] === $options) {
+            throw new DomainErrors([$field('recommendedOption') => AskInboxHandler::RECOMMENDED_NEEDS_OPTIONS]);
+        }
+        if ($input->recommendedOption < 0 || $input->recommendedOption >= \count($options)) {
+            throw new DomainErrors([$field('recommendedOption') => AskInboxHandler::RECOMMENDED_OUT_OF_RANGE]);
+        }
+        if (null === $input->confidence) {
+            throw new DomainErrors([$field('confidence') => AskInboxHandler::RECOMMENDED_WITHOUT_CONFIDENCE]);
+        }
+
+        return $input->recommendedOption;
+    }
+
+    /**
+     * @param list<string>             $options
+     * @param \Closure(string): string $field
+     *
+     * @return list<string>|null
+     */
+    private function costs(AskInboxItem $input, array $options, \Closure $field): ?array
+    {
+        if ([] === $input->optionCosts) {
+            return null;
+        }
+        if ([] === $options) {
+            throw new DomainErrors([$field('optionCosts') => AskInboxHandler::COSTS_NEED_OPTIONS]);
+        }
+        if (\count($input->optionCosts) !== \count($options)) {
+            throw new DomainErrors([$field('optionCosts') => AskInboxHandler::COSTS_COUNT]);
+        }
+        if (array_any($input->optionCosts, static fn (string $cost): bool => mb_strlen($cost) > InboxLimits::MAX_OPTION_COST_LENGTH)) {
+            throw new DomainErrors([$field('optionCosts') => AskInboxHandler::COST_TOO_LONG]);
+        }
+
+        return array_map(static fn (string $cost): string => trim((string) preg_replace('/\s+/u', ' ', $cost)), $input->optionCosts);
+    }
+
+    /**
+     * @param \Closure(string): string $field
+     *
+     * @return array<string, string>|null
+     */
+    private function details(AskInboxItem $input, \Closure $field): ?array
+    {
+        if ([] === $input->details) {
+            return null;
+        }
+        if (\count($input->details) > InboxLimits::MAX_DETAILS) {
+            throw new DomainErrors([$field('details') => AskInboxHandler::TOO_MANY_DETAILS]);
+        }
+        $checked = [];
+        foreach ($input->details as $name => $text) {
+            $name = (string) $name;
+            if (mb_strlen($name) > InboxLimits::MAX_DETAIL_NAME_LENGTH) {
+                throw new DomainErrors([$field('details') => AskInboxHandler::DETAIL_NAME_TOO_LONG]);
+            }
+            $key = trim($name);
+            if ('' === $key || 1 === preg_match('/[\r\n]/', $key) || isset($checked[$key])) {
+                throw new DomainErrors([$field('details') => AskInboxHandler::DETAIL_NAME_INVALID]);
+            }
+            if (mb_strlen($text) > InboxLimits::MAX_DETAIL_LENGTH) {
+                throw new DomainErrors([$field('details') => AskInboxHandler::DETAIL_TOO_LONG]);
+            }
+            if ('' === trim($text)) {
+                throw new DomainErrors([$field('details') => AskInboxHandler::DETAIL_BLANK]);
+            }
+            $checked[$key] = $text;
+        }
+
+        return $checked;
     }
 
     /**

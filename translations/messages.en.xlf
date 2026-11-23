@@ -6698,6 +6698,26 @@ workflow:
                 <source>inbox.answer.pick_one</source>
                 <target>Pick one</target>
             </trans-unit>
+            <trans-unit id="inbox.answer.cost">
+                <source>inbox.answer.cost</source>
+                <target>Cost: %cost%</target>
+            </trans-unit>
+            <trans-unit id="inbox.answer.details">
+                <source>inbox.answer.details</source>
+                <target>Details (%count%)</target>
+            </trans-unit>
+            <trans-unit id="inbox.answer.recommended.high">
+                <source>inbox.answer.recommended.high</source>
+                <target>Recommended, high confidence</target>
+            </trans-unit>
+            <trans-unit id="inbox.answer.recommended.moderate">
+                <source>inbox.answer.recommended.moderate</source>
+                <target>Recommended, moderate confidence</target>
+            </trans-unit>
+            <trans-unit id="inbox.answer.recommended.low">
+                <source>inbox.answer.recommended.low</source>
+                <target>Recommended, low confidence</target>
+            </trans-unit>
             <trans-unit id="inbox.answer.pick_any">
                 <source>inbox.answer.pick_any</source>
                 <target>Pick any</target>

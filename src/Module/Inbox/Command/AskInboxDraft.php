@@ -6,6 +6,7 @@ namespace App\Module\Inbox\Command;
 
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardPullRequest;
+use App\Module\Inbox\Entity\InboxConfidence;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Review\Entity\Document;
 
@@ -31,6 +32,12 @@ final readonly class AskInboxDraft
         public Document|CardPullRequest|null $reviewTarget,
         public array $suggestedActions = [],
         public bool $dismissible = true,
+        public ?int $recommendedOption = null,
+        public ?InboxConfidence $confidence = null,
+        /** @var list<string>|null */
+        public ?array $optionCosts = null,
+        /** @var array<string, string>|null */
+        public ?array $details = null,
     ) {
     }
 }

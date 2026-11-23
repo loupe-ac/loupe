@@ -10,6 +10,7 @@ use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Inbox\Entity\InboxAsk;
+use App\Module\Inbox\Entity\InboxConfidence;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Mcp\InboxAskTool;
 use App\Module\Inbox\Repository\InboxReviewRepository;
@@ -790,6 +791,73 @@ final class InboxAskToolTest extends KernelTestCase
             items: [['kind' => 'todo', 'title' => 'Run it', 'suggestedActions' => [$suggestion]]],
             bridgeId: null === $bridge ? null : (string) $bridge->id,
         );
+    }
+
+    public function test_a_question_stores_its_recommendation_costs_and_details(): void
+    {
+        $this->enableInbox();
+        $this->actAsMcpTokenBoundTo($this->makeProject('inbox-ask-recommended'));
+
+        $result = $this->askQuestion('Which name?', [
+            'options' => ['alpha', 'beta'],
+            'recommendedOption' => 1,
+            'confidence' => 'moderate',
+            'optionCosts' => ['a rename later', ''],
+            'details' => ['Evidence' => 'Two **callers** use it.'],
+        ]);
+
+        $this->em->clear();
+        $item = $this->em->find(InboxItem::class, Uuid::fromString($result['items'][0]['itemId']));
+        self::assertInstanceOf(InboxItem::class, $item);
+        self::assertSame(1, $item->recommendedOption);
+        self::assertSame(InboxConfidence::Moderate, $item->confidence);
+        self::assertSame(['a rename later', ''], $item->optionCosts);
+        self::assertSame(['Evidence' => 'Two **callers** use it.'], $item->details);
+    }
+
+    public function test_a_question_with_no_recommendation_stores_none(): void
+    {
+        $this->enableInbox();
+        $this->actAsMcpTokenBoundTo($this->makeProject('inbox-ask-plain'));
+
+        $result = $this->askQuestion('Which name?');
+
+        $this->em->clear();
+        $item = $this->em->find(InboxItem::class, Uuid::fromString($result['items'][0]['itemId']));
+        self::assertInstanceOf(InboxItem::class, $item);
+        self::assertNull($item->recommendedOption);
+        self::assertNull($item->confidence);
+        self::assertNull($item->optionCosts);
+        self::assertNull($item->details);
+    }
+
+    /** @param array<string, mixed> $item */
+    #[DataProvider('refusedRecommendations')]
+    public function test_the_tool_refuses_a_bad_recommendation(array $item, string $message): void
+    {
+        $this->enableInbox();
+        $this->actAsMcpTokenBoundTo($this->makeProject('inbox-ask-bad-recommendation'));
+
+        $this->expectException(ToolCallException::class);
+        $this->expectExceptionMessage($message);
+        $this->askQuestion('Which name?', $item);
+    }
+
+    /** @return iterable<string, array{array<string, mixed>, string}> */
+    public static function refusedRecommendations(): iterable
+    {
+        yield 'index past the options' => [['recommendedOption' => 2, 'confidence' => 'high'], 'recommendedOption must be an index into options'];
+        yield 'negative index' => [['recommendedOption' => -1, 'confidence' => 'high'], 'recommendedOption must be an index into options'];
+        yield 'no confidence' => [['recommendedOption' => 0], 'A recommendedOption needs a confidence'];
+        yield 'confidence alone' => [['confidence' => 'high'], 'confidence needs a recommendedOption'];
+        yield 'unknown confidence' => [['recommendedOption' => 0, 'confidence' => 'certain'], 'confidence must be high, moderate or low'];
+        yield 'recommendation with no options' => [['options' => [], 'freeText' => true, 'recommendedOption' => 0, 'confidence' => 'high'], 'recommendedOption needs options'];
+        yield 'costs for a free text question' => [['options' => [], 'freeText' => true, 'optionCosts' => ['x']], 'optionCosts needs options'];
+        yield 'a cost for each option is missing' => [['optionCosts' => ['only one']], 'optionCosts needs one line for each option'];
+        yield 'a cost that is too long' => [['optionCosts' => [str_repeat('a', 301), '']], 'A cost line must be at most 300 characters'];
+        yield 'a blank detail' => [['details' => ['Evidence' => ' ']], 'A detail field must not be blank'];
+        yield 'a blank detail name' => [['details' => [' ' => 'text']], 'A detail field name must be one non-blank line'];
+        yield 'too many details' => [['details' => array_combine(array_map(static fn (int $n): string => 'Field '.$n, range(1, 11)), array_fill(0, 11, 'text'))], 'at most 10 detail fields'];
     }
 
     private function bridgeWithEntry(User $owner, Project $project): Bridge

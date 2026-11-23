@@ -65,6 +65,21 @@ class InboxItem implements ProjectScopedSubject
     #[ORM\Column(options: ['default' => true])]
     public bool $dismissible;
 
+    /** The index into $options of the answer the agent recommends. Null when it recommends none. */
+    #[ORM\Column(nullable: true)]
+    public ?int $recommendedOption = null;
+
+    #[ORM\Column(length: 10, nullable: true, enumType: InboxConfidence::class)]
+    public ?InboxConfidence $confidence = null;
+
+    /** @var list<string>|null one cost line for each option, in the order of $options. An empty line means the option has no cost to name. */
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    public ?array $optionCosts = null;
+
+    /** @var array<string, string>|null Markdown that backs the answer, by the name of its field */
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    public ?array $details = null;
+
     /** @var list<array{action: string, reason: string, recommended: bool, cardId: ?string, command?: array{entry: string, branch: string, params: array<string, string>}|null, proposedEntry?: string|null, prompt?: string|null}>|null what the asking agent suggests, in the order it sent. A row stored before run-command lacks the command keys, and one stored before the prompt lacks prompt. */
     #[ORM\Column(type: Types::JSON, nullable: true)]
     public ?array $suggestedActions = null;
