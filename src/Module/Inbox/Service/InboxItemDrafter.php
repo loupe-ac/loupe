@@ -36,8 +36,11 @@ final readonly class InboxItemDrafter
     ) {
     }
 
-    /** @param string $prefix what each refused field name starts with, such as `items[0].` */
-    public function draft(Project $project, AskInboxItem $input, string $prefix, ?Bridge $bridge): AskInboxDraft
+    /**
+     * @param string $prefix what each refused field name starts with, such as `items[0].`
+     * @param bool   $waits  whether a session waits for the item, which an item from the public API never does
+     */
+    public function draft(Project $project, AskInboxItem $input, string $prefix, ?Bridge $bridge, bool $waits = true): AskInboxDraft
     {
         $field = static fn (string $name): string => $prefix.$name;
 
@@ -111,7 +114,7 @@ final readonly class InboxItemDrafter
         $recommendedOption = $this->recommendation($input, $options, $field);
         $optionCosts = $this->costs($input, $options, $field);
         $details = $this->details($input, $field);
-        $label = $this->label($project, $input, $options, $recommendedOption, $details, $field);
+        $label = $this->label($project, $input, $options, $recommendedOption, $details, $field, $waits);
 
         $cardIds = $input->cardIds;
         $documentIds = $input->documentIds;
@@ -146,8 +149,8 @@ final readonly class InboxItemDrafter
             optionCosts: $optionCosts,
             details: $details,
             label: $input->label,
-            mode: $label?->mode,
-            defaultHours: $label?->defaultHours,
+            mode: $waits ? $label?->mode : null,
+            defaultHours: $waits ? $label?->defaultHours : null,
         );
     }
 
@@ -159,7 +162,7 @@ final readonly class InboxItemDrafter
      * @param array<string, string>|null $details
      * @param \Closure(string): string   $field
      */
-    private function label(Project $project, AskInboxItem $input, array $options, ?int $recommendedOption, ?array $details, \Closure $field): ?AskLabelRule
+    private function label(Project $project, AskInboxItem $input, array $options, ?int $recommendedOption, ?array $details, \Closure $field, bool $waits): ?AskLabelRule
     {
         if (null === $input->label) {
             return null;
@@ -170,7 +173,7 @@ final readonly class InboxItemDrafter
         if (InboxItemKind::Question !== $input->kind || [] === $options) {
             throw new DomainErrors([$field('label') => AskInboxHandler::LABEL_NEEDS_QUESTION]);
         }
-        if (false === $input->blocking) {
+        if ($waits && false === $input->blocking) {
             throw new DomainErrors([$field('label') => AskInboxHandler::LABEL_NEEDS_BLOCKING]);
         }
         if ($input->multiple) {

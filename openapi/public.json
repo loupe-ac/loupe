@@ -28528,6 +28528,11 @@
                             "maxLength": 5000
                         }
                     },
+                    "label": {
+                        "description": "The kind of choice, such as `naming` or `security`. It needs a question with options, a `recommendedOption` with a `confidence`, and every detail field that the project template lists for the label. The item keeps the label. No mode applies, because nothing waits on an item from the API, so the item has no deadline and is never logged in place of an ask.",
+                        "type": "string",
+                        "maxLength": 40
+                    },
                     "blocking": {
                         "description": "Always false. Nothing waits on an item from the API, so `true` is refused.",
                         "type": "boolean",

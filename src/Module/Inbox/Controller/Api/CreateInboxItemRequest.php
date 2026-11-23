@@ -7,6 +7,7 @@ namespace App\Module\Inbox\Controller\Api;
 use App\Api\OpenApi\PartialChangeSchemaProcessor;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\InboxLimits;
+use App\Module\Workflow\Contract\AskLabelRule;
 use OpenApi\Attributes as OA;
 use Symfony\Component\Validator\Constraints as Assert;
 
@@ -59,6 +60,10 @@ final class CreateInboxItemRequest
     #[Assert\All(new Assert\Type('string'))]
     #[OA\Property(description: 'The facts behind the question, as Markdown by field name, such as `Evidence` or `Risk`. The owner opens them under a Details section.', maxProperties: InboxLimits::MAX_DETAILS, type: 'object', additionalProperties: new OA\AdditionalProperties(type: 'string', maxLength: InboxLimits::MAX_DETAIL_LENGTH))]
     public array $details;
+
+    #[Assert\Length(max: AskLabelRule::MAX_NAME_LENGTH)]
+    #[OA\Property(description: 'The kind of choice, such as `naming` or `security`. It needs a question with options, a `recommendedOption` with a `confidence`, and every detail field that the project template lists for the label. The item keeps the label. No mode applies, because nothing waits on an item from the API, so the item has no deadline and is never logged in place of an ask.', maxLength: AskLabelRule::MAX_NAME_LENGTH)]
+    public string $label;
 
     #[Assert\IsFalse(message: 'inbox.api.error.blocking_refused')]
     #[OA\Property(description: 'Always false. Nothing waits on an item from the API, so `true` is refused.', enum: [false])]
