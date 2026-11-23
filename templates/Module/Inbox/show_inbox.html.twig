@@ -92,11 +92,14 @@
                                 <section class="lp-inbox-group" data-inbox-group="{{ group.key }}" aria-labelledby="inbox-group-{{ group.key }}">
                                     <h2 class="lp-inbox-group__heading" id="inbox-group-{{ group.key }}">
                                         {%- if group.card -%}
+                                            <twig:ux:icon name="lucide:layout-list" class="lp-icon lp-icon--sm" aria-hidden="true" />
                                             <span class="lp-inbox-group__number">#{{ group.card.number }}</span>
                                             <span class="lp-inbox-group__title">{{ group.card.title|reference_plain }}</span>
+                                            <twig:Ds:Tag tone="neutral">{{ group.card.column.label }}</twig:Ds:Tag>
                                         {%- else -%}
                                             <span class="lp-inbox-group__title">{{ 'inbox.group.none'|trans }}</span>
                                         {%- endif -%}
+                                        <span class="lp-inbox-group__count">{{ 'inbox.group.open'|trans({'%count%': group.rows|length}) }}</span>
                                     </h2>
                                     {% for row in group.rows %}
                                         {% include '@Inbox/_inbox_request.html.twig' with {row: row, inbox: inbox} only %}

@@ -171,6 +171,9 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertStringContainsString('No card here?', $groups->last()->text());
         self::assertCount(2, $crawler->filter('[data-inbox-group]:not([data-inbox-group="none"]) [data-inbox-request]'));
         self::assertCount(1, $crawler->filter('#inbox-rows[data-inbox-grouped]'));
+        $header = $crawler->filter('[data-inbox-group="'.$first->id.'"] .lp-inbox-group__heading');
+        self::assertCount(1, $header->filter('.lp-tag'));
+        self::assertStringContainsString('1 open', $header->text());
     }
 
     public function test_the_linked_menu_shows_three_rows_of_a_kind_and_holds_the_rest_behind_show_more(): void

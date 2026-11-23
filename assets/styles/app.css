@@ -383,8 +383,18 @@
         @apply px-3 pt-2 text-xs font-semibold;
     }
 
+    .lp-core-inbox .lp-inbox-group__heading {
+        align-items: center;
+    }
+
     .lp-core-inbox .lp-inbox-group__title {
         @apply truncate;
+    }
+
+    .lp-core-inbox .lp-inbox-group__count {
+        margin-left: auto;
+        color: var(--text-dim);
+        @apply shrink-0 font-normal;
     }
 
     /* The frame wraps the whole view, and the page flex column sees its children. */
