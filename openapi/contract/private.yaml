@@ -1826,6 +1826,7 @@ components:
           enum:
           - person
           - ask-closed
+          - wait-ended
           - inbox-action
           - agent
         context:
@@ -1856,6 +1857,33 @@ components:
           type: string
           format: uuid
           nullable: true
+        wait:
+          type: object
+          nullable: true
+          description: Why a wait of the worker ended, for a resume with the cause wait-ended.
+          required:
+          - reason
+          - conditions
+          properties:
+            reason:
+              type: string
+              enum:
+              - condition
+              - timed-out
+              - subject-gone
+              - resumed-by-person
+            conditions:
+              type: array
+              items:
+                type: object
+                required:
+                - key
+                properties:
+                  key:
+                    type: string
+                  pullRequest:
+                    type: string
+                    nullable: true
     ModelUsage:
       type: object
       required:
@@ -2719,6 +2747,7 @@ components:
           type: string
           enum:
           - ask-closed
+          - wait-ended
           - inbox-action
           - person
           - agent

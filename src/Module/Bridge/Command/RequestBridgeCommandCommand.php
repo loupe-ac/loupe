@@ -25,6 +25,12 @@ final readonly class RequestBridgeCommandCommand
         public ?Uuid $inboxItemId = null,
         /** The API key that asks. The command then records the cause api-key, unless the caller names a more specific cause. */
         public ?ApiKeyActor $apiKey = null,
+        /**
+         * What a resume with the cause wait-ended tells the worker: why the wait ended and the conditions that were true.
+         *
+         * @var array{reason: string, conditions: list<array{key: string, pullRequest: ?string}>}|null
+         */
+        public ?array $wait = null,
     ) {
     }
 }

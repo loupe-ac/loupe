@@ -9,15 +9,14 @@ use App\Module\Board\Service\BoardPullRequestUrls;
 use App\Module\Board\Service\PullRequestUrlResolver;
 use App\Module\Forge\Entity\PullRequestChecks;
 use App\Module\Forge\Entity\PullRequestState;
-use App\Module\Workflow\Condition\Conditions;
 use App\Module\Workflow\Contract\CardDirectory;
 use App\Module\Workflow\Contract\WaitConditionCheck;
 use App\Module\Workflow\Contract\WaitConditionRefusal;
 use App\Module\Workflow\Contract\WaitSettings;
 use App\Module\Workflow\Service\FactsBuilder;
 use App\Module\Workflow\Service\ProjectTemplates;
+use App\Module\Workflow\Service\WaitExpressions;
 use App\Module\Workflow\Service\WorkflowWaitConditions;
-use App\Module\Workflow\Template\TemplateParser;
 use App\Tests\Module\Workflow\Action\ActionScenario;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
@@ -213,8 +212,7 @@ final class WorkflowWaitConditionsTest extends KernelTestCase
         return new WorkflowWaitConditions(
             $this->service(CardDirectory::class),
             $this->service(ProjectTemplates::class),
-            $this->service(Conditions::class),
-            $this->service(TemplateParser::class),
+            $this->service(WaitExpressions::class),
             $this->service(FactsBuilder::class),
             new BoardPullRequestUrls($this->service(PullRequestUrlResolver::class)),
             new MockClock(),

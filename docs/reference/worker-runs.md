@@ -839,6 +839,31 @@ That end leaves an open wait as it is.
 The state `waiting` can resume, as `unfinished` can.
 It is no failure, no stop and no warning on the card.
 
+### How a wait ends
+
+Loupe tests the open wait of a card in each evaluation of the card.
+The test runs when the automation of the project is on and when it is off.
+A wait ends in one of these ways:
+
+- A condition of the wait turns true. The end reason is `condition`, and Loupe keeps the conditions that were true.
+- The time limit passes. The end reason is `timed-out`.
+- The pull request of a condition leaves the card, or is no longer open. The end reason is `subject-gone`.
+
+A condition about a pull request reads the pull request that the wait is bound to.
+It does not read another pull request of the card.
+Loupe ends the wait at once, also while the worker still finishes its turn.
+
+When a wait ends, Loupe resumes the same session on the same bridge.
+The resume has the cause `wait-ended`, and the prompt of the worker says why the wait ended.
+The prompt names the conditions that were true, or says that the wait timed out, or that the pull request left the card.
+When the run still runs, Loupe resumes the session as soon as the run ends.
+A wait resumes once, because the run that continues the session is recorded on the wait.
+A bridge that is too old to know the cause `wait-ended` refuses the resume.
+
+While a wait is open, the card counts as having an active worker.
+A run in the state `waiting` counts too, until a run resumes its ended wait.
+The rules of the card that skip a card with an active worker stay quiet.
+
 ## Closing an interactive session
 
 `POST /api/v1/bridge/interactive-sessions/{sessionId}/close` closes every open

@@ -87,6 +87,7 @@ final readonly class ReportWorkerRunStateHandler
             // that the sweep wrote while this report waited.
             $receivedAt = $this->clock->now();
             $role = null;
+            $resumedWait = null;
             if (null === $run) {
                 // A run takes its subject and request once, so only a new run needs the check.
                 $request = null === $command->workRequestId ? null : $this->workRequests->findOneOfSubject($command->workRequestId, $project, $command->subject);
@@ -114,6 +115,7 @@ final readonly class ReportWorkerRunStateHandler
                     role: $role,
                 );
                 $this->em->persist($run);
+                $resumedWait = null === $run->continuesRun ? null : $this->workerWaits->findAwaitingResumeOfRun($run->continuesRun->id ?? throw new \LogicException('A stored run has an id.'));
                 $history = [];
                 $wait = null;
                 $state = $command->state;
@@ -155,6 +157,10 @@ final readonly class ReportWorkerRunStateHandler
             }
 
             $this->em->flush();
+            $resumedWait?->recordResume($run->id ?? throw new \LogicException('A flushed run has an id.'), $receivedAt);
+            if (null !== $resumedWait) {
+                $this->em->flush();
+            }
             // Any closing report revokes, a repeat too, because a repeat can follow a failed first attempt.
             // The key names one launch, so the late close of an older launch revokes only its own tokens.
             if (!$command->state->isOpen()) {

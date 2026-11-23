@@ -111,6 +111,16 @@ class WorkerWait implements ProjectScopedSubject
         return true;
     }
 
+    /**
+     * Records the run that continues the session of the wait. A wait that is still open ends here, because the run that resumes it
+     * is not a wait any more.
+     */
+    public function recordResume(Uuid $runId, \DateTimeImmutable $at): void
+    {
+        $this->end(WorkerWaitEndReason::ResumedByPerson, $at);
+        $this->resumeRunId = $runId;
+    }
+
     /** Whether the session of the wait still needs a resume: the wait is open, or it ended in a way that resumes and no run resumed it yet. */
     public function awaitsResume(): bool
     {

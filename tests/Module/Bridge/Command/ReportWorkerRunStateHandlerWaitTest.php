@@ -11,6 +11,7 @@ use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunStateChange;
 use App\Module\Bridge\Entity\WorkerWait;
 use App\Module\Bridge\Event\ResumableWorkerRunEnded;
+use App\Module\Bridge\Messenger\ResumeWaitingSession;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkerWaitEndReason;
 use App\Module\Bridge\ValueObject\WorkSubject;
@@ -20,6 +21,7 @@ use App\Tests\Support\DispatchedEvents;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 use Symfony\Component\Uid\Uuid;
 
 /** A run with a wait ends as waiting, a finished or blocked end closes the wait, and any other end leaves it. */
@@ -153,6 +155,77 @@ final class ReportWorkerRunStateHandlerWaitTest extends KernelTestCase
         self::assertSame(self::SESSION, (string) $ended->events()[0]->sessionId);
     }
 
+    public function test_the_end_of_a_run_asks_for_the_resume_of_a_wait_that_ended_early(): void
+    {
+        $run = $this->runningRun();
+        $wait = $this->wait($run);
+        $wait->end(WorkerWaitEndReason::Condition, new \DateTimeImmutable('2026-09-23 10:03:00'));
+        $this->em()->flush();
+        $transport = self::getContainer()->get('messenger.transport.jobs');
+        self::assertInstanceOf(InMemoryTransport::class, $transport);
+        $transport->reset();
+
+        $this->end('unfinished');
+
+        $queued = array_values(array_filter(
+            array_map(static fn ($envelope) => $envelope->getMessage(), $transport->getSent()),
+            static fn (object $message): bool => $message instanceof ResumeWaitingSession,
+        ));
+        self::assertCount(1, $queued);
+        self::assertSame((string) $wait->id, $queued[0]->waitId);
+    }
+
+    public function test_the_end_of_a_run_asks_for_no_resume_of_a_wait_that_a_run_resumed(): void
+    {
+        $run = $this->runningRun();
+        $wait = $this->wait($run);
+        $wait->end(WorkerWaitEndReason::Condition, new \DateTimeImmutable('2026-09-23 10:03:00'));
+        $wait->resumeRunId = Uuid::v7();
+        $this->em()->flush();
+        $transport = self::getContainer()->get('messenger.transport.jobs');
+        self::assertInstanceOf(InMemoryTransport::class, $transport);
+        $transport->reset();
+
+        $this->end('unfinished');
+
+        self::assertSame([], array_values(array_filter(
+            array_map(static fn ($envelope) => $envelope->getMessage(), $transport->getSent()),
+            static fn (object $message): bool => $message instanceof ResumeWaitingSession,
+        )));
+    }
+
+    public function test_the_run_that_continues_a_waiting_run_records_itself_as_the_resume_of_its_ended_wait(): void
+    {
+        $run = $this->runningRun();
+        $wait = $this->wait($run);
+        $this->end('unfinished');
+        $wait = $this->reloadWait($wait);
+        $wait->end(WorkerWaitEndReason::Condition, new \DateTimeImmutable('2026-09-23 10:06:00'));
+        $this->em()->flush();
+        $resumeKey = Uuid::v4();
+
+        $this->handle(WorkerRunState::Running, continues: $this->runKey, runKey: $resumeKey);
+
+        $resumed = $this->em()->createQueryBuilder()->select('r')->from(WorkerRun::class, 'r')->andWhere('r.runKey = :key')->setParameter('key', $resumeKey, UuidType::NAME)->getQuery()->getOneOrNullResult();
+        self::assertNotNull($resumed);
+        $this->em()->clear();
+        self::assertEquals($resumed->id, $this->em()->find(WorkerWait::class, $wait->id)?->resumeRunId);
+    }
+
+    public function test_the_run_that_continues_a_waiting_run_ends_a_wait_that_is_still_open(): void
+    {
+        $run = $this->runningRun();
+        $wait = $this->wait($run);
+        $this->end('unfinished');
+        $resumeKey = Uuid::v4();
+
+        $this->handle(WorkerRunState::Running, continues: $this->runKey, runKey: $resumeKey);
+
+        $stored = $this->reloadWait($wait);
+        self::assertSame(WorkerWaitEndReason::ResumedByPerson, $stored->endReason);
+        self::assertNotNull($stored->resumeRunId);
+    }
+
     public function test_a_finished_end_closes_an_open_wait_with_run_finished(): void
     {
         $run = $this->runningRun();
@@ -240,7 +313,7 @@ final class ReportWorkerRunStateHandlerWaitTest extends KernelTestCase
         $this->handle($state, $output);
     }
 
-    private function handle(WorkerRunState $state, ?string $output = null): void
+    private function handle(WorkerRunState $state, ?string $output = null, ?Uuid $continues = null, ?Uuid $runKey = null): void
     {
         $handler = self::getContainer()->get(ReportWorkerRunStateHandler::class);
         self::assertInstanceOf(ReportWorkerRunStateHandler::class, $handler);
@@ -254,7 +327,7 @@ final class ReportWorkerRunStateHandlerWaitTest extends KernelTestCase
         $handler(new ReportWorkerRunStateCommand(
             owner: $this->owner,
             handle: (string) $this->project->id,
-            runKey: $this->runKey,
+            runKey: $runKey ?? $this->runKey,
             bridgeId: Uuid::fromString(self::BRIDGE),
             state: $state,
             at: new \DateTimeImmutable('2026-09-23 10:0'.$state->rank().':00'),
@@ -279,6 +352,7 @@ final class ReportWorkerRunStateHandlerWaitTest extends KernelTestCase
                 WorkerRunState::WaitingOnForge => 'waiting',
                 default => null,
             },
+            continues: $continues,
         ));
     }
 

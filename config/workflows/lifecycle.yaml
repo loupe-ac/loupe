@@ -1251,7 +1251,15 @@ markers:
       kind: working
       label: marker.run_open
       remedy: marker.run_open.remedy
-      when: { card.run.worker_active: {} }
+      when:
+          all:
+              - card.run.worker_active: {}
+              - not: { card.run.worker_waiting: {} }
+    - key: worker-waiting
+      kind: waiting
+      label: marker.worker_waiting
+      remedy: marker.worker_waiting.remedy
+      when: { card.run.worker_waiting: {} }
     - key: no-capable-bridge
       kind: needs-you
       label: marker.no_capable_bridge

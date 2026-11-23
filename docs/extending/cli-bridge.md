@@ -1139,7 +1139,7 @@ the session, in these keys:
 
 | Key | Meaning |
 |---|---|
-| `trigger` | The cause of the resume: `ask-closed`, `inbox-action`, `person`, `agent` or `work-request`. A work request that names the session of an unfinished run gives `work-request` |
+| `trigger` | The cause of the resume: `ask-closed`, `wait-ended`, `inbox-action`, `person`, `agent` or `work-request`. A work request that names the session of an unfinished run gives `work-request` |
 | `lastTurnAt` | The time of the last assistant message of the session before the resume. The bridge reads it from the transcript before it starts the process |
 | `firstTurn` | The `inputTokens`, `cacheReadTokens` and `cacheWriteTokens` of the first assistant message of the resume |
 
@@ -2177,7 +2177,12 @@ transcript of the session, or when the work map no longer runs workers of the
 kind of the run. [Resume](#resume) says which account a resume uses. Loupe
 also sends a resume on its own when an
 [inbox](../using/inbox.md) ask of the session closes. That resume names the
-cause `ask-closed`, and its prompt tells the agent to read the answers. A resume
+cause `ask-closed`, and its prompt tells the agent to read the answers. Loupe
+resumes the session of a worker on its own when the [wait](../reference/worker-runs.md#waits)
+of the worker ends. That resume names the cause `wait-ended`. The command
+carries a `wait` object with the reason the wait ended and the conditions that were
+true, and the prompt tells the agent why it resumed. The bridge needs the CLI
+release that knows this cause, and an older bridge refuses the command. A resume
 that the owner starts from an inbox item names the cause `inbox-action`. It uses
 the prompt of a person's resume, plus a line that names the inbox item and the
 action. The command carries the keys `inboxActionId`, `inboxItemId` and

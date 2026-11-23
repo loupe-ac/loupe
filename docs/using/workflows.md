@@ -340,6 +340,15 @@ Markers also read conditions that rules already use: `pr.open`,
 `pr.checks_failed`, `pr.conflicting`, `card.run.work_active` and
 `card.run.worker_active`.
 
+The condition `card.run.worker_waiting` is true while the card has an open
+[wait](../reference/worker-runs.md#waits) of a worker. It takes no parameters.
+A run that waits also counts for `card.run.worker_active`, so the Lifecycle and
+Simple templates add `not card.run.worker_waiting` to the `run-open` marker. The
+`worker-waiting` marker, of the kind waiting, shows the card as "The worker waits
+for ...". The label names the conditions of the wait, joined with "or", and the
+pull request that each one reads. The marker turns on when the worker opens the
+wait, and it turns off when the wait ends.
+
 Both run conditions take an optional `kind`. They also take an optional `origin`,
 whose only value is `rule`. With `origin: rule`, work that a person started, such
 as a "Send an agent" action on an inbox item, does not count. With no `origin`,
