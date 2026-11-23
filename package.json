@@ -20,6 +20,6 @@
     "minimatch": "^11.0.1"
   },
   "dependencies": {
-    "mermaid": "12.0.0"
+    "mermaid": "12.3.0"
   }
 }
