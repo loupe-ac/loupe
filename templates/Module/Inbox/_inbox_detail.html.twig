@@ -38,6 +38,11 @@
                         {% include '@Inbox/_ask_wait_card.html.twig' with {card: waitCard, kindLabel: false} only %}
                     </span>
                 {% endif %}
+                {% set label = (items|first).label %}
+                {% if label %}
+                    <span aria-hidden="true">·</span>
+                    <twig:Ds:Tag tone="neutral" data-inbox-label>{{ label }}</twig:Ds:Tag>
+                {% endif %}
                 {% for review in inbox_review_targets(items) %}
                     <span aria-hidden="true">·</span>
                     <span class="lp-inbox-ask__kind" data-inbox-review-target>

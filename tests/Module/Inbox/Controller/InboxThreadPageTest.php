@@ -123,6 +123,18 @@ final class InboxThreadPageTest extends WebTestCase
         self::assertSame('defaults in 20h', $crawler->filter('#inbox-item-1 [data-inbox-deadline-row]')->text());
     }
 
+    public function test_a_labelled_question_shows_its_label_in_the_detail_byline(): void
+    {
+        $question = $this->question($this->em, $this->project, 1);
+        $question->label = 'naming';
+        $this->em->flush();
+        $this->askHolding($this->em, $this->project, [$question]);
+
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$this->project->id.'/inbox');
+
+        self::assertSame('naming', $crawler->filter('.lp-inbox-ask__byline [data-inbox-label]')->text());
+    }
+
     public function test_a_question_with_no_recommendation_keeps_its_order_and_shows_no_details(): void
     {
         $question = $this->question($this->em, $this->project, 1);
