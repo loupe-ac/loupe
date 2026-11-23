@@ -51,6 +51,7 @@
                     <twig:Ds:Avatar :icon="keyRequest ? 'lucide:key-round' : (agentRequest ? 'lucide:bot' : 'lucide:search')" size="xs" tone="tint" aria-hidden="true" />
                     <span class="lp-comment-author"{% if keyRequest %} data-inbox-api-key{% endif %}>{{ keyRequest ? 'inbox.thread.api_key'|trans({'%name%': item.apiKeyName}) : (agentRequest ? 'inbox.thread.agent' : 'inbox.thread.loupe')|trans }}</span>
                     <twig:Ds:Hint as="span">{{ (item.kind.value == 'notice' ? 'inbox.thread.waiting' : 'inbox.thread.asked')|trans({'%time%': item.createdAt|relative_time}) }}</twig:Ds:Hint>{# @design-system-ignore #}
+                    {% if open and item.defaultsAt and item.recommendedOption is not null %}<twig:Ds:Hint as="span" data-inbox-deadline-row>{{ 'inbox.thread.defaults'|trans({'%time%': item.defaultsAt|relative_time}) }}</twig:Ds:Hint>{# @design-system-ignore #}{% endif %}
                 </div>
                 <div class="lp-comment-thread">
                     {# Agent Markdown, rendered and sanitized the way a card body is. #}
