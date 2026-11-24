@@ -25,6 +25,7 @@ final class InboxAskLabelToolTest extends KernelTestCase
     private EntityManagerInterface $em;
     private InboxAskTool $tool;
     private Project $project;
+    private string $cardId;
 
     protected function setUp(): void
     {
@@ -37,6 +38,9 @@ final class InboxAskLabelToolTest extends KernelTestCase
         $this->project = $this->workflowProject('inbox-ask-label');
         $this->bindLifecycle($this->project);
         $this->actAsMcpTokenBoundTo($this->project);
+        $card = $this->card($this->em, $this->project);
+        $this->em->flush();
+        $this->cardId = (string) $card->id;
     }
 
     public function test_a_log_label_opens_no_ask_and_tells_the_agent_to_go_on(): void
@@ -153,6 +157,7 @@ final class InboxAskLabelToolTest extends KernelTestCase
             'recommendedOption' => 1,
             'confidence' => 'high',
             'details' => ['undo' => 'Rename it again.'],
+            'cardIds' => [$this->cardId],
             ...$change,
         ], static fn (mixed $value): bool => null !== $value);
     }

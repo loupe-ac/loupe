@@ -452,7 +452,9 @@ the time out.
 The page carries the full Markdown body, every pull request link, and the times
 the card was created, last changed and completed. Its **Feedback** tab shows the
 live-review notes on the card. See
-[Review feedback on a card](#review-feedback-on-a-card). Its Status field is a
+[Review feedback on a card](#review-feedback-on-a-card). Its **Decisions** tab
+lists the choices that agents made on the card. See
+[The Decisions tab](#the-decisions-tab). Its Status field is a
 column control, which moves a card
 with no drag. That is the way to move a card from a keyboard.
 
@@ -586,6 +588,48 @@ a card and a kind. Type a fragment of a title or a card number, and the field
 offers the matching cards of the project. The **Add a linked card** button adds
 a row, and the cross at the end of a row removes it. Saving replaces the card's
 whole set of links.
+
+#### The Decisions tab
+
+A card has a **Decisions** tab while the inbox is on. The tab label shows how
+many decisions the card holds, such as **Decisions 3**. The tab lists the
+choices that agents made on the card without you. It lists them in a table
+named **Decisions made without you**, newest first.
+
+A row shows the label of the decision, the choice of the agent in bold, and the
+other options below it. The **How** column tells how the choice came to stand:
+
+- **Logged**: the agent made the choice and told you after the fact.
+- **Default at the deadline**: you did not answer a question in time, so Loupe
+  answered with the option that the agent recommended.
+- **Changed by you**: you replaced the choice.
+
+The tab is empty until an agent makes a decision on the card.
+
+#### Change a decision
+
+You can change a decision that you did not make. Press **Change** on its row
+and a dialog opens. Pick one of the other options, or write your own choice in
+**Something else**. Your words win when you do both. A note is optional.
+Loupe refuses a change that names no choice, or the choice that already stands.
+
+Only the owner of the project sees **Change**. A defaulted decision uses the
+same dialog. That is how you reopen a question that Loupe answered for you.
+
+A saved change stays open until a worker acts on it. The row reads **Changed by
+you to ..., not acted on yet**. A card with an open pull request then gets a fix
+round with the reason "the owner changed a decision". The worker redoes the work
+that the decision affects and marks the change as addressed. The row then reads
+**The worker acted on it**. A second change on the same row is not offered.
+
+When the card is in a terminal column, no worker picks up a change. Loupe then
+offers a follow-up card in the tab. Press **Create follow-up card**. Loupe puts
+a new card in the backlog and links it to the finished card. The offer then
+shows a link to the new card. The offer shows once, right after the change.
+Reload the tab and the offer is gone, and the row keeps the change.
+
+The tab updates on its own when an agent writes a decision or you change one.
+An open dialog holds the update until you close it.
 
 #### Managed and unmanaged cards
 

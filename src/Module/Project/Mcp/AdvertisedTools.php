@@ -126,6 +126,8 @@ final class AdvertisedTools
         'inbox_get',
         'inbox_withdraw',
         'inbox_action_run',
+        'decision_list',
+        'decision_mark_addressed',
     ];
 
     /** @var list<array{name: string, descriptionKey: string}>|null */

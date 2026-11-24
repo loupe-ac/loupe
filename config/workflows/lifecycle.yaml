@@ -599,6 +599,28 @@ rules:
                       - not: { pr.conflicting: {} }
                       - not: { pr.changes_requested: {} }
 
+    - id: fix-decision-changed
+      slot: implementation
+      when:
+          all:
+              - not: { card.run.waits_on_answer: {} }
+              - not: { card.run.work_active: { kind: fix } }
+              - pr.open: {}
+              - card.inbox.decision_changed: {}
+      then:
+          request:
+              kind: fix
+              role: fix
+              reason: decision-changed
+              limit: 10
+              checks:
+                  - The worktree of the card is still available, or the agent can make it again
+                  - The push gate of the instruction files
+              refill:
+                  all:
+                      - pr.open: {}
+                      - not: { card.inbox.decision_changed: {} }
+
     - id: agent-review
       slot: implementation
       when:
@@ -704,6 +726,28 @@ rules:
     - id: comment-stale-approval
       when: { card.pr.approval_stale: {} }
       then: { forge-write: { write: comment, comment: stale-approval } }
+
+    - id: fix-decision-changed-in-review
+      slot: in-review
+      when:
+          all:
+              - not: { card.run.waits_on_answer: {} }
+              - not: { card.run.work_active: { kind: fix } }
+              - pr.open: {}
+              - card.inbox.decision_changed: {}
+      then:
+          request:
+              kind: fix
+              role: fix
+              reason: decision-changed
+              limit: 10
+              checks:
+                  - The worktree of the card is still available, or the agent can make it again
+                  - The push gate of the instruction files
+              refill:
+                  all:
+                      - pr.open: {}
+                      - not: { card.inbox.decision_changed: {} }
 
     - id: agent-review-in-review
       slot: in-review

@@ -24,6 +24,7 @@ use App\Module\Inbox\Service\AskingBridge;
 use App\Module\Inbox\Service\CardWaitTrigger;
 use App\Module\Inbox\Service\InboxCardTileRefresher;
 use App\Module\Inbox\Service\InboxChangedPublisher;
+use App\Module\Inbox\Service\InboxDecisionLog;
 use App\Module\Inbox\Service\InboxItemDrafter;
 use App\Module\Inbox\Service\InboxSearchIndexer;
 use App\Module\Inbox\Service\InboxSessionAsks;
@@ -274,7 +275,10 @@ final class AskInboxHandlerTest extends KernelTestCase
         $workerRuns = $container->get(WorkerRunRepository::class);
         self::assertInstanceOf(WorkerRunRepository::class, $workerRuns);
 
-        return new AskInboxHandler($items, $sessionAsks, $askingBridge, $drafter, $indexer, $em, $this->audit->auditor, $inboxChanged, $cardWaits, new InboxCardTileRefresher(new EventDispatcher()), $workerRuns, new RecordRunAskHandler(), $container->get(MessageBusInterface::class), new \Psr\Log\NullLogger());
+        $decisionLog = $container->get(InboxDecisionLog::class);
+        self::assertInstanceOf(InboxDecisionLog::class, $decisionLog);
+
+        return new AskInboxHandler($items, $sessionAsks, $askingBridge, $drafter, $indexer, $em, $this->audit->auditor, $inboxChanged, $cardWaits, new InboxCardTileRefresher(new EventDispatcher()), $workerRuns, new RecordRunAskHandler(), $decisionLog, $container->get(MessageBusInterface::class), new \Psr\Log\NullLogger());
     }
 
     private static function askOf(AskInboxView $view): InboxAsk

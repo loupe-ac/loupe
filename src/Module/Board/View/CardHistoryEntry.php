@@ -28,6 +28,7 @@ final readonly class CardHistoryEntry
         'checks-failed' => 'board.card.history.reason.checks_failed',
         'changes-requested' => 'board.card.history.reason.changes_requested',
         'agent-review' => 'board.card.history.reason.agent_review',
+        'decision-changed' => 'board.card.history.reason.decision_changed',
     ];
 
     private const array WAIT_END_REASONS = [

@@ -3330,6 +3330,14 @@
                 <source>project.connect.tool.inbox_action_run</source>
                 <target>Record the owner's answer, completion or dismissal of an inbox item, or run another built-in action such as resume-run, retry-card or run-command, after the owner decided in chat. A run-command shows a preview first.</target>
             </trans-unit>
+            <trans-unit id="project.connect.tool.decision_list">
+                <source>project.connect.tool.decision_list</source>
+                <target>List the decisions of a card that the owner changed and that nobody has acted on yet.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.decision_mark_addressed">
+                <source>project.connect.tool.decision_mark_addressed</source>
+                <target>Mark changed decisions of a card as acted on, after you redid the work they affect.</target>
+            </trans-unit>
 
             <!-- First-run wizard -->
             <trans-unit id="project.wizard.progress.label">
@@ -6758,6 +6766,42 @@ workflow:
                 <source>inbox.answer.error.empty</source>
                 <target>Pick an option or write an answer.</target>
             </trans-unit>
+            <trans-unit id="inbox.decision.error.choice_blank">
+                <source>inbox.decision.error.choice_blank</source>
+                <target>Pick an option or write your own choice.</target>
+            </trans-unit>
+            <trans-unit id="inbox.decision.error.choice_too_long">
+                <source>inbox.decision.error.choice_too_long</source>
+                <target>The choice is too long.</target>
+            </trans-unit>
+            <trans-unit id="inbox.decision.error.choice_unchanged">
+                <source>inbox.decision.error.choice_unchanged</source>
+                <target>This is the choice that stands. Pick another one.</target>
+            </trans-unit>
+            <trans-unit id="inbox.decision.error.not_found">
+                <source>inbox.decision.error.not_found</source>
+                <target>This decision does not exist.</target>
+            </trans-unit>
+            <trans-unit id="inbox.decision.error.no_change">
+                <source>inbox.decision.error.no_change</source>
+                <target>Nobody changed this decision.</target>
+            </trans-unit>
+            <trans-unit id="inbox.decision.error.stale">
+                <source>inbox.decision.error.stale</source>
+                <target>The owner changed this decision again. Read it again.</target>
+            </trans-unit>
+            <trans-unit id="inbox.decision.error.other_card">
+                <source>inbox.decision.error.other_card</source>
+                <target>This decision belongs to another card.</target>
+            </trans-unit>
+            <trans-unit id="inbox.decision.error.note_too_long">
+                <source>inbox.decision.error.note_too_long</source>
+                <target>The note is too long.</target>
+            </trans-unit>
+            <trans-unit id="inbox.decision.error.follow_up_not_changed">
+                <source>inbox.decision.error.follow_up_not_changed</source>
+                <target>Change the decision before you create a follow-up card.</target>
+            </trans-unit>
             <trans-unit id="inbox.done.submit">
                 <source>inbox.done.submit</source>
                 <target>Mark complete</target>
@@ -8601,6 +8645,7 @@ workflow:
             <trans-unit id="board.card.history.reason.conflict"><source>board.card.history.reason.conflict</source><target>the pull request has a merge conflict</target></trans-unit>
             <trans-unit id="board.card.history.reason.checks_failed"><source>board.card.history.reason.checks_failed</source><target>the checks fail</target></trans-unit>
             <trans-unit id="board.card.history.reason.agent_review"><source>board.card.history.reason.agent_review</source><target>the agent review found problems</target></trans-unit>
+            <trans-unit id="board.card.history.reason.decision_changed"><source>board.card.history.reason.decision_changed</source><target>the owner changed a decision</target></trans-unit>
             <trans-unit id="board.card.history.reason.changes_requested"><source>board.card.history.reason.changes_requested</source><target>a reviewer requested changes</target></trans-unit>
             <trans-unit id="board.card.linked_work.title"><source>board.card.linked_work.title</source><target>Linked work</target></trans-unit>
             <trans-unit id="board.card.linked_work.empty"><source>board.card.linked_work.empty</source><target>No documents or pull requests are linked to this card.</target></trans-unit>
@@ -9026,6 +9071,10 @@ workflow:
             <trans-unit id="board.fix_run_comment.reason.agent-review">
                 <source>board.fix_run_comment.reason.agent-review</source>
                 <target>the agent review found problems</target>
+            </trans-unit>
+            <trans-unit id="board.fix_run_comment.reason.decision-changed">
+                <source>board.fix_run_comment.reason.decision-changed</source>
+                <target>the owner changed a decision</target>
             </trans-unit>
             <trans-unit id="board.fix_run_comment.reason.other">
                 <source>board.fix_run_comment.reason.other</source>
@@ -10524,6 +10573,8 @@ workflow:
             <trans-unit id="workflow.waiting.not.card_inbox_open_question_blocking"><source>workflow.waiting.not.card_inbox_open_question_blocking</source><target>Waiting: an open blocking inbox question names the card.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_inbox_open_question_non_blocking"><source>workflow.waiting.card_inbox_open_question_non_blocking</source><target>Waiting: no open non-blocking inbox question names the card.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_inbox_open_question_non_blocking"><source>workflow.waiting.not.card_inbox_open_question_non_blocking</source><target>Waiting: an open non-blocking inbox question names the card.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_inbox_decision_changed"><source>workflow.waiting.card_inbox_decision_changed</source><target>Waiting: no changed decision of the card waits for a worker.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_inbox_decision_changed"><source>workflow.waiting.not.card_inbox_decision_changed</source><target>Waiting: a changed decision of the card waits for a worker.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_linked"><source>workflow.waiting.pr_linked</source><target>Waiting: no pull request is linked to the card.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_linked"><source>workflow.waiting.not.pr_linked</source><target>Waiting: a pull request is linked to the card.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_draft_open"><source>workflow.waiting.pr_draft_open</source><target>Waiting: no open pull request of the card is a draft.</target></trans-unit>
@@ -11300,6 +11351,42 @@ workflow:
             <trans-unit id="readiness.live.form_open"><source>readiness.live.form_open</source><target>Open the current settings in a new tab</target></trans-unit>
             <trans-unit id="project.list.live.newer"><source>project.list.live.newer</source><target>{0}No newer projects.|{1}One newer project is on the first page.|]1,Inf[%count% newer projects are on the first page.</target></trans-unit>
             <trans-unit id="project.list.live.first_page"><source>project.list.live.first_page</source><target>Go to the first page</target></trans-unit>
+            <trans-unit id="board.card.tab.decisions"><source>board.card.tab.decisions</source><target>{0}Decisions|]0,Inf[Decisions %count%</target></trans-unit>
+            <trans-unit id="inbox.decisions.title"><source>inbox.decisions.title</source><target>Decisions made without you</target></trans-unit>
+            <trans-unit id="inbox.decisions.decision"><source>inbox.decisions.decision</source><target>Decision</target></trans-unit>
+            <trans-unit id="inbox.decisions.how"><source>inbox.decisions.how</source><target>How</target></trans-unit>
+            <trans-unit id="inbox.decisions.change"><source>inbox.decisions.change</source><target>Change</target></trans-unit>
+            <trans-unit id="inbox.decisions.empty"><source>inbox.decisions.empty</source><target>No agent has made a decision on this card yet.</target></trans-unit>
+            <trans-unit id="inbox.decisions.how_logged"><source>inbox.decisions.how_logged</source><target>Logged</target></trans-unit>
+            <trans-unit id="inbox.decisions.how_defaulted"><source>inbox.decisions.how_defaulted</source><target>Default at the deadline</target></trans-unit>
+            <trans-unit id="inbox.decisions.how_changed"><source>inbox.decisions.how_changed</source><target>Changed by you</target></trans-unit>
+            <trans-unit id="inbox.decisions.other_options"><source>inbox.decisions.other_options</source><target>{0}No other options.|{1}Other option: %options%.|]1,Inf[Other options: %options%.</target></trans-unit>
+            <trans-unit id="inbox.decisions.changed.open"><source>inbox.decisions.changed.open</source><target>Changed by you to %choice%, not acted on yet.</target></trans-unit>
+            <trans-unit id="inbox.decisions.changed.addressed"><source>inbox.decisions.changed.addressed</source><target>Changed by you to %choice%. The worker acted on it.</target></trans-unit>
+            <trans-unit id="inbox.decisions.changed.note"><source>inbox.decisions.changed.note</source><target>Your note: %note%</target></trans-unit>
+            <trans-unit id="inbox.decisions.change_form.title"><source>inbox.decisions.change_form.title</source><target>Change this decision</target></trans-unit>
+            <trans-unit id="inbox.decisions.change_form.description"><source>inbox.decisions.change_form.description</source><target>The agent chose: %choice%. Pick another option or write your own.</target></trans-unit>
+            <trans-unit id="inbox.decisions.change_form.legend"><source>inbox.decisions.change_form.legend</source><target>Other options</target></trans-unit>
+            <trans-unit id="inbox.decisions.change_form.cancel"><source>inbox.decisions.change_form.cancel</source><target>Cancel</target></trans-unit>
+            <trans-unit id="inbox.decisions.change_form.submit"><source>inbox.decisions.change_form.submit</source><target>Change decision</target></trans-unit>
+            <trans-unit id="inbox.form.change_inbox_decision_form.option.label"><source>inbox.form.change_inbox_decision_form.option.label</source><target>Other options</target></trans-unit>
+            <trans-unit id="inbox.form.change_inbox_decision_form.custom.label"><source>inbox.form.change_inbox_decision_form.custom.label</source><target>Something else</target></trans-unit>
+            <trans-unit id="inbox.form.change_inbox_decision_form.note.label"><source>inbox.form.change_inbox_decision_form.note.label</source><target>Note (optional)</target></trans-unit>
+            <trans-unit id="inbox.decisions.follow_up.title"><source>inbox.decisions.follow_up.title</source><target>This card is finished</target></trans-unit>
+            <trans-unit id="inbox.decisions.follow_up.body"><source>inbox.decisions.follow_up.body</source><target>A worker does not pick up a finished card. Create a follow-up card to act on your change.</target></trans-unit>
+            <trans-unit id="inbox.decisions.follow_up.create"><source>inbox.decisions.follow_up.create</source><target>Create follow-up card</target></trans-unit>
+            <trans-unit id="inbox.decisions.follow_up.created"><source>inbox.decisions.follow_up.created</source><target>The follow-up card is in the backlog.</target></trans-unit>
+            <trans-unit id="inbox.decisions.follow_up.open"><source>inbox.decisions.follow_up.open</source><target>Open card #%number%</target></trans-unit>
+            <trans-unit id="inbox.decisions.follow_up.card_title"><source>inbox.decisions.follow_up.card_title</source><target>Follow-up: the %label% decision of card #%number%</target></trans-unit>
+            <trans-unit id="inbox.decisions.follow_up.card_body"><source>inbox.decisions.follow_up.card_body</source><target>The owner changed the %label% decision of card:%number% after the card was finished.
+
+The agent chose: %choice%
+
+The owner chose: %changed%
+
+Note of the owner: %note%</target></trans-unit>
+            <trans-unit id="inbox.decisions.flash.changed"><source>inbox.decisions.flash.changed</source><target>Decision changed.</target></trans-unit>
+            <trans-unit id="inbox.decisions.flash.not_changed"><source>inbox.decisions.flash.not_changed</source><target>Loupe did not change the decision. Check the choice and try again.</target></trans-unit>
         </body>
     </file>
 </xliff>

@@ -9,6 +9,7 @@ use App\Module\Inbox\Command\AnswerInboxItemHandler;
 use App\Module\Inbox\Command\AskInboxHandler;
 use App\Module\Inbox\Command\DeclineInboxItemHandler;
 use App\Module\Inbox\Command\JoinInboxAskHandler;
+use App\Module\Inbox\Command\MarkInboxDecisionsAddressedHandler;
 use App\Module\Inbox\Command\MarkInboxItemDoneHandler;
 use App\Module\Inbox\Command\RunInboxActionHandler;
 use App\Module\Inbox\Command\SearchInboxHandler;
@@ -85,6 +86,7 @@ final readonly class InboxToolErrorMessages
             AskInboxHandler::LABEL_NEEDS_QUESTION => 'A label belongs on a question with options. A todo, a review and a question with only freeText take none.',
             AskInboxHandler::LABEL_NEEDS_BLOCKING => 'A labelled ask blocks. Leave out blocking, or pass true.',
             AskInboxHandler::LABEL_NO_MULTIPLE => 'A labelled ask takes one answer, so it accepts no multiple.',
+            AskInboxHandler::LABEL_LOG_NEEDS_CARD => 'A logged ask needs a card. Pass cardIds with the card it is about, or ask from a card run.',
             AskInboxHandler::LABEL_NEEDS_RECOMMENDED => 'A labelled ask needs a recommendedOption with a confidence, because Loupe may answer it with that option.',
             AskInboxHandler::LABEL_FIELD_MISSING => 'A labelled ask must carry this detail field. Write the facts behind your choice under it.',
             AskInboxHandler::SUGGESTION_UNKNOWN_ACTION => \sprintf('A suggested action must be one of: %s. inbox_actions lists them.', implode(', ', RunSuggestions::ACTIONS)),
@@ -120,6 +122,10 @@ final readonly class InboxToolErrorMessages
             WithdrawInboxItemHandler::WORKFLOW_NOT_WITHDRAWABLE => 'A rule asked this workflow question, so no agent can withdraw it. It closes when the rule no longer asks.',
             WithdrawInboxItemHandler::NOT_ASKING_SESSION => 'Only the session that asked first can withdraw this item. Pass your own session id.',
             JoinInboxAskHandler::NOT_AGENT_ITEM => 'Loupe opened this item for a card wait, a fact or a rule, so no agent can join it. Only an item that an agent or a person asked is joinable.',
+            MarkInboxDecisionsAddressedHandler::NO_CHANGE => 'The owner changed none of these decisions, or one of the ids names a decision with no change.',
+            MarkInboxDecisionsAddressedHandler::NOT_FOUND => 'A decision id names no decision of this project. Pass the ids that decision_list gave you.',
+            MarkInboxDecisionsAddressedHandler::STALE => 'The owner changed a decision again after you read it. Nothing is marked. Call decision_list again and act on the new change.',
+            MarkInboxDecisionsAddressedHandler::OTHER_CARD => 'A decision belongs to another card than the card of your run. Mark only the decisions of your own card.',
             CallerSessionGuard::NOT_CALLER => 'Pass your own session id. This call comes from another session.',
             SearchInboxHandler::QUERY_BLANK => 'Pass a query to search for. To read the inbox page by page instead, call inbox_list.',
             AnswerInboxItemHandler::NOT_A_QUESTION => 'Only a question takes an answer.',

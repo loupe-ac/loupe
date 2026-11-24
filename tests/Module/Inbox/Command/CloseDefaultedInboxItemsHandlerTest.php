@@ -10,9 +10,12 @@ use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxAskItem;
 use App\Module\Inbox\Entity\InboxCloseCause;
 use App\Module\Inbox\Entity\InboxCloser;
+use App\Module\Inbox\Entity\InboxDecisionMadeBy;
 use App\Module\Inbox\Entity\InboxItem;
+use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Install\InboxInstallFlags;
+use App\Module\Inbox\Repository\InboxDecisionRepository;
 use App\Module\Inbox\Scheduler\CloseDefaultedInboxItemsTask;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Inbox\InboxFixtures;
@@ -61,6 +64,36 @@ final class CloseDefaultedInboxItemsHandlerTest extends KernelTestCase
         self::assertSame(InboxCloseCause::Defaulted, $item->closeCause);
         $closed = $this->em->find(InboxAsk::class, $ask->id);
         self::assertNotNull($closed?->closedAt, 'The ask closes, so the worker resumes as after an answer.');
+    }
+
+    public function test_a_default_leaves_an_entry_on_each_card_the_item_names(): void
+    {
+        $card = $this->card($this->em, $this->project);
+        $due = $this->deadlineItem(1, new \DateTimeImmutable('-1 minute'));
+        $due->cards->add(new InboxItemCard($due, $card));
+        $this->askHolding($due);
+
+        $this->handler()(new CloseDefaultedInboxItemsCommand());
+
+        $this->em->clear();
+        $entries = $this->decisionRepository()->findBy(['project' => $this->project]);
+        self::assertCount(1, $entries);
+        self::assertSame(InboxDecisionMadeBy::Defaulted, $entries[0]->madeBy);
+        self::assertSame('ordering', $entries[0]->label);
+        self::assertSame('done', $entries[0]->choice, 'The recommended option is the second one.');
+        self::assertSame(['next'], $entries[0]->otherOptions);
+        self::assertSame((string) $due->id, (string) $entries[0]->item?->id);
+        self::assertSame((string) $card->id, (string) $entries[0]->card->id);
+    }
+
+    public function test_a_default_of_an_item_with_no_card_leaves_no_entry(): void
+    {
+        $due = $this->deadlineItem(1, new \DateTimeImmutable('-1 minute'));
+        $this->askHolding($due);
+
+        self::assertSame(1, $this->handler()(new CloseDefaultedInboxItemsCommand()));
+
+        self::assertSame([], $this->decisionRepository()->findBy(['project' => $this->project]));
     }
 
     public function test_an_item_before_its_deadline_stays_open(): void
@@ -127,5 +160,13 @@ final class CloseDefaultedInboxItemsHandlerTest extends KernelTestCase
         $this->em->flush();
 
         return $ask;
+    }
+
+    private function decisionRepository(): InboxDecisionRepository
+    {
+        $repository = self::getContainer()->get(InboxDecisionRepository::class);
+        self::assertInstanceOf(InboxDecisionRepository::class, $repository);
+
+        return $repository;
     }
 }

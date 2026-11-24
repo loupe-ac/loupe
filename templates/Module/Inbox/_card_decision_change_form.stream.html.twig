@@ -1,0 +1,4 @@
+{#- The Change form with its errors. Props: decision, form. -#}
+<turbo-stream action="replace" target="decision-change-{{ decision.id }}">
+    <template>{% include '@Inbox/_card_decision_change_form.html.twig' with {decision: decision, form: form} only %}</template>
+</turbo-stream>

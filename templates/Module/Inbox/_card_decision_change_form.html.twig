@@ -1,0 +1,25 @@
+{#- The Change form, inside its own frame so an error redraws only the form. Props: decision (InboxDecision), form (FormView). -#}
+<turbo-frame id="decision-change-{{ decision.id }}">
+    {{ form_start(form, {action: path('app_inbox_decision_change', {projectId: decision.project.id, decisionId: decision.id}), attr: {class: 'lp-form'}}) }}
+        {{ form_errors(form) }}
+        {% if form.option.children|length > 0 %}
+        <fieldset class="lp-decision" data-decision-type="single">
+            <legend class="lp-decision__prompt">{{ 'inbox.decisions.change_form.legend'|trans }}</legend>
+            <div class="lp-decision__options">
+                {% for radio in form.option %}
+                    <div class="lp-decision__option">
+                        {{ form_widget(radio) }}
+                        <label for="{{ radio.vars.id }}">{{ radio.vars.label }}</label>
+                    </div>
+                {% endfor %}
+            </div>
+        </fieldset>
+        {% endif %}
+        <twig:Ds:FormField :fieldView="form.custom" />
+        <twig:Ds:FormField :fieldView="form.note" widgetKind="textarea" />
+        <twig:Ds:FormActions>
+            <twig:Ds:Button variant="outline" size="sm" type="button" data-action="click->modal#close">{{ 'inbox.decisions.change_form.cancel'|trans }}</twig:Ds:Button>
+            <twig:Ds:Button variant="primary" size="sm" type="submit" data-inbox-decision-change-submit>{{ 'inbox.decisions.change_form.submit'|trans }}</twig:Ds:Button>
+        </twig:Ds:FormActions>
+    {{ form_end(form) }}
+</turbo-frame>

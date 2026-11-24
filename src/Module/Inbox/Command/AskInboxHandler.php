@@ -12,6 +12,7 @@ use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Inbox\Entity\InboxActionKind;
 use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxAskOrigin;
+use App\Module\Inbox\Entity\InboxDecisionMadeBy;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemDocument;
@@ -25,6 +26,7 @@ use App\Module\Inbox\Service\AskingBridge;
 use App\Module\Inbox\Service\CardWaitTrigger;
 use App\Module\Inbox\Service\InboxCardTileRefresher;
 use App\Module\Inbox\Service\InboxChangedPublisher;
+use App\Module\Inbox\Service\InboxDecisionLog;
 use App\Module\Inbox\Service\InboxItemDrafter;
 use App\Module\Inbox\Service\InboxRefusal;
 use App\Module\Inbox\Service\InboxSearchIndexer;
@@ -36,6 +38,7 @@ use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Uid\Uuid;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
@@ -82,6 +85,7 @@ final readonly class AskInboxHandler
     public const string LABEL_NEEDS_BLOCKING = 'inbox.item.error.label_needs_blocking';
     public const string LABEL_NO_MULTIPLE = 'inbox.item.error.label_no_multiple';
     public const string LABEL_NEEDS_RECOMMENDED = 'inbox.item.error.label_needs_recommended';
+    public const string LABEL_LOG_NEEDS_CARD = 'inbox.item.error.label_log_needs_card';
     public const string LABEL_FIELD_MISSING = 'inbox.item.error.label_field_missing';
     public const string SUGGESTION_UNKNOWN_ACTION = 'inbox.item.error.suggestion_unknown_action';
     public const string SUGGESTION_DUPLICATE = 'inbox.item.error.suggestion_duplicate';
@@ -113,6 +117,7 @@ final readonly class AskInboxHandler
         private InboxCardTileRefresher $cardTiles,
         private WorkerRunRepository $workerRuns,
         private RecordRunAskHandler $recordRunAsk,
+        private InboxDecisionLog $decisionLog,
         private MessageBusInterface $bus,
         private LoggerInterface $logger,
     ) {
@@ -134,10 +139,15 @@ final readonly class AskInboxHandler
             : null;
         $drafts = [];
         $logged = [];
+        $loggedDrafts = [];
         foreach ($command->items as $index => $input) {
             $draft = $this->drafter->draft($command->project, $input, \sprintf('items[%d].', $index), $bridge);
             if (AskMode::Log === $draft->mode) {
+                if ([] === $draft->cards && !$this->cardOfAskingRun($command) instanceof Card) {
+                    throw new DomainErrors([\sprintf('items[%d].label', $index) => self::LABEL_LOG_NEEDS_CARD]);
+                }
                 $logged[] = new AskInboxLogged($draft->label ?? '', $draft->title, $draft->options[$draft->recommendedOption ?? 0]);
+                $loggedDrafts[] = $draft;
 
                 continue;
             }
@@ -150,13 +160,16 @@ final readonly class AskInboxHandler
 
         // A call that logs every item opens no ask and writes no item, so nothing waits and no one is asked.
         if ([] === $drafts) {
+            $cardIds = $this->em->wrapInTransaction(fn (): array => $this->logDecisions($command, $loggedDrafts));
+            $this->decisionLog->refresh($command->project, $cardIds);
             $this->logger->info('inbox.items_logged', ['projectId' => (string) $command->project->id, 'sessionId' => (string) $command->sessionId, 'labels' => implode(',', array_map(static fn (AskInboxLogged $entry): string => $entry->label, $logged))]);
 
             return new AskInboxView(null, [], extended: false, logged: $logged);
         }
 
         try {
-            $view = $this->em->wrapInTransaction(function () use ($command, $drafts, $context, $logged): AskInboxView|InboxRefusal {
+            $loggedCardIds = [];
+            $view = $this->em->wrapInTransaction(function () use ($command, $drafts, $context, $logged, $loggedDrafts, &$loggedCardIds): AskInboxView|InboxRefusal {
                 // Serialises every ask in the project: the item numbers, and the
                 // lookup of the session's open ask that decides open or extend.
                 $this->em->lock($command->project, LockMode::PESSIMISTIC_WRITE);
@@ -214,6 +227,7 @@ final readonly class AskInboxHandler
                     $this->bus->dispatch(new NotifyInboxOwner(($sessionAsk->ask->id ?? throw new \LogicException('A persisted ask has an id.'))->toRfc4122(), NotifyInboxOwnerKind::Ask));
                 }
                 $this->linkRunToAsk($sessionAsk->ask, $drafts);
+                $loggedCardIds = $this->logDecisions($command, $loggedDrafts);
                 $this->em->flush();
 
                 foreach ($created as $item) {
@@ -238,6 +252,7 @@ final readonly class AskInboxHandler
         $ask = $view->ask ?? throw new \LogicException('An ask that kept an item has an ask.');
         $this->inboxChanged->changed($command->project, [$ask->id ?? throw new \LogicException('A stored ask has an id.')]);
         $this->cardTiles->refresh(...$view->items);
+        $this->decisionLog->refresh($command->project, $loggedCardIds, signalInbox: false);
         $reviewed = [];
         foreach ($drafts as $draft) {
             if ($draft->reviewTarget instanceof Document) {
@@ -267,6 +282,48 @@ final readonly class AskInboxHandler
         );
 
         return $view;
+    }
+
+    /**
+     * Writes one decision entry for each card a logged ask names, and flushes. An ask that names no card
+     * belongs to the card of the run that asks, found as linkRunToAsk() finds it. The call refuses an ask with neither.
+     *
+     * @param list<AskInboxDraft> $loggedDrafts
+     *
+     * @return list<Uuid> the cards that got an entry
+     */
+    private function logDecisions(AskInboxCommand $command, array $loggedDrafts): array
+    {
+        $cardIds = [];
+        foreach ($loggedDrafts as $draft) {
+            $cards = $draft->cards;
+            if ([] === $cards) {
+                $runCard = $this->cardOfAskingRun($command);
+                $cards = null === $runCard ? [] : [$runCard];
+            }
+            if ([] === $cards) {
+                throw new \LogicException('A logged ask names a card.');
+            }
+            $this->decisionLog->record($command->project, $cards, $draft->label ?? '', $draft->recommendedOption ?? 0, $draft->options, InboxDecisionMadeBy::Logged);
+            foreach ($cards as $card) {
+                $cardIds[(string) $card->id] = $card->id ?? throw new \LogicException('A stored card has an id.');
+            }
+        }
+        $this->em->flush();
+
+        return array_values($cardIds);
+    }
+
+    private function cardOfAskingRun(AskInboxCommand $command): ?Card
+    {
+        if (null === $command->bridgeId) {
+            return null;
+        }
+        $cardId = $this->workerRuns->findLatestOfSessionOnBridge($command->project, $command->bridgeId, $command->sessionId)?->cardId();
+
+        $card = null === $cardId ? null : $this->em->find(Card::class, $cardId);
+
+        return $card?->project === $command->project ? $card : null;
     }
 
     /**

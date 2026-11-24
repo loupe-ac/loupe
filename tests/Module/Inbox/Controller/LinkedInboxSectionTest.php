@@ -221,7 +221,8 @@ final class LinkedInboxSectionTest extends WebTestCase
             ),
         ));
         // The threads read the actions of all items at once, and the document links of all items at once. No read grows with the items.
-        self::assertCount(1 + 1 + 1 + 2, $inboxReads, implode("\n", $inboxReads));
+        // The Decisions tab adds one read of the decision log, for its label and its panel.
+        self::assertCount(1 + 1 + 1 + 2 + 1, $inboxReads, implode("\n", $inboxReads));
         self::assertCount(1, array_filter($inboxReads, static fn (string $sql): bool => str_contains($sql, 'FROM inbox_actions')));
         // The section query joins the links to filter on them, and the thread preload loads them whole.
         self::assertCount(2, array_filter($inboxReads, static fn (string $sql): bool => str_contains($sql, 'inbox_item_documents')));

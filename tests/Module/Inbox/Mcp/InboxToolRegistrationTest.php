@@ -9,6 +9,8 @@ use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Form\RunInboxActionRequest;
 use App\Module\Inbox\InboxLimits;
 use App\Module\Inbox\Install\InboxInstallFlags;
+use App\Module\Inbox\Mcp\DecisionListTool;
+use App\Module\Inbox\Mcp\DecisionMarkAddressedTool;
 use App\Module\Inbox\Mcp\InboxActionRunTool;
 use App\Module\Inbox\Mcp\InboxActionsTool;
 use App\Module\Inbox\Mcp\InboxAskTool;
@@ -60,6 +62,8 @@ final class InboxToolRegistrationTest extends KernelTestCase
         yield 'inbox_get' => [InboxGetTool::NAME, InboxGetTool::class];
         yield 'inbox_withdraw' => [InboxWithdrawTool::NAME, InboxWithdrawTool::class];
         yield 'inbox_action_run' => [InboxActionRunTool::NAME, InboxActionRunTool::class];
+        yield 'decision_list' => [DecisionListTool::NAME, DecisionListTool::class];
+        yield 'decision_mark_addressed' => [DecisionMarkAddressedTool::NAME, DecisionMarkAddressedTool::class];
     }
 
     /** @param class-string $toolClass */

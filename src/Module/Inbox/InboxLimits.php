@@ -36,4 +36,7 @@ final class InboxLimits
     public const int MAX_CONTEXT_LENGTH = 10000;
 
     public const int MAX_WITHDRAW_REASON_LENGTH = 2000;
+
+    /** The longest note an owner gives with a changed decision. */
+    public const int MAX_DECISION_NOTE_LENGTH = 2000;
 }
