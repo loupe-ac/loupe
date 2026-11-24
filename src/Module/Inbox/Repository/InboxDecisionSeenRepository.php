@@ -31,7 +31,7 @@ class InboxDecisionSeenRepository extends ServiceEntityRepository
                 'project' => (string) $project->id,
                 'user' => (string) $user->id,
                 'card' => (string) $card->id,
-                'at' => $at->format('Y-m-d H:i:s'),
+                'at' => $at->format('Y-m-d H:i:s.u'),
             ],
         );
     }

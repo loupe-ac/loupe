@@ -113,6 +113,19 @@ final class InboxDecisionDigestTest extends WebTestCase
         self::assertSame('1 new decision', trim($crawler->filter('[data-inbox-digest-count]')->text()));
     }
 
+    public function test_a_decision_made_earlier_in_the_second_of_the_visit_counts_as_seen(): void
+    {
+        $card = $this->card(1, 'Same second, earlier');
+        $seenRepository = static::getContainer()->get(InboxDecisionSeenRepository::class);
+        self::assertInstanceOf(InboxDecisionSeenRepository::class, $seenRepository);
+        $this->decision($card, '2026-01-01 12:00:00.100000');
+        $seenRepository->markSeen($this->project, $this->owner, $card, new \DateTimeImmutable('2026-01-01 12:00:00.400000'));
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->inboxUrl());
+
+        self::assertCount(0, $crawler->filter('[data-inbox-digest]'));
+    }
+
     public function test_with_grouping_off_each_card_gets_one_digest_row_newest_decision_first(): void
     {
         $old = $this->card(1, 'Old news');

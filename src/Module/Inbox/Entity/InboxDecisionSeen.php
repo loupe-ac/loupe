@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Inbox\Entity;
 
+use App\Doctrine\Type\MicrosecondDateTimeImmutableType;
 use App\Module\Account\Entity\User;
 use App\Module\Board\Entity\Card;
 use App\Module\Inbox\Repository\InboxDecisionSeenRepository;
@@ -40,7 +41,7 @@ class InboxDecisionSeen
         #[ORM\ManyToOne(targetEntity: Card::class)]
         public readonly Card $card,
 
-        #[ORM\Column]
+        #[ORM\Column(type: MicrosecondDateTimeImmutableType::NAME, columnDefinition: 'TIMESTAMP(6) WITHOUT TIME ZONE NOT NULL')]
         public \DateTimeImmutable $seenAt = new \DateTimeImmutable(),
     ) {
     }

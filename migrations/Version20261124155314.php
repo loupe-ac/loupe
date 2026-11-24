@@ -17,7 +17,9 @@ final class Version20261124155314 extends AbstractMigration
 
     public function up(Schema $schema): void
     {
-        $this->addSql('CREATE TABLE inbox_decision_seen (id UUID NOT NULL, seen_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL, project_id UUID NOT NULL, user_id UUID NOT NULL, card_id UUID NOT NULL, PRIMARY KEY (id))');
+        // @contract-phase: widening the timestamp precision keeps every old value, and the old image reads and writes it as before
+        $this->addSql('ALTER TABLE inbox_decisions ALTER created_at TYPE TIMESTAMP(6) WITHOUT TIME ZONE');
+        $this->addSql('CREATE TABLE inbox_decision_seen (id UUID NOT NULL, seen_at TIMESTAMP(6) WITHOUT TIME ZONE NOT NULL, project_id UUID NOT NULL, user_id UUID NOT NULL, card_id UUID NOT NULL, PRIMARY KEY (id))');
         $this->addSql('CREATE INDEX IDX_D5B9BF88166D1F9C ON inbox_decision_seen (project_id)');
         $this->addSql('CREATE INDEX IDX_D5B9BF88A76ED395 ON inbox_decision_seen (user_id)');
         $this->addSql('CREATE INDEX IDX_D5B9BF884ACC9A20 ON inbox_decision_seen (card_id)');
@@ -34,5 +36,6 @@ final class Version20261124155314 extends AbstractMigration
         $this->addSql('ALTER TABLE inbox_decision_seen DROP CONSTRAINT FK_D5B9BF88A76ED395');
         $this->addSql('ALTER TABLE inbox_decision_seen DROP CONSTRAINT FK_D5B9BF884ACC9A20');
         $this->addSql('DROP TABLE inbox_decision_seen');
+        $this->addSql('ALTER TABLE inbox_decisions ALTER created_at TYPE TIMESTAMP(0) WITHOUT TIME ZONE');
     }
 }
