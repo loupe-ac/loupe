@@ -18,6 +18,8 @@ use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerWait;
 use App\Module\Bridge\Messenger\ResumeWaitingSession;
+use App\Module\Bridge\Messenger\StopStrandedWaitOfCard;
+use App\Module\Bridge\Messenger\StopStrandedWaitOfCardHandler;
 use App\Module\Bridge\Repository\WorkerWaitRepository;
 use App\Module\Bridge\Service\WorkerWaitEnder;
 use App\Module\Bridge\ValueObject\WorkerRunState;
@@ -178,6 +180,9 @@ final class WorkerWaitControlsTest extends KernelTestCase
         $this->em()->flush();
 
         (self::getContainer()->get(EndWaitsOfCardHandler::class))(new EndWaitsOfCardCommand($this->cardId, $reason));
+
+        self::assertSame(WorkerRunState::Waiting, $this->reloadRun($run)->state, 'The stop runs on the queue, outside the lock of the card change.');
+        (self::getContainer()->get(StopStrandedWaitOfCardHandler::class))(new StopStrandedWaitOfCard($this->cardId->toRfc4122(), $reason));
 
         self::assertSame(WorkerRunState::Stopped, $this->reloadRun($run)->state);
         self::assertSame(WorkerWaitEndReason::TimedOut, $this->reload($wait)->endReason);

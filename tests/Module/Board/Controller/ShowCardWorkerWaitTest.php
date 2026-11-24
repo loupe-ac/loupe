@@ -44,6 +44,7 @@ final class ShowCardWorkerWaitTest extends WebTestCase
 
         $controls = $crawler->filter('.lp-card-overview__state > [data-card-wait-controls]');
         self::assertCount(1, $controls);
+        self::assertCount(0, $crawler->filter('[data-card-wait-stranded]'));
         $resume = $controls->filter('form[data-card-wait-resume]');
         self::assertSame('/projects/'.$project->id.'/cards/'.$cardId.'/wait/resume', $resume->attr('action'));
         self::assertSame('Resume now', trim($resume->filter('button')->text()));
@@ -125,6 +126,7 @@ final class ShowCardWorkerWaitTest extends WebTestCase
         self::assertCount(1, $controls);
         self::assertSame('/projects/'.$project->id.'/cards/'.$cardId.'/wait/resume', $controls->filter('form[data-card-wait-resume]')->attr('action'));
         self::assertCount(0, $controls->filter('[data-card-wait-limit]'));
+        self::assertCount(1, $crawler->filter('[data-card-wait-stranded]'));
         self::assertSame('Cancel the wait? The worker stops and does not resume.', $controls->filter('form[data-card-wait-cancel]')->attr('data-turbo-confirm'));
     }
 
