@@ -72,6 +72,9 @@ class Bridge
     /** The capability of a bridge that claims work requests. */
     public const string CAPABILITY_WORK_REQUESTS = 'work-requests';
 
+    /** The capability of a bridge that resumes a session when its wait ends. A bridge without it claims no work request. */
+    public const string CAPABILITY_WAITS = 'waits';
+
     /** The capability of a bridge that runs an interactive session. */
     public const string CAPABILITY_INTERACTIVE = 'interactive';
 
@@ -314,7 +317,9 @@ class Bridge
 
     public function takesWorkRequests(): bool
     {
-        return \in_array(self::CAPABILITY_WORK_REQUESTS, $this->capabilities ?? [], true);
+        $reported = $this->capabilities ?? [];
+
+        return \in_array(self::CAPABILITY_WORK_REQUESTS, $reported, true) && \in_array(self::CAPABILITY_WAITS, $reported, true);
     }
 
     public function opensSessions(): bool

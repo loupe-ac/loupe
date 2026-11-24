@@ -21,7 +21,7 @@ final class WizardMachineStepTest extends WebTestCase
         $owner = $this->user('wizard-machine-ready@example.com');
         $project = $this->project($owner, 'Wizard machine ready');
         $bridge = new Bridge(AgentCredential::managed($this->em(), $owner, $owner->id), Uuid::v4(), [(string) $project->id], '1.2.3', new \DateTimeImmutable());
-        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_APP_PROMPTS];
+        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_APP_PROMPTS];
         $this->em()->persist($bridge);
         $this->em()->flush();
         $this->em()->clear();

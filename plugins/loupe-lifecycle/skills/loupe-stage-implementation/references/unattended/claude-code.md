@@ -8,7 +8,7 @@ Search for the Loupe tools with ToolSearch. In `claude -p` the Loupe MCP server 
 
 ## Run a long command
 
-Use this pattern for a local command only. No stage waits for CI.
+Use this pattern for a local command only. No stage polls for CI. A stage waits for checks with `run_wait`.
 
 A Bash call ends after 600000 ms. Start the long command with the Bash tool's `run_in_background`. The tool then says that it will notify you when the command completes. In a headless run that notice never arrives, so always run the loop below. Write its output to a log file, and append an exit marker when it ends:
 

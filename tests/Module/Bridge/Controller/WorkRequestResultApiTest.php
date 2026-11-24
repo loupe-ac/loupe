@@ -455,7 +455,7 @@ final class WorkRequestResultApiTest extends WebTestCase
     {
         $projectId = ($project->id ?? throw new \LogicException('A flushed project has an id.'))->toRfc4122();
         $bridge = $this->seedBridge($this->em(), $owner, projects: [$projectId]);
-        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS];
+        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS];
         $bridge->accounts = [['name' => 'work', 'harness' => 'claude', 'state' => 'ready', 'reason' => null, 'kinds' => ['implement']]];
         $this->em()->flush();
 

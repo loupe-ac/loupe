@@ -114,7 +114,7 @@ final class ClaimWorkRequestHandlerTest extends KernelTestCase
     public function test_a_bridge_with_app_prompts_claims_a_subject_request_that_carries_a_prompt(): void
     {
         [$owner, $bridge, $request] = $this->scenario('claim-handler-app-prompts', WorkRequestState::Open);
-        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_APP_PROMPTS];
+        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_APP_PROMPTS];
         $request->capability = 'subject-analysis';
         $request->prompt = 'Run it.';
         $this->em()->flush();
@@ -128,7 +128,7 @@ final class ClaimWorkRequestHandlerTest extends KernelTestCase
     public function test_a_bridge_with_app_prompts_does_not_claim_a_subject_request_with_no_prompt(): void
     {
         [$owner, $bridge, $request] = $this->scenario('claim-handler-no-prompt', WorkRequestState::Open);
-        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_APP_PROMPTS];
+        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_APP_PROMPTS];
         $request->capability = 'subject-analysis';
         $this->em()->flush();
 
@@ -322,7 +322,7 @@ final class ClaimWorkRequestHandlerTest extends KernelTestCase
     public function test_an_account_that_lists_the_card_session_claims_the_session_of_an_inbox_item(): void
     {
         [$owner, $bridge] = $this->scenario('claim-handler-inbox-session', WorkRequestState::Open);
-        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION];
+        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_SESSION];
         $bridge->workKinds = [WorkRequest::SESSION_KIND, Bridge::workKindOf(InboxItem::SUBJECT_TYPE, WorkRequest::SESSION_KIND)];
         $bridge->accounts = [['name' => 'claude', 'harness' => 'claude', 'state' => 'ready', 'reason' => null, 'kinds' => ['product-design', WorkRequest::SESSION_KIND, 'tech-design-session']]];
         $project = $this->em()->find(Project::class, Uuid::fromString($bridge->projects[0])) ?? throw new \LogicException('The scenario seeds a project.');
@@ -521,7 +521,7 @@ final class ClaimWorkRequestHandlerTest extends KernelTestCase
     public function test_a_missing_capability_records_no_refusal(): void
     {
         [$owner, $bridge, $request] = $this->scenario('claim-handler-refusal-capability', WorkRequestState::Open);
-        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_APP_PROMPTS];
+        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_APP_PROMPTS];
         $request->capability = 'subject-analysis';
         $this->em()->flush();
 
@@ -590,7 +590,7 @@ final class ClaimWorkRequestHandlerTest extends KernelTestCase
         $owner = $this->user($em, $name.'@example.com');
         $project = $this->project($em, $owner, 'Project '.$name);
         $bridge = $this->seedBridge($em, $owner, projects: [(string) $project->id?->toRfc4122()]);
-        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS];
+        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS];
         $bridge->accounts = [['name' => 'work', 'harness' => 'claude', 'state' => 'ready', 'reason' => null, 'kinds' => ['implement', 'fix', 'analysis:implement']]];
         $em->flush();
 

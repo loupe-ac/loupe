@@ -312,7 +312,7 @@ final readonly class DevInboxSeeder implements DevSeederInterface
         $bridgeId = DevSeedId::of('bridge/bridge/session');
         if (!$this->bridges->findOneBy(['id' => $bridgeId]) instanceof Bridge) {
             $bridge = new Bridge($owner, $bridgeId, [(string) $project->id], self::CLI_VERSION, $context->now->modify('+10 years'));
-            $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION];
+            $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_SESSION];
             $this->em->persist($bridge);
         }
 
@@ -346,7 +346,7 @@ final readonly class DevInboxSeeder implements DevSeederInterface
         $bridge = $this->bridges->findOneBy(['id' => $bridgeId]);
         if (!$bridge instanceof Bridge) {
             $bridge = new Bridge($owner, $bridgeId, [(string) $project->id], self::CLI_VERSION, $context->now);
-            $bridge->capabilities = [Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_RUN_COMMAND];
+            $bridge->capabilities = [Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_RUN_COMMAND];
             $bridge->lastSeenAt = $context->now;
             $bridge->commandEntries = [['name' => 'design-export', 'description' => null, 'params' => [['name' => 'out', 'pattern' => '[a-z/-]+', 'description' => null]], 'run' => ['bin/console', 'app:design-system:export', '{out}'], 'timeout' => '10m']];
             $bridge->worktrees = [['projectId' => (string) $project->id, 'branch' => 'main', 'path' => '/work/loupe']];

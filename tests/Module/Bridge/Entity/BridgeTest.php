@@ -20,9 +20,11 @@ final class BridgeTest extends TestCase
     {
         yield 'no report' => [null, null, false];
         yield 'commands only' => [[Bridge::CAPABILITY_COMMANDS], null, false];
-        yield 'work requests, no need' => [[Bridge::CAPABILITY_WORK_REQUESTS], null, true];
-        yield 'work requests, a missing need' => [[Bridge::CAPABILITY_WORK_REQUESTS], Bridge::CAPABILITY_INTERACTIVE, false];
-        yield 'work requests and the need' => [[Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_INTERACTIVE], Bridge::CAPABILITY_INTERACTIVE, true];
+        yield 'work requests without waits' => [[Bridge::CAPABILITY_WORK_REQUESTS], null, false];
+        yield 'waits without work requests' => [[Bridge::CAPABILITY_WAITS], null, false];
+        yield 'work requests, no need' => [[Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS], null, true];
+        yield 'work requests, a missing need' => [[Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS], Bridge::CAPABILITY_INTERACTIVE, false];
+        yield 'work requests and the need' => [[Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_INTERACTIVE], Bridge::CAPABILITY_INTERACTIVE, true];
         yield 'the need alone' => [[Bridge::CAPABILITY_INTERACTIVE], Bridge::CAPABILITY_INTERACTIVE, false];
     }
 
@@ -34,7 +36,7 @@ final class BridgeTest extends TestCase
         $bridge->capabilities = $capabilities;
 
         self::assertSame($runs, $bridge->canRun($this->request($need)));
-        self::assertSame(null !== $capabilities && \in_array(Bridge::CAPABILITY_WORK_REQUESTS, $capabilities, true), $bridge->takesWorkRequests());
+        self::assertSame(null !== $capabilities && \in_array(Bridge::CAPABILITY_WORK_REQUESTS, $capabilities, true) && \in_array(Bridge::CAPABILITY_WAITS, $capabilities, true), $bridge->takesWorkRequests());
     }
 
     public function test_a_bridge_accepts_entries_only_when_it_reports_the_capability(): void
@@ -53,12 +55,12 @@ final class BridgeTest extends TestCase
     /** @return iterable<string, array{list<string>, ?string, ?string, bool}> */
     public static function appPrompts(): iterable
     {
-        $reports = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_APP_PROMPTS];
+        $reports = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_APP_PROMPTS];
 
         yield 'a subject request with a prompt' => [$reports, 'subject-analysis', 'Run it.', true];
         yield 'a subject request with no prompt' => [$reports, 'subject-analysis', null, false];
         yield 'an interactive request with a prompt' => [$reports, Bridge::CAPABILITY_INTERACTIVE, 'Run it.', false];
-        yield 'a subject request with a prompt, no app prompts' => [[Bridge::CAPABILITY_WORK_REQUESTS], 'subject-analysis', 'Run it.', false];
+        yield 'a subject request with a prompt, no app prompts' => [[Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS], 'subject-analysis', 'Run it.', false];
         yield 'app prompts without work requests' => [[Bridge::CAPABILITY_APP_PROMPTS], 'subject-analysis', 'Run it.', false];
     }
 

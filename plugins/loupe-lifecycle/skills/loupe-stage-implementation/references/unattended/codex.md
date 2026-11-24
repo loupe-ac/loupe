@@ -10,7 +10,7 @@ Codex lists the MCP tools from its configuration directly, so the tools of the `
 
 ## Run a long command
 
-Use this pattern for a local command only. No stage waits for CI.
+Use this pattern for a local command only. No stage polls for CI. A stage waits for checks with `run_wait`.
 
 A call of the shell tool, `exec_command`, has a time limit. Start the long command detached. Write its output to a log file, and append an exit marker when it ends:
 

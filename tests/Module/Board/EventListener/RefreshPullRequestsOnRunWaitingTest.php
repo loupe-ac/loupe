@@ -23,7 +23,7 @@ use Symfony\Component\Messenger\Stamp\DelayStamp;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 use Symfony\Component\Uid\Uuid;
 
-final class RefreshPullRequestsOnRunWaitingOnForgeTest extends KernelTestCase
+final class RefreshPullRequestsOnRunWaitingTest extends KernelTestCase
 {
     use BoardToolScenario;
 
@@ -49,9 +49,9 @@ final class RefreshPullRequestsOnRunWaitingOnForgeTest extends KernelTestCase
         $this->sentMessages();
     }
 
-    public function test_a_run_waiting_on_the_forge_queues_an_immediate_and_a_delayed_read(): void
+    public function test_a_run_that_waits_queues_an_immediate_and_a_delayed_read(): void
     {
-        $run = $this->workerRun($this->card->id, WorkerRunState::WaitingOnForge);
+        $run = $this->workerRun($this->card->id, WorkerRunState::Waiting);
         $this->clearQueue();
 
         $this->dispatch($this->event($run));
@@ -78,12 +78,12 @@ final class RefreshPullRequestsOnRunWaitingOnForgeTest extends KernelTestCase
         self::assertSame([], $this->sentMessages());
     }
 
-    public function test_a_run_waiting_on_the_forge_with_no_card_pull_request_queues_nothing(): void
+    public function test_a_run_that_waits_with_no_card_pull_request_queues_nothing(): void
     {
         $other = new Card($this->project, $this->column($this->project, 'backlog'), 'Other', '', 2);
         $this->em->persist($other);
         $this->em->flush();
-        $run = $this->workerRun($other->id, WorkerRunState::WaitingOnForge);
+        $run = $this->workerRun($other->id, WorkerRunState::Waiting);
         $this->clearQueue();
 
         $this->dispatch($this->event($run));
@@ -91,9 +91,9 @@ final class RefreshPullRequestsOnRunWaitingOnForgeTest extends KernelTestCase
         self::assertSame([], $this->sentMessages());
     }
 
-    public function test_a_run_waiting_on_the_forge_with_no_card_subject_queues_nothing(): void
+    public function test_a_run_that_waits_with_no_card_subject_queues_nothing(): void
     {
-        $run = $this->workerRun($this->card->id, WorkerRunState::WaitingOnForge, 'analysis');
+        $run = $this->workerRun($this->card->id, WorkerRunState::Waiting, 'analysis');
         $this->clearQueue();
 
         $this->dispatch($this->event($run));

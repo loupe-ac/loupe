@@ -41,8 +41,7 @@ each refusal.
 | `no-result` | the bridge | the worker exited with code 0, with no structured result |
 | `unfinished` | the bridge | the worker exited with code 0 and the status `unfinished`: its work still runs or remains |
 | `blocked` | the bridge | the worker exited with code 0 and the status `blocked`: it cannot go on without a person |
-| `waiting-on-forge` | the bridge | the worker exited with code 0 and the status `waiting`: its work waits on the forge, such as the checks of a pushed pull request. The bridge does not resume the run |
-| `waiting` | the server | the run has a wait, and it ended with the result `unfinished`, `waiting` or no result. The session can resume. See [Waits](#waits) |
+| `waiting` | the server | the run has a wait, and it ended with the result `unfinished` or no result. The session can resume. See [Waits](#waits) |
 | `gave-up` | the bridge | the run did not finish, and the bridge already ran every resume its rule allows |
 | `usage-limit` | the bridge | a usage limit stopped the run, and the bridge gave its work request back. The work starts again when an account has room |
 | `network` | the bridge | a network outage stopped the run, and the bridge gave its work request back. The work waits five minutes, then starts again |
@@ -59,7 +58,7 @@ run from before the workflow engine keeps its history.
 
 `queued`, `resumed`, `preparing`, `running` and `stopping` are open states. Every other state
 closes the run. `succeeded`, `no-result`, `unfinished`, `blocked`,
-`waiting-on-forge`, `waiting`, `gave-up`, `usage-limit`, `network`, `failed` and `not-started` are the outcomes. Only
+`waiting`, `gave-up`, `usage-limit`, `network`, `failed` and `not-started` are the outcomes. Only
 an outcome carries an exit code, a result flag, a result status, result fields
 and a failure reason.
 
@@ -120,9 +119,9 @@ order.
 | `sessionId` | the uuid of the session the worker runs as. Required for `running`, except on a command run. A harness that names its session with its own id sends that id in `harnessSessionId` |
 | `startedAt` | when the worker started, on the bridge clock. Required for `running` |
 | `endedAt` | when the worker ended, on the bridge clock. Required for an outcome. A `stopped` report may leave it out, and the server then uses `at`. The end, or `at` in its place, cannot be before the `startedAt` of the same report |
-| `exitCode` | the process exit code, between -255 and 255. `succeeded`, `no-result`, `unfinished`, `blocked` and `waiting-on-forge` need 0, `failed` needs any other code, and `not-started` needs `null` |
-| `hasResult` | whether the worker gave a structured result. `no-result` needs `false`, and `succeeded`, `unfinished`, `blocked` and `waiting-on-forge` refuse `false`. Send `null` for `not-started`, because a value is refused when `exitCode` is `null`. The server ignores it on a command run |
-| `resultStatus` | the `status` of the structured result: `finished`, `blocked`, `unfinished` or `waiting`. It needs `hasResult: true`, so a command run cannot send it. `blocked` and `unfinished` need the state of the same name, `waiting` needs `waiting-on-forge`, and `succeeded` takes `finished` or `null` |
+| `exitCode` | the process exit code, between -255 and 255. `succeeded`, `no-result`, `unfinished` and `blocked` need 0, `failed` needs any other code, and `not-started` needs `null` |
+| `hasResult` | whether the worker gave a structured result. `no-result` needs `false`, and `succeeded`, `unfinished` and `blocked` refuse `false`. Send `null` for `not-started`, because a value is refused when `exitCode` is `null`. The server ignores it on a command run |
+| `resultStatus` | the `status` of the structured result: `finished`, `blocked` or `unfinished`. It needs `hasResult: true`, so a command run cannot send it. `blocked` and `unfinished` need the state of the same name, and `succeeded` takes `finished` or `null`. A bridge from before the `waits` capability can still send `waiting`, and the server stores that run as `unfinished` |
 | `resultReason` | why the run ended the way it did, such as `stacked` or `approval-stale`. It has at most 40 characters of lower-case letters, digits and hyphens, and starts with a letter. It needs `hasResult: true`, as `resultStatus` does. The server stores a code it does not know as `other` |
 | `failureReason` | why the process never started, at most 1000 characters. Required for `not-started`, and refused with an exit code |
 | `output` | what the worker printed, at most 4000 characters. Required for an outcome, and it may be empty. A `stopped` report may carry it, and a run keeps its output when the report has none |
@@ -801,7 +800,7 @@ error:
 | This run already has a command that waits for its bridge | a request waits on the run |
 | You cannot control an interactive session from here | the run is interactive |
 | This run has no session to resume | a resume of a run with no `sessionId` |
-| Only an ended run can resume | a resume of an open run, or of a run that ended as `succeeded`, `waiting-on-forge`, `dropped`, `replaced`, `skipped`, `not-started` or `closed` |
+| Only an ended run can resume | a resume of an open run, or of a run that ended as `succeeded`, `dropped`, `replaced`, `skipped`, `not-started` or `closed` |
 | Only a queued or running run can stop | a stop of a run that is not `queued`, `resumed` or `running` |
 | Only a command run can run again | a rerun of a run that is not a command run |
 | Only a failed, timed-out or lost command run can run again | a rerun of a command run in any other state |
@@ -825,7 +824,7 @@ The workflow template caps the number of waits in one chain.
 The tool refuses a wait when the chain reached that cap.
 
 Only the server sets the state `waiting`, and a bridge never reports it.
-It applies when a run has a wait and the bridge reports `unfinished`, `no-result` or `waiting-on-forge`.
+It applies when a run has a wait and the bridge reports `unfinished` or `no-result`.
 The wait must be open.
 It also applies when the wait ended in a way that resumes the session and no run resumed it yet.
 The run keeps the exit code, the output and the result fields that the bridge reported.

@@ -60,7 +60,7 @@ final class WorkTakersTest extends KernelTestCase
     public function test_capable_for_takes_app_prompts_only_for_work_that_ships_a_prompt(): void
     {
         [$project, , $owner] = $this->scenario('capable-for-prompts');
-        $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: [], capabilities: [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_APP_PROMPTS]);
+        $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: [], capabilities: [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_APP_PROMPTS]);
 
         self::assertSame(WorkTakerState::Available, $this->service()->capableFor($project, 'discovery', true)->state);
         self::assertSame(WorkTakerState::NotCapable, $this->service()->capableFor($project, 'discovery', false)->state);
@@ -191,7 +191,7 @@ final class WorkTakersTest extends KernelTestCase
     public function test_a_failed_app_prompt_account_waits_on_the_no_capable_marker(): void
     {
         [$project, $request, $owner] = $this->scenario('failed-app-prompt', prompt: 'Build {cardId}.');
-        $bridge = $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: [], capabilities: [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_APP_PROMPTS]);
+        $bridge = $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: [], capabilities: [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_APP_PROMPTS]);
         $this->failedAppPromptAccount($bridge, (string) Uuid::v7());
 
         self::assertSame(WorkTakerState::Available, $this->read($project, $request)->state);
@@ -206,7 +206,7 @@ final class WorkTakersTest extends KernelTestCase
     public function test_a_failed_app_prompt_account_holds_back_no_kind_that_another_entry_runs(): void
     {
         [$project, $request, $owner] = $this->scenario('failed-app-prompt-mapped', prompt: 'Build {cardId}.');
-        $bridge = $this->bridge($owner, $project, seenSecondsAgo: 10, capabilities: [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_APP_PROMPTS]);
+        $bridge = $this->bridge($owner, $project, seenSecondsAgo: 10, capabilities: [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_APP_PROMPTS]);
         $this->failedAppPromptAccount($bridge, (string) $project->id);
 
         self::assertSame(WorkTakerState::Available, $this->read($project, $request)->state, 'a command entry runs the kind on no account');
@@ -221,7 +221,7 @@ final class WorkTakersTest extends KernelTestCase
 
         self::assertSame(WorkTakerState::NotCapable, $this->service()->capableFor($project, 'discovery', true)->state);
 
-        $prompts = $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: [], capabilities: [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_APP_PROMPTS]);
+        $prompts = $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: [], capabilities: [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_APP_PROMPTS]);
         $this->failedAppPromptAccount($prompts, (string) Uuid::v7());
 
         self::assertSame(WorkTakerState::Available, $this->service()->capableFor($project, 'discovery', true)->state);
@@ -251,7 +251,7 @@ final class WorkTakersTest extends KernelTestCase
     public function test_a_bridge_with_app_prompts_takes_every_kind_whose_request_carries_a_prompt(): void
     {
         [$project, $request, $owner] = $this->scenario('app-prompts', prompt: 'Build {cardId}.');
-        $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: [], capabilities: [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_APP_PROMPTS]);
+        $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: [], capabilities: [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_APP_PROMPTS]);
 
         self::assertSame(WorkTakerState::Available, $this->read($project, $request)->state);
     }
@@ -267,7 +267,7 @@ final class WorkTakersTest extends KernelTestCase
     public function test_a_bridge_with_app_prompts_takes_a_request_with_no_prompt_only_by_its_kind(?string $prompt): void
     {
         [$project, $request, $owner] = $this->scenario('app-prompts-no-prompt', prompt: $prompt);
-        $appPrompts = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_APP_PROMPTS];
+        $appPrompts = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_APP_PROMPTS];
         $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: ['fix'], capabilities: $appPrompts);
 
         self::assertSame(WorkTakerState::NotCapable, $this->read($project, $request)->state);
@@ -321,7 +321,7 @@ final class WorkTakersTest extends KernelTestCase
     public function test_a_request_about_another_subject_needs_the_subject_capability_and_its_kind_on_that_subject(): void
     {
         [$project, $request, $owner] = $this->scenario('subject', capability: 'subject-analysis', subject: new WorkSubject('analysis', Uuid::v7()));
-        $analysis = [Bridge::CAPABILITY_WORK_REQUESTS, 'subject-analysis'];
+        $analysis = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, 'subject-analysis'];
         $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: ['analysis:implement']);
         $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: ['analysis:report', 'implement'], capabilities: $analysis);
 
@@ -335,7 +335,7 @@ final class WorkTakersTest extends KernelTestCase
     public function test_a_bridge_with_app_prompts_takes_a_request_about_another_subject_that_carries_a_prompt(): void
     {
         [$project, $request, $owner] = $this->scenario('subject-prompt', capability: 'subject-analysis', prompt: 'Analyse.', subject: new WorkSubject('analysis', Uuid::v7()));
-        $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: ['analysis:report'], capabilities: [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_APP_PROMPTS]);
+        $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: ['analysis:report'], capabilities: [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_APP_PROMPTS]);
 
         self::assertSame(WorkTakerState::Available, $this->read($project, $request)->state);
     }
@@ -343,7 +343,7 @@ final class WorkTakersTest extends KernelTestCase
     /** The CLI runs the app prompt when the entry of the kind names another subject, as TestAppPromptRunsWhenTheEntryNamesAnotherSubject shows. */
     public function test_a_bridge_with_app_prompts_takes_a_prompted_kind_that_its_entry_maps_to_another_subject(): void
     {
-        $appPrompts = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_APP_PROMPTS, 'subject-analysis'];
+        $appPrompts = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_APP_PROMPTS, 'subject-analysis'];
         [$project, $request, $owner] = $this->scenario('mapped-elsewhere-analysis', capability: 'subject-analysis', prompt: 'Analyse.', subject: new WorkSubject('analysis', Uuid::v7()));
         $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: ['implement'], capabilities: $appPrompts);
 
@@ -358,7 +358,7 @@ final class WorkTakersTest extends KernelTestCase
     public function test_a_card_kind_of_another_subject_takes_no_card_request(): void
     {
         [$project, $request, $owner] = $this->scenario('card-kind-of-subject');
-        $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: ['analysis:implement'], capabilities: [Bridge::CAPABILITY_WORK_REQUESTS, 'subject-analysis']);
+        $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: ['analysis:implement'], capabilities: [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, 'subject-analysis']);
 
         self::assertSame(WorkTakerState::NotCapable, $this->read($project, $request)->state);
     }
@@ -647,7 +647,7 @@ final class WorkTakersTest extends KernelTestCase
         $inboxSession = Bridge::workKindOf(InboxItem::SUBJECT_TYPE, WorkRequest::SESSION_KIND);
         [$project, $request, $owner] = $this->scenario('limited-inbox-session', capability: Bridge::CAPABILITY_SESSION, subject: new WorkSubject(InboxItem::SUBJECT_TYPE, Uuid::v7()));
         $request->kind = WorkRequest::SESSION_KIND;
-        $bridge = $this->bridge($owner, $project, 10, [WorkRequest::SESSION_KIND, $inboxSession], [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION]);
+        $bridge = $this->bridge($owner, $project, 10, [WorkRequest::SESSION_KIND, $inboxSession], [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_SESSION]);
         $this->accounts($bridge, ['claude' => [WorkRequest::SESSION_KIND]]);
         $this->reading($bridge, 'claude', 'week', 100.0, '2026-10-20 17:00:00', true);
 
@@ -875,7 +875,7 @@ final class WorkTakersTest extends KernelTestCase
     private function bridge(User $owner, Project $project, int $seenSecondsAgo, array $workKinds = ['implement'], ?array $capabilities = null, bool $follows = true): Bridge
     {
         $bridge = $this->seedBridge($this->em(), $owner, projects: $follows ? [(string) $project->id] : [], lastSeenAt: new \DateTimeImmutable(self::NOW)->modify(\sprintf('-%d seconds', $seenSecondsAgo)));
-        $bridge->capabilities = $capabilities ?? [Bridge::CAPABILITY_WORK_REQUESTS];
+        $bridge->capabilities = $capabilities ?? [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS];
         $bridge->workKinds = $workKinds;
         $this->em()->flush();
 

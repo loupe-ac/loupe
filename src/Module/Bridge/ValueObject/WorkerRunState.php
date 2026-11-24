@@ -12,6 +12,10 @@ namespace App\Module\Bridge\ValueObject;
  */
 enum WorkerRunState: string
 {
+    /** The result status and the state that a bridge from before the wait tool still reports. The server stores each as unfinished. */
+    public const string LEGACY_WAITING_STATUS = 'waiting';
+    public const string LEGACY_WAITING_STATE = 'waiting-on-forge';
+
     case Queued = 'queued';
 
     /** A newer event for the same card took this run's place in the queue. */
@@ -60,12 +64,9 @@ enum WorkerRunState: string
     /** The worker said it cannot go on without a person. */
     case Blocked = 'blocked';
 
-    /** The worker said its work waits on the forge, such as checks on a pushed pull request. The bridge does not resume it. */
-    case WaitingOnForge = 'waiting-on-forge';
-
     /**
      * The worker parked its session on a wait, or opened one that ended before the run did. Only the server sets it,
-     * from an unfinished, no-result or waiting-on-forge end of a run that has a wait. The session can resume.
+     * from an unfinished or no-result end of a run that has a wait. The session can resume.
      */
     case Waiting = 'waiting';
 
@@ -89,8 +90,7 @@ enum WorkerRunState: string
             0 !== $exitCode => self::Failed,
             false === $hasResult => self::NoResult,
             'blocked' === $resultStatus => self::Blocked,
-            'unfinished' === $resultStatus => self::Unfinished,
-            'waiting' === $resultStatus => self::WaitingOnForge,
+            'unfinished' === $resultStatus, self::LEGACY_WAITING_STATUS === $resultStatus => self::Unfinished,
             default => self::Succeeded,
         };
     }
@@ -137,7 +137,7 @@ enum WorkerRunState: string
     /** How a worker process ended. Only these states carry an exit code or a failure reason. */
     public function isOutcome(): bool
     {
-        return \in_array($this, [self::Succeeded, self::Failed, self::NotStarted, self::NoResult, self::Unfinished, self::Blocked, self::WaitingOnForge, self::Waiting, self::GaveUp, self::UsageLimit, self::Network], true);
+        return \in_array($this, [self::Succeeded, self::Failed, self::NotStarted, self::NoResult, self::Unfinished, self::Blocked, self::Waiting, self::GaveUp, self::UsageLimit, self::Network], true);
     }
 
     /** The ends where the work broke. A stop for a person and work that remains are not failures. */
@@ -199,7 +199,6 @@ enum WorkerRunState: string
             self::NoResult => 'bridge.worker_runs.state.no_result',
             self::Unfinished => 'bridge.worker_runs.state.unfinished',
             self::Blocked => 'bridge.worker_runs.state.blocked',
-            self::WaitingOnForge => 'bridge.worker_runs.state.waiting_on_forge',
             self::Waiting => 'bridge.worker_runs.state.waiting',
             self::GaveUp => 'bridge.worker_runs.state.gave_up',
             self::TimedOut => 'bridge.worker_runs.state.timed_out',
@@ -216,7 +215,7 @@ enum WorkerRunState: string
             self::Failed, self::NoResult, self::GaveUp, self::Dropped, self::TimedOut, self::Lost => 'failed',
             // The bridge or a person set these runs aside by design, so nothing waits and nothing failed.
             self::Replaced, self::Skipped, self::Stopped => 'resolved',
-            self::Queued, self::Resumed, self::Preparing, self::Running, self::Stopping, self::WaitingForPerson, self::UsageLimit, self::Network, self::NotStarted, self::Unfinished, self::Blocked, self::WaitingOnForge, self::Waiting => 'pending',
+            self::Queued, self::Resumed, self::Preparing, self::Running, self::Stopping, self::WaitingForPerson, self::UsageLimit, self::Network, self::NotStarted, self::Unfinished, self::Blocked, self::Waiting => 'pending',
         };
     }
 }
