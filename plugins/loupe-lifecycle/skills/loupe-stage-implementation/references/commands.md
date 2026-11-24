@@ -204,9 +204,9 @@ Then, when the instruction files name a changelog entry, write it and run its ch
 The stage does not poll for CI. It waits with the `run_wait` tool, and Loupe resumes the same session when the wait ends. The stage ends after the push as the next list says.
 
 1. Read the head of the pull request with the forge adapter, and check that it equals the commit you pushed. Then call `run_wait`. Pass the session id from the prompt, the limit `limitMinutes` of 60, and two conditions. Each condition names the pull request in `pullRequestUrl`. The keys are `pr.checks_passed` and `pr.checks_failed`. When the tool refuses the limit, use the maximum that the refusal names.
-2. When the tool says that a condition is true already, the stored facts can belong to an older head. Read the checks of the pushed head with the forge adapter.
+2. When the tool says that a condition is true already, the stored facts can still describe an older head. Read the checks of the pushed head with the forge adapter.
    - Passed or failed: go to item 5.
-   - Pending: call `card_get`, and when the state of the pull request is not newer than your push, call `run_wait` again once. When the tool still refuses, stop with `STAGE RESULT: blocked: checks still pending <pr url>`.
+   - Pending: Loupe has not read the new head yet. Read `card_get` every 15 seconds, for 3 minutes at most, until the `checks` of that pull request read `pending`. Then call `run_wait` again. When the stored checks never read `pending`, or the tool refuses again, stop with `STAGE RESULT: blocked: checks still pending <pr url>`.
 3. When the tool refuses for another reason, stop with `STAGE RESULT: blocked: wait refused: <reason>`.
 4. When the tool accepts the wait, end the turn at once. Stop with `STAGE RESULT: waiting <pr url>` and the structured status `unfinished`. Never end with the status `waiting`. That status no longer exists.
 5. Loupe resumes the session when a condition is true, when the limit passes, or when the pull request leaves the card. Read the checks with the forge adapter.
