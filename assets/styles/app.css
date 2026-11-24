@@ -2926,6 +2926,10 @@
     .lp-inbox-linked-table__type {
         @apply inline-flex items-center gap-1.5 text-xs font-medium text-fg-dim;
     }
+    /* The tag of a decision and its choice sit on one line in the first cell. */
+    .lp-inbox-linked-table__title {
+        @apply flex flex-wrap items-center gap-2;
+    }
     .lp-inbox-linked-table strong {
         @apply font-semibold text-ink break-words;
     }

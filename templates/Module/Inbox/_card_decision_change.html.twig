@@ -1,0 +1,10 @@
+{#- The Change button of a decision and its dialog. Props: decision (InboxDecision), form (FormView). -#}
+{% set titleId = 'decision-change-title-' ~ decision.id %}
+<div data-controller="modal">
+    <twig:Ds:Button variant="ghost" size="sm" type="button" data-action="click->modal#open" data-inbox-decision-change>{{ 'inbox.decisions.change'|trans }}</twig:Ds:Button>
+    <twig:Ds:Dialog aria-labelledby="{{ titleId }}" data-action="cancel->modal#close">
+        <h3 class="lp-dialog-title" id="{{ titleId }}">{{ 'inbox.decisions.change_form.title'|trans }}</h3>
+        <p class="lp-dialog-desc">{{ 'inbox.decisions.change_form.description'|trans({'%choice%': decision.choice}) }}</p>
+        {% include '@Inbox/_card_decision_change_form.html.twig' with {decision: decision, form: form} only %}
+    </twig:Ds:Dialog>
+</div>

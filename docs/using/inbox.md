@@ -1043,6 +1043,11 @@ minute of the deadline. While the inbox is off, no default runs.
 When Loupe answers, it also writes a decision entry on each card that the item
 names. An item that names no card leaves no entry.
 
+You can reopen a defaulted answer. Open the **Decisions** tab of the card and
+press **Change** on the row. The dialog takes another option, or your own
+words. The change goes to a worker as a fix round. See
+[Change a decision](board.md#change-a-decision).
+
 ### The log mode
 
 A `log` question never reaches the inbox. The agent reads the reply "Logged

@@ -11328,6 +11328,42 @@ workflow:
             <trans-unit id="readiness.live.form_open"><source>readiness.live.form_open</source><target>Open the current settings in a new tab</target></trans-unit>
             <trans-unit id="project.list.live.newer"><source>project.list.live.newer</source><target>{0}No newer projects.|{1}One newer project is on the first page.|]1,Inf[%count% newer projects are on the first page.</target></trans-unit>
             <trans-unit id="project.list.live.first_page"><source>project.list.live.first_page</source><target>Go to the first page</target></trans-unit>
+            <trans-unit id="board.card.tab.decisions"><source>board.card.tab.decisions</source><target>{0}Decisions|]0,Inf[Decisions %count%</target></trans-unit>
+            <trans-unit id="inbox.decisions.title"><source>inbox.decisions.title</source><target>Decisions made without you</target></trans-unit>
+            <trans-unit id="inbox.decisions.decision"><source>inbox.decisions.decision</source><target>Decision</target></trans-unit>
+            <trans-unit id="inbox.decisions.how"><source>inbox.decisions.how</source><target>How</target></trans-unit>
+            <trans-unit id="inbox.decisions.change"><source>inbox.decisions.change</source><target>Change</target></trans-unit>
+            <trans-unit id="inbox.decisions.empty"><source>inbox.decisions.empty</source><target>No agent has made a decision on this card yet.</target></trans-unit>
+            <trans-unit id="inbox.decisions.how_logged"><source>inbox.decisions.how_logged</source><target>Logged</target></trans-unit>
+            <trans-unit id="inbox.decisions.how_defaulted"><source>inbox.decisions.how_defaulted</source><target>Default at the deadline</target></trans-unit>
+            <trans-unit id="inbox.decisions.how_changed"><source>inbox.decisions.how_changed</source><target>Changed by you</target></trans-unit>
+            <trans-unit id="inbox.decisions.other_options"><source>inbox.decisions.other_options</source><target>{0}No other options.|{1}Other option: %options%.|]1,Inf[Other options: %options%.</target></trans-unit>
+            <trans-unit id="inbox.decisions.changed.open"><source>inbox.decisions.changed.open</source><target>Changed by you to %choice%, not acted on yet.</target></trans-unit>
+            <trans-unit id="inbox.decisions.changed.addressed"><source>inbox.decisions.changed.addressed</source><target>Changed by you to %choice%. The worker acted on it.</target></trans-unit>
+            <trans-unit id="inbox.decisions.changed.note"><source>inbox.decisions.changed.note</source><target>Your note: %note%</target></trans-unit>
+            <trans-unit id="inbox.decisions.change_form.title"><source>inbox.decisions.change_form.title</source><target>Change this decision</target></trans-unit>
+            <trans-unit id="inbox.decisions.change_form.description"><source>inbox.decisions.change_form.description</source><target>The agent chose: %choice%. Pick another option or write your own.</target></trans-unit>
+            <trans-unit id="inbox.decisions.change_form.legend"><source>inbox.decisions.change_form.legend</source><target>Other options</target></trans-unit>
+            <trans-unit id="inbox.decisions.change_form.cancel"><source>inbox.decisions.change_form.cancel</source><target>Cancel</target></trans-unit>
+            <trans-unit id="inbox.decisions.change_form.submit"><source>inbox.decisions.change_form.submit</source><target>Change decision</target></trans-unit>
+            <trans-unit id="inbox.form.change_inbox_decision_form.option.label"><source>inbox.form.change_inbox_decision_form.option.label</source><target>Other options</target></trans-unit>
+            <trans-unit id="inbox.form.change_inbox_decision_form.custom.label"><source>inbox.form.change_inbox_decision_form.custom.label</source><target>Something else</target></trans-unit>
+            <trans-unit id="inbox.form.change_inbox_decision_form.note.label"><source>inbox.form.change_inbox_decision_form.note.label</source><target>Note (optional)</target></trans-unit>
+            <trans-unit id="inbox.decisions.follow_up.title"><source>inbox.decisions.follow_up.title</source><target>This card is finished</target></trans-unit>
+            <trans-unit id="inbox.decisions.follow_up.body"><source>inbox.decisions.follow_up.body</source><target>A worker does not pick up a finished card. Create a follow-up card to act on your change.</target></trans-unit>
+            <trans-unit id="inbox.decisions.follow_up.create"><source>inbox.decisions.follow_up.create</source><target>Create follow-up card</target></trans-unit>
+            <trans-unit id="inbox.decisions.follow_up.created"><source>inbox.decisions.follow_up.created</source><target>The follow-up card is in the backlog.</target></trans-unit>
+            <trans-unit id="inbox.decisions.follow_up.open"><source>inbox.decisions.follow_up.open</source><target>Open card #%number%</target></trans-unit>
+            <trans-unit id="inbox.decisions.follow_up.card_title"><source>inbox.decisions.follow_up.card_title</source><target>Follow-up: the %label% decision of card #%number%</target></trans-unit>
+            <trans-unit id="inbox.decisions.follow_up.card_body"><source>inbox.decisions.follow_up.card_body</source><target>The owner changed the %label% decision of card:%number% after the card was finished.
+
+The agent chose: %choice%
+
+The owner chose: %changed%
+
+Note of the owner: %note%</target></trans-unit>
+            <trans-unit id="inbox.decisions.flash.changed"><source>inbox.decisions.flash.changed</source><target>Decision changed.</target></trans-unit>
+            <trans-unit id="inbox.decisions.flash.not_changed"><source>inbox.decisions.flash.not_changed</source><target>Loupe did not change the decision. Check the choice and try again.</target></trans-unit>
         </body>
     </file>
 </xliff>

@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Module\Inbox\Repository;
 
+use App\Module\Board\Entity\Card;
 use App\Module\Inbox\Entity\InboxDecision;
 use App\Module\Project\Entity\Project;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 /** @extends ServiceEntityRepository<InboxDecision> */
@@ -17,6 +19,38 @@ class InboxDecisionRepository extends ServiceEntityRepository
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, InboxDecision::class);
+    }
+
+    /** The decision with this id inside this project, so a URL cannot reach another project's decision. */
+    public function findOneByIdAndProjectId(string $decisionId, string $projectId): ?InboxDecision
+    {
+        if (!Uuid::isValid($decisionId) || !Uuid::isValid($projectId)) {
+            return null;
+        }
+
+        return $this->createQueryBuilder('decision')
+            ->andWhere('decision.id = :decisionId')
+            ->andWhere('decision.project = :projectId')
+            ->setParameter('decisionId', Uuid::fromString($decisionId), UuidType::NAME)
+            ->setParameter('projectId', Uuid::fromString($projectId), UuidType::NAME)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    /**
+     * Every decision of a card, newest first.
+     *
+     * @return list<InboxDecision>
+     */
+    public function findOfCard(Card $card): array
+    {
+        return array_values($this->createQueryBuilder('decision')
+            ->andWhere('decision.card = :card')
+            ->setParameter('card', $card->id, UuidType::NAME)
+            ->orderBy('decision.createdAt', 'DESC')
+            ->addOrderBy('decision.id', 'DESC')
+            ->getQuery()
+            ->getResult());
     }
 
     /**
