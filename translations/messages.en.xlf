@@ -8752,6 +8752,7 @@ workflow:
             <trans-unit id="inbox.filter.kind.workflow"><source>inbox.filter.kind.workflow</source><target>Workflow</target></trans-unit>
             <trans-unit id="inbox.filter.empty"><source>inbox.filter.empty</source><target>No ask of this type.</target></trans-unit>
             <trans-unit id="inbox.group.open"><source>inbox.group.open</source><target>%count% open</target></trans-unit>
+            <trans-unit id="inbox.digest.new"><source>inbox.digest.new</source><target>{0}No new decisions|{1}1 new decision|]1,Inf[%count% new decisions</target></trans-unit>
             <trans-unit id="inbox.group.none"><source>inbox.group.none</source><target>No card</target></trans-unit>
             <trans-unit id="inbox.row.more_cards"><source>inbox.row.more_cards</source><target>+%count%</target></trans-unit>
             <trans-unit id="inbox.row.closed"><source>inbox.row.closed</source><target>Closed</target></trans-unit>

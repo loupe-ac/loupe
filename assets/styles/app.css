@@ -397,6 +397,24 @@
         @apply shrink-0 font-normal;
     }
 
+    .lp-core-inbox .lp-inbox-digest {
+        display: flex;
+        align-items: center;
+        gap: calc(var(--spacing) * 1.5);
+        color: var(--text-mute);
+        @apply px-3 py-1.5 text-xs;
+    }
+
+    .lp-core-inbox .lp-inbox-digest:hover {
+        color: var(--text);
+    }
+
+    .lp-core-inbox .lp-inbox-digest__time {
+        margin-left: auto;
+        color: var(--text-dim);
+        @apply shrink-0;
+    }
+
     /* The frame wraps the whole view, and the page flex column sees its children. */
     .lp-core-inbox .lp-inbox-frame {
         display: contents;

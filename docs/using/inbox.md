@@ -132,6 +132,27 @@ shows no group.
 A workflow template can turn the grouping off. See
 [The `asks:` section](workflows.md#the-asks-section).
 
+### The digest of new decisions
+
+A card can hold decisions that you have not seen. The inbox shows a digest line
+for such a card, also when the card has no open item. The line reads "3 new
+decisions", with the age of the newest one. It links to the **Decisions** tab of
+the card, and it has no action of its own.
+
+With grouping on, the digest line sits in the group of its card, and the group
+heading shows the count. A card with new decisions and no open item gets a group
+that holds only the digest line. With grouping off, each such card gets one
+digest row at the end of the list, newest decision first.
+
+A decision is new when it is newer than the last time you opened the
+**Decisions** tab of that card. Opening the tab clears the line. A card whose tab
+you never opened counts all its decisions as new. Each person has their own
+mark, so another person who opens the tab does not clear your line.
+
+The digest shows on the **Open** side with no type filter. The **Closed** side,
+the search results and a type filter show none. The digest does not change the
+open count, because no decision waits for an answer.
+
 A row is one ask. It shows the icon of the first open item of the ask, and the
 icon of the first item of a closed ask. The title of the first item follows.
 A grey line below the title shows the first linked card and the age, such as

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Inbox\Controller;
 
 use App\Controller\AppController;
+use App\Module\Account\Entity\User;
 use App\Module\Inbox\Command\ShowInboxCommand;
 use App\Module\Inbox\Command\ShowInboxHandler;
 use App\Module\Inbox\Service\InboxAvailability;
@@ -72,7 +73,7 @@ final class ShowInboxRowsController extends AppController
             }
         }
 
-        $page = ($this->showInbox)(new ShowInboxCommand($project, $view));
+        $page = ($this->showInbox)(new ShowInboxCommand($project, $view, $this->getUser() instanceof User ? $this->getUser() : null));
         $keys = array_map(static fn (InboxRow $row): string => $row->key(), $page->rows);
 
         $inserts = [];

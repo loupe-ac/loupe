@@ -1,0 +1,4 @@
+{#- Posted by the decisions-seen controller when the Decisions tab opens. Props: card. -#}
+<form hidden method="post" action="{{ path('app_inbox_card_decisions_seen', {projectId: card.project.id, cardId: card.id}) }}" data-decisions-seen-target="form">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token('inbox-decisions-seen') }}">
+</form>

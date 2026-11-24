@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Inbox\Repository;
 
+use App\Module\Account\Entity\User;
 use App\Module\Board\Entity\Card;
 use App\Module\Inbox\Entity\InboxDecision;
 use App\Module\Project\Entity\Project;
@@ -128,5 +129,30 @@ class InboxDecisionRepository extends ServiceEntityRepository
             ->setParameter('ids', array_map(static fn (Uuid $id): string => $id->toRfc4122(), $ids), ArrayParameterType::STRING)
             ->getQuery()
             ->getResult());
+    }
+
+    /**
+     * The cards of a project with decisions that the person has not seen: newer than the time they last opened the
+     * Decisions tab of the card, or any decision when they never did. Newest decision first.
+     *
+     * @return list<array{cardId: string, count: int, newest: \DateTimeImmutable}>
+     */
+    public function findUnseenDigest(Project $project, User $viewer): array
+    {
+        $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
+            'SELECT d.card_id AS card_id, COUNT(d.id) AS cnt, MAX(d.created_at) AS newest
+             FROM inbox_decisions d
+             LEFT JOIN inbox_decision_seen s ON s.card_id = d.card_id AND s.user_id = :user
+             WHERE d.project_id = :project AND (s.seen_at IS NULL OR d.created_at > s.seen_at)
+             GROUP BY d.card_id
+             ORDER BY MAX(d.created_at) DESC, d.card_id DESC',
+            ['project' => (string) $project->id, 'user' => (string) $viewer->id],
+        );
+
+        return array_map(static fn (array $row): array => [
+            'cardId' => (string) $row['card_id'],
+            'count' => (int) $row['cnt'],
+            'newest' => new \DateTimeImmutable((string) $row['newest']),
+        ], $rows);
     }
 }

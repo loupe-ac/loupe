@@ -230,7 +230,8 @@
         </section>
 
         {% if decisionCount is not null %}
-        <section class="lp-card-panel" id="card-panel-decisions" role="tabpanel" aria-labelledby="card-tab-decisions" data-panel-tabs-target="panel" data-panel-panel="decisions"{% if activeTab != 'decisions' %} hidden{% endif %}>
+        <section class="lp-card-panel" id="card-panel-decisions" role="tabpanel" aria-labelledby="card-tab-decisions" data-panel-tabs-target="panel" data-panel-panel="decisions"{% if activeTab != 'decisions' %} hidden{% endif %} data-controller="decisions-seen">
+            {{ inbox_card_decisions_seen_form(card) }}
             {{ inbox_card_decisions_panel(decisions) }}
         </section>
         {% endif %}

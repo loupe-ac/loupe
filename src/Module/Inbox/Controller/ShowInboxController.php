@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Inbox\Controller;
 
 use App\Controller\AppController;
+use App\Module\Account\Entity\User;
 use App\Module\Inbox\Command\ShowInboxCommand;
 use App\Module\Inbox\Command\ShowInboxHandler;
 use App\Module\Inbox\Service\InboxAvailability;
@@ -43,7 +44,7 @@ final class ShowInboxController extends AppController
         $this->inbox->requireEnabled();
 
         return $this->render('@Inbox/show_inbox.html.twig', [
-            'inbox' => ($this->showInbox)(new ShowInboxCommand($project, InboxView::fromQuery($request->query))),
+            'inbox' => ($this->showInbox)(new ShowInboxCommand($project, InboxView::fromQuery($request->query), $this->getUser() instanceof User ? $this->getUser() : null)),
             'refusedForm' => $this->getInjectedFormView($request, self::REFUSED_FORM),
         ]);
     }

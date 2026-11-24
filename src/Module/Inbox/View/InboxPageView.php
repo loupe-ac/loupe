@@ -21,6 +21,7 @@ final readonly class InboxPageView implements InboxItemsView
      * @param array<string, BridgeStatus> $bridgeStatuses the bridge of the selected ask, by bridge id
      * @param bool                        $pickedNothing  the address named an ask or an item that the project does not hold
      * @param ?list<InboxGroup>           $groups         the rows by card, or null when the list shows them flat
+     * @param list<InboxDigest>           $digests        the cards with decisions the viewer has not seen, whatever the grouping
      */
     public function __construct(
         public Project $project,
@@ -35,6 +36,7 @@ final readonly class InboxPageView implements InboxItemsView
         public array $bridgeStatuses,
         public bool $pickedNothing = false,
         public ?array $groups = null,
+        public array $digests = [],
     ) {
     }
 
