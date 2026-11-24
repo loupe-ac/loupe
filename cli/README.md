@@ -1256,7 +1256,7 @@ At the end of a run, the bridge posts the result of the request:
 
 | The run | State | Reason |
 |---|---|---|
-| ends with the status `finished` or `waiting` | `done` | none |
+| ends with the status `finished` | `done` | none |
 | ends with the status `blocked` | `refused` | the `reason` of the result, else `blocked` |
 | ends with the status `unfinished` | `refused` | the `reason` of the result, else `unfinished` |
 | fails, or ends with no structured result | `refused` | the `reason` of the result, else `failed` |
@@ -1626,7 +1626,7 @@ schema requires two fields, and has one optional field:
 
 | Field | Value |
 |---|---|
-| `status` | `finished` when the work is done, `blocked` when it cannot go on without a person, `unfinished` when work still runs or remains, and `waiting` when the work waits on the forge, such as checks on a pushed pull request |
+| `status` | `finished` when the work is done, `blocked` when it cannot go on without a person, `unfinished` when work still runs or remains, such as after a `run_wait` call |
 | `summary` | one short sentence on what the worker did |
 | `reason` | optional: the reason code of the result, such as the code on the worker's `STAGE RESULT` line |
 

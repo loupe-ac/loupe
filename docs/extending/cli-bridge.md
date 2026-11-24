@@ -196,7 +196,7 @@ step, and the bridge reads the first line of type `result`. A later `result`
 line comes from a turn that a background task notification starts, and the
 bridge ignores it. The bridge also reads the single JSON document of
 `--output-format json`, so a run that an older bridge started still reports. The core schema requires `status`, which is
-`finished`, `blocked`, `unfinished` or `waiting`, and a one-sentence `summary`. A worker with
+`finished`, `blocked` or `unfinished`, and a one-sentence `summary`. A worker with
 no valid structured result logs `worker_no_result` at `ERROR`, and its record
 carries `hasResult: false`. The stage skills still print a `STAGE RESULT:`
 line, and the bridge does not read it. `cli/README.md` covers the schema in
