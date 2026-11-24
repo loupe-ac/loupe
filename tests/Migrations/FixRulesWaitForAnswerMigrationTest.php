@@ -37,7 +37,7 @@ final class FixRulesWaitForAnswerMigrationTest extends KernelTestCase
         $this->migrate($connection);
 
         self::assertEquals([...$shipped->source('lifecycle'), 'epicBranch' => 'feature/epic-{number}'], $this->row($connection, $projectId));
-        self::assertSame(4, $this->holdsIn($this->row($connection, $projectId)));
+        self::assertSame(6, $this->holdsIn($this->row($connection, $projectId)));
         self::assertSame($shipped->source('lifecycle')['version'], (int) $connection->fetchOne('SELECT template_version FROM workflow_bindings WHERE project_id = ?', [$projectId]));
     }
 

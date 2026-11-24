@@ -719,6 +719,14 @@ rules:
                       - not: { pr.conflicting: {} }
                       - not: { pr.changes_requested: {} }
 
+    - id: comment-fix-run
+      when: { card.fix_run.uncommented: {} }
+      then: { forge-write: { write: comment, comment: fix-run } }
+
+    - id: comment-stale-approval
+      when: { card.pr.approval_stale: {} }
+      then: { forge-write: { write: comment, comment: stale-approval } }
+
     - id: fix-decision-changed-in-review
       slot: in-review
       when:
@@ -740,14 +748,6 @@ rules:
                   all:
                       - pr.open: {}
                       - not: { card.inbox.decision_changed: {} }
-
-    - id: comment-fix-run
-      when: { card.fix_run.uncommented: {} }
-      then: { forge-write: { write: comment, comment: fix-run } }
-
-    - id: comment-stale-approval
-      when: { card.pr.approval_stale: {} }
-      then: { forge-write: { write: comment, comment: stale-approval } }
 
     - id: agent-review-in-review
       slot: in-review
