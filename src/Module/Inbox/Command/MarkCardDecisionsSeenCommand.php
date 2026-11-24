@@ -12,6 +12,7 @@ final readonly class MarkCardDecisionsSeenCommand
     public function __construct(
         public Card $card,
         public User $viewer,
+        public \DateTimeImmutable $through,
     ) {
     }
 }

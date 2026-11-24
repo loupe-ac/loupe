@@ -83,13 +83,15 @@ final class InboxDecisionDigestTest extends WebTestCase
     public function test_opening_the_decisions_tab_clears_the_digest_until_a_newer_decision(): void
     {
         $card = $this->card(1, 'Seen card');
-        $this->decision($card, '-1 hour');
+        $decision = $this->decision($card, '-1 hour');
 
         $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$this->project->id.'/board/cards/'.$card->id.'?tab=decisions');
         self::assertCount(1, $crawler->filter('#card-panel-decisions[data-controller="decisions-seen"] form[data-decisions-seen-target="form"]'));
+        $through = (string) $crawler->filter('input[name="through"]')->attr('value');
+        self::assertSame($decision->createdAt->format('Y-m-d H:i:s.u'), $through);
 
         $seenUrl = '/projects/'.$this->project->id.'/board/cards/'.$card->id.'/decisions/seen';
-        $this->client->request(Request::METHOD_POST, $seenUrl, ['_csrf_token' => 'csrf-token'], server: ['HTTP_REFERER' => 'http://localhost'.$seenUrl]);
+        $this->client->request(Request::METHOD_POST, $seenUrl, ['_csrf_token' => 'csrf-token', 'through' => $through], server: ['HTTP_REFERER' => 'http://localhost'.$seenUrl]);
         self::assertResponseStatusCodeSame(204);
 
         $this->client->request(Request::METHOD_GET, $this->inboxUrl());
@@ -98,6 +100,32 @@ final class InboxDecisionDigestTest extends WebTestCase
         $this->decision($card, '+1 minute');
         $this->client->request(Request::METHOD_GET, $this->inboxUrl());
         self::assertSame('1 new decision', trim($this->client->getCrawler()->filter('[data-inbox-digest-count]')->text()));
+    }
+
+    public function test_a_decision_made_after_the_tab_rendered_stays_new_and_the_mark_never_moves_back(): void
+    {
+        $card = $this->card(1, 'Race');
+        $shown = $this->decision($card, '-2 hours');
+        $this->decision($card, '-1 hour');
+        $seenUrl = '/projects/'.$this->project->id.'/board/cards/'.$card->id.'/decisions/seen';
+        $post = fn (string $through) => $this->client->request(Request::METHOD_POST, $seenUrl, ['_csrf_token' => 'csrf-token', 'through' => $through], server: ['HTTP_REFERER' => 'http://localhost'.$seenUrl]);
+
+        $post($shown->createdAt->format('Y-m-d H:i:s.u'));
+        $this->client->request(Request::METHOD_GET, $this->inboxUrl());
+        self::assertSame('1 new decision', trim($this->client->getCrawler()->filter('[data-inbox-digest-count]')->text()));
+
+        $post(new \DateTimeImmutable('-3 hours')->format('Y-m-d H:i:s.u'));
+        $this->client->request(Request::METHOD_GET, $this->inboxUrl());
+        self::assertSame('1 new decision', trim($this->client->getCrawler()->filter('[data-inbox-digest-count]')->text()));
+    }
+
+    public function test_marking_seen_without_a_valid_time_is_refused(): void
+    {
+        $card = $this->card(1, 'Bad time');
+        $seenUrl = '/projects/'.$this->project->id.'/board/cards/'.$card->id.'/decisions/seen';
+        $this->client->request(Request::METHOD_POST, $seenUrl, ['_csrf_token' => 'csrf-token', 'through' => 'soon'], server: ['HTTP_REFERER' => 'http://localhost'.$seenUrl]);
+
+        self::assertResponseStatusCodeSame(400);
     }
 
     public function test_a_decision_made_in_the_second_of_the_visit_stays_new(): void

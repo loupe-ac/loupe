@@ -57,10 +57,10 @@ final class CardDecisionsExtension extends AbstractExtension
         return $twig->render('@Inbox/_card_decisions.html.twig', ['view' => $view, 'offer' => null, 'followUp' => null]);
     }
 
-    /** The hidden form that tells the inbox the person opened the tab. The Stimulus controller of the panel posts it. */
-    public function seenForm(Environment $twig, Card $card): string
+    /** The hidden form that tells the inbox the person opened the tab, up to the newest decision the tab shows. The Stimulus controller of the panel posts it. */
+    public function seenForm(Environment $twig, ShowCardDecisionsView $view): string
     {
-        return $twig->render('@Inbox/_card_decisions_seen_form.html.twig', ['card' => $card]);
+        return $twig->render('@Inbox/_card_decisions_seen_form.html.twig', ['view' => $view]);
     }
 
     public function changeForm(InboxDecision $decision): FormView

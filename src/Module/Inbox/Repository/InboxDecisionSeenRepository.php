@@ -20,12 +20,12 @@ class InboxDecisionSeenRepository extends ServiceEntityRepository
         parent::__construct($registry, InboxDecisionSeen::class);
     }
 
-    /** Sets the time the person opened the Decisions tab of the card, and keeps one row for the pair. */
+    /** Moves the time the person has seen the decisions of the card forward, never back, and keeps one row for the pair. */
     public function markSeen(Project $project, User $user, Card $card, \DateTimeImmutable $at): void
     {
         $this->getEntityManager()->getConnection()->executeStatement(
             'INSERT INTO inbox_decision_seen (id, project_id, user_id, card_id, seen_at) VALUES (:id, :project, :user, :card, :at)
-             ON CONFLICT (user_id, card_id) DO UPDATE SET seen_at = EXCLUDED.seen_at',
+             ON CONFLICT (user_id, card_id) DO UPDATE SET seen_at = GREATEST(inbox_decision_seen.seen_at, EXCLUDED.seen_at)',
             [
                 'id' => Uuid::v7()->toRfc4122(),
                 'project' => (string) $project->id,
