@@ -29,11 +29,11 @@ final class FeaturePages
         ['key' => 'analytics', 'slug' => 'analytics', 'icon' => 'lucide:chart-column', 'docsPath' => '/docs/using/analytics/'],
     ];
 
-    private const array MOCKUPS = ['hero', 'block-1', 'block-2', 'block-3'];
-
     private const array TEXT_FIELDS = ['label', 'title', 'lead', 'description'];
 
-    private const int BLOCK_COUNT = 3;
+    private const int MIN_BLOCKS = 3;
+
+    private const int MAX_BLOCKS = 5;
 
     /** @var list<FeaturePage>|null */
     private ?array $pages = null;
@@ -116,25 +116,31 @@ final class FeaturePages
             $text[$field] = $this->text($matter[$field] ?? null, $field, $filename);
         }
 
+        $blocks = $this->blocks($matter['blocks'] ?? null, $filename);
+        $mockups = ['hero'];
+        foreach (array_keys($blocks) as $index) {
+            $mockups[] = 'block-'.($index + 1);
+        }
+
         return new FeaturePage(
             $entry['key'],
             $entry['slug'],
             $entry['icon'],
             $entry['docsPath'],
-            array_map(static fn (string $name): string => sprintf('@Landing/features/mockups/%s/%s.html.twig', $entry['slug'], $name), self::MOCKUPS),
+            array_map(static fn (string $name): string => sprintf('@Landing/features/mockups/%s/%s.html.twig', $entry['slug'], $name), $mockups),
             $text['label'],
             $text['title'],
             $text['lead'],
             $text['description'],
-            $this->blocks($matter['blocks'] ?? null, $filename),
+            $blocks,
         );
     }
 
     /** @return list<FeatureBlock> */
     private function blocks(mixed $value, string $filename): array
     {
-        if (!\is_array($value) || self::BLOCK_COUNT !== \count($value) || !array_is_list($value)) {
-            throw new \UnexpectedValueException(sprintf('The feature file %s needs a list of %d blocks in the field blocks.', $filename, self::BLOCK_COUNT));
+        if (!\is_array($value) || !array_is_list($value) || \count($value) < self::MIN_BLOCKS || \count($value) > self::MAX_BLOCKS) {
+            throw new \UnexpectedValueException(sprintf('The feature file %s needs a list of %d to %d blocks in the field blocks.', $filename, self::MIN_BLOCKS, self::MAX_BLOCKS));
         }
 
         $blocks = [];

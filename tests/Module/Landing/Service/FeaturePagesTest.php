@@ -41,8 +41,8 @@ final class FeaturePagesTest extends TestCase
             self::assertNotSame('', $page->title);
             self::assertNotSame('', $page->lead);
             self::assertNotSame('', $page->description);
-            self::assertCount(3, $page->blocks);
-            self::assertCount(4, $page->mockups);
+            self::assertGreaterThanOrEqual(3, \count($page->blocks));
+            self::assertCount(\count($page->blocks) + 1, $page->mockups);
             self::assertStringStartsWith('lucide:', $page->icon);
             self::assertStringStartsWith('/docs/using/', $page->docsPath);
         }
@@ -62,10 +62,11 @@ final class FeaturePagesTest extends TestCase
         self::assertNotNull($page);
         self::assertSame('Inbox', $page->label);
         self::assertSame('Your agents have questions. Answer them in one place.', $page->title);
-        self::assertSame('A push when an agent is blocked.', $page->blocks[2]->title);
-        self::assertSame('A blocking question sends a push to your laptop or phone, unless you\'re already in Loupe.', $page->blocks[2]->text);
+        self::assertCount(5, $page->blocks);
+        self::assertSame('A push when an agent is blocked.', $page->blocks[4]->title);
+        self::assertSame('A blocking question sends a push to your laptop or phone, unless you\'re already in Loupe.', $page->blocks[4]->text);
         self::assertSame('@Landing/features/mockups/inbox/hero.html.twig', $page->mockups[0]);
-        self::assertSame('@Landing/features/mockups/inbox/block-3.html.twig', $page->mockups[3]);
+        self::assertSame('@Landing/features/mockups/inbox/block-5.html.twig', $page->mockups[5]);
     }
 
     public function test_it_finds_no_page_for_an_unknown_slug(): void
@@ -115,7 +116,7 @@ final class FeaturePagesTest extends TestCase
         file_put_contents($file, preg_replace('/^  - title: "Is the change real\?"\n    text: .*\n/m', '', $source));
 
         $this->expectException(\UnexpectedValueException::class);
-        $this->expectExceptionMessage('list of 3 blocks');
+        $this->expectExceptionMessage('list of 3 to 5 blocks');
 
         $this->pages()->all();
     }
