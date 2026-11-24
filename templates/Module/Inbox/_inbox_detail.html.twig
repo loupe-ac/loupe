@@ -38,11 +38,14 @@
                         {% include '@Inbox/_ask_wait_card.html.twig' with {card: waitCard, kindLabel: false} only %}
                     </span>
                 {% endif %}
-                {% set label = (items|first).label %}
-                {% if label %}
+                {% set labels = [] %}
+                {% for item in items %}
+                    {% if item.label and item.label not in labels %}{% set labels = labels|merge([item.label]) %}{% endif %}
+                {% endfor %}
+                {% for label in labels %}
                     <span aria-hidden="true">·</span>
                     <twig:Ds:Tag tone="neutral" data-inbox-label>{{ label }}</twig:Ds:Tag>
-                {% endif %}
+                {% endfor %}
                 {% for review in inbox_review_targets(items) %}
                     <span aria-hidden="true">·</span>
                     <span class="lp-inbox-ask__kind" data-inbox-review-target>

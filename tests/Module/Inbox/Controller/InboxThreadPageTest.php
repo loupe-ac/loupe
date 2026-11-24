@@ -135,6 +135,23 @@ final class InboxThreadPageTest extends WebTestCase
         self::assertSame('naming', $crawler->filter('.lp-inbox-ask__byline [data-inbox-label]')->text());
     }
 
+    public function test_an_ask_with_mixed_labels_shows_each_distinct_label_in_the_byline(): void
+    {
+        $first = $this->question($this->em, $this->project, 1);
+        $second = $this->question($this->em, $this->project, 2);
+        $third = $this->question($this->em, $this->project, 3);
+        $second->label = 'naming';
+        $third->label = 'naming';
+        $fourth = $this->todo($this->em, $this->project, 4);
+        $fourth->label = 'release';
+        $this->em->flush();
+        $this->askHolding($this->em, $this->project, [$first, $second, $third, $fourth]);
+
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$this->project->id.'/inbox');
+
+        self::assertSame(['naming', 'release'], $crawler->filter('.lp-inbox-ask__byline [data-inbox-label]')->each(static fn ($node): string => $node->text()));
+    }
+
     public function test_a_question_with_no_recommendation_keeps_its_order_and_shows_no_details(): void
     {
         $question = $this->question($this->em, $this->project, 1);
