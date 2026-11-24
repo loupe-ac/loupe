@@ -23,6 +23,8 @@ use Symfony\Component\Uid\Uuid;
 // a DROP plus a plain CREATE INDEX, downgrading it to a B-tree that @@ never uses.
 #[ORM\Index(name: 'idx_inbox_items_search_vector', columns: ['search_vector'])]
 #[ORM\Index(name: 'idx_inbox_items_project_search_language', columns: ['project_id', 'search_language'])]
+// The deadline task reads only the items that carry a deadline. The predicate is written the way Postgres stores it.
+#[ORM\Index(name: 'idx_inbox_items_defaults_at', columns: ['defaults_at'], options: ['where' => '(defaults_at IS NOT NULL)'])]
 #[ORM\Table(name: 'inbox_items')]
 #[ORM\UniqueConstraint(name: 'uniq_inbox_item_project_number', columns: ['project_id', 'number'])]
 // One open item per dedupe key in a project. The predicate is written the way
@@ -71,6 +73,14 @@ class InboxItem implements ProjectScopedSubject
 
     #[ORM\Column(length: 10, nullable: true, enumType: InboxConfidence::class)]
     public ?InboxConfidence $confidence = null;
+
+    /** The template label of the ask, such as `naming`. Null for an ask with no label. */
+    #[ORM\Column(length: 40, nullable: true)]
+    public ?string $label = null;
+
+    /** When Loupe answers the item with its recommended option. Null when no deadline applies. */
+    #[ORM\Column(nullable: true)]
+    public ?\DateTimeImmutable $defaultsAt = null;
 
     /** @var list<string>|null one cost line for each option, in the order of $options. An empty line means the option has no cost to name. */
     #[ORM\Column(type: Types::JSON, nullable: true)]

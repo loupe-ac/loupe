@@ -649,6 +649,7 @@ final class InboxAskCloserTest extends KernelTestCase
             bridgeId: Uuid::v4(),
         ));
 
+        self::assertNotNull($view->ask);
         self::assertNotNull($view->ask->closedAt);
         self::assertSame([], $this->askClosedEvents());
 

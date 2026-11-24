@@ -390,7 +390,10 @@ request budget and the idempotency key are spent.
    `options`, `multiple`, `freeText`, `cardIds` and `documentIds`, with the
    same rules as the `inbox_ask` MCP tool. A question can also carry
    `recommendedOption` with `confidence`, `optionCosts` and `details`, as
-   [the MCP page](../../using/mcp.md) describes them. The answer is `201` with the item and
+   [the MCP page](../../using/mcp.md) describes them. It can carry a `label` too,
+   with the same checks as `inbox_ask`, except that it need not block. The item
+   keeps the label, and no mode applies: it has no deadline, and Loupe never logs
+   it in place of an ask. The answer is `201` with the item and
    a `Location` header.
 2. An item from the API never blocks, because nothing waits for its answer.
    `blocking: true` gets `422`. A non-blocking question about a card does not

@@ -74,7 +74,10 @@ final class RelativeTimeComponentTest extends KernelTestCase
     public static function buckets(): iterable
     {
         yield 'now' => [0, 'just now'];
-        yield 'future clamps to now' => [-500, 'just now'];
+        yield 'future under a minute counts as one minute' => [-30, 'in 1m'];
+        yield 'future minutes' => [-500, 'in 8m'];
+        yield 'future hours' => [-7200, 'in 2h'];
+        yield 'future days' => [-3 * 86400, 'in 3d'];
         yield 'last second of the first minute' => [59, 'just now'];
         yield 'one minute' => [60, '1m ago'];
         yield 'five minutes' => [300, '5m ago'];

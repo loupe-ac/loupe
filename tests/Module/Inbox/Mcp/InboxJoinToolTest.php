@@ -120,6 +120,7 @@ final class InboxJoinToolTest extends KernelTestCase
         self::assertSame($mine['askId'], $again['askId']);
 
         $this->em->clear();
+        self::assertNotNull($mine['askId']);
         $ask = $this->em->find(InboxAsk::class, Uuid::fromString($mine['askId']));
         self::assertInstanceOf(InboxAsk::class, $ask);
         self::assertCount(2, $ask->items);

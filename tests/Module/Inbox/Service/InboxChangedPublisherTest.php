@@ -105,6 +105,7 @@ final class InboxChangedPublisherTest extends KernelTestCase
         $this->assertPublishedAtTerminate(1);
         // No count, which could arrive out of order, and no text an agent wrote.
         $this->assertSignalsTheProject($this->published[0]);
+        self::assertNotNull($view->ask);
         $this->assertSignalsThePage($this->pagePublished[0], (string) $view->ask->id);
         self::assertCount(1, $this->pagePublished);
     }

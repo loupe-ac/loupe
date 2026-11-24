@@ -92,6 +92,66 @@ final class InboxThreadPageTest extends WebTestCase
         self::assertSame('callers', $details->filter('dd strong')->first()->text());
     }
 
+    public function test_a_question_with_a_deadline_says_when_loupe_answers_for_the_owner(): void
+    {
+        $question = $this->question($this->em, $this->project, 1);
+        $question->options = ['alpha', 'beta'];
+        $question->recommendedOption = 1;
+        $question->confidence = InboxConfidence::High;
+        $question->defaultsAt = new \DateTimeImmutable('2031-03-04 15:30:00');
+        $this->em->flush();
+        $this->askHolding($this->em, $this->project, [$question]);
+
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$this->project->id.'/inbox');
+
+        self::assertSame('No answer by 4 Mar 2031 15:30? Loupe answers "beta", the option the agent recommends.', $crawler->filter('#inbox-item-1 [data-inbox-deadline]')->text());
+    }
+
+    public function test_a_question_with_a_deadline_shows_it_as_a_relative_time_in_its_row(): void
+    {
+        $question = $this->question($this->em, $this->project, 1);
+        $question->options = ['alpha', 'beta'];
+        $question->recommendedOption = 0;
+        $question->confidence = InboxConfidence::High;
+        $question->body = 'Pick one.';
+        $question->defaultsAt = new \DateTimeImmutable('+20 hours 30 minutes');
+        $this->em->flush();
+        $this->askHolding($this->em, $this->project, [$question]);
+
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$this->project->id.'/inbox');
+
+        self::assertSame('defaults in 20h', $crawler->filter('#inbox-item-1 [data-inbox-deadline-row]')->text());
+    }
+
+    public function test_a_labelled_question_shows_its_label_in_the_detail_byline(): void
+    {
+        $question = $this->question($this->em, $this->project, 1);
+        $question->label = 'naming';
+        $this->em->flush();
+        $this->askHolding($this->em, $this->project, [$question]);
+
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$this->project->id.'/inbox');
+
+        self::assertSame('naming', $crawler->filter('.lp-inbox-ask__byline [data-inbox-label]')->text());
+    }
+
+    public function test_an_ask_with_mixed_labels_shows_each_distinct_label_in_the_byline(): void
+    {
+        $first = $this->question($this->em, $this->project, 1);
+        $second = $this->question($this->em, $this->project, 2);
+        $third = $this->question($this->em, $this->project, 3);
+        $second->label = 'naming';
+        $third->label = 'naming';
+        $fourth = $this->todo($this->em, $this->project, 4);
+        $fourth->label = 'release';
+        $this->em->flush();
+        $this->askHolding($this->em, $this->project, [$first, $second, $third, $fourth]);
+
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$this->project->id.'/inbox');
+
+        self::assertSame(['naming', 'release'], $crawler->filter('.lp-inbox-ask__byline [data-inbox-label]')->each(static fn ($node): string => $node->text()));
+    }
+
     public function test_a_question_with_no_recommendation_keeps_its_order_and_shows_no_details(): void
     {
         $question = $this->question($this->em, $this->project, 1);

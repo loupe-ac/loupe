@@ -85,6 +85,7 @@ final class CreateInboxItemController extends AppController
                     confidence: $payload->confidence ?? null,
                     optionCosts: $payload->optionCosts ?? [],
                     details: $payload->details ?? [],
+                    label: $payload->label ?? null,
                 ),
                 apiKey: $this->currentKey->current(),
                 dedupeKey: $payload->dedupeKey(),

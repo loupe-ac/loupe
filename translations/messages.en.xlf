@@ -6484,6 +6484,10 @@
                 <source>inbox.outcome.loupe.resolved</source>
                 <target>Resolved by Loupe</target>
             </trans-unit>
+            <trans-unit id="inbox.outcome.loupe.defaulted">
+                <source>inbox.outcome.loupe.defaulted</source>
+                <target>Answered by Loupe with the recommended option, after the deadline</target>
+            </trans-unit>
             <trans-unit id="inbox.outcome.loupe.card_deleted">
                 <source>inbox.outcome.loupe.card_deleted</source>
                 <target>Cancelled by Loupe: the card was deleted</target>
@@ -6706,6 +6710,10 @@ workflow:
                 <source>inbox.answer.cost</source>
                 <target>Cost: %cost%</target>
             </trans-unit>
+            <trans-unit id="inbox.answer.deadline">
+                <source>inbox.answer.deadline</source>
+                <target>No answer by %time%? Loupe answers "%option%", the option the agent recommends.</target>
+            </trans-unit>
             <trans-unit id="inbox.answer.details">
                 <source>inbox.answer.details</source>
                 <target>Details (%count%)</target>
@@ -6823,6 +6831,7 @@ workflow:
             <trans-unit id="inbox.thread.you_verb.dismiss"><source>inbox.thread.you_verb.dismiss</source><target>dismissed it at %time%</target></trans-unit>
             <trans-unit id="inbox.thread.agent"><source>inbox.thread.agent</source><target>Agent</target></trans-unit>
             <trans-unit id="inbox.thread.api_key"><source>inbox.thread.api_key</source><target>API key '%name%'</target></trans-unit>
+            <trans-unit id="inbox.thread.defaults"><source>inbox.thread.defaults</source><target>defaults %time%</target></trans-unit>
             <trans-unit id="inbox.thread.asked"><source>inbox.thread.asked</source><target>asked %time%</target></trans-unit>
             <trans-unit id="inbox.thread.note_label"><source>inbox.thread.note_label</source><target>Your note for the agent</target></trans-unit>
             <trans-unit id="inbox.thread.closing.hint"><source>inbox.thread.closing.hint</source><target>closed this %time%</target></trans-unit>
@@ -10994,6 +11003,9 @@ workflow:
             <trans-unit id="ds.relative_time.last_month"><source>ds.relative_time.last_month</source><target>last month</target></trans-unit>
             <trans-unit id="ds.relative_time.months"><source>ds.relative_time.months</source><target>%count%mo ago</target></trans-unit>
             <trans-unit id="ds.relative_time.years"><source>ds.relative_time.years</source><target>%count%y ago</target></trans-unit>
+            <trans-unit id="ds.relative_time.in_minutes"><source>ds.relative_time.in_minutes</source><target>in %count%m</target></trans-unit>
+            <trans-unit id="ds.relative_time.in_hours"><source>ds.relative_time.in_hours</source><target>in %count%h</target></trans-unit>
+            <trans-unit id="ds.relative_time.in_days"><source>ds.relative_time.in_days</source><target>in %count%d</target></trans-unit>
             <trans-unit id="marker.paused"><source>marker.paused</source><target>Paused: %reason%.</target></trans-unit>
             <trans-unit id="marker.paused.code"><source>marker.paused.code</source><target>Paused with the code %code%.</target></trans-unit>
             <trans-unit id="marker.paused.reason"><source>marker.paused.reason</source><target>Card %card% is paused. %reason%.</target></trans-unit>
