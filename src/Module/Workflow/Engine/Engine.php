@@ -105,6 +105,7 @@ final readonly class Engine
         private ActionContexts $contexts,
         private RuleSubject $ruleSubject,
         private MarkerPass $markers,
+        private WaitStep $waitStep,
         private RuleAsks $ruleAsks,
         private WorkHolds $workHolds,
         private EventDispatcherInterface $events,
@@ -287,7 +288,7 @@ final readonly class Engine
         $run->markedAfterClear = $markedAfterClear;
         $run->markersDue = null !== $run->card->markersDueAt && $run->card->markersDueAt <= $run->now;
         if (!$automated) {
-            $this->markers->run($run);
+            $this->runMarkers($run);
 
             return $run;
         }
@@ -327,9 +328,11 @@ final readonly class Engine
         return $run;
     }
 
-    /** The marker pass reads the facts of the rule pass, unless the pass changed what they read. Then it builds them again from the flushed rows. */
+    /** The wait step ends a wait that is due. The marker pass reads the facts of the rule pass, unless the pass changed what they read. Then it builds them again from the flushed rows. */
     private function runMarkers(Evaluation $run): void
     {
+        // Runs with the automation on or off, and before the marker pass reads the facts.
+        ($this->waitStep)($run);
         if ($run->factsStale) {
             $run->facts = $this->facts($run->card, $run->now, $run->facts);
             $run->factsStale = false;

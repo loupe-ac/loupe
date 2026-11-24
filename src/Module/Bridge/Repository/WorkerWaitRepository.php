@@ -58,6 +58,26 @@ class WorkerWaitRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
+    /**
+     * The waits of the session that ended in a way that resumes, and that no run resumed yet.
+     *
+     * @return list<WorkerWait>
+     */
+    public function findEndedWithoutResumeOfSession(Uuid $bridgeId, Uuid $sessionId): array
+    {
+        return array_values($this->createQueryBuilder('w')
+            ->andWhere('w.bridgeId = :bridge')
+            ->andWhere('w.sessionId = :session')
+            ->andWhere('w.endedAt IS NOT NULL')
+            ->andWhere('w.resumeRunId IS NULL')
+            ->andWhere('w.endReason IN (:reasons)')
+            ->setParameter('bridge', $bridgeId, UuidType::NAME)
+            ->setParameter('session', $sessionId, UuidType::NAME)
+            ->setParameter('reasons', array_map(static fn (WorkerWaitEndReason $reason): string => $reason->value, WorkerWaitEndReason::resumingReasons()))
+            ->getQuery()
+            ->getResult());
+    }
+
     /** The waits of the chain of resumed runs that starts at the root run. */
     public function countOfChain(Uuid $chainRootRunId): int
     {

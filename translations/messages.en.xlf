@@ -10542,6 +10542,8 @@ workflow:
             <trans-unit id="workflow.waiting.not.run_work_taker_paused"><source>workflow.waiting.not.run_work_taker_paused</source><target>Waiting: the only bridges that could take the open work are paused.</target></trans-unit>
             <trans-unit id="workflow.waiting.run_worker_active"><source>workflow.waiting.run_worker_active</source><target>Waiting: no matching worker run is open.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.run_worker_active"><source>workflow.waiting.not.run_worker_active</source><target>Waiting: a matching worker run is still open.</target></trans-unit>
+            <trans-unit id="workflow.waiting.run_worker_waiting"><source>workflow.waiting.run_worker_waiting</source><target>Waiting: no worker waits for a condition.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.run_worker_waiting"><source>workflow.waiting.not.run_worker_waiting</source><target>Waiting: a worker waits for a condition.</target></trans-unit>
             <trans-unit id="workflow.waiting.bridge_account_usage"><source>workflow.waiting.bridge_account_usage</source><target>Waiting: the %window% window of %account% is not above %above% percent.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.bridge_account_usage"><source>workflow.waiting.not.bridge_account_usage</source><target>Waiting: the %window% window of %account% is above %above% percent.</target></trans-unit>
             <trans-unit id="workflow.waiting.parent_document_approved"><source>workflow.waiting.parent_document_approved</source><target>Waiting: not every %tag% document of the parent card is approved.</target></trans-unit>
@@ -11064,6 +11066,8 @@ workflow:
             <trans-unit id="marker.design_review_running.remedy"><source>marker.design_review_running.remedy</source><target>Nothing. The app publishes the document for your review when the agent review ends.</target></trans-unit>
             <trans-unit id="marker.run_open"><source>marker.run_open</source><target>A worker runs on this card.</target></trans-unit>
             <trans-unit id="marker.run_open.remedy"><source>marker.run_open.remedy</source><target>Nothing. The card moves on when the worker ends.</target></trans-unit>
+            <trans-unit id="marker.worker_waiting"><source>marker.worker_waiting</source><target>The worker waits for %conditions%.</target></trans-unit>
+            <trans-unit id="marker.worker_waiting.remedy"><source>marker.worker_waiting.remedy</source><target>Nothing. The worker resumes in the same session when a condition is true or the time limit passes.</target></trans-unit>
             <trans-unit id="marker.no_bridge_online"><source>marker.no_bridge_online</source><target>No bridge is online to take this work.</target></trans-unit>
             <trans-unit id="marker.no_bridge_online.remedy"><source>marker.no_bridge_online.remedy</source><target>Start a bridge, or run `loupe login`.</target></trans-unit>
             <trans-unit id="marker.no_capable_bridge"><source>marker.no_capable_bridge</source><target>A bridge is online, but none can run this work.</target></trans-unit>

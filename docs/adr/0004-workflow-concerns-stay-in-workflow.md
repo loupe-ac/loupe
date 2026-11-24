@@ -33,6 +33,8 @@ The rule in detail:
 
 Teardown already follows this split. The `teardown` rule of the template asks for teardown work when a card reaches a terminal slot. The bridge `action: command` rule of ADR 0002 only runs the script. ADR 0002 calls it "a command rule on a terminal column", and the terminal column is the condition of the template rule.
 
+The app may resume a session that the worker itself parked. It does so after an ask closes, and after the wait of a worker ends. That resume continues work that a rule already asked for, and starts none. It holds with the automation off too, because the worker chose to wait and the end of the wait is a fact, not a decision about new work.
+
 This record amends the wording of ADR 0001, not its decision. ADR 0001 says which part does a step: the app for a mechanical step, a worker for a step that needs judgment. This record says which part decides when the step runs, and that is always the template.
 
 For the epic preview, the fix is a template rule that asks for preview work when the head of the epic branch moves. It needs a fact that compares that head with the head the preview last served. `card.site_review.check_stale` is the nearest example, because it compares a stored value with the head commit of a pull request. The shape of that fact is still open.

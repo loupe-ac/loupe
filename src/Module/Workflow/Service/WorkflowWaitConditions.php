@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Module\Workflow\Service;
 
-use App\Module\Workflow\Condition\Conditions;
 use App\Module\Workflow\Contract\CardDirectory;
 use App\Module\Workflow\Contract\EngineFact;
 use App\Module\Workflow\Contract\Facts;
@@ -15,10 +14,6 @@ use App\Module\Workflow\Contract\WaitConditionCheck;
 use App\Module\Workflow\Contract\WaitConditionRefusal;
 use App\Module\Workflow\Contract\WaitConditions;
 use App\Module\Workflow\Contract\WaitSettings;
-use App\Module\Workflow\Expression\Expression;
-use App\Module\Workflow\Template\Template;
-use App\Module\Workflow\Template\TemplateMarker;
-use App\Module\Workflow\Template\TemplateParser;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\DependencyInjection\Attribute\AsAlias;
 use Symfony\Component\Uid\Uuid;
@@ -29,8 +24,7 @@ final readonly class WorkflowWaitConditions implements WaitConditions
     public function __construct(
         private CardDirectory $cards,
         private ProjectTemplates $templates,
-        private Conditions $conditions,
-        private TemplateParser $parser,
+        private WaitExpressions $expressions,
         private FactsBuilder $factsBuilder,
         private PullRequestUrls $pullRequestUrls,
         private ClockInterface $clock,
@@ -49,7 +43,7 @@ final readonly class WorkflowWaitConditions implements WaitConditions
         $card = $this->cards->find($cardId) ?? throw new \LogicException('A wait names a stored card.');
         $template = $this->templates->of($card->projectId);
 
-        $expression = $this->expressionOf($template, $key, $params);
+        $expression = $this->expressions->of($template, $key, $params);
         if ($expression instanceof WaitConditionCheck) {
             return $expression;
         }
@@ -73,28 +67,6 @@ final readonly class WorkflowWaitConditions implements WaitConditions
             pullRequestToken: null === $bound ? null : self::tokenOf($bound),
             params: $params,
         );
-    }
-
-    /** @param array<string, mixed> $params */
-    private function expressionOf(Template $template, string $key, array $params): Expression|WaitConditionCheck
-    {
-        $marker = array_find($template->markers, static fn (TemplateMarker $marker): bool => $marker->key === $key);
-        if (null !== $marker) {
-            if ([] !== $params) {
-                return new WaitConditionCheck(WaitConditionRefusal::InvalidParameters, \sprintf('The marker "%s" takes no parameters.', $key), params: $params);
-            }
-
-            return $marker->when;
-        }
-
-        if (!$this->conditions->has($key)) {
-            return new WaitConditionCheck(WaitConditionRefusal::UnknownCondition, \sprintf('"%s" is not a condition or a marker of the workflow.', $key), params: $params);
-        }
-
-        $errors = [];
-        $leaf = $this->parser->conditionOf($template, $key, $params, $errors);
-
-        return $leaf ?? new WaitConditionCheck(WaitConditionRefusal::InvalidParameters, implode('; ', $errors), params: $params);
     }
 
     /** @param array<string, mixed> $params */

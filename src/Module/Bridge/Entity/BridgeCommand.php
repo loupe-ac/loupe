@@ -78,6 +78,14 @@ class BridgeCommand
     #[ORM\Column(name: 'inbox_item_id', type: UuidType::NAME, nullable: true)]
     public ?Uuid $inboxItemId = null;
 
+    /**
+     * Why a wait of the worker ended and which conditions were true, for a resume with the cause wait-ended. Keys and tokens only.
+     *
+     * @var array{reason: string, conditions: list<array{key: string, pullRequest: ?string}>}|null
+     */
+    #[ORM\Column(name: 'wait_result', type: Types::JSON, nullable: true, options: ['jsonb' => true])]
+    public ?array $waitResult = null;
+
     /** The API key that requested the command. No foreign key: the command outlives a deleted key. */
     #[ORM\Column(name: 'api_key_id', type: UuidType::NAME, nullable: true)]
     public ?Uuid $apiKeyId = null;

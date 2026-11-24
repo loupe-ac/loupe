@@ -48,6 +48,11 @@ final class RunWaitToolTest extends KernelTestCase
     protected function setUp(): void
     {
         self::bootKernel();
+        $this->arrange();
+    }
+
+    private function arrange(): void
+    {
         $this->checks = new \ArrayObject([
             'pr.checks_passed' => new WaitConditionCheck(pullRequestId: Uuid::fromString('0199a1b2-0000-7000-8000-000000000001'), pullRequestToken: 'pr:acme/app#12'),
             'pr.checks_failed' => new WaitConditionCheck(pullRequestId: Uuid::fromString('0199a1b2-0000-7000-8000-000000000001'), pullRequestToken: 'pr:acme/app#12'),
@@ -242,16 +247,20 @@ final class RunWaitToolTest extends KernelTestCase
 
     public function test_a_race_for_the_open_wait_is_a_refusal_and_not_an_error(): void
     {
+        // Another kernel, because a service cannot be replaced once it has been used.
+        self::ensureKernelShutdown();
+        self::bootKernel();
+        $stub = $this->createStub(WorkerWaitRepository::class);
+        $stub->method('findOpenOfCard')->willReturn(null);
+        $stub->method('countOfChain')->willReturn(0);
+        self::getContainer()->set(WorkerWaitRepository::class, $stub);
+        $this->arrange();
         $run = $this->workerRun();
         $rival = new WorkerWait($this->project, $this->cardId, Uuid::v7(), Uuid::v7(), Uuid::v7(), Uuid::v4(), [], new \DateTimeImmutable(self::NOW), new \DateTimeImmutable('2026-09-23 11:00:00'));
         $this->em()->persist($rival);
         $this->em()->flush();
         // The handler reads no open wait, as it does when the rival commits after that read.
         $this->em()->clear();
-        $stub = $this->createStub(WorkerWaitRepository::class);
-        $stub->method('findOpenOfCard')->willReturn(null);
-        $stub->method('countOfChain')->willReturn(0);
-        self::getContainer()->set(WorkerWaitRepository::class, $stub);
         $this->actAsMcpTokenBoundTo($this->em()->find(Project::class, $this->project->id) ?? throw new \LogicException('Seeded.'));
 
         $this->expectException(ToolCallException::class);

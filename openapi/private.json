@@ -13173,6 +13173,7 @@
                         "enum": [
                             "person",
                             "ask-closed",
+                            "wait-ended",
                             "inbox-action",
                             "agent"
                         ]
@@ -13212,6 +13213,44 @@
                     "inboxItemId": {
                         "type": "string",
                         "format": "uuid",
+                        "nullable": true
+                    },
+                    "wait": {
+                        "description": "Why a wait of the worker ended, for a resume with the cause wait-ended.",
+                        "required": [
+                            "reason",
+                            "conditions"
+                        ],
+                        "properties": {
+                            "reason": {
+                                "type": "string",
+                                "enum": [
+                                    "condition",
+                                    "timed-out",
+                                    "subject-gone",
+                                    "resumed-by-person"
+                                ]
+                            },
+                            "conditions": {
+                                "type": "array",
+                                "items": {
+                                    "required": [
+                                        "key"
+                                    ],
+                                    "properties": {
+                                        "key": {
+                                            "type": "string"
+                                        },
+                                        "pullRequest": {
+                                            "type": "string",
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "type": "object",
                         "nullable": true
                     }
                 },
@@ -16274,6 +16313,7 @@
                         "default": null,
                         "enum": [
                             "ask-closed",
+                            "wait-ended",
                             "inbox-action",
                             "person",
                             "agent",
