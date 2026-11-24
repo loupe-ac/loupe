@@ -1,18 +1,20 @@
 # Code round
 
-The prompt line `Pull request <url> needs a fix: <reason>.` names what started the round. The reason is `checks-failed`, `conflict`, `changes-requested` or `agent-review`. A run by hand can have no reason. Whatever the reason, fix everything that is open:
+The prompt line `Pull request <url> needs a fix: <reason>.` names what started the round. The reason is `checks-failed`, `conflict`, `changes-requested`, `agent-review` or `decision-changed`. A run by hand can have no reason. Whatever the reason, fix everything that is open:
 
 - a conflict with the base
 - each failing check
 - each open feedback item
 - each pending live-review note
+- each open decision change of the owner
 
 The round ends at the push. It never waits for CI, because the app reads the new head and sends the next fix request or the merge decision.
 
 1. Read `pull-request-feedback.md`, then read each linked pull request with the forge adapter. When none is open, stop with `STAGE RESULT: no open pull request`.
 2. Read the mergeability, then the checks and the open feedback items, per the reference. Read the checks once, and never wait for a pending one. When the mergeability reads `conflicting`, or the reason is `conflict`, read `conflict.md` now. Step 8 follows it.
 3. When `siteReviewComments` of `card_get` holds a note whose `status` is `pending`, read `live-review-notes.md`, and follow it for the notes and the review items that copy them. Then read the agent review of the head, per "Agent review findings" in the reference, whatever the reason of the request. A CI fix and a review fix share one live request. So a round that started for one reason must fix the other too.
-4. Stop with `STAGE RESULT: nothing to fix` when all of these hold: the pull request is mergeable, no check fails, no item is open, no note is pending, and the agent review of the head holds no finding to fix. An epic pull request takes the round as any other pull request, and the round pushes to the epic branch.
+3a. Call `decision_list` with the `cardId` of the card, whatever the reason of the request. Each row is a decision that the owner changed: the original choice, the changed choice and a note. The owner's choice replaces yours. Write down the ids. A row means work: redo each piece of the branch that rests on the original choice, in step 9, and treat the note as the owner's reason. Never argue with a changed decision in this round.
+4. Stop with `STAGE RESULT: nothing to fix` when all of these hold: the pull request is mergeable, no check fails, no item is open, no note is pending, `decision_list` gave no row, and the agent review of the head holds no finding to fix. An epic pull request takes the round as any other pull request, and the round pushes to the epic branch.
 5. Read `../../loupe-stage-implementation/references/commands.md`. Load the skills that the `### Fix round` heading routes, at the moments its lines name.
 6. Check the worker folder, and sync it with the pull request branch, per the reference. Keep every existing commit, except a sync of the base that the sync procedure resets.
 7. When the branch differs from the pull request branch, stop with `STAGE RESULT: blocked: worker folder is not on the PR branch`.
@@ -32,6 +34,6 @@ The round ends at the push. It never waits for CI, because the app reads the new
 9a. Run the pre-push check of the preview method, when a routed skill holds one, on the body that the push leaves. Fix each gap, and run it again.
 10. Push as "Push without force" in `../../loupe-stage-implementation/references/commands.md` says.
 11. Post a marker reply for each handled item, per the reference. A conflict has no item, so it gets no reply. An agent review finding has no thread, so it gets no reply either.
-12. Mark each fixed note addressed, as `live-review-notes.md` says.
+12. Mark each fixed note addressed, as `live-review-notes.md` says. Then call `decision_mark_addressed` with the ids of step 3a and your `sessionId`, after the push. Mark only the ids you read and acted on. A decision the push did not cover stays open, and the card asks for another round.
 13. Stop with `STAGE RESULT: waiting <pr url>`. Never move the card.
 14. When a step cannot go on and the stop needs an owner choice, follow `../../loupe-stage-implementation/references/owner-question.md`. Otherwise record the block as "Record a block" in `../../loupe-stage-implementation/references/commands.md` says. Post the refusal comment on the pull request, per "Post a refusal comment" in the same file. Stop with `STAGE RESULT: blocked: <reason>`.

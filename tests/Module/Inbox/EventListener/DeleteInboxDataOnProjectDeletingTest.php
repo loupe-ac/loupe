@@ -13,6 +13,8 @@ use App\Module\Inbox\Entity\InboxBridgeOutage;
 use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWaitType;
 use App\Module\Inbox\Entity\InboxCardWatch;
+use App\Module\Inbox\Entity\InboxDecision;
+use App\Module\Inbox\Entity\InboxDecisionMadeBy;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemDocument;
@@ -34,7 +36,7 @@ final class DeleteInboxDataOnProjectDeletingTest extends KernelTestCase
 {
     use InboxFixtures;
 
-    private const array TABLES = ['inbox_items', 'inbox_asks', 'inbox_ask_items', 'inbox_item_cards', 'inbox_item_documents', 'inbox_card_watches', 'inbox_card_waits', 'inbox_actions', 'inbox_bridge_outages', 'inbox_openrouter_key_notices', 'inbox_repository_misfits', 'inbox_merge_approval_questions'];
+    private const array TABLES = ['inbox_items', 'inbox_asks', 'inbox_ask_items', 'inbox_item_cards', 'inbox_item_documents', 'inbox_card_watches', 'inbox_card_waits', 'inbox_actions', 'inbox_bridge_outages', 'inbox_openrouter_key_notices', 'inbox_repository_misfits', 'inbox_merge_approval_questions', 'inbox_decisions'];
 
     private EntityManagerInterface $em;
     private Connection $connection;
@@ -142,6 +144,8 @@ final class DeleteInboxDataOnProjectDeletingTest extends KernelTestCase
         $this->em->persist($questionItem);
         $mergeQuestion = new InboxMergeApprovalQuestion($project, Uuid::v7(), $questionItem, new \DateTimeImmutable('2026-11-07 11:00:00'));
         $this->em->persist($mergeQuestion);
+        $decision = new InboxDecision($project, $card, 'naming', 'beta', ['alpha'], InboxDecisionMadeBy::Logged);
+        $this->em->persist($decision);
 
         return [$project, [
             'inbox_items' => $item,
@@ -156,6 +160,7 @@ final class DeleteInboxDataOnProjectDeletingTest extends KernelTestCase
             'inbox_openrouter_key_notices' => $keyNotice,
             'inbox_repository_misfits' => $misfit,
             'inbox_merge_approval_questions' => $mergeQuestion,
+            'inbox_decisions' => $decision,
         ]];
     }
 

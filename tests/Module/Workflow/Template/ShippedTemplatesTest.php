@@ -22,6 +22,7 @@ use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\Workflow\SessionFacts;
 use App\Module\Bridge\Workflow\WorkerRunFacts;
 use App\Module\Bridge\Workflow\WorkRequestFacts;
+use App\Module\Inbox\Workflow\DecisionChangedFacts;
 use App\Module\Inbox\Workflow\WaitingAskFacts;
 use App\Module\Workflow\Action\Actions;
 use App\Module\Workflow\Contract\ChecksState;
@@ -622,6 +623,39 @@ final class ShippedTemplatesTest extends KernelTestCase
         self::assertNotContains('fix-agent-review'.$suffix, $this->firingRuleIds(self::withAgentReview($slot, [AgentReviewConclusion::Failure], waitingAskIds: $waiting)));
     }
 
+    #[DataProvider('reviewSlots')]
+    public function test_a_changed_decision_asks_for_a_fix_round_in_the_current_stage(string $slot): void
+    {
+        $rule = 'in-review' === $slot ? 'fix-decision-changed-in-review' : 'fix-decision-changed';
+
+        self::assertContains($rule, $this->firingRuleIds(self::withChangedDecision($slot)));
+        self::assertNotContains($rule, $this->firingRuleIds(self::withChangedDecision($slot, changed: false)), 'A card with no open change asks for nothing.');
+        self::assertNotContains($rule, $this->firingRuleIds(self::withChangedDecision($slot, activeWorkKinds: ['fix'])), 'A running fix round stays the only one.');
+        self::assertNotContains($rule, $this->firingRuleIds(self::withChangedDecision($slot, waitingAskIds: ['0192f3a1-4b2c-7d3e-8f10-a2b3c4d5e6f7'])), 'A session that waits for an answer stays quiet.');
+    }
+
+    public function test_a_changed_decision_asks_for_a_fix_only_in_the_two_code_stages(): void
+    {
+        foreach (['next', 'product-design', 'tech-design'] as $slot) {
+            self::assertNotContains('fix-decision-changed', $this->firingRuleIds(self::withChangedDecision($slot)), $slot);
+            self::assertNotContains('fix-decision-changed-in-review', $this->firingRuleIds(self::withChangedDecision($slot)), $slot);
+        }
+    }
+
+    /**
+     * @param list<string> $activeWorkKinds
+     * @param list<string> $waitingAskIds
+     */
+    private static function withChangedDecision(string $slot, bool $changed = true, array $activeWorkKinds = [], array $waitingAskIds = []): Facts
+    {
+        return FactsMother::facts(
+            card: FactsMother::card(slot: $slot),
+            pullRequest: FactsMother::pullRequest(checks: ChecksState::Passed),
+            run: FactsMother::run(activeWorkKinds: $activeWorkKinds),
+            provided: [DecisionChangedFacts::class => new DecisionChangedFacts($changed), WaitingAskFacts::class => new WaitingAskFacts($waitingAskIds)],
+        );
+    }
+
     /** @return iterable<string, array{string, array<string, bool>, list<string>, bool, bool}> */
     public static function failedChecksOnABehindBranch(): iterable
     {
@@ -746,9 +780,11 @@ final class ShippedTemplatesTest extends KernelTestCase
             'tech-design-review' => 'design-review',
             'tech-design-review-fix' => 'design-revise',
             'fix-in-implementation' => 'fix',
+            'fix-decision-changed' => 'fix',
             'agent-review' => 'code-review',
             'fix-agent-review' => 'fix',
             'fix-in-review' => 'fix',
+            'fix-decision-changed-in-review' => 'fix',
             'agent-review-in-review' => 'code-review',
             'fix-agent-review-in-review' => 'fix',
         ], $roles);

@@ -314,6 +314,10 @@ A marker reads the same conditions as a rule. These conditions suit markers:
   match only a non-blocking one, such as a to-do. With no `blocking`, any open
   ask matches. Lifecycle and Simple set `blocking: true`, so a non-blocking
   to-do does not show "Needs you".
+- `card.inbox.decision_changed`: the owner changed a decision of the card in
+  the decision log, and no worker has marked the change addressed. The inbox
+  being off makes it false. Lifecycle uses it in the rules
+  `fix-decision-changed` and `fix-decision-changed-in-review`.
 - `card.children.marked` with a `kind`: an open child of the card shows a
   marker of that kind. The `kind` is `stuck`, `needs-you`, `working` or
   `waiting`. A chip does not count.
@@ -1149,6 +1153,7 @@ Lifecycle uses the conditions in these rules:
 |---|---|---|
 | `agent-review` and `agent-review-in-review` | Implementation and In review | When `agent_review.due` holds, asks for work of kind `review`. The rule waits while work of kind `implement`, `fix`, `sync` or `rebase-stacked` is active on the card, because that worker can still push a new head |
 | `fix-agent-review` and `fix-agent-review-in-review` | Implementation and In review | When `agent_review.failed` holds, asks for a fix with the reason `agent-review`. The limit is 10 rounds. The count starts again when `agent_review.passed` holds |
+| `fix-decision-changed` and `fix-decision-changed-in-review` | Implementation and In review | When the owner changed a decision of the card and no worker acted on it, and the card has an open pull request, asks for a fix with the reason `decision-changed`. The rule waits while a fix runs and while a session of the card waits for an answer. The limit is 10 rounds. The count starts again when no change is open |
 | `review-ready` | Implementation | Marks a draft pull request ready, when its review passed, its checks passed, it has no conflict and no request for changes. It uses the `review-ready` write |
 
 The limit of 10 is fixed in the template. The rules `reviewable`, `merge-ready` and `merge-ready-epic-child`

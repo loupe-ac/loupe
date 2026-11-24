@@ -3330,6 +3330,14 @@
                 <source>project.connect.tool.inbox_action_run</source>
                 <target>Record the owner's answer, completion or dismissal of an inbox item, or run another built-in action such as resume-run, retry-card or run-command, after the owner decided in chat. A run-command shows a preview first.</target>
             </trans-unit>
+            <trans-unit id="project.connect.tool.decision_list">
+                <source>project.connect.tool.decision_list</source>
+                <target>List the decisions of a card that the owner changed and that nobody has acted on yet.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.decision_mark_addressed">
+                <source>project.connect.tool.decision_mark_addressed</source>
+                <target>Mark changed decisions of a card as acted on, after you redid the work they affect.</target>
+            </trans-unit>
 
             <!-- First-run wizard -->
             <trans-unit id="project.wizard.progress.label">
@@ -6758,6 +6766,38 @@ workflow:
                 <source>inbox.answer.error.empty</source>
                 <target>Pick an option or write an answer.</target>
             </trans-unit>
+            <trans-unit id="inbox.decision.error.choice_blank">
+                <source>inbox.decision.error.choice_blank</source>
+                <target>Pick an option or write your own choice.</target>
+            </trans-unit>
+            <trans-unit id="inbox.decision.error.choice_too_long">
+                <source>inbox.decision.error.choice_too_long</source>
+                <target>The choice is too long.</target>
+            </trans-unit>
+            <trans-unit id="inbox.decision.error.choice_unchanged">
+                <source>inbox.decision.error.choice_unchanged</source>
+                <target>This is the choice that stands. Pick another one.</target>
+            </trans-unit>
+            <trans-unit id="inbox.decision.error.not_found">
+                <source>inbox.decision.error.not_found</source>
+                <target>This decision does not exist.</target>
+            </trans-unit>
+            <trans-unit id="inbox.decision.error.no_change">
+                <source>inbox.decision.error.no_change</source>
+                <target>Nobody changed this decision.</target>
+            </trans-unit>
+            <trans-unit id="inbox.decision.error.other_card">
+                <source>inbox.decision.error.other_card</source>
+                <target>This decision belongs to another card.</target>
+            </trans-unit>
+            <trans-unit id="inbox.decision.error.note_too_long">
+                <source>inbox.decision.error.note_too_long</source>
+                <target>The note is too long.</target>
+            </trans-unit>
+            <trans-unit id="inbox.decision.error.follow_up_not_changed">
+                <source>inbox.decision.error.follow_up_not_changed</source>
+                <target>Change the decision before you create a follow-up card.</target>
+            </trans-unit>
             <trans-unit id="inbox.done.submit">
                 <source>inbox.done.submit</source>
                 <target>Mark complete</target>
@@ -8600,6 +8640,7 @@ workflow:
             <trans-unit id="board.card.history.reason.conflict"><source>board.card.history.reason.conflict</source><target>the pull request has a merge conflict</target></trans-unit>
             <trans-unit id="board.card.history.reason.checks_failed"><source>board.card.history.reason.checks_failed</source><target>the checks fail</target></trans-unit>
             <trans-unit id="board.card.history.reason.agent_review"><source>board.card.history.reason.agent_review</source><target>the agent review found problems</target></trans-unit>
+            <trans-unit id="board.card.history.reason.decision_changed"><source>board.card.history.reason.decision_changed</source><target>the owner changed a decision</target></trans-unit>
             <trans-unit id="board.card.history.reason.changes_requested"><source>board.card.history.reason.changes_requested</source><target>a reviewer requested changes</target></trans-unit>
             <trans-unit id="board.card.linked_work.title"><source>board.card.linked_work.title</source><target>Linked work</target></trans-unit>
             <trans-unit id="board.card.linked_work.empty"><source>board.card.linked_work.empty</source><target>No documents or pull requests are linked to this card.</target></trans-unit>
@@ -9025,6 +9066,10 @@ workflow:
             <trans-unit id="board.fix_run_comment.reason.agent-review">
                 <source>board.fix_run_comment.reason.agent-review</source>
                 <target>the agent review found problems</target>
+            </trans-unit>
+            <trans-unit id="board.fix_run_comment.reason.decision-changed">
+                <source>board.fix_run_comment.reason.decision-changed</source>
+                <target>the owner changed a decision</target>
             </trans-unit>
             <trans-unit id="board.fix_run_comment.reason.other">
                 <source>board.fix_run_comment.reason.other</source>
@@ -10523,6 +10568,8 @@ workflow:
             <trans-unit id="workflow.waiting.not.card_inbox_open_question_blocking"><source>workflow.waiting.not.card_inbox_open_question_blocking</source><target>Waiting: an open blocking inbox question names the card.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_inbox_open_question_non_blocking"><source>workflow.waiting.card_inbox_open_question_non_blocking</source><target>Waiting: no open non-blocking inbox question names the card.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_inbox_open_question_non_blocking"><source>workflow.waiting.not.card_inbox_open_question_non_blocking</source><target>Waiting: an open non-blocking inbox question names the card.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_inbox_decision_changed"><source>workflow.waiting.card_inbox_decision_changed</source><target>Waiting: no changed decision of the card waits for a worker.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_inbox_decision_changed"><source>workflow.waiting.not.card_inbox_decision_changed</source><target>Waiting: a changed decision of the card waits for a worker.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_linked"><source>workflow.waiting.pr_linked</source><target>Waiting: no pull request is linked to the card.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_linked"><source>workflow.waiting.not.pr_linked</source><target>Waiting: a pull request is linked to the card.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_draft_open"><source>workflow.waiting.pr_draft_open</source><target>Waiting: no open pull request of the card is a draft.</target></trans-unit>

@@ -9,6 +9,7 @@ use App\Module\Inbox\Command\AnswerInboxItemHandler;
 use App\Module\Inbox\Command\AskInboxHandler;
 use App\Module\Inbox\Command\DeclineInboxItemHandler;
 use App\Module\Inbox\Command\JoinInboxAskHandler;
+use App\Module\Inbox\Command\MarkInboxDecisionsAddressedHandler;
 use App\Module\Inbox\Command\MarkInboxItemDoneHandler;
 use App\Module\Inbox\Command\RunInboxActionHandler;
 use App\Module\Inbox\Command\SearchInboxHandler;
@@ -120,6 +121,9 @@ final readonly class InboxToolErrorMessages
             WithdrawInboxItemHandler::WORKFLOW_NOT_WITHDRAWABLE => 'A rule asked this workflow question, so no agent can withdraw it. It closes when the rule no longer asks.',
             WithdrawInboxItemHandler::NOT_ASKING_SESSION => 'Only the session that asked first can withdraw this item. Pass your own session id.',
             JoinInboxAskHandler::NOT_AGENT_ITEM => 'Loupe opened this item for a card wait, a fact or a rule, so no agent can join it. Only an item that an agent or a person asked is joinable.',
+            MarkInboxDecisionsAddressedHandler::NO_CHANGE => 'The owner changed none of these decisions, or one of the ids names a decision with no change.',
+            MarkInboxDecisionsAddressedHandler::NOT_FOUND => 'A decision id names no decision of this project. Pass the ids that decision_list gave you.',
+            MarkInboxDecisionsAddressedHandler::OTHER_CARD => 'A decision belongs to another card than the card of your run. Mark only the decisions of your own card.',
             CallerSessionGuard::NOT_CALLER => 'Pass your own session id. This call comes from another session.',
             SearchInboxHandler::QUERY_BLANK => 'Pass a query to search for. To read the inbox page by page instead, call inbox_list.',
             AnswerInboxItemHandler::NOT_A_QUESTION => 'Only a question takes an answer.',

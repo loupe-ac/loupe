@@ -51,6 +51,7 @@ final class ConditionCatalogueTest extends KernelTestCase
         'card.follows.finished' => 'workflow.source.board',
         'card.held' => 'workflow.source.bridge',
         'card.in_slot' => 'workflow.source.board',
+        'card.inbox.decision_changed' => 'workflow.source.inbox',
         'card.inbox.open_question' => 'workflow.source.inbox',
         'card.parent.document.approved' => 'workflow.source.board',
         'card.parent.epic_branch.exists' => 'workflow.source.board',

@@ -1040,12 +1040,17 @@ closes as it does after your answer, and the agent that asked resumes with that
 option in its answers. A check runs each minute, so the answer comes within a
 minute of the deadline. While the inbox is off, no default runs.
 
+When Loupe answers, it also writes a decision entry on each card that the item
+names. An item that names no card leaves no entry.
+
 ### The log mode
 
 A `log` question never reaches the inbox. The agent reads the reply "Logged
 "title" as naming. Go on with "option"." and goes on in the same turn. Loupe
-keeps no record of a logged choice yet. A later release adds a decision log on
-the card.
+writes a decision entry in the decision log of each card that the question
+names. When the question names no card, the entry goes to the card of the run
+that asks. When neither gives a card, Loupe writes no entry. An entry holds the
+label, the option the agent took, and the other options.
 
 ## All inboxes
 

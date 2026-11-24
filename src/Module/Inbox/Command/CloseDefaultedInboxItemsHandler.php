@@ -5,14 +5,19 @@ declare(strict_types=1);
 namespace App\Module\Inbox\Command;
 
 use App\Exception\DomainErrors;
+use App\Module\Board\Entity\Card;
 use App\Module\Inbox\Entity\InboxCloseCause;
 use App\Module\Inbox\Entity\InboxCloser;
+use App\Module\Inbox\Entity\InboxDecisionMadeBy;
 use App\Module\Inbox\Entity\InboxItem;
+use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Repository\InboxItemRepository;
 use App\Module\Inbox\Service\InboxAvailability;
+use App\Module\Inbox\Service\InboxDecisionLog;
 use App\Module\Inbox\Service\InboxItemCloser;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Uid\Uuid;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
@@ -32,6 +37,7 @@ final readonly class CloseDefaultedInboxItemsHandler
         private InboxItemRepository $inboxItems,
         private InboxItemCloser $closer,
         private InboxAvailability $inbox,
+        private InboxDecisionLog $decisionLog,
         private Auditor $auditor,
         private LoggerInterface $logger,
     ) {
@@ -46,15 +52,21 @@ final readonly class CloseDefaultedInboxItemsHandler
 
         $answered = 0;
         foreach ($this->inboxItems->findPastDefaultsAt($command->now, self::BATCH) as $item) {
+            $cardIds = [];
             try {
                 // Checked inside the lock, against the item as stored: the owner may answer between the query and the lock.
-                $this->closer->respond($item, InboxItemState::Resolved, InboxCloser::Loupe, InboxCloseCause::Defaulted, 'selectedOptions', static function (InboxItem $item) use ($command): ?array {
+                $this->closer->respond($item, InboxItemState::Resolved, InboxCloser::Loupe, InboxCloseCause::Defaulted, 'selectedOptions', function (InboxItem $item) use ($command, &$cardIds): ?array {
                     $recommended = $item->recommendedOption;
                     if (null === $recommended || null === $item->defaultsAt || $item->defaultsAt > $command->now || !isset($item->options[$recommended])) {
                         return ['selectedOptions' => self::NOT_DUE];
                     }
                     $item->selectedOptions = [$recommended];
                     $item->note = null;
+
+                    // Written in the transaction of the close, so a default leaves an entry on each card the item names.
+                    $cards = $item->cards->map(static fn (InboxItemCard $link): Card => $link->card)->toArray();
+                    $this->decisionLog->record($item->project, array_values($cards), $item->label ?? '', $recommended, $item->options, InboxDecisionMadeBy::Defaulted, $item);
+                    $cardIds = array_values(array_map(static fn (Card $card): Uuid => $card->id ?? throw new \LogicException('A stored card has an id.'), $cards));
 
                     return null;
                 });
@@ -64,6 +76,7 @@ final readonly class CloseDefaultedInboxItemsHandler
             }
 
             ++$answered;
+            $this->decisionLog->refresh($item->project, $cardIds);
             $this->logger->info('inbox.item_defaulted', ['itemId' => (string) $item->id, 'projectId' => (string) $item->project->id, 'label' => $item->label]);
             $this->auditor->record(
                 'inbox.item_defaulted',
