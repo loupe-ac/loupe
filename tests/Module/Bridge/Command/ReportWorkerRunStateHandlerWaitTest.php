@@ -303,6 +303,23 @@ final class ReportWorkerRunStateHandlerWaitTest extends KernelTestCase
         self::assertSame(WorkerRunState::Succeeded, $this->reload($run)->state);
     }
 
+    public function test_a_finished_end_after_a_person_ended_the_wait_in_another_request_records_a_stop(): void
+    {
+        $run = $this->runningRun();
+        $wait = $this->wait($run);
+        // Another request ends the wait after this one loaded it. The managed entity stays open.
+        $this->em()->getConnection()->executeStatement(
+            'UPDATE bridge_worker_waits SET ended_at = ?, end_reason = ? WHERE id = ?',
+            ['2026-09-23 10:03:00', WorkerWaitEndReason::CancelledByPerson->value, $wait->id?->toRfc4122()],
+        );
+        self::assertTrue($wait->isOpen());
+
+        $this->end('succeeded');
+
+        self::assertSame(WorkerWaitEndReason::CancelledByPerson, $this->reloadWait($wait)->endReason);
+        self::assertSame(WorkerRunState::Stopped, $this->reload($run)->state);
+    }
+
     /** @return iterable<string, array{string, WorkerRunState}> */
     public static function otherEnds(): iterable
     {
