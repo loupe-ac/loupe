@@ -132,8 +132,9 @@ class InboxDecisionRepository extends ServiceEntityRepository
     }
 
     /**
-     * The cards of a project with decisions that the person has not seen: newer than the time they last opened the
-     * Decisions tab of the card, or any decision when they never did. Newest decision first.
+     * The cards of a project with decisions that the person has not seen: made at or after the second they last opened the
+     * Decisions tab of the card, or any decision when they never did. Both times keep whole seconds, so the compare
+     * includes the second of the visit, and a decision made right after the visit stays new. Newest decision first.
      *
      * @return list<array{cardId: string, count: int, newest: \DateTimeImmutable}>
      */
@@ -143,7 +144,7 @@ class InboxDecisionRepository extends ServiceEntityRepository
             'SELECT d.card_id AS card_id, COUNT(d.id) AS cnt, MAX(d.created_at) AS newest
              FROM inbox_decisions d
              LEFT JOIN inbox_decision_seen s ON s.card_id = d.card_id AND s.user_id = :user
-             WHERE d.project_id = :project AND (s.seen_at IS NULL OR d.created_at > s.seen_at)
+             WHERE d.project_id = :project AND (s.seen_at IS NULL OR d.created_at >= s.seen_at)
              GROUP BY d.card_id
              ORDER BY MAX(d.created_at) DESC, d.card_id DESC',
             ['project' => (string) $project->id, 'user' => (string) $viewer->id],

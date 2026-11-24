@@ -178,6 +178,8 @@
                             <twig:Ds:EmptyState :title="'inbox.filter.empty'|trans" data-inbox-type-empty />
                         {% elseif view.side == closedSide %}
                             <twig:Ds:EmptyState :title="'inbox.closed.empty'|trans" data-inbox-queue-empty="closed-asks" />
+                        {% elseif inbox.digests is not empty %}
+                            <twig:Ds:EmptyState icon="lucide:inbox" :title="'inbox.digest.pane.title'|trans" :body="'inbox.digest.pane.body'|trans" data-inbox-digest-pane />
                         {% else %}
                             <twig:Ds:EmptyState icon="lucide:inbox" :title="'inbox.empty.title'|trans" :body="'inbox.empty.body'|trans" data-inbox-queue-empty="open-asks" />
                         {% endif %}

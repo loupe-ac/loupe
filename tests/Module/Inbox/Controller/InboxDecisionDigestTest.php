@@ -9,6 +9,7 @@ use App\Module\Board\Entity\Card;
 use App\Module\Inbox\Entity\InboxDecision;
 use App\Module\Inbox\Entity\InboxDecisionMadeBy;
 use App\Module\Inbox\Entity\InboxItemCard;
+use App\Module\Inbox\Repository\InboxDecisionSeenRepository;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\AskLabelRule;
 use App\Module\Workflow\Contract\AskMode;
@@ -59,6 +60,8 @@ final class InboxDecisionDigestTest extends WebTestCase
         self::assertSame('2 new decisions', trim($group->filter('[data-inbox-digest-count]')->text()));
         self::assertStringContainsString('tab=decisions', (string) $group->filter('[data-inbox-digest]')->attr('href'));
         self::assertStringNotContainsString('open', $group->filter('.lp-inbox-group__heading')->text());
+        self::assertCount(0, $crawler->filter('[data-inbox-queue-empty="open-asks"]'));
+        self::assertCount(1, $crawler->filter('[data-inbox-digest-pane]'));
     }
 
     public function test_a_card_with_an_open_item_and_new_decisions_shows_both_in_one_group(): void
@@ -95,6 +98,19 @@ final class InboxDecisionDigestTest extends WebTestCase
         $this->decision($card, '+1 minute');
         $this->client->request(Request::METHOD_GET, $this->inboxUrl());
         self::assertSame('1 new decision', trim($this->client->getCrawler()->filter('[data-inbox-digest-count]')->text()));
+    }
+
+    public function test_a_decision_made_in_the_second_of_the_visit_stays_new(): void
+    {
+        $card = $this->card(1, 'Same second');
+        $seenRepository = static::getContainer()->get(InboxDecisionSeenRepository::class);
+        self::assertInstanceOf(InboxDecisionSeenRepository::class, $seenRepository);
+        $seenRepository->markSeen($this->project, $this->owner, $card, new \DateTimeImmutable('2026-01-01 12:00:00.400000'));
+        $this->decision($card, '2026-01-01 12:00:00.700000');
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->inboxUrl());
+
+        self::assertSame('1 new decision', trim($crawler->filter('[data-inbox-digest-count]')->text()));
     }
 
     public function test_with_grouping_off_each_card_gets_one_digest_row_newest_decision_first(): void
