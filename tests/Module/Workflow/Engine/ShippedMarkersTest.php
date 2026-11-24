@@ -68,7 +68,7 @@ final class ShippedMarkersTest extends KernelTestCase
 
     private const array LIFECYCLE_KEYS = [
         'paused', 'run-stopped', 'run-needs-you', 'checks-failed', 'conflicting', 'ready-not-merged', 'pull-request-idle', 'pull-requests-closed', 'nothing-happened',
-        'document-in-review', 'epic-design-changes-requested', 'waits-for-merge-approval-answer', 'waits-for-approval', 'merge-blocked', 'repository-misfit', 'open-question', 'design-review-running', 'session-open', 'run-open', 'no-capable-bridge', 'no-bridge-online', 'bridge-paused', 'usage-limit', 'bridge-disconnected', 'work-requested', 'retry-scheduled',
+        'document-in-review', 'epic-design-changes-requested', 'waits-for-merge-approval-answer', 'waits-for-approval', 'merge-blocked', 'repository-misfit', 'open-question', 'design-review-running', 'session-open', 'run-open', 'worker-waiting', 'no-capable-bridge', 'no-bridge-online', 'bridge-paused', 'usage-limit', 'bridge-disconnected', 'work-requested', 'retry-scheduled',
         'forge-request-pending', 'held-by-blocker', 'waits-for-epic-design', 'waits-for-parent-card', 'waits-for-parent-branch', 'waiting-on-checks',
         'child-stuck', 'child-needs-you', 'child-working', 'child-waiting', 'unmanaged',
     ];

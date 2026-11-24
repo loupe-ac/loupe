@@ -93,6 +93,7 @@ use App\Module\Workflow\Contract\BlockerHoldChanged;
 use App\Module\Workflow\Contract\CardDirectory;
 use App\Module\Workflow\Contract\CardEvaluations;
 use App\Module\Workflow\Contract\CardMarkerStore;
+use App\Module\Workflow\Contract\CardWorkerWaits;
 use App\Module\Workflow\Contract\EpicBranches;
 use App\Module\Workflow\Contract\Facts;
 use App\Module\Workflow\Contract\KindPrompts;
@@ -104,6 +105,7 @@ use App\Module\Workflow\Contract\WorkHolds;
 use App\Module\Workflow\Engine\Engine;
 use App\Module\Workflow\Engine\MarkerPass;
 use App\Module\Workflow\Engine\RuleSubject;
+use App\Module\Workflow\Engine\WaitStep;
 use App\Module\Workflow\Entity\WorkflowBinding;
 use App\Module\Workflow\Entity\WorkflowRuleState;
 use App\Module\Workflow\Entity\WorkflowSlotLink;
@@ -122,6 +124,7 @@ use App\Module\Workflow\Service\FactProviders;
 use App\Module\Workflow\Service\FactsBuilder;
 use App\Module\Workflow\Service\PassMemo;
 use App\Module\Workflow\Service\SweepRowMemo;
+use App\Module\Workflow\Service\WaitExpressions;
 use App\Module\Workflow\Service\WorkflowAutomation;
 use App\Module\Workflow\Template\AppRules;
 use App\Module\Workflow\Template\ProjectTemplateCopy;
@@ -5362,6 +5365,7 @@ final class EngineTest extends KernelTestCase
             $this->contexts($actions),
             new RuleSubject(),
             new MarkerPass(new RuleSubject(), $this->service(CardMarkerStore::class)),
+            new WaitStep($this->service(CardWorkerWaits::class), $this->service(WaitExpressions::class)),
             $this->asks,
             $this->workHolds,
             $engineEvents,

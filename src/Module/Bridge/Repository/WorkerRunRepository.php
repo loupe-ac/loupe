@@ -15,6 +15,7 @@ use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Service\WorkerRunSearchIndexer;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Bridge\ValueObject\WorkerWaitEndReason;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Bridge\View\WorkerRunListQuery;
 use App\Module\Project\Entity\Project;
@@ -231,6 +232,21 @@ class WorkerRunRepository extends ServiceEntityRepository
         usort($runs, static fn (WorkerRun $a, WorkerRun $b): int => [$a->startedAt, (string) $a->id] <=> [$b->startedAt, (string) $b->id]);
 
         return $runs;
+    }
+
+    /**
+     * The state the database holds for the run now, read under a row lock that lasts until the
+     * transaction ends. A scalar read never serves a stale entity, so a report that closed the
+     * run first shows here. The lock waits for the state report of the run, which holds the same row.
+     */
+    public function lockedStateOf(WorkerRun $run): WorkerRunState
+    {
+        $state = $this->getEntityManager()->getConnection()->fetchOne(
+            'SELECT state FROM bridge_worker_runs WHERE id = ? FOR UPDATE',
+            [(string) $run->id],
+        );
+
+        return \is_string($state) ? WorkerRunState::from($state) : throw new \LogicException('A stored run has a state.');
     }
 
     /**
@@ -1188,7 +1204,11 @@ class WorkerRunRepository extends ServiceEntityRepository
                 ) AS rule_since
              FROM bridge_worker_runs r
              LEFT JOIN work_requests w ON w.id = r.work_request_id
-             WHERE r.subject_type = :subject AND r.subject_id = :card AND r.kind = :kind AND r.work_kind IS NOT NULL AND r.state IN (:open)
+             WHERE r.subject_type = :subject AND r.subject_id = :card AND r.kind = :kind AND r.work_kind IS NOT NULL
+                AND (r.state IN (:open) OR (r.state = :waiting AND EXISTS (
+                    SELECT 1 FROM bridge_worker_waits bw
+                    WHERE bw.run_id = r.id AND bw.resume_run_id IS NULL AND (bw.ended_at IS NULL OR bw.end_reason IN (:resuming))
+                )))
              GROUP BY r.work_kind
              ORDER BY r.work_kind',
             [
@@ -1197,8 +1217,10 @@ class WorkerRunRepository extends ServiceEntityRepository
                 'kind' => WorkerRunKind::Worker->value,
                 'open' => array_map(static fn (WorkerRunState $state): string => $state->value, WorkerRunState::openStates()),
                 'person' => PersonWork::RULE_PREFIX.'%',
+                'waiting' => WorkerRunState::Waiting->value,
+                'resuming' => array_map(static fn (WorkerWaitEndReason $reason): string => $reason->value, WorkerWaitEndReason::resumingReasons()),
             ],
-            ['open' => ArrayParameterType::STRING],
+            ['open' => ArrayParameterType::STRING, 'resuming' => ArrayParameterType::STRING],
         )->fetchAllAssociative();
 
         $all = [];

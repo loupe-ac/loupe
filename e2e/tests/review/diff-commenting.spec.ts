@@ -222,13 +222,16 @@ for (const view of ['rendered']) {
         await page.goto(
             `/projects/${projectId}/documents/${documentId}/review/diff/1/2?view=${view}`,
         );
-        await selectPhrase(
-            page,
-            INSERTED,
-            undefined,
-            view === 'side-by-side' ? 'new' : undefined,
-        );
         const dismiss = page.getByRole('button', { name: 'Dismiss selection' });
+        await expect(async () => {
+            await selectPhrase(
+                page,
+                INSERTED,
+                undefined,
+                view === 'side-by-side' ? 'new' : undefined,
+            );
+            await expect(dismiss).toBeVisible({ timeout: 1000 });
+        }).toPass({ timeout: 15000 });
         await dismiss.focus();
         await page.keyboard.press('Enter');
         await expect(page.locator(TOOLBAR)).toBeHidden();

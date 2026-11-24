@@ -87,6 +87,7 @@ final class ConditionCatalogueTest extends KernelTestCase
         'card.run.work_taker_limited' => 'workflow.source.bridge',
         'card.run.work_taker_paused' => 'workflow.source.bridge',
         'card.run.worker_active' => 'workflow.source.bridge',
+        'card.run.worker_waiting' => 'workflow.source.bridge',
         'card.site_review.check_stale' => 'workflow.source.board',
         'card.site_review.verdict_unsent' => 'workflow.source.board',
         'card.type' => 'workflow.source.board',
@@ -161,6 +162,7 @@ final class ConditionCatalogueTest extends KernelTestCase
         'card.run.work_taker_limited' => 'run_work_taker_limited',
         'card.run.work_taker_paused' => 'run_work_taker_paused',
         'card.run.worker_active' => 'run_worker_active',
+        'card.run.worker_waiting' => 'run_worker_waiting',
         'card.site_review.check_stale' => 'site_review_check_stale',
         'card.site_review.verdict_unsent' => 'site_review_verdict_unsent',
     ];

@@ -91,6 +91,7 @@ final class TryAccountNowControllerTest extends WebTestCase
             'inboxActionId' => null,
             'inboxItemNumber' => null,
             'inboxItemId' => null,
+            'wait' => null,
         ]], $this->payloads('bridge.command'));
 
         // Only the open work that the bridge matched to this account and may take is offered.

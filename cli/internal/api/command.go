@@ -33,6 +33,7 @@ const (
 const (
 	CausePerson      = "person"
 	CauseAskClosed   = "ask-closed"
+	CauseWaitEnded   = "wait-ended"
 	CauseInboxAction = "inbox-action"
 	CauseAgent       = "agent"
 )
@@ -92,6 +93,31 @@ type Command struct {
 	InboxActionID   string `json:"inboxActionId,omitempty"`
 	InboxItemNumber int    `json:"inboxItemNumber,omitempty"`
 	InboxItemID     string `json:"inboxItemId,omitempty"`
+	// Wait says why a wait of the worker ended, for the cause wait-ended. It
+	// carries condition keys and pull request tokens only. A null decodes as nil.
+	Wait *CommandWait `json:"wait,omitempty"`
+}
+
+// The reasons a wait ends, as the server names them.
+const (
+	WaitConditionMet     = "condition"
+	WaitTimedOut         = "timed-out"
+	WaitSubjectGone      = "subject-gone"
+	WaitResumedByPerson  = "resumed-by-person"
+)
+
+// CommandWait is the result of a wait: why it ended, and the conditions that
+// were true when it ended by one of them.
+type CommandWait struct {
+	Reason     string          `json:"reason"`
+	Conditions []WaitCondition `json:"conditions"`
+}
+
+// WaitCondition is one condition that was true: its key, and the token of the
+// pull request it reads, such as pr:owner/repo#12, or "" when it reads none.
+type WaitCondition struct {
+	Key         string `json:"key"`
+	PullRequest string `json:"pullRequest"`
 }
 
 // CommandSubject names the command itself.

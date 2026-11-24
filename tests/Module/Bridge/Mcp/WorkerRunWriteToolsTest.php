@@ -63,6 +63,16 @@ final class WorkerRunWriteToolsTest extends KernelTestCase
         self::assertSame((string) $this->owner()->id, (string) $command->requestedBy?->id);
     }
 
+    public function test_a_waiting_run_can_resume(): void
+    {
+        $run = $this->runIn(WorkerRunState::Waiting);
+
+        $row = $this->resume()([(string) $run->id])['results'][0];
+
+        self::assertSame('resumed', $row['outcome']);
+        self::assertSame(BridgeCommandKind::ResumeRun, $this->onlyCommand()->kind);
+    }
+
     public function test_a_batch_resumes_each_run_on_its_own_and_keeps_the_order(): void
     {
         $first = $this->runIn(WorkerRunState::Failed, exitCode: 1);

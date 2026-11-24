@@ -58,6 +58,7 @@ final class BridgeCommandPayload
             'inboxActionId' => $command->inboxActionId?->toRfc4122(),
             'inboxItemNumber' => $command->inboxItemNumber,
             'inboxItemId' => $command->inboxItemId?->toRfc4122(),
+            'wait' => $command->waitResult,
         ];
     }
 }

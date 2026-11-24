@@ -32,6 +32,7 @@ use App\Module\Workflow\Contract\RepositorySuggestionKey;
 use App\Module\Workflow\Contract\SuggestionMark;
 use App\Module\Workflow\Contract\TemplateOutcome;
 use App\Module\Workflow\Contract\TemplateValueKey;
+use App\Module\Workflow\Contract\WaitSettings;
 use App\Module\Workflow\Contract\WorkKind;
 use App\Module\Workflow\Expression\AllOf;
 use App\Module\Workflow\Expression\AnyOf;
@@ -286,6 +287,7 @@ final readonly class TemplateParser
 
         $skillPackages = self::skillPackages($source['skillPackages'] ?? null, $lenient, $errors);
         $needsProfile = self::needsProfile($source['needsProfile'] ?? null, $lenient, $errors);
+        $waits = self::waits($source['waits'] ?? null, $lenient, $errors);
 
         $slots = $this->slots(self::topLevelList($source, 'slots', $errors), $errors);
         $slotKeys = array_map(static fn (Slot $slot): string => $slot->key, $slots);
@@ -340,7 +342,7 @@ final readonly class TemplateParser
             throw new InvalidTemplate($errors);
         }
 
-        return new Template($key, TemplateVersion::of($source), $slots, $rules, $manualMoves, $backoffMinutes, array_values($types ?? []), $defaultType, $onWorkFailed, $childChoices, $failingSeverities, $markers, $approvalCoversConflictResolution, $inbox, $outcomes, $metrics, $repositorySettings, $values, $skillPackages, $needsProfile, $settings, $requirements, $settingValues, $asks);
+        return new Template($key, TemplateVersion::of($source), $slots, $rules, $manualMoves, $backoffMinutes, array_values($types ?? []), $defaultType, $onWorkFailed, $childChoices, $failingSeverities, $markers, $approvalCoversConflictResolution, $inbox, $outcomes, $metrics, $repositorySettings, $values, $skillPackages, $needsProfile, $settings, $requirements, $settingValues, $asks, $waits);
     }
 
     /**
@@ -1105,6 +1107,22 @@ final readonly class TemplateParser
     }
 
     /**
+     * Checks the parameters of one condition against a template, as a rule of that template would be checked.
+     *
+     * @param list<string> $errors the problems found, appended to
+     */
+    public function conditionOf(Template $template, string $key, mixed $params, array &$errors): ?ConditionLeaf
+    {
+        $slotKeys = array_map(static fn (Slot $slot): string => $slot->key, $template->slots);
+        $types = [];
+        foreach ($template->types as $type) {
+            $types[$type->key] = $type;
+        }
+
+        return $this->conditionLeaf($key, $params, 'condition', $slotKeys, $types, new NamedFacts([], $template->values), false, $errors);
+    }
+
+    /**
      * @param list<string>                     $slotKeys
      * @param ?array<string, TemplateCardType> $types
      * @param list<string>                     $errors
@@ -1756,6 +1774,54 @@ final readonly class TemplateParser
         }
 
         return $value;
+    }
+
+    /**
+     * A template with no section allows the default waits. A stored copy with a bad value keeps the default for it.
+     *
+     * @param list<string> $errors
+     */
+    private static function waits(mixed $value, bool $lenient, array &$errors): WaitSettings
+    {
+        if (null === $value) {
+            return new WaitSettings();
+        }
+        if (!self::isMap($value)) {
+            if (!$lenient) {
+                $errors[] = 'waits: must be a map';
+            }
+
+            return new WaitSettings();
+        }
+        if (!$lenient) {
+            foreach (array_keys($value) as $name) {
+                if (!\in_array($name, ['maxMinutes', 'maxPerRound'], true)) {
+                    $errors[] = \sprintf('waits: unknown key "%s"', $name);
+                }
+            }
+        }
+
+        return new WaitSettings(
+            self::waitLimit($value, 'maxMinutes', WaitSettings::DEFAULT_MAX_MINUTES, WaitSettings::LEAST_MAX_MINUTES, WaitSettings::MOST_MAX_MINUTES, $lenient, $errors),
+            self::waitLimit($value, 'maxPerRound', WaitSettings::DEFAULT_MAX_PER_ROUND, WaitSettings::LEAST_MAX_PER_ROUND, WaitSettings::MOST_MAX_PER_ROUND, $lenient, $errors),
+        );
+    }
+
+    /**
+     * @param array<mixed> $section
+     * @param list<string> $errors
+     */
+    private static function waitLimit(array $section, string $name, int $default, int $least, int $most, bool $lenient, array &$errors): int
+    {
+        $given = $section[$name] ?? $default;
+        if (\is_int($given) && $given >= $least && $given <= $most) {
+            return $given;
+        }
+        if (!$lenient) {
+            $errors[] = \sprintf('waits.%s: must be a whole number from %d to %d', $name, $least, $most);
+        }
+
+        return $default;
     }
 
     /** @return ?list<int> */

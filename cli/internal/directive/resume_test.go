@@ -92,6 +92,32 @@ func TestRenderResumeAskClosedSaysTheOwnerAnswered(t *testing.T) {
 	}
 }
 
+// The resume after a wait names why the wait ended: the conditions that were
+// true, the time limit, or the pull request that left the card.
+func TestRenderResumeWaitEndedSaysWhyTheWaitEnded(t *testing.T) {
+	for name, tc := range map[string]struct {
+		result WaitResult
+		want   string
+	}{
+		"condition":         {WaitResult{Reason: "condition", Conditions: []WaitCondition{{Key: "pr.checks_passed", PullRequest: "pr:o/r#12"}, {Key: "card.paused"}}}, "this condition is true: pr.checks_passed on pr:o/r#12, card.paused. "},
+		"time limit":        {WaitResult{Reason: "timed-out"}, "Your wait timed out. "},
+		"pull request gone": {WaitResult{Reason: "subject-gone"}, "the pull request left the card"},
+		"a person":          {WaitResult{Reason: "resumed-by-person"}, "A person ended your wait"},
+		"no result":         {WaitResult{}, "Your wait ended. "},
+	} {
+		t.Run(name, func(t *testing.T) {
+			got := RenderResumeWaitEnded(tc.result)
+
+			if !strings.Contains(got, tc.want) || !strings.Contains(got, "Check the state of the work first") {
+				t.Fatalf("RenderResumeWaitEnded() = %q, want it to contain %q", got, tc.want)
+			}
+			if !strings.HasSuffix(got, "\n\n"+Footer) {
+				t.Fatalf("RenderResumeWaitEnded() = %q, want it to end with the footer", got)
+			}
+		})
+	}
+}
+
 var sentAction = InboxAction{ItemID: "0199a0e2-2222-7c5e-9f2a-3b1c6d7e8f90", ItemNumber: 12, ActionID: "0199a0e2-1111-7c5e-9f2a-3b1c6d7e8f90"}
 
 // The line gives inbox_get the item id it takes, and the action id that picks

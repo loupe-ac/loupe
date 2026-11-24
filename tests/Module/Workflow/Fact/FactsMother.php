@@ -59,6 +59,7 @@ use App\Module\Bridge\Workflow\RunStoppedFacts;
 use App\Module\Bridge\Workflow\SessionFacts;
 use App\Module\Bridge\Workflow\WorkerRunFactProvider;
 use App\Module\Bridge\Workflow\WorkerRunFacts;
+use App\Module\Bridge\Workflow\WorkerWaitFacts;
 use App\Module\Bridge\Workflow\WorkRequestFactProvider;
 use App\Module\Bridge\Workflow\WorkRequestFacts;
 use App\Module\Bridge\Workflow\WorkTakerFacts;
@@ -131,7 +132,7 @@ final class FactsMother
             ...self::byClass(new WorkRequestFacts($run->activeWorkKinds, [], $run->activeWorkKinds, []), new RefusalFacts($run->lastRefusalCode), new WorkerRunFacts($run->activeWorkerKinds, [], $run->activeWorkerKinds, []), new ParentWorkFacts($run->parentActiveKinds)),
             ...self::byClass(new FixRunFacts([]), new StaleApprovalFacts([]), new WorkAtHeadFacts([], []), new LatestWorkFacts($run->latestWorkState, $run->latestWorkKind, $run->latestWorkReason)),
             ...self::byClass(new PauseFacts(null), new CardActivityFacts(null), new ColumnArrivalFacts(null), new SessionArrivalFacts(false), new ChildActivityFacts(null, false), new StuckDelayFacts(BoardAutomationSettings::DEFAULT_STUCK_DELAY_MINUTES), new BlockerHoldFacts(null), new WorkHoldFacts(null), new ScheduledRetryFacts([])),
-            ...self::byClass(new RunStoppedFacts(null, null), new SessionFacts(null, null), new HoldFacts(null), new OpenQuestionFacts([]), new WaitingAskFacts([]), new WorkTakerFacts([])),
+            ...self::byClass(new RunStoppedFacts(null, null), new SessionFacts(null, null), new HoldFacts(null), new OpenQuestionFacts([]), new WaitingAskFacts([]), new WorkTakerFacts([]), new WorkerWaitFacts(null)),
             ...self::byClass(new RunNeedsPersonFacts(null, null, null, null), new RunAskingFacts(false, null), new AgentReviewOpenFacts([])),
         ];
         $prints = [
@@ -157,6 +158,7 @@ final class FactsMother
             RunAskingFacts::class => [false, null],
             AgentReviewOpenFacts::class => [],
             WorkTakerFacts::class => [],
+            WorkerWaitFacts::class => null,
             LatestWorkFacts::class => new \ReflectionClass(LatestWorkFactProvider::class)->newInstanceWithoutConstructor()->fingerprint($given[LatestWorkFacts::class]),
         ];
         $legacy = [];

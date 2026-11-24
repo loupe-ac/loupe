@@ -519,6 +519,8 @@ func (r *router) resumeRun(c api.Command) (state, reason string) {
 	switch {
 	case c.Cause == api.CauseAskClosed:
 		prompt = directive.RenderResumeAskClosed()
+	case c.Cause == api.CauseWaitEnded:
+		prompt = directive.RenderResumeWaitEnded(waitResultOf(c))
 	case c.InboxActionID != "":
 		prompt, cause = directive.RenderResumeByInboxAction(directive.InboxAction{ItemID: c.InboxItemID, ItemNumber: c.InboxItemNumber, ActionID: c.InboxActionID}), api.CauseInboxAction
 	}
@@ -810,4 +812,18 @@ func (r *router) writePause(paused bool) error {
 	}
 
 	return writeAtomic(r.pauseFile, ".pause-*", b)
+}
+
+// waitResultOf is what the prompt of a wait-ended resume says. A command with
+// no result reads as a wait that ended with no known reason.
+func waitResultOf(c api.Command) directive.WaitResult {
+	if c.Wait == nil {
+		return directive.WaitResult{}
+	}
+	result := directive.WaitResult{Reason: c.Wait.Reason}
+	for _, condition := range c.Wait.Conditions {
+		result.Conditions = append(result.Conditions, directive.WaitCondition{Key: condition.Key, PullRequest: condition.PullRequest})
+	}
+
+	return result
 }

@@ -66,6 +66,7 @@ framework:
             App\Module\Bridge\Messenger\CollectSessionUsage: jobs
             App\Module\Bridge\Messenger\RecomputeBucketTimes: jobs
             App\Module\Bridge\Messenger\ResumeAskingSession: jobs
+            App\Module\Bridge\Messenger\ResumeWaitingSession: jobs
             App\Module\Bridge\Messenger\WriteWorkerRunFacts: insights
             App\Module\Forge\Messenger\CheckForgeBranch: jobs
             App\Module\Forge\Messenger\CheckForgeRepository: jobs

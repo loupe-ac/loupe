@@ -53,6 +53,7 @@ use App\Module\Workflow\Contract\TemplateSetting;
 use App\Module\Workflow\Contract\TemplateValueKey;
 use App\Module\Workflow\Contract\Unreadable;
 use App\Module\Workflow\Contract\UnreadableKind;
+use App\Module\Workflow\Contract\WaitSettings;
 use App\Module\Workflow\Expression\AllOf;
 use App\Module\Workflow\Expression\AnyOf;
 use App\Module\Workflow\Expression\ConditionLeaf;
@@ -968,6 +969,70 @@ final class TemplateParserTest extends TestCase
         yield 'an unknown severity' => [['important', 'blocker']];
         yield 'not a list' => ['important'];
         yield 'not a string' => [[7]];
+    }
+
+    public function test_a_template_with_no_waits_section_allows_the_default_waits(): void
+    {
+        foreach ([$this->parser->parse(self::valid()), $this->parser->parseStored(self::valid())] as $template) {
+            self::assertEquals(new WaitSettings(120, 10), $template->waits);
+        }
+    }
+
+    public function test_a_template_reads_its_waits_section_and_a_partial_section_keeps_the_other_default(): void
+    {
+        self::assertEquals(new WaitSettings(30, 4), $this->parser->parse(self::valid() + ['waits' => ['maxMinutes' => 30, 'maxPerRound' => 4]])->waits);
+        self::assertEquals(new WaitSettings(1440, 10), $this->parser->parse(self::valid() + ['waits' => ['maxMinutes' => 1440]])->waits);
+        self::assertEquals(new WaitSettings(120, 1), $this->parser->parse(self::valid() + ['waits' => ['maxPerRound' => 1]])->waits);
+    }
+
+    #[DataProvider('invalidWaits')]
+    public function test_waits_that_are_not_valid_are_refused_and_a_stored_copy_keeps_the_default_for_them(mixed $value, string $error, WaitSettings $kept): void
+    {
+        $source = self::valid() + ['waits' => $value];
+
+        try {
+            $this->parser->parse($source);
+            self::fail('The template should be refused.');
+        } catch (InvalidTemplate $e) {
+            self::assertSame([$error], $e->errors);
+        }
+        self::assertEquals($kept, $this->parser->parseStored($source)->waits);
+    }
+
+    /** @return iterable<string, array{mixed, string, WaitSettings}> */
+    public static function invalidWaits(): iterable
+    {
+        yield 'a list' => [[30], 'waits: must be a map', new WaitSettings()];
+        yield 'a string' => ['long', 'waits: must be a map', new WaitSettings()];
+        yield 'minutes of zero' => [['maxMinutes' => 0, 'maxPerRound' => 4], 'waits.maxMinutes: must be a whole number from 1 to 1440', new WaitSettings(120, 4)];
+        yield 'minutes over a day' => [['maxMinutes' => 1441], 'waits.maxMinutes: must be a whole number from 1 to 1440', new WaitSettings()];
+        yield 'minutes as text' => [['maxMinutes' => '30'], 'waits.maxMinutes: must be a whole number from 1 to 1440', new WaitSettings()];
+        yield 'a per round of zero' => [['maxMinutes' => 30, 'maxPerRound' => 0], 'waits.maxPerRound: must be a whole number from 1 to 100', new WaitSettings(30, 10)];
+        yield 'a per round over 100' => [['maxPerRound' => 101], 'waits.maxPerRound: must be a whole number from 1 to 100', new WaitSettings()];
+        yield 'a per round as a float' => [['maxPerRound' => 2.5], 'waits.maxPerRound: must be a whole number from 1 to 100', new WaitSettings()];
+        yield 'an unknown key' => [['maxMinutes' => 30, 'maxHours' => 2], 'waits: unknown key "maxHours"', new WaitSettings(30, 10)];
+    }
+
+    public function test_the_shipped_lifecycle_file_states_its_waits(): void
+    {
+        $source = Yaml::parseFile(\dirname(__DIR__, 4).'/config/workflows/lifecycle.yaml');
+        self::assertIsArray($source);
+
+        self::assertSame(['maxMinutes' => 120, 'maxPerRound' => 10], $source['waits'] ?? null);
+    }
+
+    public function test_one_condition_is_checked_against_the_template_as_a_rule_would_be(): void
+    {
+        $template = $this->parser->parse(self::valid());
+        $errors = [];
+
+        $leaf = $this->parser->conditionOf($template, 'card.type', ['types' => ['bug']], $errors);
+        self::assertInstanceOf(ConditionLeaf::class, $leaf);
+        self::assertSame(['types' => ['bug']], $leaf->params);
+        self::assertSame([], $errors);
+
+        self::assertNull($this->parser->conditionOf($template, 'card.type', ['types' => ['story']], $errors));
+        self::assertSame(['condition: card.type: unknown type "story"'], $errors);
     }
 
     public function test_a_template_reads_the_retry_policy_for_a_refused_request(): void

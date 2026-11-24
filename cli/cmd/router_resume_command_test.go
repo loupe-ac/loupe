@@ -253,6 +253,28 @@ func TestTheResumeOfAClosedAskSaysTheOwnerAnswered(t *testing.T) {
 	}
 }
 
+// Loupe resumes the session of a wait once the wait ends. The prompt names the
+// conditions that were true, and the wake keeps the cause.
+func TestTheResumeOfAnEndedWaitNamesTheConditions(t *testing.T) {
+	h := newWorkHarness(t)
+	h.withWork()
+	h.states()
+	h.worker.result = finishedRun
+	c := workResumeOf(endedRunKey)
+	c.Cause = api.CauseWaitEnded
+	c.Wait = &api.CommandWait{Reason: api.WaitConditionMet, Conditions: []api.WaitCondition{{Key: "pr.checks_failed", PullRequest: "pr:o/r#12"}}}
+
+	if state, reason := h.resume(c); state != api.CommandDone {
+		t.Fatalf("resume = %s %q", state, reason)
+	}
+
+	calls := h.worker.recorded()
+	want := directive.RenderResumeWaitEnded(directive.WaitResult{Reason: "condition", Conditions: []directive.WaitCondition{{Key: "pr.checks_failed", PullRequest: "pr:o/r#12"}}})
+	if len(calls) != 1 || !calls[0].resume || calls[0].prompt != want || calls[0].cause != api.CauseWaitEnded {
+		t.Fatalf("workers = %+v", calls)
+	}
+}
+
 // A click on an inbox action resumes with the person's resume and the line
 // that names the item. A command with no item id resumes as a person's.
 func TestTheResumeOfAnInboxActionNamesTheItem(t *testing.T) {

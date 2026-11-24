@@ -49,6 +49,7 @@ metrics:
       duration: { from: { earliest: [{ arrived: implementation }, pr-opened] }, to: ready-to-merge }
 agentReviewFailingSeverities: [important]
 approvalCoversConflictResolution: true
+waits: { maxMinutes: 120, maxPerRound: 10 }
 repositorySettings:
     - { key: approval-gate, mark: warning }
     - { key: ci-checks, mark: warning }
@@ -1267,7 +1268,15 @@ markers:
       kind: working
       label: marker.run_open
       remedy: marker.run_open.remedy
-      when: { card.run.worker_active: {} }
+      when:
+          all:
+              - card.run.worker_active: {}
+              - not: { card.run.worker_waiting: {} }
+    - key: worker-waiting
+      kind: waiting
+      label: marker.worker_waiting
+      remedy: marker.worker_waiting.remedy
+      when: { card.run.worker_waiting: {} }
     - key: no-capable-bridge
       kind: needs-you
       label: marker.no_capable_bridge
