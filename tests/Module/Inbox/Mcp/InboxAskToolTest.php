@@ -107,6 +107,7 @@ final class InboxAskToolTest extends KernelTestCase
         self::assertSame(['open', 'open'], array_column($result['items'], 'state'));
 
         $this->em->clear();
+        self::assertNotNull($result['askId']);
         $ask = $this->em->find(InboxAsk::class, Uuid::fromString($result['askId']));
         self::assertInstanceOf(InboxAsk::class, $ask);
         self::assertSame($sessionId, (string) $ask->sessionId);
@@ -130,6 +131,7 @@ final class InboxAskToolTest extends KernelTestCase
         self::assertSame(2, $second['items'][0]['number']);
 
         $this->em->clear();
+        self::assertNotNull($first['askId']);
         $ask = $this->em->find(InboxAsk::class, Uuid::fromString($first['askId']));
         self::assertInstanceOf(InboxAsk::class, $ask);
         self::assertCount(2, $ask->items);
@@ -330,6 +332,7 @@ final class InboxAskToolTest extends KernelTestCase
         ($this->tool)(sessionId: $sessionId, items: [['kind' => 'question', 'title' => 'Second', 'freeText' => true]], bridgeId: $bridgeId);
 
         $this->em->clear();
+        self::assertNotNull($first['askId']);
         $ask = $this->em->find(InboxAsk::class, Uuid::fromString($first['askId']));
         self::assertInstanceOf(InboxAsk::class, $ask);
         self::assertSame($bridgeId, (string) $ask->bridgeId);
@@ -782,7 +785,7 @@ final class InboxAskToolTest extends KernelTestCase
     /**
      * @param array<string, mixed> $suggestion
      *
-     * @return array{askId: string, extended: bool, closed: bool, items: list<array{itemId: string, number: int, kind: string, origin: string, title: string, state: string, blocking: bool, createdAt: string, updatedAt: string, closedAt: ?string}>}
+     * @return array{askId: string|null, extended: bool, closed: bool, items: list<array{itemId: string, number: int, kind: string, origin: string, title: string, state: string, blocking: bool, createdAt: string, updatedAt: string, closedAt: ?string}>}
      */
     private function askTodo(?Bridge $bridge, array $suggestion): array
     {

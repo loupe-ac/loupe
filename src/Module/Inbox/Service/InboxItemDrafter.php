@@ -20,6 +20,8 @@ use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\InboxLimits;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
+use App\Module\Workflow\Contract\AskLabelRule;
+use App\Module\Workflow\Contract\InboxAskSettings;
 
 /**
  * Checks one item before it reaches the inbox: trims it, refuses what breaks a
@@ -30,11 +32,15 @@ final readonly class InboxItemDrafter
     public function __construct(
         private InboxLinkResolver $links,
         private SessionPromptLimit $promptLimit,
+        private InboxAskSettings $askSettings,
     ) {
     }
 
-    /** @param string $prefix what each refused field name starts with, such as `items[0].` */
-    public function draft(Project $project, AskInboxItem $input, string $prefix, ?Bridge $bridge): AskInboxDraft
+    /**
+     * @param string $prefix what each refused field name starts with, such as `items[0].`
+     * @param bool   $waits  whether a session waits for the item, which an item from the public API never does
+     */
+    public function draft(Project $project, AskInboxItem $input, string $prefix, ?Bridge $bridge, bool $waits = true): AskInboxDraft
     {
         $field = static fn (string $name): string => $prefix.$name;
 
@@ -108,6 +114,7 @@ final readonly class InboxItemDrafter
         $recommendedOption = $this->recommendation($input, $options, $field);
         $optionCosts = $this->costs($input, $options, $field);
         $details = $this->details($input, $field);
+        $label = $this->label($project, $input, $options, $recommendedOption, $details, $field, $waits);
 
         $cardIds = $input->cardIds;
         $documentIds = $input->documentIds;
@@ -141,7 +148,48 @@ final readonly class InboxItemDrafter
             confidence: null === $recommendedOption ? null : InboxConfidence::from($input->confidence ?? ''),
             optionCosts: $optionCosts,
             details: $details,
+            label: $input->label,
+            mode: $waits ? $label?->mode : null,
+            defaultHours: $waits ? $label?->defaultHours : null,
         );
+    }
+
+    /**
+     * The rule of the template for the label of the item, after the checks that a labelled ask meets, or null for an
+     * item with no label.
+     *
+     * @param list<string>               $options
+     * @param array<string, string>|null $details
+     * @param \Closure(string): string   $field
+     */
+    private function label(Project $project, AskInboxItem $input, array $options, ?int $recommendedOption, ?array $details, \Closure $field, bool $waits): ?AskLabelRule
+    {
+        if (null === $input->label) {
+            return null;
+        }
+        if (mb_strlen($input->label) > AskLabelRule::MAX_NAME_LENGTH || 1 !== preg_match(AskLabelRule::NAME_PATTERN, $input->label)) {
+            throw new DomainErrors([$field('label') => AskInboxHandler::LABEL_INVALID]);
+        }
+        if (InboxItemKind::Question !== $input->kind || [] === $options) {
+            throw new DomainErrors([$field('label') => AskInboxHandler::LABEL_NEEDS_QUESTION]);
+        }
+        if ($waits && false === $input->blocking) {
+            throw new DomainErrors([$field('label') => AskInboxHandler::LABEL_NEEDS_BLOCKING]);
+        }
+        if ($input->multiple) {
+            throw new DomainErrors([$field('multiple') => AskInboxHandler::LABEL_NO_MULTIPLE]);
+        }
+        if (null === $recommendedOption) {
+            throw new DomainErrors([$field('recommendedOption') => AskInboxHandler::LABEL_NEEDS_RECOMMENDED]);
+        }
+        $rule = $this->askSettings->labelRule($project->id ?? throw new \LogicException('A stored project has an id.'), $input->label);
+        foreach ($rule->requiredFields as $name) {
+            if (!isset($details[$name])) {
+                throw new DomainErrors([$field('details.'.$name) => AskInboxHandler::LABEL_FIELD_MISSING]);
+            }
+        }
+
+        return $rule;
     }
 
     /**

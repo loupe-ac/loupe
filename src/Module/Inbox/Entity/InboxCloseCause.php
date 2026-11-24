@@ -15,4 +15,5 @@ enum InboxCloseCause: string
     case CommandSucceeded = 'command-succeeded';
     case RuleWithdrew = 'rule-withdrew';
     case SwitchedOff = 'switched-off';
+    case Defaulted = 'defaulted';
 }

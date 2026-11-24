@@ -87,6 +87,8 @@ parameters:
     app.forge.repository_check_schedule: '7 * * * *'
     # The backstop for a card wait that no event reported.
     app.inbox.card_wait_sweep_schedule: '*/15 * * * *'
+    # Every minute, so an ask whose deadline passed is answered soon after it.
+    app.inbox.default_close_schedule: '* * * * *'
     # Every minute, so the notice closes soon after a bridge is back.
     app.inbox.bridge_outage_schedule: '* * * * *'
     # How long work waits with no bridge that could take it before the notice opens, in minutes.

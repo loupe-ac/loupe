@@ -394,7 +394,35 @@ asks:
 
 `groupByCard` says whether the open side of the inbox page groups its rows by
 card. It defaults to `true`. Set it to `false` for one flat list, oldest first.
-The template is refused when the value is not `true` or `false`, or when the
+
+The same section says what Loupe does with the questions that an agent labels.
+
+```yaml
+asks:
+    defaultHours: 24
+    defaults: true
+    log: true
+    fields: [undo]
+    labels:
+        - { key: naming, mode: log }
+        - { key: ordering, mode: default }
+        - { key: security, mode: ask }
+```
+
+| Key | Meaning | Default |
+|---|---|---|
+| `labels` | The labels an agent may use, each with a `key` and a `mode`: `log`, `default` or `ask`. | none |
+| `defaultHours` | How many hours a `default` question waits for you. A whole number from 1 to 720. | `24` |
+| `defaults` | Switches the `default` mode. When `false`, a `default` label asks. | `true` |
+| `log` | Switches the `log` mode. When `false`, a `log` label asks. | `true` |
+| `fields` | Detail fields that every labelled question must carry, such as `undo`. | none |
+
+A label key and a field name are lowercase words joined by hyphens, at most 40
+characters. A label that the list does not name asks. Each mode is described
+under [Labels, defaults and the log](inbox.md#labels-defaults-and-the-log).
+
+The template is refused when a value has the wrong type, when a key or a label
+is listed twice, when a mode is not `log`, `default` or `ask`, or when the
 section holds a key that Loupe does not know. A stored copy with a bad value
 reads as the default.
 

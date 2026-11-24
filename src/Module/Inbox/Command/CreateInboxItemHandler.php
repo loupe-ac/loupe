@@ -51,7 +51,7 @@ final readonly class CreateInboxItemHandler
             throw new \LogicException('The request refuses another kind and a blocking item.');
         }
         // Before the transaction, for the reason in InboxLinkResolver.
-        $draft = $this->drafter->draft($command->project, $command->item, '', null);
+        $draft = $this->drafter->draft($command->project, $command->item, '', null, waits: false);
 
         $view = $this->em->wrapInTransaction(function () use ($command, $draft): CreateInboxItemView {
             // Serialises every writer of items in the project: the numbers, and the dedupe lookup.
@@ -85,6 +85,7 @@ final readonly class CreateInboxItemHandler
             $item->confidence = $draft->confidence;
             $item->optionCosts = $draft->optionCosts;
             $item->details = $draft->details;
+            $item->label = $draft->label;
             foreach ($draft->cards as $card) {
                 $item->cards->add(new InboxItemCard($item, $card, $now));
             }

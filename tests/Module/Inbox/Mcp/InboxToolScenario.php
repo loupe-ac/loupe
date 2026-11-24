@@ -51,7 +51,7 @@ trait InboxToolScenario
      *
      * @param array<string, mixed> $item
      *
-     * @return array{askId: string, extended: bool, closed: bool, items: list<array{itemId: string, number: int, kind: string, origin: string, title: string, state: string, blocking: bool, createdAt: string, updatedAt: string, closedAt: ?string}>}
+     * @return array{askId: string|null, extended: bool, closed: bool, items: list<array{itemId: string, number: int, kind: string, origin: string, title: string, state: string, blocking: bool, createdAt: string, updatedAt: string, closedAt: ?string}>}
      */
     private function askQuestion(string $title, array $item = [], ?string $sessionId = null): array
     {

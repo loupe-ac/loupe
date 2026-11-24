@@ -465,6 +465,25 @@ class InboxItemRepository extends ServiceEntityRepository
         return ['items' => array_values($items), 'memberships' => array_values($memberships)];
     }
 
+    /**
+     * The open items whose deadline passed, oldest deadline first.
+     *
+     * @return list<InboxItem>
+     */
+    public function findPastDefaultsAt(\DateTimeImmutable $now, int $limit): array
+    {
+        return array_values($this->createQueryBuilder('i')
+            ->andWhere('i.defaultsAt IS NOT NULL')
+            ->andWhere('i.defaultsAt <= :now')
+            ->andWhere('i.state = :open')
+            ->setParameter('now', $now)
+            ->setParameter('open', InboxItemState::Open)
+            ->orderBy('i.defaultsAt', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult());
+    }
+
     /** @return list<InboxItem> */
     public function findOldestOpen(Project $project, int $limit): array
     {

@@ -9,6 +9,7 @@ use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Inbox\Entity\InboxConfidence;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Review\Entity\Document;
+use App\Module\Workflow\Contract\AskMode;
 
 /** One item after the handler checked it, with its links resolved. */
 final readonly class AskInboxDraft
@@ -38,6 +39,11 @@ final readonly class AskInboxDraft
         public ?array $optionCosts = null,
         /** @var array<string, string>|null */
         public ?array $details = null,
+        public ?string $label = null,
+        /** The mode the template gives the label. Null for an ask with no label. */
+        public ?AskMode $mode = null,
+        /** How many hours a default item waits, when the mode is `default`. */
+        public ?int $defaultHours = null,
     ) {
     }
 }

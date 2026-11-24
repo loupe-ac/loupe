@@ -267,6 +267,8 @@ Every item that takes a response shows its forms under its text.
   under the option. A **Details** section under the options holds the facts
   behind the question, one field for each name. It starts closed. Select it to
   read the fields.
+  A question can carry a deadline. Under the options, the block then says when
+  Loupe answers for you. See [A default after a deadline](#a-default-after-a-deadline).
 - **Mark a to-do done.** Write an optional note for the agent in the note
   field, then select **Mark complete**. The closed to-do shows your note.
 - **Dismiss an item.** Write an optional note for the agent in the note field,
@@ -1005,6 +1007,45 @@ Loupe resumes one of them: the session that took the item first, which is the
 session that asked the question. The other sessions stay blocked, and the card
 history says why. You can still resume one of them by hand from the worker runs
 page. Sessions that work on different cards all resume.
+
+## Labels, defaults and the log
+
+An agent can give a question a label, such as `naming` or `security`. The label
+names the kind of choice. The `asks:` section of the
+[workflow template](workflows.md#the-asks-section) says what Loupe does with
+each label. A label has one of three modes.
+
+| Mode | What happens |
+|---|---|
+| `ask` | The question opens an item and the agent waits for your answer, as for a question with no label. |
+| `default` | The question opens an item with a deadline. When you do not answer before the deadline, Loupe answers with the option that the agent recommended. |
+| `log` | Loupe opens no item. The agent goes on with the option it recommended, and you are not asked. |
+
+A label that the template does not list asks. A mode whose switch is off in the
+template asks too.
+
+A question with a label always carries a recommended option with its
+confidence, and every detail field that the template lists. Loupe refuses it
+otherwise, because it may answer with that option in your place.
+
+### A default after a deadline
+
+The deadline of a `default` question is the number of hours in `defaultHours`
+of the template, 24 by default, counted from the moment the agent asks. The
+question shows the time under its options. Until then it is an ordinary open
+question, and your answer wins. When the deadline passes, Loupe closes the item
+as itself, with the recommended option as the answer, and the item reads
+"Answered by Loupe with the recommended option, after the deadline". The ask
+closes as it does after your answer, and the agent that asked resumes with that
+option in its answers. A check runs each minute, so the answer comes within a
+minute of the deadline. While the inbox is off, no default runs.
+
+### The log mode
+
+A `log` question never reaches the inbox. The agent reads the reply "Logged
+"title" as naming. Go on with "option"." and goes on in the same turn. Loupe
+keeps no record of a logged choice yet. A later release adds a decision log on
+the card.
 
 ## All inboxes
 

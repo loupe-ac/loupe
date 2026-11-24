@@ -129,6 +129,9 @@
                         <div class="lp-decision__note">{{ form_widget(form.note, {attr: noteAttr}) }}</div>
                     {% endif %}
                 </fieldset>
+                {% if item.defaultsAt and item.recommendedOption is not null %}
+                    <twig:Ds:Hint data-inbox-deadline>{{ 'inbox.answer.deadline'|trans({'%time%': item.defaultsAt|date('j M Y H:i'), '%option%': item.options[item.recommendedOption]}) }}</twig:Ds:Hint>
+                {% endif %}
                 {{ form_widget(form.selectedOptions) }}
                 <twig:Ds:FieldErrors :fieldView="form.selectedOptions" :id="selectedErrorsId" />
                 {% if 'note' in names %}
