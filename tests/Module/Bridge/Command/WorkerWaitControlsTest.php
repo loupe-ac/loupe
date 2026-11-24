@@ -221,6 +221,25 @@ final class WorkerWaitControlsTest extends KernelTestCase
         self::assertSame(0, $this->countCommands($this->em()));
     }
 
+    public function test_a_person_cannot_resume_a_waiting_run_while_the_stop_is_queued(): void
+    {
+        [$wait, $run] = $this->parkedWait(WorkerRunState::Waiting);
+        $wait->end(WorkerWaitEndReason::TimedOut, new \DateTimeImmutable('-5 minutes'));
+        $this->em()->flush();
+        $this->em()->getConnection()->executeStatement('UPDATE bridges SET capabilities = CAST(:capabilities AS jsonb) WHERE id = :id', ['capabilities' => json_encode([Bridge::CAPABILITY_COMMANDS]), 'id' => (string) $wait->bridgeId]);
+        (self::getContainer()->get(EndWaitsOfCardHandler::class))(new EndWaitsOfCardCommand($this->cardId, WorkerWaitEndReason::CardMoved));
+        $this->em()->clear();
+        $run = $this->reloadRun($run);
+
+        try {
+            (self::getContainer()->get(\App\Module\Bridge\Command\RequestBridgeCommandHandler::class))(new \App\Module\Bridge\Command\RequestBridgeCommandCommand($run, \App\Module\Bridge\ValueObject\BridgeCommandKind::ResumeRun, null));
+            self::fail('The resume request must be refused.');
+        } catch (DomainErrors $e) {
+            self::assertSame(['run' => \App\Module\Bridge\Command\RequestBridgeCommandHandler::NOT_RESUMABLE], $e->errors);
+        }
+        self::assertSame(0, $this->countCommands($this->em()));
+    }
+
     public function test_a_person_can_resume_a_run_after_the_queued_stop_of_a_stranded_wait(): void
     {
         [$wait, $run] = $this->parkedWait(WorkerRunState::Waiting);

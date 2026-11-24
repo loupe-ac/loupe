@@ -114,8 +114,8 @@ final readonly class RequestBridgeCommandHandler
                     if (BridgeCommandCause::WaitEnded === $command->cause ? WorkerRunState::Waiting !== $stored : !($stored?->isResumable() ?? false)) {
                         return self::NOT_RESUMABLE;
                     }
-                    // The mark stays after the stop, and the stopped run takes a resume of a person.
-                    if (BridgeCommandCause::WaitEnded === $command->cause && $this->workerWaits->isStopRequestedOfRun($run->id ?? throw new \LogicException('A stored run has an id.'))) {
+                    // The mark stays after the stop, so only a run still Waiting is held back. A stopped run takes a resume of a person.
+                    if (WorkerRunState::Waiting === $stored && $this->workerWaits->isStopRequestedOfRun($run->id ?? throw new \LogicException('A stored run has an id.'))) {
                         return self::NOT_RESUMABLE;
                     }
                     if ($this->isCardHeld($run)) {
