@@ -79,7 +79,7 @@ class InboxDecision
         #[ORM\Column(length: 20, enumType: InboxDecisionMadeBy::class)]
         public InboxDecisionMadeBy $madeBy,
 
-        #[ORM\Column]
+        #[ORM\Column(type: MicrosecondDateTimeImmutableType::NAME, columnDefinition: 'TIMESTAMP(6) WITHOUT TIME ZONE NOT NULL')]
         public readonly \DateTimeImmutable $createdAt = new \DateTimeImmutable(),
     ) {
     }

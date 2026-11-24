@@ -4,17 +4,21 @@ declare(strict_types=1);
 
 namespace App\Module\Inbox\Command;
 
+use App\Module\Account\Entity\User;
+use App\Module\Board\Repository\CardRepository;
 use App\Module\Bridge\Service\BridgeLiveness;
 use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxAskItem;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Repository\InboxAskRepository;
+use App\Module\Inbox\Repository\InboxDecisionRepository;
 use App\Module\Inbox\Repository\InboxItemRepository;
 use App\Module\Inbox\Service\InboxOutcome;
 use App\Module\Inbox\Service\InboxReviewLookup;
 use App\Module\Inbox\Service\InboxThreadPreload;
 use App\Module\Inbox\Service\ShownInboxAsk;
+use App\Module\Inbox\View\InboxDigest;
 use App\Module\Inbox\View\InboxGroup;
 use App\Module\Inbox\View\InboxPageView;
 use App\Module\Inbox\View\InboxRow;
@@ -23,6 +27,7 @@ use App\Module\Inbox\View\InboxView;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\InboxAskSettings;
 use App\Utils\PageList;
+use Symfony\Component\Uid\Uuid;
 
 final readonly class ShowInboxHandler
 {
@@ -38,6 +43,8 @@ final readonly class ShowInboxHandler
         private InboxOutcome $outcome,
         private InboxThreadPreload $threadPreload,
         private InboxAskSettings $askSettings,
+        private InboxDecisionRepository $inboxDecisions,
+        private CardRepository $cards,
     ) {
     }
 
@@ -47,6 +54,7 @@ final readonly class ShowInboxHandler
         $view = $command->view;
 
         $openRows = $this->openRows($project);
+        $digests = [];
 
         if ($view->isSearch()) {
             $search = $this->inboxAsks->searchRows($project, $view->query, $view->type, $this->inboxItems->searchLanguagesOf($project), $view->page, self::SEARCH_RESULTS_PER_PAGE);
@@ -60,6 +68,7 @@ final readonly class ShowInboxHandler
             $page = min(max(1, $view->page), max(1, (int) ceil($total / $perPage)));
             $rows = $this->rowsOf($this->inboxAsks->findClosedPageForProject($project, ($page - 1) * $perPage, $perPage, $view->type));
         } else {
+            $digests = null === $view->type ? $this->digestsOf($project, $command->viewer) : [];
             $rows = null === $view->type ? $openRows : array_values(array_filter($openRows, static fn (InboxRow $row): bool => $row->holdsKind($view->type)));
             $total = \count($rows);
             $page = 1;
@@ -87,8 +96,36 @@ final readonly class ShowInboxHandler
             pageList: PageList::build($page, $totalPages),
             bridgeStatuses: null === $bridgeId || null !== $selected?->ask?->closedAt ? [] : $this->bridgeLiveness->forOwner($project->owner, [$bridgeId]),
             pickedNothing: $view->isPicked() && null === $selected,
-            groups: !$view->isSearch() && InboxSide::Open === $view->side && $this->askSettings->groupByCard($project->id ?? throw new \LogicException('A shown project has an id.')) ? InboxGroup::build($rows) : null,
+            groups: !$view->isSearch() && InboxSide::Open === $view->side && $this->askSettings->groupByCard($project->id ?? throw new \LogicException('A shown project has an id.')) ? InboxGroup::build($rows, $digests) : null,
+            digests: $digests,
         );
+    }
+
+    /**
+     * The cards of the project with decisions that the viewer has not seen, newest decision first.
+     *
+     * @return list<InboxDigest>
+     */
+    private function digestsOf(Project $project, ?User $viewer): array
+    {
+        if (null === $viewer) {
+            return [];
+        }
+        $unseen = $this->inboxDecisions->findUnseenDigest($project, $viewer);
+        $cards = $this->cards->findByIdsInProject($project, array_map(static fn (array $row): Uuid => Uuid::fromString($row['cardId']), $unseen));
+        $byId = [];
+        foreach ($cards as $card) {
+            $byId[(string) $card->id] = $card;
+        }
+
+        $digests = [];
+        foreach ($unseen as $row) {
+            if (isset($byId[$row['cardId']])) {
+                $digests[] = new InboxDigest($byId[$row['cardId']], $row['count'], $row['newest']);
+            }
+        }
+
+        return $digests;
     }
 
     /**

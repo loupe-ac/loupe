@@ -39,7 +39,7 @@
        A link or a form outside the view leaves the frame, which is why the frame targets the page. #}
     <turbo-frame id="inbox-view" class="lp-inbox-frame" target="_top" data-turbo-action="advance">
         <section class="lp-inbox-section lp-inbox-section--queue lp-split-region" data-inbox-section="{{ section }}">
-            <div class="lp-split-view lp-inbox-split" data-inbox-picked="{{ view.isPicked ? 'true' : 'false' }}" data-inbox-empty="{{ inbox.rows is empty ? 'true' : 'false' }}">
+            <div class="lp-split-view lp-inbox-split" data-inbox-picked="{{ view.isPicked ? 'true' : 'false' }}" data-inbox-empty="{{ inbox.rows is empty and inbox.digests is empty ? 'true' : 'false' }}">
                 <div class="lp-inbox-request-list lp-split-pane">
                     <div class="lp-inbox-list-head">
                         <twig:Ds:Tabs variant="segmented" aria-label="{{ 'inbox.view.label'|trans }}">
@@ -99,8 +99,12 @@
                                         {%- else -%}
                                             <span class="lp-inbox-group__title">{{ 'inbox.group.none'|trans }}</span>
                                         {%- endif -%}
-                                        <span class="lp-inbox-group__count">{{ 'inbox.group.open'|trans({'%count%': group.rows|length}) }}</span>
+                                        {% if group.rows is not empty %}<span class="lp-inbox-group__count">{{ 'inbox.group.open'|trans({'%count%': group.rows|length}) }}</span>{% endif %}
+                                        {% if group.digest %}<span class="lp-inbox-group__count" data-inbox-digest-count>{{ 'inbox.digest.new'|trans({'%count%': group.digest.count}) }}</span>{% endif %}
                                     </h2>
+                                    {% if group.digest %}
+                                        {% include '@Inbox/_inbox_digest.html.twig' with {digest: group.digest} only %}
+                                    {% endif %}
                                     {% for row in group.rows %}
                                         {% include '@Inbox/_inbox_request.html.twig' with {row: row, inbox: inbox} only %}
                                     {% endfor %}
@@ -109,6 +113,9 @@
                         {% else %}
                             {% for row in inbox.rows %}
                                 {% include '@Inbox/_inbox_request.html.twig' with {row: row, inbox: inbox} only %}
+                            {% endfor %}
+                            {% for digest in inbox.digests %}
+                                {% include '@Inbox/_inbox_digest.html.twig' with {digest: digest, withCard: true} only %}
                             {% endfor %}
                         {% endif %}
                     </div>
@@ -171,6 +178,8 @@
                             <twig:Ds:EmptyState :title="'inbox.filter.empty'|trans" data-inbox-type-empty />
                         {% elseif view.side == closedSide %}
                             <twig:Ds:EmptyState :title="'inbox.closed.empty'|trans" data-inbox-queue-empty="closed-asks" />
+                        {% elseif inbox.digests is not empty %}
+                            <twig:Ds:EmptyState icon="lucide:inbox" :title="'inbox.digest.pane.title'|trans" :body="'inbox.digest.pane.body'|trans" data-inbox-digest-pane />
                         {% else %}
                             <twig:Ds:EmptyState icon="lucide:inbox" :title="'inbox.empty.title'|trans" :body="'inbox.empty.body'|trans" data-inbox-queue-empty="open-asks" />
                         {% endif %}

@@ -33,6 +33,7 @@ framework:
             - worker-run-command
             - insights-proposal-accept
             - inbox-decision-follow-up
+            - inbox-decisions-seen
             - insights-bucket-rule-delete
             - insights-bucket-rule-move
             - insights-graph-refresh

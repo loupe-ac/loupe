@@ -8,6 +8,7 @@ const EAGER = [
     'board_lane',
     'card_drawer',
     'csrf_protection',
+    'decisions_seen',
     'details_memory',
     'device_code_input',
     'drawer',
