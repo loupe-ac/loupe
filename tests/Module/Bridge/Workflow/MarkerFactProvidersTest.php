@@ -161,7 +161,7 @@ final class MarkerFactProvidersTest extends KernelTestCase
         self::assertSame([['implement', 'none']], $this->provider(WorkTakerFactProvider::class)->fingerprint($facts));
 
         $bridge = new Bridge($this->card->project->owner, Uuid::v4(), [(string) $this->card->project->id], 'b4e39aa7', new \DateTimeImmutable());
-        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS];
+        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS];
         $bridge->workKinds = ['implement'];
         $this->em()->persist($bridge);
         $this->em()->flush();

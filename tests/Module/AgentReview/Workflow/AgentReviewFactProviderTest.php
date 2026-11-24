@@ -266,9 +266,9 @@ final class AgentReviewFactProviderTest extends KernelTestCase
     /** @return iterable<string, array{WorkerRunState, string, bool}> */
     public static function resumedRuns(): iterable
     {
-        yield 'it waits on the forge after the review' => [WorkerRunState::WaitingOnForge, '+1 hour', true];
+        yield 'it waits after the review' => [WorkerRunState::Waiting, '+1 hour', true];
         yield 'it succeeded after the review' => [WorkerRunState::Succeeded, '+1 hour', true];
-        yield 'it ended before the review' => [WorkerRunState::WaitingOnForge, '-1 hour', false];
+        yield 'it ended before the review' => [WorkerRunState::Waiting, '-1 hour', false];
         yield 'it ended blocked' => [WorkerRunState::Blocked, '+1 hour', false];
     }
 

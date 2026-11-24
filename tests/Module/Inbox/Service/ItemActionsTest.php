@@ -543,7 +543,7 @@ final class ItemActionsTest extends KernelTestCase
     public function test_an_item_with_no_card_and_no_bridge_that_opens_sessions_offers_no_session(): void
     {
         self::assertSame([InboxActionKind::Dismiss], $this->kinds($this->notice()));
-        $this->sessionBridge(capabilities: [Bridge::CAPABILITY_WORK_REQUESTS]);
+        $this->sessionBridge(capabilities: [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS]);
         self::assertSame([InboxActionKind::Dismiss], $this->kinds($this->notice('Another notice')));
     }
 
@@ -693,7 +693,7 @@ final class ItemActionsTest extends KernelTestCase
     private function sessionBridge(?\DateTimeImmutable $lastSeenAt = null, ?array $capabilities = null, ?array $projects = null, array $workKinds = [], ?string $name = null): Bridge
     {
         $bridge = new Bridge($this->project->owner, Uuid::v4(), $projects ?? [$this->project->id?->toRfc4122() ?? ''], 'b4e39aa7', $lastSeenAt ?? new \DateTimeImmutable());
-        $bridge->capabilities = $capabilities ?? [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION];
+        $bridge->capabilities = $capabilities ?? [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_SESSION];
         $bridge->workKinds = $workKinds;
         $bridge->name = $name;
         $this->em->persist($bridge);

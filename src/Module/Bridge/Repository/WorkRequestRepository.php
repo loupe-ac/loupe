@@ -750,18 +750,18 @@ class WorkRequestRepository extends ServiceEntityRepository
     }
 
     /**
-     * The worker run states that mean a fix round finished its work: it succeeded, or it waits on the forge or on a wait of its own.
+     * The worker run states that mean a fix round finished its work: it succeeded, or it waits on a wait of its own.
      *
      * @return list<string>
      */
     private static function finishedRunStates(): array
     {
-        return [WorkerRunState::Succeeded->value, WorkerRunState::WaitingOnForge->value, WorkerRunState::Waiting->value];
+        return [WorkerRunState::Succeeded->value, WorkerRunState::Waiting->value];
     }
 
     /**
      * When the newest fix request for the agent review of each pull request of the card finished. A request finished when it
-     * settled done, or when a worker run of it ended succeeded or waiting on the forge, so a resumed run counts after its
+     * settled done, or when a worker run of it ended succeeded or waiting, so a resumed run counts after its
      * request settled refused.
      *
      * @return array<int, \DateTimeImmutable> keyed by pull request number
@@ -805,7 +805,7 @@ class WorkRequestRepository extends ServiceEntityRepository
 
     /**
      * When the newest finished fix request opened for each pull request linked to each card. A request is finished when it
-     * settled done, or when a worker run of it ended succeeded or waiting on the forge, so a resumed run counts after its request settled refused.
+     * settled done, or when a worker run of it ended succeeded or waiting, so a resumed run counts after its request settled refused.
      * A request matches a pull request through the URL in its context and the links of the card, so two pull requests with
      * one number in two repositories stay apart.
      *

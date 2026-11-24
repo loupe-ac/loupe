@@ -176,7 +176,7 @@ final class InboxActionsToolTest extends KernelTestCase
     private function sessionBridge(Project $project): void
     {
         $bridge = new Bridge($project->owner, Uuid::v4(), [(string) $project->id], 'b4e39aa7', new \DateTimeImmutable());
-        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION];
+        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_SESSION];
         $this->em->persist($bridge);
         $this->em->flush();
     }

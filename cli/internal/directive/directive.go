@@ -13,7 +13,7 @@ import (
 const resultRequest = "End with the structured result. Set status to finished when the stage is done. " +
 	"Set it to blocked when the stage cannot go on without a person. " +
 	"Set it to unfinished when work still runs or remains. " +
-	"Set it to waiting when the work waits on the forge, such as checks on a pushed pull request. " +
+	"To wait for checks, a review or another card event, call run_wait, then end the turn with the status unfinished. " +
 	"Put one short sentence on what you did in summary. " +
 	"Set reason to the reason code of your result, such as the code on your STAGE RESULT line, when you have one. " +
 	"Never end your turn while a command, a monitor or a subagent still runs. Wait for it in the foreground. " +
