@@ -18,6 +18,7 @@ use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerWait;
 use App\Module\Bridge\Messenger\ResumeWaitingSession;
 use App\Module\Bridge\Repository\WorkerWaitRepository;
+use App\Module\Bridge\Service\WorkerWaitEnder;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkerWaitEndReason;
 use App\Module\Project\Entity\Project;
@@ -109,6 +110,22 @@ final class WorkerWaitControlsTest extends KernelTestCase
         (self::getContainer()->get(EndWaitsOfCardHandler::class))(new EndWaitsOfCardCommand($cardId, WorkerWaitEndReason::CardMoved));
 
         self::assertNull(self::getContainer()->get(WorkerWaitRepository::class)->findOpenOfCard($cardId));
+    }
+
+    public function test_an_end_that_loses_the_race_changes_nothing(): void
+    {
+        [$wait, $run] = $this->parkedWait(WorkerRunState::Waiting);
+        // Another request ended the wait after this one read it as open.
+        $this->em()->getConnection()->executeStatement(
+            "UPDATE bridge_worker_waits SET ended_at = now(), end_reason = 'resumed-by-person' WHERE id = :id",
+            ['id' => (string) $wait->id],
+        );
+
+        $ended = self::getContainer()->get(WorkerWaitEnder::class)->end($wait, WorkerWaitEndReason::CancelledByPerson);
+
+        self::assertFalse($ended);
+        self::assertSame(WorkerWaitEndReason::ResumedByPerson, $this->reload($wait)->endReason);
+        self::assertSame(WorkerRunState::Waiting, $this->reloadRun($run)->state);
     }
 
     public function test_a_control_on_a_card_with_no_open_wait_is_refused(): void

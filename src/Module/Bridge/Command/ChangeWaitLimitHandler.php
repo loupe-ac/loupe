@@ -47,9 +47,20 @@ final readonly class ChangeWaitLimitHandler
             throw new DomainErrors(['minutes' => 'bridge.wait.error.limit_passed']);
         }
 
+        // The lock keeps a racing end from landing between the check and the change.
         $before = $wait->limitAt;
-        $wait->limitAt = $limitAt;
-        $this->em->flush();
+        $changed = $this->em->wrapInTransaction(function () use ($wait, $limitAt): bool {
+            if (!$this->workerWaits->lockOpen($wait->id ?? throw new \LogicException('A stored wait has an id.'))) {
+                return false;
+            }
+            $wait->limitAt = $limitAt;
+            $this->em->flush();
+
+            return true;
+        });
+        if (!$changed) {
+            throw new DomainErrors(['minutes' => 'bridge.wait.error.no_open_wait']);
+        }
 
         $this->events->dispatch(new WorkerRunChanged($projectId, [$wait->cardId->toRfc4122()], [$wait->runId->toRfc4122()]));
         $this->auditor->record(

@@ -857,7 +857,8 @@ A move into a terminal column ends it with `card-finished`.
 A hold of the card ends it with `card-held`.
 Each of these three ends stops a parked run, as a cancel does, and asks for no confirmation.
 Any later closing report of that run, a failure or an interruption too, closes it as `stopped`.
-A wait that ends while its run still ends its turn leaves the state of the run as the bridge reports it.
+A cancel, a move, a finish or a hold that ends a wait while its run still ends its turn forces the state `stopped` when the run closes.
+The other end reasons leave the state of the run as the bridge reports it.
 
 ### How a wait ends
 

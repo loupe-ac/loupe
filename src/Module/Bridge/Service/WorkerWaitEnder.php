@@ -10,6 +10,7 @@ use App\Module\Bridge\Event\WorkerRunChanged;
 use App\Module\Bridge\Event\WorkerWaitEnded;
 use App\Module\Bridge\Messenger\ResumeWaitingSession;
 use App\Module\Bridge\Repository\WorkerRunRepository;
+use App\Module\Bridge\Repository\WorkerWaitRepository;
 use App\Module\Bridge\ValueObject\WorkerRunChangeKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkerWaitEndReason;
@@ -29,6 +30,7 @@ final readonly class WorkerWaitEnder
 {
     public function __construct(
         private WorkerRunRepository $workerRuns,
+        private WorkerWaitRepository $workerWaits,
         private EntityManagerInterface $em,
         private MessageBusInterface $bus,
         private EventDispatcherInterface $events,
@@ -42,21 +44,34 @@ final readonly class WorkerWaitEnder
     public function end(WorkerWait $wait, WorkerWaitEndReason $reason): bool
     {
         $now = $this->clock->now();
-        if (!$wait->end($reason, $now)) {
+        $waitId = $wait->id ?? throw new \LogicException('A stored wait has an id.');
+
+        // The lock makes the first of two racing ends win. The other one reads the ended wait and changes nothing.
+        $parked = $this->em->wrapInTransaction(function () use ($wait, $waitId, $reason, $now): ?bool {
+            if (!$this->workerWaits->lockOpen($waitId)) {
+                return null;
+            }
+            if (!$wait->end($reason, $now)) {
+                return null;
+            }
+
+            $run = $this->workerRuns->find($wait->runId);
+            $parked = WorkerRunState::Waiting === $run?->state;
+            if ($parked && !$reason->resumesSession()) {
+                $run->recordStop($now, null);
+                $this->em->persist(new WorkerRunStateChange($run, WorkerRunState::Stopped, $now, $now));
+            }
+            if ($reason->isOwnerOrCardChange()) {
+                $this->events->dispatch(new WorkerWaitEnded($wait->cardId, $wait->runId, $reason, $now));
+            }
+            $this->em->flush();
+
+            return $parked;
+        });
+        if (null === $parked) {
             return false;
         }
-
-        $waitId = $wait->id ?? throw new \LogicException('A stored wait has an id.');
         $run = $this->workerRuns->find($wait->runId);
-        $parked = WorkerRunState::Waiting === $run?->state;
-        if ($parked && !$reason->resumesSession()) {
-            $run->recordStop($now, null);
-            $this->em->persist(new WorkerRunStateChange($run, WorkerRunState::Stopped, $now, $now));
-        }
-        if ($reason->isOwnerOrCardChange()) {
-            $this->events->dispatch(new WorkerWaitEnded($wait->cardId, $wait->runId, $reason, $now));
-        }
-        $this->em->flush();
 
         if ($parked && $reason->resumesSession()) {
             $this->bus->dispatch(new ResumeWaitingSession($waitId->toRfc4122()));
