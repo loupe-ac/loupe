@@ -3,6 +3,7 @@
     <twig:Ds:ActionForm :action="path('app_project_card_wait_resume', {id: project.id, cardId: cardId})" token="card-worker-wait" frame="_top" data-card-wait-resume>
         <twig:Ds:Button type="submit" variant="ghost" size="sm">{{ 'bridge.wait.resume_now'|trans }}</twig:Ds:Button>
     </twig:Ds:ActionForm>
+    {% if not wait.stranded %}
     <twig:Ds:Disclosure caret="none" class="lp-card-wait-controls__limit" data-card-wait-limit>
         <twig:block name="summary"><span class="{{ ds_button_class('ghost', 'sm') }}">{{ 'bridge.wait.change_limit'|trans }}</span></twig:block>
         <twig:block name="content">
@@ -12,6 +13,7 @@
             {{ form_end(wait.limitForm) }}
         </twig:block>
     </twig:Ds:Disclosure>
+    {% endif %}
     <twig:Ds:ActionForm :action="path('app_project_card_wait_cancel', {id: project.id, cardId: cardId})" token="card-worker-wait" frame="_top" data-card-wait-cancel data-turbo-confirm="{{ 'bridge.wait.cancel.confirm'|trans }}">
         <twig:Ds:Button type="submit" variant="danger-ghost" size="sm">{{ 'bridge.wait.cancel'|trans }}</twig:Ds:Button>
     </twig:Ds:ActionForm>

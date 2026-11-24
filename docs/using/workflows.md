@@ -153,6 +153,7 @@ The shipped markers are:
 |---|---|---|
 | `paused` | Stuck | The card has an active pause |
 | `run-stopped` | Stuck | The last worker run failed or had no result, no work is under way, and no retry is due |
+| `wait-bridge-offline` | Stuck | A wait of a worker ended while the bridge that holds its session is offline, so nothing can resume the session. Lifecycle only. The card page links to the Agents page |
 | `run-needs-you` | Stuck | The last worker run blocked, gave up or waits for a person, and no question of its own is open |
 | `checks-failed` | Stuck | A pull request has failed checks, no fix is under way, and no retry is due |
 | `conflicting` | Stuck | A pull request has a conflict and no fix is under way |
@@ -348,6 +349,12 @@ Simple templates add `not card.run.worker_waiting` to the `run-open` marker. The
 for ...". The label names the conditions of the wait, joined with "or", and the
 pull request that each one reads. The marker turns on when the worker opens the
 wait, and it turns off when the wait ends.
+
+The condition `card.run.wait_resume_stranded` is true when a wait ended in a way
+that resumes its session, the run of the worker is parked, and the bridge that
+holds the session sends no heartbeat. It takes no parameters. The Lifecycle
+template uses it for the `wait-bridge-offline` marker. See
+[Waits](../reference/worker-runs.md#a-wait-that-ends-while-its-bridge-is-offline).
 
 Both run conditions take an optional `kind`. They also take an optional `origin`,
 whose only value is `rule`. With `origin: rule`, work that a person started, such

@@ -10558,6 +10558,8 @@ workflow:
             <trans-unit id="workflow.waiting.not.run_worker_active"><source>workflow.waiting.not.run_worker_active</source><target>Waiting: a matching worker run is still open.</target></trans-unit>
             <trans-unit id="workflow.waiting.run_worker_waiting"><source>workflow.waiting.run_worker_waiting</source><target>Waiting: no worker waits for a condition.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.run_worker_waiting"><source>workflow.waiting.not.run_worker_waiting</source><target>Waiting: a worker waits for a condition.</target></trans-unit>
+            <trans-unit id="workflow.waiting.run_wait_resume_stranded"><source>workflow.waiting.run_wait_resume_stranded</source><target>Waiting: no ended wait is stranded by an offline bridge.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.run_wait_resume_stranded"><source>workflow.waiting.not.run_wait_resume_stranded</source><target>Waiting: a wait ended while its bridge is offline.</target></trans-unit>
             <trans-unit id="workflow.waiting.bridge_account_usage"><source>workflow.waiting.bridge_account_usage</source><target>Waiting: the %window% window of %account% is not above %above% percent.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.bridge_account_usage"><source>workflow.waiting.not.bridge_account_usage</source><target>Waiting: the %window% window of %account% is above %above% percent.</target></trans-unit>
             <trans-unit id="workflow.waiting.parent_document_approved"><source>workflow.waiting.parent_document_approved</source><target>Waiting: not every %tag% document of the parent card is approved.</target></trans-unit>
@@ -11099,6 +11101,8 @@ workflow:
             <trans-unit id="bridge.form.change_wait_limit_form.minutes.label"><source>bridge.form.change_wait_limit_form.minutes.label</source><target>Time limit in minutes</target></trans-unit>
             <trans-unit id="bridge.form.change_wait_limit_form.minutes.help"><source>bridge.form.change_wait_limit_form.minutes.help</source><target>Counted from the start of the wait. The longest limit is %max% minutes.</target></trans-unit>
             <trans-unit id="marker.worker_waiting.remedy"><source>marker.worker_waiting.remedy</source><target>Nothing. The worker resumes in the same session when a condition is true or the time limit passes.</target></trans-unit>
+            <trans-unit id="marker.wait_bridge_offline"><source>marker.wait_bridge_offline</source><target>Bridge offline: the wait of the worker ended, and its bridge cannot resume the session.</target></trans-unit>
+            <trans-unit id="marker.wait_bridge_offline.remedy"><source>marker.wait_bridge_offline.remedy</source><target>Start the bridge, or cancel the wait.</target></trans-unit>
             <trans-unit id="marker.no_bridge_online"><source>marker.no_bridge_online</source><target>No bridge is online to take this work.</target></trans-unit>
             <trans-unit id="marker.no_bridge_online.remedy"><source>marker.no_bridge_online.remedy</source><target>Start a bridge, or run `loupe login`.</target></trans-unit>
             <trans-unit id="marker.no_capable_bridge"><source>marker.no_capable_bridge</source><target>A bridge is online, but none can run this work.</target></trans-unit>

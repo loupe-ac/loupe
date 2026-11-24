@@ -14,6 +14,7 @@ use App\Module\Bridge\Command\EndWaitsOfCardCommand;
 use App\Module\Bridge\Command\EndWaitsOfCardHandler;
 use App\Module\Bridge\Command\ResumeWaitNowCommand;
 use App\Module\Bridge\Command\ResumeWaitNowHandler;
+use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerWait;
 use App\Module\Bridge\Messenger\ResumeWaitingSession;
@@ -130,12 +131,65 @@ final class WorkerWaitControlsTest extends KernelTestCase
 
     public function test_a_control_on_a_card_with_no_open_wait_is_refused(): void
     {
-        [$wait] = $this->parkedWait(WorkerRunState::Waiting);
+        [$wait] = $this->parkedWait(WorkerRunState::Succeeded);
         $wait->end(WorkerWaitEndReason::Condition, new \DateTimeImmutable());
         $this->em()->flush();
 
         $this->expectException(DomainErrors::class);
         ($this->resumeNow())(new ResumeWaitNowCommand($this->project, $this->cardId));
+    }
+
+    public function test_resume_now_on_a_stranded_wait_requests_the_resume_at_once_and_keeps_the_end_reason(): void
+    {
+        [$wait, $run] = $this->parkedWait(WorkerRunState::Waiting);
+        $wait->end(WorkerWaitEndReason::Condition, new \DateTimeImmutable('-5 minutes'));
+        $this->em()->flush();
+        $this->em()->getConnection()->executeStatement('UPDATE bridges SET capabilities = CAST(:capabilities AS jsonb) WHERE id = :id', ['capabilities' => json_encode([Bridge::CAPABILITY_COMMANDS]), 'id' => (string) $wait->bridgeId]);
+        $this->em()->clear();
+
+        ($this->resumeNow())(new ResumeWaitNowCommand($this->project, $this->cardId));
+
+        self::assertSame(WorkerWaitEndReason::Condition, $this->reload($wait)->endReason);
+        self::assertSame(1, $this->countCommands($this->em()));
+        self::assertSame(WorkerRunState::Waiting, $this->reloadRun($run)->state);
+    }
+
+    public function test_cancel_on_a_stranded_wait_stops_the_run_and_writes_the_history_row(): void
+    {
+        [$wait, $run] = $this->parkedWait(WorkerRunState::Waiting);
+        $wait->end(WorkerWaitEndReason::Condition, new \DateTimeImmutable('-5 minutes'));
+        $this->em()->flush();
+
+        (self::getContainer()->get(CancelWaitHandler::class))(new CancelWaitCommand($this->project, $this->cardId));
+
+        self::assertSame(WorkerRunState::Stopped, $this->reloadRun($run)->state);
+        self::assertSame(WorkerWaitEndReason::Condition, $this->reload($wait)->endReason);
+        self::assertNull(self::getContainer()->get(WorkerWaitRepository::class)->findStrandedOfCard($this->cardId));
+        $rows = self::getContainer()->get(\App\Module\Board\Repository\CardEventRepository::class)->findBy(['card' => $this->cardId, 'kind' => CardEventKind::WaitEnded]);
+        self::assertCount(1, $rows);
+        self::assertSame('cancelled-by-person', $rows[0]->detail['reason']);
+    }
+
+    #[DataProvider('cardChanges')]
+    public function test_a_change_of_the_card_stops_the_run_of_a_stranded_wait(WorkerWaitEndReason $reason): void
+    {
+        [$wait, $run] = $this->parkedWait(WorkerRunState::Waiting);
+        $wait->end(WorkerWaitEndReason::TimedOut, new \DateTimeImmutable('-5 minutes'));
+        $this->em()->flush();
+
+        (self::getContainer()->get(EndWaitsOfCardHandler::class))(new EndWaitsOfCardCommand($this->cardId, $reason));
+
+        self::assertSame(WorkerRunState::Stopped, $this->reloadRun($run)->state);
+        self::assertSame(WorkerWaitEndReason::TimedOut, $this->reload($wait)->endReason);
+    }
+
+    public function test_a_stranded_wait_of_a_live_run_is_not_stranded(): void
+    {
+        [$wait] = $this->parkedWait(WorkerRunState::Running);
+        $wait->end(WorkerWaitEndReason::Condition, new \DateTimeImmutable('-5 minutes'));
+        $this->em()->flush();
+
+        self::assertNull(self::getContainer()->get(WorkerWaitRepository::class)->findStrandedOfCard($this->cardId));
     }
 
     public function test_a_wait_of_another_project_is_out_of_reach(): void

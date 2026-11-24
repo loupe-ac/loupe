@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace App\Module\Bridge\Repository;
 
+use App\Module\Bridge\Entity\Bridge;
+use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerWait;
+use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkerWaitEndReason;
 use App\Module\Project\Entity\Project;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\LockMode;
 use Doctrine\DBAL\Types\Types;
+use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
@@ -73,6 +77,48 @@ class WorkerWaitRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+    }
+
+    /**
+     * The wait of the card that ended in a way that resumes, whose run is parked in the state Waiting and that no run resumed yet.
+     * Only an ended wait counts: a live run takes no resume, and its end sends one.
+     */
+    public function findStrandedOfCard(Uuid $cardId): ?WorkerWait
+    {
+        return $this->strandedQuery()
+            ->andWhere('w.cardId = :cardId')
+            ->setParameter('cardId', $cardId, UuidType::NAME)
+            ->orderBy('w.endedAt', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    /**
+     * The stranded waits whose bridge sent its heartbeat since the given moment, oldest first.
+     *
+     * @return list<WorkerWait>
+     */
+    public function findStrandedOfLiveBridges(\DateTimeImmutable $liveSince, int $limit): array
+    {
+        return array_values($this->strandedQuery()
+            ->andWhere('EXISTS (SELECT 1 FROM '.Bridge::class.' b WHERE b.id = w.bridgeId AND b.lastSeenAt >= :liveSince)')
+            ->setParameter('liveSince', $liveSince, Types::DATETIME_IMMUTABLE)
+            ->orderBy('w.endedAt', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult());
+    }
+
+    private function strandedQuery(): QueryBuilder
+    {
+        return $this->createQueryBuilder('w')
+            ->andWhere('w.endedAt IS NOT NULL')
+            ->andWhere('w.resumeRunId IS NULL')
+            ->andWhere('w.endReason IN (:strandedReasons)')
+            ->andWhere('EXISTS (SELECT 1 FROM '.WorkerRun::class.' r WHERE r.id = w.runId AND r.state = :waiting)')
+            ->setParameter('strandedReasons', array_map(static fn (WorkerWaitEndReason $reason): string => $reason->value, WorkerWaitEndReason::resumingReasons()))
+            ->setParameter('waiting', WorkerRunState::Waiting);
     }
 
     /** Whether the wait of the run ended in a way that stops the run. */

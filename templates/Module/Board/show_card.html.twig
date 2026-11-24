@@ -64,11 +64,11 @@
                 {% set primary = markers.primary %}
                 {% set stateName = primary.kind.translationKey|trans %}
                 {% set stateFields = [{label: primary.kind.sinceLabelKey|trans, value: card_state_text('board.card_state.since_value', primary.since)}] %}
-                {% set openWait = primary.label == 'marker.worker_waiting' ? card_worker_wait(card.project, card.id ~ '') : null %}
-                {% if primary.remedy is not null and openWait is null %}
+                {% set openWait = primary.label in ['marker.worker_waiting', 'marker.wait_bridge_offline'] ? card_worker_wait(card.project, card.id ~ '') : null %}
+                {% if primary.remedy is not null and (openWait is null or openWait.stranded) %}
                 {% set stateFields = stateFields|merge([{label: primary.kind.remedyLabelKey|trans, value: primary.remedy|trans(primary.params)|inline_code, wide: true, link: primary.link is null ? null : {href: marker_link_href(primary.link, card.project), label: marker_link_target(primary.link).translationKey|trans}}]) %}
                 {% endif %}
-                {% if openWait is not null %}
+                {% if openWait is not null and not openWait.stranded %}
                 {% set stateFields = stateFields|merge([
                     {label: 'bridge.wait.field.time_limit'|trans, value: 'bridge.wait.field.time_limit_value'|trans({'%minutes%': openWait.limitMinutes, '%clock%': openWait.limitAt|date('H:i')})},
                     {label: 'bridge.wait.field.at_the_limit'|trans, value: 'bridge.wait.field.at_the_limit_value'|trans, wide: true}

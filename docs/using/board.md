@@ -682,6 +682,21 @@ These changes ask for no confirmation, because you made them.
 The worker stops and does not resume.
 Other people see the wait and no controls.
 
+#### When the bridge is offline at the end of the wait
+
+A wait can end while the bridge that holds the session is offline.
+Only that bridge can resume the session, so the card shows **Stuck** with **Bridge offline**.
+The remedy says: start the bridge, or cancel the wait.
+When the bridge sends its heartbeat again, Loupe asks it to resume the session.
+
+People who may manage the project see two controls under the status:
+
+- **Resume now** asks for the resume at once. The bridge runs it when it is back.
+- **Cancel the wait** asks you to confirm. The worker then stops and does not resume.
+
+**Change the time limit** does not show, because the wait has ended.
+Moving the card, finishing it, or holding it also stops the worker.
+
 See [Waits](../reference/worker-runs.md#waits).
 
 ### Try now

@@ -17,7 +17,7 @@ use Twig\Extension\AbstractExtension;
 use Twig\TwigFunction;
 
 /**
- * The card page shows the open wait of its worker through this function, because no module may import Board:
+ * The card page shows the open wait of its worker, or the wait that its offline bridge could not resume, through this function, because no module may import Board:
  * a wait knows its card by id, never by entity.
  */
 final class CardWorkerWaitExtension extends AbstractExtension
@@ -42,7 +42,14 @@ final class CardWorkerWaitExtension extends AbstractExtension
             return null;
         }
         $wait = $this->workerWaits->findOpenOfCard(Uuid::fromString($cardId));
-        if (null === $wait || !$wait->project->requireId()->equals($project->requireId())) {
+        if (null === $wait) {
+            $stranded = $this->workerWaits->findStrandedOfCard(Uuid::fromString($cardId));
+
+            return null === $stranded || !$stranded->project->requireId()->equals($project->requireId())
+                ? null
+                : new CardWorkerWait($stranded->openedAt, $stranded->limitAt, 0, null, true);
+        }
+        if (!$wait->project->requireId()->equals($project->requireId())) {
             return null;
         }
 
