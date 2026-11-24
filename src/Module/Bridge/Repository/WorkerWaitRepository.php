@@ -8,6 +8,7 @@ use App\Module\Bridge\Entity\WorkerWait;
 use App\Module\Bridge\ValueObject\WorkerWaitEndReason;
 use App\Module\Project\Entity\Project;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\LockMode;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Bridge\Doctrine\Types\UuidType;
@@ -30,6 +31,22 @@ class WorkerWaitRepository extends ServiceEntityRepository
             ->andWhere('w.endedAt IS NULL')
             ->setParameter('cardId', $cardId, UuidType::NAME)
             ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    /**
+     * Locks the row of the wait until the transaction ends, and says whether the stored row is still open. The stored row decides,
+     * not the managed entity, which can be older. Only the first of two racing ends sees true. Call it inside a transaction.
+     */
+    public function lockOpen(Uuid $id): bool
+    {
+        return null !== $this->createQueryBuilder('w')
+            ->select('w.id')
+            ->andWhere('w.id = :id')
+            ->andWhere('w.endedAt IS NULL')
+            ->setParameter('id', $id, UuidType::NAME)
+            ->getQuery()
+            ->setLockMode(LockMode::PESSIMISTIC_WRITE)
             ->getOneOrNullResult();
     }
 
@@ -56,6 +73,19 @@ class WorkerWaitRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+    }
+
+    /** Whether the wait of the run ended in a way that stops the run. */
+    public function endedToStopRun(Uuid $runId): bool
+    {
+        return (int) $this->createQueryBuilder('w')
+            ->select('COUNT(w.id)')
+            ->andWhere('w.runId = :runId')
+            ->andWhere('w.endReason IN (:reasons)')
+            ->setParameter('runId', $runId, UuidType::NAME)
+            ->setParameter('reasons', array_map(static fn (WorkerWaitEndReason $reason): string => $reason->value, WorkerWaitEndReason::stoppingReasons()))
+            ->getQuery()
+            ->getSingleScalarResult() > 0;
     }
 
     /**

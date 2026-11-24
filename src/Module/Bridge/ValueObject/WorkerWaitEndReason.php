@@ -46,6 +46,24 @@ enum WorkerWaitEndReason: string
         return \in_array($this, self::resumingReasons(), true);
     }
 
+    /** The ends that a person or a change of the card causes, which the card history records. */
+    public function isOwnerOrCardChange(): bool
+    {
+        return self::ResumedByPerson === $this || $this->stopsRun();
+    }
+
+    /** The ends that stop a run that has not reported its end yet. */
+    public function stopsRun(): bool
+    {
+        return \in_array($this, self::stoppingReasons(), true);
+    }
+
+    /** @return list<self> */
+    public static function stoppingReasons(): array
+    {
+        return [self::CancelledByPerson, self::CardMoved, self::CardFinished, self::CardHeld];
+    }
+
     /** @return list<self> */
     public static function resumingReasons(): array
     {

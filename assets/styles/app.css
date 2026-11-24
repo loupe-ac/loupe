@@ -3059,6 +3059,19 @@
     .lp-card-overview__state > .lp-status-box {
         @apply w-full;
     }
+    /* The controls of an open wait under the status box. The limit form opens on its own row. */
+    .lp-card-wait-controls {
+        @apply flex flex-wrap items-start gap-2;
+    }
+    .lp-card-wait-controls__limit[open] {
+        @apply order-last w-full;
+    }
+    .lp-card-wait-controls__limit > .lp-disclosure__summary {
+        @apply list-none cursor-pointer;
+    }
+    .lp-card-wait-controls__limit > .lp-disclosure__body {
+        @apply pt-2;
+    }
     /* The heading row of an epic's children: the title, the done count, and the lane button. */
     .lp-card-epic__head {
         @apply flex flex-wrap items-center gap-3;

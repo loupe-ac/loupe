@@ -838,6 +838,27 @@ That end leaves an open wait as it is.
 The state `waiting` can resume, as `unfinished` can.
 It is no failure, no stop and no warning on the card.
 
+### The owner controls of a wait
+
+The status box of a card with an open wait offers three controls to a person who may manage the project.
+Each control posts with a CSRF token.
+A control on a card with no open wait changes nothing and shows an error.
+See [A worker that waits](../using/board.md#a-worker-that-waits).
+
+| Control | Route | End reason | Effect on the run |
+|---|---|---|---|
+| Resume now | `POST /projects/{id}/cards/{cardId}/wait/resume` | `resumed-by-person` | Loupe resumes the session. A run that still ends its turn resumes when it ends |
+| Change the time limit | `POST /projects/{id}/cards/{cardId}/wait/limit` | none, the wait stays open | None. The new limit counts from the start of the wait, and the template maximum bounds it |
+| Cancel the wait | `POST /projects/{id}/cards/{cardId}/wait/cancel` | `cancelled-by-person` | A parked run becomes `stopped` and nothing resumes it |
+
+A move of the card to another column ends an open wait with `card-moved`.
+A move into a terminal column ends it with `card-finished`.
+A hold of the card ends it with `card-held`.
+Each of these three ends stops a parked run, as a cancel does, and asks for no confirmation.
+Any later closing report of that run, a failure or an interruption too, closes it as `stopped`.
+A cancel, a move, a finish or a hold that ends a wait while its run still ends its turn forces the state `stopped` when the run closes.
+The other end reasons leave the state of the run as the bridge reports it.
+
 ### How a wait ends
 
 Loupe tests the open wait of a card in each evaluation of the card.
