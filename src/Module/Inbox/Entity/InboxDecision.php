@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Inbox\Entity;
 
+use App\Doctrine\Type\MicrosecondDateTimeImmutableType;
 use App\Module\Account\Entity\User;
 use App\Module\Board\Entity\Card;
 use App\Module\Inbox\Repository\InboxDecisionRepository;
@@ -41,7 +42,8 @@ class InboxDecision
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     public ?string $changedNote = null;
 
-    #[ORM\Column(nullable: true)]
+    /** UTC, with microseconds, so two changes within one second keep distinct versions. */
+    #[ORM\Column(type: MicrosecondDateTimeImmutableType::NAME, nullable: true, columnDefinition: 'TIMESTAMP(6) WITHOUT TIME ZONE DEFAULT NULL')]
     public ?\DateTimeImmutable $changedAt = null;
 
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]

@@ -86,6 +86,18 @@ final class CardDecisionsTest extends WebTestCase
         self::assertStringNotContainsString('not acted on yet', $text);
     }
 
+    public function test_the_change_query_opens_the_dialog_of_that_decision_only(): void
+    {
+        $first = $this->decision('one', 'alpha', ['beta']);
+        $this->decision('two', 'gamma', ['delta']);
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->cardUrl().'?tab=decisions&change='.$first->id);
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $crawler->filter('[data-controller="modal"][data-modal-reopen-value="true"]'));
+        self::assertCount(2, $crawler->filter('[data-inbox-decision-change]'));
+    }
+
     public function test_a_card_without_decisions_shows_an_empty_tab(): void
     {
         $crawler = $this->client->request(Request::METHOD_GET, $this->cardUrl());

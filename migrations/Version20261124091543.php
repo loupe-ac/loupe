@@ -19,7 +19,7 @@ final class Version20261124091543 extends AbstractMigration
 
     public function up(Schema $schema): void
     {
-        $this->addSql('CREATE TABLE inbox_decisions (id UUID NOT NULL, changed_choice TEXT DEFAULT NULL, changed_note TEXT DEFAULT NULL, changed_at TIMESTAMP(0) WITHOUT TIME ZONE DEFAULT NULL, addressed_at TIMESTAMP(0) WITHOUT TIME ZONE DEFAULT NULL, addressed_run_id UUID DEFAULT NULL, label VARCHAR(40) NOT NULL, choice TEXT NOT NULL, other_options JSONB NOT NULL, made_by VARCHAR(20) NOT NULL, created_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL, item_id UUID DEFAULT NULL, changed_by_id UUID DEFAULT NULL, project_id UUID NOT NULL, card_id UUID NOT NULL, PRIMARY KEY (id))');
+        $this->addSql('CREATE TABLE inbox_decisions (id UUID NOT NULL, changed_choice TEXT DEFAULT NULL, changed_note TEXT DEFAULT NULL, changed_at TIMESTAMP(6) WITHOUT TIME ZONE DEFAULT NULL, addressed_at TIMESTAMP(0) WITHOUT TIME ZONE DEFAULT NULL, addressed_run_id UUID DEFAULT NULL, label VARCHAR(40) NOT NULL, choice TEXT NOT NULL, other_options JSONB NOT NULL, made_by VARCHAR(20) NOT NULL, created_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL, item_id UUID DEFAULT NULL, changed_by_id UUID DEFAULT NULL, project_id UUID NOT NULL, card_id UUID NOT NULL, PRIMARY KEY (id))');
         $this->addSql('CREATE INDEX IDX_19CAC764126F525E ON inbox_decisions (item_id)');
         $this->addSql('CREATE INDEX IDX_19CAC764828AD0A0 ON inbox_decisions (changed_by_id)');
         $this->addSql('CREATE INDEX IDX_19CAC764166D1F9C ON inbox_decisions (project_id)');

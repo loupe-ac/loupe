@@ -141,6 +141,28 @@ final class DecisionToolsTest extends KernelTestCase
         self::assertNull($this->em->find(InboxDecision::class, $decision->id)?->addressedAt);
     }
 
+    public function test_a_second_change_within_the_same_second_is_not_marked(): void
+    {
+        $card = $this->card($this->em, $this->project);
+        $decision = $this->changed($this->decision($this->em, $this->project, $card), 'alpha', null);
+        $decision->changedAt = new \DateTimeImmutable('2026-01-01 10:00:00.100000');
+        $this->em->flush();
+        $seen = $this->rows($decision);
+
+        $decision->changedChoice = 'gamma';
+        $decision->changedAt = new \DateTimeImmutable('2026-01-01 10:00:00.700000');
+        $this->em->flush();
+        $this->em->clear();
+
+        try {
+            $this->mark()($seen, (string) Uuid::v4());
+            self::fail('The call should be refused.');
+        } catch (ToolCallException $e) {
+            self::assertStringContainsString('changed a decision again', $e->getMessage());
+        }
+        self::assertNull($this->em->find(InboxDecision::class, $decision->id)?->addressedAt);
+    }
+
     public function test_a_decision_with_no_change_is_refused(): void
     {
         $decision = $this->decision($this->em, $this->project, $this->card($this->em, $this->project));
