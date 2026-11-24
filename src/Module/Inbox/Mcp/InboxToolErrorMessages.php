@@ -86,6 +86,7 @@ final readonly class InboxToolErrorMessages
             AskInboxHandler::LABEL_NEEDS_QUESTION => 'A label belongs on a question with options. A todo, a review and a question with only freeText take none.',
             AskInboxHandler::LABEL_NEEDS_BLOCKING => 'A labelled ask blocks. Leave out blocking, or pass true.',
             AskInboxHandler::LABEL_NO_MULTIPLE => 'A labelled ask takes one answer, so it accepts no multiple.',
+            AskInboxHandler::LABEL_LOG_NEEDS_CARD => 'A logged ask needs a card. Pass cardIds with the card it is about, or ask from a card run.',
             AskInboxHandler::LABEL_NEEDS_RECOMMENDED => 'A labelled ask needs a recommendedOption with a confidence, because Loupe may answer it with that option.',
             AskInboxHandler::LABEL_FIELD_MISSING => 'A labelled ask must carry this detail field. Write the facts behind your choice under it.',
             AskInboxHandler::SUGGESTION_UNKNOWN_ACTION => \sprintf('A suggested action must be one of: %s. inbox_actions lists them.', implode(', ', RunSuggestions::ACTIONS)),

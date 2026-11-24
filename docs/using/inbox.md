@@ -1054,7 +1054,7 @@ A `log` question never reaches the inbox. The agent reads the reply "Logged
 "title" as naming. Go on with "option"." and goes on in the same turn. Loupe
 writes a decision entry in the decision log of each card that the question
 names. When the question names no card, the entry goes to the card of the run
-that asks. When neither gives a card, Loupe writes no entry. An entry holds the
+that asks. When neither gives a card, Loupe refuses the question, so no choice goes unrecorded. An entry holds the
 label, the option the agent took, and the other options.
 
 ## All inboxes

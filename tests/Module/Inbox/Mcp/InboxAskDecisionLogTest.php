@@ -19,6 +19,7 @@ use App\Module\Project\Entity\Project;
 use App\Tests\Module\Workflow\WorkflowProjects;
 use App\Tests\Support\McpTokenScenario;
 use Doctrine\ORM\EntityManagerInterface;
+use Mcp\Exception\ToolCallException;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
 
@@ -74,11 +75,15 @@ final class InboxAskDecisionLogTest extends KernelTestCase
         self::assertCount(2, $this->entries());
     }
 
-    public function test_an_ask_that_names_no_card_and_has_no_run_writes_no_entry(): void
+    public function test_an_ask_that_names_no_card_and_has_no_run_is_refused_and_writes_no_entry(): void
     {
-        $result = ($this->tool)(sessionId: (string) Uuid::v4(), items: [$this->item('Which name?')]);
+        try {
+            ($this->tool)(sessionId: (string) Uuid::v4(), items: [$this->item('Which name?')]);
+            self::fail('The ask should be refused.');
+        } catch (ToolCallException $e) {
+            self::assertSame('items[0].label: A logged ask needs a card. Pass cardIds with the card it is about, or ask from a card run.', $e->getMessage());
+        }
 
-        self::assertSame('Logged "Which name?" as naming. Go on with "beta".', $result['message']);
         self::assertSame([], $this->entries());
     }
 

@@ -85,6 +85,7 @@ final readonly class AskInboxHandler
     public const string LABEL_NEEDS_BLOCKING = 'inbox.item.error.label_needs_blocking';
     public const string LABEL_NO_MULTIPLE = 'inbox.item.error.label_no_multiple';
     public const string LABEL_NEEDS_RECOMMENDED = 'inbox.item.error.label_needs_recommended';
+    public const string LABEL_LOG_NEEDS_CARD = 'inbox.item.error.label_log_needs_card';
     public const string LABEL_FIELD_MISSING = 'inbox.item.error.label_field_missing';
     public const string SUGGESTION_UNKNOWN_ACTION = 'inbox.item.error.suggestion_unknown_action';
     public const string SUGGESTION_DUPLICATE = 'inbox.item.error.suggestion_duplicate';
@@ -142,6 +143,9 @@ final readonly class AskInboxHandler
         foreach ($command->items as $index => $input) {
             $draft = $this->drafter->draft($command->project, $input, \sprintf('items[%d].', $index), $bridge);
             if (AskMode::Log === $draft->mode) {
+                if ([] === $draft->cards && !$this->cardOfAskingRun($command) instanceof Card) {
+                    throw new DomainErrors([\sprintf('items[%d].label', $index) => self::LABEL_LOG_NEEDS_CARD]);
+                }
                 $logged[] = new AskInboxLogged($draft->label ?? '', $draft->title, $draft->options[$draft->recommendedOption ?? 0]);
                 $loggedDrafts[] = $draft;
 
@@ -282,7 +286,7 @@ final readonly class AskInboxHandler
 
     /**
      * Writes one decision entry for each card a logged ask names, and flushes. An ask that names no card
-     * belongs to the card of the run that asks, found as linkRunToAsk() finds it. With neither, nothing is written.
+     * belongs to the card of the run that asks, found as linkRunToAsk() finds it. The call refuses an ask with neither.
      *
      * @param list<AskInboxDraft> $loggedDrafts
      *
@@ -298,9 +302,7 @@ final readonly class AskInboxHandler
                 $cards = null === $runCard ? [] : [$runCard];
             }
             if ([] === $cards) {
-                $this->logger->info('inbox.decision_not_logged', ['projectId' => (string) $command->project->id, 'sessionId' => (string) $command->sessionId, 'label' => $draft->label, 'reason' => 'no_card']);
-
-                continue;
+                throw new \LogicException('A logged ask names a card.');
             }
             $this->decisionLog->record($command->project, $cards, $draft->label ?? '', $draft->recommendedOption ?? 0, $draft->options, InboxDecisionMadeBy::Logged);
             foreach ($cards as $card) {
