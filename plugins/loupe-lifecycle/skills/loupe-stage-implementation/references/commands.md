@@ -211,7 +211,7 @@ The stage does not poll for CI. It waits with the `run_wait` tool, and Loupe res
 4. When the tool accepts the wait, end the turn at once. Stop with `STAGE RESULT: waiting <pr url>` and the structured status `unfinished`. Never end with the status `waiting`. That status no longer exists.
 5. Loupe resumes the session when a condition is true, when the limit passes, or when the pull request leaves the card. Read the checks with the forge adapter.
    - Checks passed: stop with `STAGE RESULT: checks passed <pr url>` and the structured status `finished`.
-   - Checks failed in the merge stage: the stage never edits the branch. Stop with `STAGE RESULT: not ready <pr url>: checks failed` and the structured status `unfinished`. The workflow then starts a fix round.
+   - Checks failed in the merge stage: the stage never edits the branch. Stop with `STAGE RESULT: not ready <pr url>: checks failed` and the structured status `finished`. The workflow then starts a fix round.
    - Checks failed in any other stage: read the failed logs, fix the cause in this branch, run the gate, push as "Push without force" says, and go to item 1.
    - The wait timed out and checks still run: go to item 1. When the tool refuses for the chain cap, stop with `STAGE RESULT: blocked: checks still pending <pr url>`.
    - The pull request left the card: stop with `STAGE RESULT: blocked: pull request left the card`.
