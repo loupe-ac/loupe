@@ -11,6 +11,7 @@ use App\Module\Bridge\Event\WorkerRunChanged;
 use App\Module\Bridge\Event\WorkerWaitEnded;
 use App\Module\Bridge\Messenger\ResumeWaitingSession;
 use App\Module\Bridge\Repository\BridgeCommandRepository;
+use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkerWaitRepository;
 use App\Module\Bridge\ValueObject\BridgeCommandState;
@@ -35,6 +36,7 @@ final readonly class WorkerWaitEnder
         private WorkerRunRepository $workerRuns,
         private WorkerWaitRepository $workerWaits,
         private BridgeCommandRepository $bridgeCommands,
+        private BridgeRepository $bridges,
         private EntityManagerInterface $em,
         private MessageBusInterface $bus,
         private EventDispatcherInterface $events,
@@ -93,8 +95,10 @@ final readonly class WorkerWaitEnder
     {
         $now = $this->clock->now();
         $stopped = $this->em->wrapInTransaction(function () use ($wait, $reason, $now): bool {
+            // The lock of a resume request, so a resume cannot pass its state check before this stop and create its command after it.
+            $this->bridges->lockForWrite((string) $wait->project->owner->id, $wait->bridgeId);
             $run = $this->workerRuns->find($wait->runId);
-            if (WorkerRunState::Waiting !== $run?->state || null !== $wait->resumeRunId) {
+            if (null === $run || WorkerRunState::Waiting !== $this->workerRuns->storedStateOf($wait->runId) || null !== $wait->resumeRunId) {
                 return false;
             }
             $run->recordStop($now, null);

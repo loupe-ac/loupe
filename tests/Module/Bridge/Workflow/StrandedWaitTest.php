@@ -4,11 +4,18 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Bridge\Workflow;
 
+use App\Exception\DomainErrors;
+use App\Module\Bridge\Command\RequestBridgeCommandCommand;
+use App\Module\Bridge\Command\RequestBridgeCommandHandler;
 use App\Module\Bridge\Command\ResumeStrandedWaitsCommand;
 use App\Module\Bridge\Command\ResumeStrandedWaitsHandler;
 use App\Module\Bridge\Entity\Bridge;
+use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerWait;
 use App\Module\Bridge\Repository\BridgeCommandRepository;
+use App\Module\Bridge\Service\WorkerWaitEnder;
+use App\Module\Bridge\ValueObject\BridgeCommandCause;
+use App\Module\Bridge\ValueObject\BridgeCommandKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkerWaitEndReason;
 use App\Module\Bridge\Workflow\WorkerWaitFactProvider;
@@ -75,7 +82,7 @@ final class StrandedWaitTest extends KernelTestCase
         $second = $this->resend();
 
         self::assertSame(1, $first);
-        self::assertSame(1, $second);
+        self::assertSame(0, $second);
         $this->em()->clear();
         self::assertCount(1, self::getContainer()->get(BridgeCommandRepository::class)->findAll());
         self::assertSame(WorkerWaitEndReason::Condition, $this->em()->find(WorkerWait::class, $wait->id)?->endReason);
@@ -88,6 +95,29 @@ final class StrandedWaitTest extends KernelTestCase
         $this->em()->flush();
 
         self::assertSame(0, $this->resend());
+        $this->em()->clear();
+        self::assertSame([], self::getContainer()->get(BridgeCommandRepository::class)->findAll());
+    }
+
+    public function test_a_stop_of_the_stranded_wait_leaves_no_resume_for_the_stopped_run(): void
+    {
+        [$wait, $bridge] = $this->strandedWait('stranded-stop', new \DateTimeImmutable());
+        $bridge->capabilities = [Bridge::CAPABILITY_COMMANDS];
+        $this->em()->flush();
+        $run = $this->em()->find(WorkerRun::class, $wait->runId);
+        self::assertInstanceOf(WorkerRun::class, $run);
+
+        self::assertTrue(self::getContainer()->get(WorkerWaitEnder::class)->stopStranded($wait, WorkerWaitEndReason::CancelledByPerson));
+        // The caller still holds the run as it read it before the stop.
+        $run->state = WorkerRunState::Waiting;
+        $refused = null;
+        try {
+            self::getContainer()->get(RequestBridgeCommandHandler::class)(new RequestBridgeCommandCommand($run, BridgeCommandKind::ResumeRun, null, cause: BridgeCommandCause::WaitEnded));
+        } catch (DomainErrors $e) {
+            $refused = $e;
+        }
+
+        self::assertInstanceOf(DomainErrors::class, $refused);
         $this->em()->clear();
         self::assertSame([], self::getContainer()->get(BridgeCommandRepository::class)->findAll());
     }

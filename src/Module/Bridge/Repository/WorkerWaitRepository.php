@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace App\Module\Bridge\Repository;
 
 use App\Module\Bridge\Entity\Bridge;
+use App\Module\Bridge\Entity\BridgeCommand;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerWait;
+use App\Module\Bridge\ValueObject\BridgeCommandKind;
+use App\Module\Bridge\ValueObject\BridgeCommandState;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkerWaitEndReason;
 use App\Module\Project\Entity\Project;
@@ -103,7 +106,11 @@ class WorkerWaitRepository extends ServiceEntityRepository
     {
         return array_values($this->strandedQuery()
             ->andWhere('EXISTS (SELECT 1 FROM '.Bridge::class.' b WHERE b.id = w.bridgeId AND b.lastSeenAt >= :liveSince)')
+            // A wait whose resume is pending or done needs no request, and would fill the limit every minute.
+            ->andWhere('NOT EXISTS (SELECT 1 FROM '.BridgeCommand::class.' c WHERE c.workerRun = w.runId AND c.kind = :resume AND c.state IN (:requested) AND c.requestedAt >= w.endedAt)')
             ->setParameter('liveSince', $liveSince, Types::DATETIME_IMMUTABLE)
+            ->setParameter('resume', BridgeCommandKind::ResumeRun->value)
+            ->setParameter('requested', [BridgeCommandState::Pending->value, BridgeCommandState::Done->value])
             ->orderBy('w.endedAt', 'ASC')
             ->setMaxResults($limit)
             ->getQuery()
