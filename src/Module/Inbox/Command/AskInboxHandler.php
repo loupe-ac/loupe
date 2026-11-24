@@ -248,7 +248,7 @@ final readonly class AskInboxHandler
         $ask = $view->ask ?? throw new \LogicException('An ask that kept an item has an ask.');
         $this->inboxChanged->changed($command->project, [$ask->id ?? throw new \LogicException('A stored ask has an id.')]);
         $this->cardTiles->refresh(...$view->items);
-        $this->decisionLog->refresh($command->project, $loggedCardIds);
+        $this->decisionLog->refresh($command->project, $loggedCardIds, signalInbox: false);
         $reviewed = [];
         foreach ($drafts as $draft) {
             if ($draft->reviewTarget instanceof Document) {

@@ -62,7 +62,7 @@ final readonly class DecisionListTool implements FlagGatedToolInterface
                 'originalChoice' => $decision->choice,
                 'changedChoice' => $decision->changedChoice ?? '',
                 'note' => $decision->changedNote,
-                'changedAt' => ($decision->changedAt ?? throw new \LogicException('An open change has a time.'))->format(\DATE_ATOM),
+                'changedAt' => $decision->changeVersion(),
             ], $rows)];
         } catch (ToolCallException $e) {
             throw $e;

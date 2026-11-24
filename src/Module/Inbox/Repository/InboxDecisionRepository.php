@@ -83,6 +83,32 @@ class InboxDecisionRepository extends ServiceEntityRepository
     }
 
     /**
+     * The stored change time and address time of each decision, read from the database and never from the identity map.
+     *
+     * @param list<Uuid> $ids
+     *
+     * @return array<string, array{changedAt: ?\DateTimeImmutable, addressedAt: ?\DateTimeImmutable}>
+     */
+    public function readChangeState(array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+        $rows = $this->createQueryBuilder('decision')
+            ->select('decision.id AS id', 'decision.changedAt AS changedAt', 'decision.addressedAt AS addressedAt')
+            ->andWhere('decision.id IN (:ids)')
+            ->setParameter('ids', array_map(static fn (Uuid $id): string => $id->toRfc4122(), $ids), ArrayParameterType::STRING)
+            ->getQuery()
+            ->getResult();
+        $state = [];
+        foreach ($rows as $row) {
+            $state[(string) $row['id']] = ['changedAt' => $row['changedAt'], 'addressedAt' => $row['addressedAt']];
+        }
+
+        return $state;
+    }
+
+    /**
      * The decisions of a project with these ids. An id of another project, or none, gives no row.
      *
      * @param list<Uuid> $ids

@@ -56,7 +56,7 @@ final class DecisionToolsTest extends KernelTestCase
         $row = $result['decisions'][0];
         self::assertSame((string) $open->id, $row['id']);
         self::assertSame(['naming', 'beta', 'alpha', 'Use alpha.'], [$row['label'], $row['originalChoice'], $row['changedChoice'], $row['note']]);
-        self::assertNotFalse(\DateTimeImmutable::createFromFormat(\DATE_ATOM, $row['changedAt']));
+        self::assertNotFalse(\DateTimeImmutable::createFromFormat('Y-m-d\TH:i:s.uP', $row['changedAt']));
     }
 
     public function test_the_list_never_reads_a_card_of_another_project(): void
@@ -77,7 +77,7 @@ final class DecisionToolsTest extends KernelTestCase
         $run = $this->workerRun($card, $sessionId);
         $this->em->flush();
 
-        $result = $this->mark()([(string) $decision->id], (string) $sessionId);
+        $result = $this->mark()($this->rows($decision), (string) $sessionId);
 
         self::assertSame([(string) $decision->id], $result['addressed']);
         $this->em->clear();
@@ -95,7 +95,7 @@ final class DecisionToolsTest extends KernelTestCase
         $decision->addressedAt = $first;
         $this->em->flush();
 
-        self::assertSame([], $this->mark()([(string) $decision->id], (string) Uuid::v4())['addressed']);
+        self::assertSame([], $this->mark()($this->rows($decision), (string) Uuid::v4())['addressed']);
 
         $this->em->clear();
         self::assertEquals($first, $this->em->find(InboxDecision::class, $decision->id)?->addressedAt);
@@ -110,7 +110,7 @@ final class DecisionToolsTest extends KernelTestCase
         $this->em->flush();
 
         try {
-            $this->mark()([(string) $own->id, (string) $foreignDecision->id], (string) Uuid::v4());
+            $this->mark()($this->rows($own, $foreignDecision), (string) Uuid::v4());
             self::fail('The call should be refused.');
         } catch (ToolCallException $e) {
             self::assertSame('decisionIds: A decision id names no decision of this project. Pass the ids that decision_list gave you.', $e->getMessage());
@@ -120,6 +120,27 @@ final class DecisionToolsTest extends KernelTestCase
         self::assertNull($this->em->find(InboxDecision::class, $foreignDecision->id)?->addressedAt);
     }
 
+    public function test_a_change_made_after_the_list_is_not_marked(): void
+    {
+        $card = $this->card($this->em, $this->project);
+        $decision = $this->changed($this->decision($this->em, $this->project, $card), 'alpha', null);
+        $this->em->flush();
+        $seen = $this->rows($decision);
+
+        $decision->changedChoice = 'gamma';
+        $decision->changedAt = new \DateTimeImmutable(date('Y-m-d H:i:s', time() - 30));
+        $this->em->flush();
+
+        try {
+            $this->mark()($seen, (string) Uuid::v4());
+            self::fail('The call should be refused.');
+        } catch (ToolCallException $e) {
+            self::assertStringContainsString('changed a decision again', $e->getMessage());
+        }
+        $this->em->clear();
+        self::assertNull($this->em->find(InboxDecision::class, $decision->id)?->addressedAt);
+    }
+
     public function test_a_decision_with_no_change_is_refused(): void
     {
         $decision = $this->decision($this->em, $this->project, $this->card($this->em, $this->project));
@@ -127,7 +148,7 @@ final class DecisionToolsTest extends KernelTestCase
 
         $this->expectException(ToolCallException::class);
         $this->expectExceptionMessage('decisionIds: ');
-        $this->mark()([(string) $decision->id], (string) Uuid::v4());
+        $this->mark()($this->rows($decision), (string) Uuid::v4());
     }
 
     public function test_a_worker_of_another_card_cannot_mark_the_decision(): void
@@ -139,7 +160,7 @@ final class DecisionToolsTest extends KernelTestCase
         $this->em->flush();
 
         try {
-            $this->mark()([(string) $decision->id], (string) $sessionId);
+            $this->mark()($this->rows($decision), (string) $sessionId);
             self::fail('The call should be refused.');
         } catch (ToolCallException $e) {
             self::assertStringContainsString('another card', $e->getMessage());
@@ -152,7 +173,7 @@ final class DecisionToolsTest extends KernelTestCase
     {
         $this->switchFlag($this->em, InboxInstallFlags::FLAG_INBOX_ENABLED, false);
 
-        foreach ([fn () => $this->list()((string) Uuid::v4()), fn () => $this->mark()([(string) Uuid::v4()], (string) Uuid::v4())] as $call) {
+        foreach ([fn () => $this->list()((string) Uuid::v4()), fn () => $this->mark()([['id' => (string) Uuid::v4(), 'changedAt' => 'x']], (string) Uuid::v4())] as $call) {
             try {
                 $call();
                 self::fail('The call should be refused.');
@@ -162,11 +183,20 @@ final class DecisionToolsTest extends KernelTestCase
         }
     }
 
+    /** @return list<array{id: string, changedAt: string}> */
+    private function rows(InboxDecision ...$decisions): array
+    {
+        return array_values(array_map(static fn (InboxDecision $decision): array => [
+            'id' => (string) $decision->id,
+            'changedAt' => null === $decision->changedAt ? 'none' : $decision->changeVersion(),
+        ], $decisions));
+    }
+
     private function changed(InboxDecision $decision, string $choice, ?string $note): InboxDecision
     {
         $decision->changedChoice = $choice;
         $decision->changedNote = $note;
-        $decision->changedAt = new \DateTimeImmutable('-1 minute');
+        $decision->changedAt = new \DateTimeImmutable(date('Y-m-d H:i:s', time() - 60));
 
         return $decision;
     }

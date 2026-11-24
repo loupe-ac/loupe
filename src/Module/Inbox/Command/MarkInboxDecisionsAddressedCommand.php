@@ -10,10 +10,10 @@ use Symfony\Component\Uid\Uuid;
 
 final readonly class MarkInboxDecisionsAddressedCommand
 {
-    /** @param list<Uuid> $decisionIds each id once */
+    /** @param array<string, string> $versions the changedAt of each decision as decision_list gave it, keyed by the decision id */
     public function __construct(
         public Project $project,
-        public array $decisionIds,
+        public array $versions,
         public Uuid $sessionId,
         /** The run of the run credential of the call, when it holds one. Otherwise the handler takes the newest run of the session. */
         public ?WorkerRun $credentialRun = null,

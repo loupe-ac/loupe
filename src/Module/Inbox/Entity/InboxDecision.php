@@ -22,6 +22,8 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Table(name: 'inbox_decisions')]
 class InboxDecision
 {
+    public const string VERSION_FORMAT = 'Y-m-d\TH:i:s.uP';
+
     #[ORM\Column(type: UuidType::NAME, unique: true)]
     #[ORM\CustomIdGenerator(class: 'doctrine.uuid_generator')]
     #[ORM\GeneratedValue(strategy: 'CUSTOM')]
@@ -78,6 +80,12 @@ class InboxDecision
         #[ORM\Column]
         public readonly \DateTimeImmutable $createdAt = new \DateTimeImmutable(),
     ) {
+    }
+
+    /** The change time with microseconds. decision_list gives it, and decision_mark_addressed hands it back. */
+    public function changeVersion(): string
+    {
+        return ($this->changedAt ?? throw new \LogicException('An open change has a time.'))->format(self::VERSION_FORMAT);
     }
 
     /** True while a change waits for the worker to act on it. */

@@ -52,13 +52,16 @@ final readonly class InboxDecisionLog
      * Call it after the commit. The card page redraws its Decisions tab, and the inbox pages read their rows again.
      *
      * @param list<Uuid> $cardIds
+     * @param bool       $signalInbox false when the caller signals the inbox pages itself
      */
-    public function refresh(Project $project, array $cardIds): void
+    public function refresh(Project $project, array $cardIds, bool $signalInbox = true): void
     {
         $projectId = $project->id ?? throw new \LogicException('Project has no id.');
         foreach ($cardIds as $cardId) {
             $this->events->dispatch(new CardChanged($projectId, $cardId, CardChanged::UPDATED, false));
         }
-        $this->inboxChanged->pageChanged($project);
+        if ($signalInbox) {
+            $this->inboxChanged->pageChanged($project);
+        }
     }
 }

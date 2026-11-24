@@ -6786,6 +6786,10 @@ workflow:
                 <source>inbox.decision.error.no_change</source>
                 <target>Nobody changed this decision.</target>
             </trans-unit>
+            <trans-unit id="inbox.decision.error.stale">
+                <source>inbox.decision.error.stale</source>
+                <target>The owner changed this decision again. Read it again.</target>
+            </trans-unit>
             <trans-unit id="inbox.decision.error.other_card">
                 <source>inbox.decision.error.other_card</source>
                 <target>This decision belongs to another card.</target>

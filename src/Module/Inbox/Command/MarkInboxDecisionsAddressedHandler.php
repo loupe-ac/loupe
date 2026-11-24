@@ -12,6 +12,7 @@ use App\Module\Inbox\Service\InboxDecisionLog;
 use App\Module\Workflow\Contract\CardEvaluations;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Uid\Uuid;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
@@ -22,6 +23,7 @@ final readonly class MarkInboxDecisionsAddressedHandler
     public const string NO_CHANGE = 'inbox.decision.error.no_change';
     public const string OTHER_CARD = 'inbox.decision.error.other_card';
     public const string NOT_FOUND = 'inbox.decision.error.not_found';
+    public const string STALE = 'inbox.decision.error.stale';
 
     public function __construct(
         private EntityManagerInterface $em,
@@ -37,8 +39,9 @@ final readonly class MarkInboxDecisionsAddressedHandler
     public function __invoke(MarkInboxDecisionsAddressedCommand $command): array
     {
         // The same refusal for "does not exist" and "belongs to another project".
-        $decisions = $this->inboxDecisions->findByIdsInProject($command->project, $command->decisionIds);
-        if (\count($decisions) !== \count($command->decisionIds)) {
+        $decisionIds = array_map(Uuid::fromString(...), array_keys($command->versions));
+        $decisions = $this->inboxDecisions->findByIdsInProject($command->project, $decisionIds);
+        if (\count($decisions) !== \count($decisionIds)) {
             throw new DomainErrors(['decisionIds' => self::NOT_FOUND]);
         }
         $run = $command->credentialRun ?? $this->workerRuns->findNewestWorkerOfSession($command->project, $command->sessionId);
@@ -53,12 +56,22 @@ final readonly class MarkInboxDecisionsAddressedHandler
         }
 
         /** @var list<InboxDecision> $marked */
-        $marked = $this->em->wrapInTransaction(function () use ($command, $decisions, $run): array {
+        $marked = $this->em->wrapInTransaction(function () use ($command, $decisions, $decisionIds, $run): array {
             $this->em->lock($command->project, LockMode::PESSIMISTIC_WRITE);
+            $addressed = [];
+            // The owner can change a decision while this call waits for the lock, so read each row again.
+            $fresh = $this->inboxDecisions->readChangeState($decisionIds);
+            foreach ($decisions as $decision) {
+                $state = $fresh[(string) $decision->id] ?? null;
+                if (null === $state || null === $state['changedAt'] || $state['changedAt']->format(InboxDecision::VERSION_FORMAT) !== ($command->versions[(string) $decision->id] ?? null)) {
+                    throw new DomainErrors(['decisionIds' => self::STALE]);
+                }
+                $addressed[(string) $decision->id] = null !== $state['addressedAt'];
+            }
             $now = new \DateTimeImmutable();
             $marked = [];
             foreach ($decisions as $decision) {
-                if (null !== $decision->addressedAt) {
+                if ($addressed[(string) $decision->id]) {
                     continue;
                 }
                 $decision->addressedAt = $now;
