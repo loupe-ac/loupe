@@ -221,6 +221,23 @@ final class WorkerWaitControlsTest extends KernelTestCase
         self::assertSame(0, $this->countCommands($this->em()));
     }
 
+    public function test_a_person_can_resume_a_run_after_the_queued_stop_of_a_stranded_wait(): void
+    {
+        [$wait, $run] = $this->parkedWait(WorkerRunState::Waiting);
+        $wait->end(WorkerWaitEndReason::TimedOut, new \DateTimeImmutable('-5 minutes'));
+        $this->em()->flush();
+        $this->em()->getConnection()->executeStatement('UPDATE bridges SET capabilities = CAST(:capabilities AS jsonb) WHERE id = :id', ['capabilities' => json_encode([Bridge::CAPABILITY_COMMANDS]), 'id' => (string) $wait->bridgeId]);
+        (self::getContainer()->get(EndWaitsOfCardHandler::class))(new EndWaitsOfCardCommand($this->cardId, WorkerWaitEndReason::CardMoved));
+        (self::getContainer()->get(StopStrandedWaitOfCardHandler::class))(new StopStrandedWaitOfCard((string) $wait->id, WorkerWaitEndReason::CardMoved));
+        $this->em()->clear();
+        $run = $this->reloadRun($run);
+        self::assertSame(WorkerRunState::Stopped, $run->state);
+
+        (self::getContainer()->get(\App\Module\Bridge\Command\RequestBridgeCommandHandler::class))(new \App\Module\Bridge\Command\RequestBridgeCommandCommand($run, \App\Module\Bridge\ValueObject\BridgeCommandKind::ResumeRun, null));
+
+        self::assertSame(1, $this->countCommands($this->em()));
+    }
+
     public function test_a_stop_for_a_wait_with_no_mark_changes_nothing(): void
     {
         [$wait, $run] = $this->parkedWait(WorkerRunState::Waiting);
