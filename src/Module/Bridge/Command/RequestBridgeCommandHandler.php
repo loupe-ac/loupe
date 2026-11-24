@@ -11,6 +11,7 @@ use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Repository\BridgeCommandRepository;
 use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
+use App\Module\Bridge\Repository\WorkerWaitRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\BridgeCommandPayload;
 use App\Module\Bridge\Service\BridgeCommandTtl;
@@ -64,6 +65,7 @@ final readonly class RequestBridgeCommandHandler
         private WorkRequestRepository $workRequests,
         private ProjectRepository $projects,
         private WorkerRunRepository $workerRuns,
+        private WorkerWaitRepository $workerWaits,
     ) {
     }
 
@@ -110,6 +112,9 @@ final readonly class RequestBridgeCommandHandler
                     $stored = $this->workerRuns->storedStateOf($run->id ?? throw new \LogicException('A stored run has an id.'));
                     // A stopped run takes a resume of a person, and never the resume of a wait that ended.
                     if (BridgeCommandCause::WaitEnded === $command->cause ? WorkerRunState::Waiting !== $stored : !($stored?->isResumable() ?? false)) {
+                        return self::NOT_RESUMABLE;
+                    }
+                    if ($this->workerWaits->isStopRequestedOfRun($run->id ?? throw new \LogicException('A stored run has an id.'))) {
                         return self::NOT_RESUMABLE;
                     }
                     if ($this->isCardHeld($run)) {

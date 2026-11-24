@@ -10,7 +10,7 @@ use App\Module\Bridge\ValueObject\WorkerWaitEndReason;
 final readonly class StopStrandedWaitOfCard
 {
     public function __construct(
-        public string $cardId,
+        public string $waitId,
         public WorkerWaitEndReason $reason,
     ) {
     }

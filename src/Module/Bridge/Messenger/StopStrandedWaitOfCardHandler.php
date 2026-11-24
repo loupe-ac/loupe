@@ -21,9 +21,10 @@ final readonly class StopStrandedWaitOfCardHandler
 
     public function __invoke(StopStrandedWaitOfCard $message): void
     {
-        $stranded = $this->workerWaits->findStrandedOfCard(Uuid::fromString($message->cardId));
-        if (null !== $stranded) {
-            $this->ender->stopStranded($stranded, $message->reason);
+        $wait = $this->workerWaits->find(Uuid::fromString($message->waitId));
+        // A wait with no mark belongs to a card change that rolled back.
+        if (null !== $wait && null !== $wait->stopRequestedAt) {
+            $this->ender->stopStranded($wait, $message->reason);
         }
     }
 }

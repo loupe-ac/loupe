@@ -122,10 +122,23 @@ class WorkerWaitRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('w')
             ->andWhere('w.endedAt IS NOT NULL')
             ->andWhere('w.resumeRunId IS NULL')
+            ->andWhere('w.stopRequestedAt IS NULL')
             ->andWhere('w.endReason IN (:strandedReasons)')
             ->andWhere('EXISTS (SELECT 1 FROM '.WorkerRun::class.' r WHERE r.id = w.runId AND r.state = :waiting)')
             ->setParameter('strandedReasons', array_map(static fn (WorkerWaitEndReason $reason): string => $reason->value, WorkerWaitEndReason::resumingReasons()))
             ->setParameter('waiting', WorkerRunState::Waiting);
+    }
+
+    /** Whether a card change asked to stop the parked run of a wait of the run. */
+    public function isStopRequestedOfRun(Uuid $runId): bool
+    {
+        return (int) $this->createQueryBuilder('w')
+            ->select('COUNT(w.id)')
+            ->andWhere('w.runId = :runId')
+            ->andWhere('w.stopRequestedAt IS NOT NULL')
+            ->setParameter('runId', $runId, UuidType::NAME)
+            ->getQuery()
+            ->getSingleScalarResult() > 0;
     }
 
     /** Whether the wait of the run ended in a way that stops the run. */
