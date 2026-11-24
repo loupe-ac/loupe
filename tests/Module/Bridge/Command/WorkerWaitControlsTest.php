@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Bridge\Command;
 
 use App\Exception\DomainErrors;
+use App\Module\Board\Entity\CardEventKind;
 use App\Module\Bridge\Command\CancelWaitCommand;
 use App\Module\Bridge\Command\CancelWaitHandler;
 use App\Module\Bridge\Command\ChangeWaitLimitCommand;
@@ -65,6 +66,18 @@ final class WorkerWaitControlsTest extends KernelTestCase
         self::assertSame(WorkerWaitEndReason::CancelledByPerson, $this->reload($wait)->endReason);
         self::assertSame(WorkerRunState::Stopped, $this->reloadRun($run)->state);
         self::assertSame([], $this->resumeMessages());
+    }
+
+    public function test_a_cancel_writes_a_wait_ended_row_to_the_card_history(): void
+    {
+        $this->parkedWait(WorkerRunState::Waiting);
+
+        (self::getContainer()->get(CancelWaitHandler::class))(new CancelWaitCommand($this->project, $this->cardId));
+
+        $this->em()->clear();
+        $rows = self::getContainer()->get(\App\Module\Board\Repository\CardEventRepository::class)->findBy(['card' => $this->cardId, 'kind' => CardEventKind::WaitEnded]);
+        self::assertCount(1, $rows);
+        self::assertSame('cancelled-by-person', $rows[0]->detail['reason']);
     }
 
     /** @return iterable<string, array{WorkerWaitEndReason}> */

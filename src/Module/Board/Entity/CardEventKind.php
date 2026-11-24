@@ -27,4 +27,5 @@ enum CardEventKind: string
     case ApprovalDismissed = 'approval-dismissed';
     case HumanReviewChanged = 'human-review-changed';
     case ValueChanged = 'value-changed';
+    case WaitEnded = 'wait-ended';
 }

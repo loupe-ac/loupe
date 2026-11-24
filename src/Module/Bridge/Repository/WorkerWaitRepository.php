@@ -58,6 +58,19 @@ class WorkerWaitRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
+    /** Whether the wait of the run ended in a way that stops the run. */
+    public function endedToStopRun(Uuid $runId): bool
+    {
+        return (int) $this->createQueryBuilder('w')
+            ->select('COUNT(w.id)')
+            ->andWhere('w.runId = :runId')
+            ->andWhere('w.endReason IN (:reasons)')
+            ->setParameter('runId', $runId, UuidType::NAME)
+            ->setParameter('reasons', array_map(static fn (WorkerWaitEndReason $reason): string => $reason->value, WorkerWaitEndReason::stoppingReasons()))
+            ->getQuery()
+            ->getSingleScalarResult() > 0;
+    }
+
     /**
      * The waits of the session that ended in a way that resumes, and that no run resumed yet.
      *

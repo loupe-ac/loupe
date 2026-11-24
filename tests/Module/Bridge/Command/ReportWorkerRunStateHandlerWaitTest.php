@@ -95,16 +95,27 @@ final class ReportWorkerRunStateHandlerWaitTest extends KernelTestCase
         self::assertSame(WorkerRunState::Waiting, $this->reload($run)->state);
     }
 
-    public function test_a_wait_that_ended_in_a_way_that_resumes_nothing_leaves_the_state_alone(): void
+    /** @return iterable<string, array{WorkerWaitEndReason}> */
+    public static function stoppingEnds(): iterable
+    {
+        yield 'cancelled' => [WorkerWaitEndReason::CancelledByPerson];
+        yield 'moved' => [WorkerWaitEndReason::CardMoved];
+        yield 'finished' => [WorkerWaitEndReason::CardFinished];
+        yield 'held' => [WorkerWaitEndReason::CardHeld];
+    }
+
+    #[DataProvider('stoppingEnds')]
+    public function test_the_end_of_a_live_run_whose_wait_was_stopped_records_a_stop(WorkerWaitEndReason $reason): void
     {
         $run = $this->runningRun();
         $wait = $this->wait($run);
-        $wait->end(WorkerWaitEndReason::CardMoved, new \DateTimeImmutable('2026-09-23 10:03:00'));
+        $wait->end($reason, new \DateTimeImmutable('2026-09-23 10:03:00'));
         $this->em()->flush();
 
         $this->end('unfinished');
 
-        self::assertSame(WorkerRunState::Unfinished, $this->reload($run)->state);
+        self::assertSame(WorkerRunState::Stopped, $this->reload($run)->state);
+        self::assertSame(['running', 'stopped'], $this->history($run));
     }
 
     public function test_a_run_with_no_wait_ends_as_reported(): void

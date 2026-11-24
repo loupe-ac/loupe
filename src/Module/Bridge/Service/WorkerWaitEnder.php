@@ -7,6 +7,7 @@ namespace App\Module\Bridge\Service;
 use App\Module\Bridge\Entity\WorkerRunStateChange;
 use App\Module\Bridge\Entity\WorkerWait;
 use App\Module\Bridge\Event\WorkerRunChanged;
+use App\Module\Bridge\Event\WorkerWaitEnded;
 use App\Module\Bridge\Messenger\ResumeWaitingSession;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\ValueObject\WorkerRunChangeKind;
@@ -51,6 +52,9 @@ final readonly class WorkerWaitEnder
         if ($parked && !$reason->resumesSession()) {
             $run->recordStop($now, null);
             $this->em->persist(new WorkerRunStateChange($run, WorkerRunState::Stopped, $now, $now));
+        }
+        if ($reason->isOwnerOrCardChange()) {
+            $this->events->dispatch(new WorkerWaitEnded($wait->cardId, $wait->runId, $reason, $now));
         }
         $this->em->flush();
 

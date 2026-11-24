@@ -1266,7 +1266,7 @@ carries `kind`, `occurredAt` and `actor`.
 `kind` is `created`, `moved`, `fix-requested`, `fix-withdrawn`, `stopped`, `ready-to-merge`, `synced`,
 `run-finished`, `paused`, `pause-released`, `verdict`, `review-overridden`,
 `override-ended`, `document-verdict`, `verdict-failed`, `auto-approved`,
-`approval-dismissed`, `human-review-changed` or `value-changed`. `actor` carries `kind` and
+`approval-dismissed`, `human-review-changed`, `value-changed` or `wait-ended`. `actor` carries `kind` and
 `name`. Its `kind` is `human`, `agent`, `reviewer` or `system`. `name` is the
 current name of the person
 behind the event. It is null when there is no person, such as for a deleted
@@ -1308,6 +1308,9 @@ A `human-review-changed` event sets `humanReview`, with `value`, `cause` and
 `ruleId`. `value` is true when the switch went on. `cause` is `person`, `agent`,
 `rule` or `rollout`. `ruleId` names the workflow rule that set the switch, and
 is null for any other cause.
+
+A `wait-ended` event sets `reason`: `resumed-by-person`, `cancelled-by-person`, `card-moved`,
+`card-finished` or `card-held`. It records an end that a person or a change of the card caused.
 
 A `value-changed` event sets `valueChange`, with `key`, `value` and `previous`.
 `key` is the declared key of the card value that changed. `previous` is null when

@@ -8454,6 +8454,11 @@ workflow:
             <trans-unit id="board.card.history.auto_approved"><source>board.card.history.auto_approved</source><target>Approved automatically: Loupe passed the approval check on #%pr% at %sha%.</target></trans-unit>
             <trans-unit id="board.card.history.approval_dismissed"><source>board.card.history.approval_dismissed</source><target>Loupe withdrew its approval of #%pr%, because a person must review it.</target></trans-unit>
             <trans-unit id="board.card.history.resume_skipped"><source>board.card.history.resume_skipped</source><target>Did not resume a session: another session of this card resumes for question #%number%.</target></trans-unit>
+            <trans-unit id="board.card.history.wait_ended.resumed_by_person"><source>board.card.history.wait_ended.resumed_by_person</source><target>The owner ended the wait early, and the worker resumes.</target></trans-unit>
+            <trans-unit id="board.card.history.wait_ended.cancelled_by_person"><source>board.card.history.wait_ended.cancelled_by_person</source><target>The owner cancelled the wait, and the worker stopped.</target></trans-unit>
+            <trans-unit id="board.card.history.wait_ended.card_moved"><source>board.card.history.wait_ended.card_moved</source><target>The card moved, so the wait ended and the worker stopped.</target></trans-unit>
+            <trans-unit id="board.card.history.wait_ended.card_finished"><source>board.card.history.wait_ended.card_finished</source><target>The card finished, so the wait ended and the worker stopped.</target></trans-unit>
+            <trans-unit id="board.card.history.wait_ended.card_held"><source>board.card.history.wait_ended.card_held</source><target>The card was put on hold, so the wait ended and the worker stopped.</target></trans-unit>
             <trans-unit id="board.card.history.verdict_kind.approve"><source>board.card.history.verdict_kind.approve</source><target>approve</target></trans-unit>
             <trans-unit id="board.card.history.verdict_kind.request_changes"><source>board.card.history.verdict_kind.request_changes</source><target>request changes</target></trans-unit>
             <trans-unit id="board.card.history.verdict_kind.comment"><source>board.card.history.verdict_kind.comment</source><target>comment</target></trans-unit>

@@ -7252,7 +7252,8 @@
                             "auto-approved",
                             "approval-dismissed",
                             "human-review-changed",
-                            "value-changed"
+                            "value-changed",
+                            "wait-ended"
                         ]
                     },
                     "occurredAt": {
@@ -17770,7 +17771,8 @@
                             "auto-approved",
                             "approval-dismissed",
                             "human-review-changed",
-                            "value-changed"
+                            "value-changed",
+                            "wait-ended"
                         ]
                     },
                     "occurredAt": {
