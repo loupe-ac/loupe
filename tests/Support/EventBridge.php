@@ -14,7 +14,7 @@ use Symfony\Component\Uid\Uuid;
 final readonly class EventBridge
 {
     /** @param list<string> $capabilities */
-    public static function register(EntityManagerInterface $em, User $owner, array $capabilities = [Bridge::CAPABILITY_WORK_REQUESTS]): Bridge
+    public static function register(EntityManagerInterface $em, User $owner, array $capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS]): Bridge
     {
         $bridge = new Bridge($owner, Uuid::v4(), [], '1.0.0', new \DateTimeImmutable());
         $bridge->capabilities = $capabilities;

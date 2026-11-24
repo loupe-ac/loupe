@@ -38,6 +38,19 @@ use Symfony\Component\Uid\Uuid;
  */
 class WorkerRunRepository extends ServiceEntityRepository
 {
+    /** Reads the stored state alone, so a caller that holds an old copy of the run sees a stop that committed meanwhile. */
+    public function storedStateOf(Uuid $runId): ?WorkerRunState
+    {
+        $state = $this->createQueryBuilder('r')
+            ->select('r.state')
+            ->andWhere('r.id = :id')
+            ->setParameter('id', $runId, UuidType::NAME)
+            ->getQuery()
+            ->getOneOrNullResult(Query::HYDRATE_ARRAY);
+
+        return $state['state'] ?? null;
+    }
+
     /** An init run is a run of work kind init on the project itself. */
     private const string INIT_RUN_CONDITION = 'r.workKind = :initKind AND r.subjectType = :initSubject';
 

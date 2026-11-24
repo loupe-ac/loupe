@@ -37,7 +37,7 @@ final class ShowEventsHandlerLazinessTest extends TestCase
         $built = false;
         $user = new User(fullName: 'Riley Chen', email: 'riley@example.com', password: 'x');
         $bridge = new Bridge($user, Uuid::v4(), [], '1.0.0', new \DateTimeImmutable());
-        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS];
+        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS];
         $bridges = $this->createStub(BridgeRepository::class);
         $bridges->method('findOneByOwnerAndId')->willReturn($bridge);
 

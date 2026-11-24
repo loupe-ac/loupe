@@ -61,7 +61,7 @@ An epic pull request updates as any other pull request. The update merges the ba
 
    Each update costs a full CI run, and the base can move again before an approval arrives.
 3. Update the branch with the forge adapter. When the forge says the branch is already up to date, stop with `STAGE RESULT: not ready <url>: not behind`.
-4. Stop with `STAGE RESULT: waiting <url>`. The app reads the new head and its checks.
+4. Wait for the checks of the new head as "After the push" in `../loupe-stage-implementation/references/commands.md` says. Never move the card.
 
 ### Merge
 
@@ -97,7 +97,7 @@ The parent of a stacked pull request merged, so the pull request needs the base 
 
 1. Read the base of the pull request, which is the head branch of its parent. Find the merged parent pull request with that head branch, as "Change the base" in the forge adapter says. When no parent merged, stop with `STAGE RESULT: not ready <url>: parent not merged`.
 2. Change the base of the pull request to the base of the parent, with the forge adapter. Never rebase, and never push.
-3. Stop with `STAGE RESULT: waiting <url>`. A conflict with the new base reaches a fix round as a fix request.
+3. Wait for the checks as "After the push" in `../loupe-stage-implementation/references/commands.md` says. A conflict with the new base reaches a fix round as a fix request.
 
 ### Sync the epic branch
 

@@ -7252,7 +7252,8 @@
                             "auto-approved",
                             "approval-dismissed",
                             "human-review-changed",
-                            "value-changed"
+                            "value-changed",
+                            "wait-ended"
                         ]
                     },
                     "occurredAt": {
@@ -16531,8 +16532,8 @@
                             "no-result",
                             "unfinished",
                             "blocked",
-                            "waiting-on-forge",
-                            "gave-up"
+                            "gave-up",
+                            "waiting-on-forge"
                         ]
                     },
                     "at": {
@@ -17775,7 +17776,8 @@
                             "auto-approved",
                             "approval-dismissed",
                             "human-review-changed",
-                            "value-changed"
+                            "value-changed",
+                            "wait-ended"
                         ]
                     },
                     "occurredAt": {

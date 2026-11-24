@@ -167,6 +167,29 @@ final class WorkerWaitEngineTest extends KernelTestCase
         self::assertSame([], $this->service(WorkerRunRepository::class)->findOpenWorkSinceOfCard($card->id ?? throw new \LogicException('Stored.'))['all']);
     }
 
+    public function test_a_wait_that_ended_while_its_bridge_is_offline_shows_the_stuck_marker_until_a_run_resumes_it(): void
+    {
+        [$card, $pullRequest] = $this->cardWithPullRequest();
+        $wait = $this->openWait($card, $pullRequest, 'pr.checks_passed', limit: '+30 minutes');
+        // No bridge is stored for the run, so no heartbeat reaches the card.
+        $wait->end(WorkerWaitEndReason::Condition, new \DateTimeImmutable(self::NOW.' -1 minute'));
+        $this->em()->flush();
+
+        $this->evaluate($card);
+        self::assertContains('wait-bridge-offline', $this->markerKeys($card));
+
+        $wait->resumeRunId = Uuid::v7();
+        $this->em()->flush();
+        $this->evaluate($card);
+        self::assertNotContains('wait-bridge-offline', $this->markerKeys($card));
+    }
+
+    /** @return list<string> */
+    private function markerKeys(Card $card): array
+    {
+        return array_values(array_map(static fn ($marker): string => $marker->key, $this->service(CardMarkerStore::class)->read($card->id ?? throw new \LogicException('Stored.'))));
+    }
+
     /** @return array{Card, ForgePullRequest} */
     private function cardWithPullRequest(): array
     {

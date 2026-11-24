@@ -47,7 +47,7 @@ final class HeldCardFlowTest extends KernelTestCase
         $request = $this->onlyRequest($card);
         self::assertSame(['tech-design', WorkRequestState::Open], [$request->kind, $request->state]);
         $bridge = new Bridge(AgentCredential::managed($this->em(), $owner, $owner->id), Uuid::v4(), [(string) $project->id], 'b4e39aa7', new \DateTimeImmutable());
-        $bridge->capabilities = array_values(array_filter([Bridge::CAPABILITY_WORK_REQUESTS, $request->capability]));
+        $bridge->capabilities = array_values(array_filter([Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, $request->capability]));
         $bridge->accounts = [['name' => 'work', 'harness' => 'claude', 'state' => 'ready', 'reason' => null, 'kinds' => [$request->kind]]];
         $this->em()->persist($bridge);
         $this->em()->flush();

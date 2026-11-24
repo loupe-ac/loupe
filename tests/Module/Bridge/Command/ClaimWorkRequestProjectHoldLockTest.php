@@ -49,7 +49,7 @@ final class ClaimWorkRequestProjectHoldLockTest extends KernelTestCase
         $this->owner = $this->user($em, 'claim-hold-lock-'.uniqid().'@example.com');
         $this->project = $this->project($em, $this->owner, 'Project claim hold lock');
         $this->bridge = $this->seedBridge($em, $this->owner, projects: [(string) $this->project->id?->toRfc4122()]);
-        $this->bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS];
+        $this->bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS];
         $this->bridge->accounts = [['name' => 'work', 'harness' => 'claude', 'state' => 'ready', 'reason' => null, 'kinds' => ['implement', 'fix']]];
         $em->flush();
         $this->first = $this->seedWorkRequest($em, $this->project);

@@ -68,8 +68,15 @@
                 {% set primary = markers.primary %}
                 {% set stateName = primary.kind.translationKey|trans %}
                 {% set stateFields = [{label: primary.kind.sinceLabelKey|trans, value: card_state_text('board.card_state.since_value', primary.since)}] %}
-                {% if primary.remedy is not null %}
+                {% set openWait = primary.label in ['marker.worker_waiting', 'marker.wait_bridge_offline'] ? card_worker_wait(card.project, card.id ~ '') : null %}
+                {% if primary.remedy is not null and (openWait is null or openWait.stranded) %}
                 {% set stateFields = stateFields|merge([{label: primary.kind.remedyLabelKey|trans, value: primary.remedy|trans(primary.params)|inline_code, wide: true, link: primary.link is null ? null : {href: marker_link_href(primary.link, card.project), label: marker_link_target(primary.link).translationKey|trans}}]) %}
+                {% endif %}
+                {% if openWait is not null and not openWait.stranded %}
+                {% set stateFields = stateFields|merge([
+                    {label: 'bridge.wait.field.time_limit'|trans, value: 'bridge.wait.field.time_limit_value'|trans({'%minutes%': openWait.limitMinutes, '%clock%': openWait.limitAt|date('H:i')})},
+                    {label: 'bridge.wait.field.at_the_limit'|trans, value: 'bridge.wait.field.at_the_limit_value'|trans, wide: true}
+                ]) %}
                 {% endif %}
                 <div class="lp-card-overview__state">
                 <twig:Ds:StatusBox
@@ -89,6 +96,9 @@
                         {{ 'board.card_state.try_now'|trans }}
                     </twig:Ds:Button>
                 </twig:Ds:ActionForm>
+                {% endif %}
+                {% if openWait is not null and is_granted('project.manage', card.project) %}
+                {% include '@Bridge/_card_worker_wait_controls.html.twig' with {project: card.project, cardId: card.id ~ '', wait: openWait} only %}
                 {% endif %}
                 </div>
                 {% endif %}

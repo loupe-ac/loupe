@@ -8316,10 +8316,6 @@ workflow:
                 <source>bridge.worker_runs.state.network</source>
                 <target>Stopped by a network outage</target>
             </trans-unit>
-            <trans-unit id="bridge.worker_runs.state.waiting_on_forge">
-                <source>bridge.worker_runs.state.waiting_on_forge</source>
-                <target>Waiting on the forge</target>
-            </trans-unit>
             <trans-unit id="bridge.worker_runs.state.waiting">
                 <source>bridge.worker_runs.state.waiting</source>
                 <target>Waiting</target>
@@ -8507,6 +8503,11 @@ workflow:
             <trans-unit id="board.card.history.auto_approved"><source>board.card.history.auto_approved</source><target>Approved automatically: Loupe passed the approval check on #%pr% at %sha%.</target></trans-unit>
             <trans-unit id="board.card.history.approval_dismissed"><source>board.card.history.approval_dismissed</source><target>Loupe withdrew its approval of #%pr%, because a person must review it.</target></trans-unit>
             <trans-unit id="board.card.history.resume_skipped"><source>board.card.history.resume_skipped</source><target>Did not resume a session: another session of this card resumes for question #%number%.</target></trans-unit>
+            <trans-unit id="board.card.history.wait_ended.resumed_by_person"><source>board.card.history.wait_ended.resumed_by_person</source><target>The owner ended the wait early, and the worker resumes.</target></trans-unit>
+            <trans-unit id="board.card.history.wait_ended.cancelled_by_person"><source>board.card.history.wait_ended.cancelled_by_person</source><target>The owner cancelled the wait, and the worker stopped.</target></trans-unit>
+            <trans-unit id="board.card.history.wait_ended.card_moved"><source>board.card.history.wait_ended.card_moved</source><target>The card moved, so the wait ended and the worker stopped.</target></trans-unit>
+            <trans-unit id="board.card.history.wait_ended.card_finished"><source>board.card.history.wait_ended.card_finished</source><target>The card finished, so the wait ended and the worker stopped.</target></trans-unit>
+            <trans-unit id="board.card.history.wait_ended.card_held"><source>board.card.history.wait_ended.card_held</source><target>The card was put on hold, so the wait ended and the worker stopped.</target></trans-unit>
             <trans-unit id="board.card.history.verdict_kind.approve"><source>board.card.history.verdict_kind.approve</source><target>approve</target></trans-unit>
             <trans-unit id="board.card.history.verdict_kind.request_changes"><source>board.card.history.verdict_kind.request_changes</source><target>request changes</target></trans-unit>
             <trans-unit id="board.card.history.verdict_kind.comment"><source>board.card.history.verdict_kind.comment</source><target>comment</target></trans-unit>
@@ -10604,6 +10605,8 @@ workflow:
             <trans-unit id="workflow.waiting.not.run_worker_active"><source>workflow.waiting.not.run_worker_active</source><target>Waiting: a matching worker run is still open.</target></trans-unit>
             <trans-unit id="workflow.waiting.run_worker_waiting"><source>workflow.waiting.run_worker_waiting</source><target>Waiting: no worker waits for a condition.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.run_worker_waiting"><source>workflow.waiting.not.run_worker_waiting</source><target>Waiting: a worker waits for a condition.</target></trans-unit>
+            <trans-unit id="workflow.waiting.run_wait_resume_stranded"><source>workflow.waiting.run_wait_resume_stranded</source><target>Waiting: no ended wait is stranded by an offline bridge.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.run_wait_resume_stranded"><source>workflow.waiting.not.run_wait_resume_stranded</source><target>Waiting: a wait ended while its bridge is offline.</target></trans-unit>
             <trans-unit id="workflow.waiting.bridge_account_usage"><source>workflow.waiting.bridge_account_usage</source><target>Waiting: the %window% window of %account% is not above %above% percent.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.bridge_account_usage"><source>workflow.waiting.not.bridge_account_usage</source><target>Waiting: the %window% window of %account% is above %above% percent.</target></trans-unit>
             <trans-unit id="workflow.waiting.parent_document_approved"><source>workflow.waiting.parent_document_approved</source><target>Waiting: not every %tag% document of the parent card is approved.</target></trans-unit>
@@ -11130,11 +11133,27 @@ workflow:
             <trans-unit id="marker.run_open"><source>marker.run_open</source><target>A worker runs on this card.</target></trans-unit>
             <trans-unit id="marker.run_open.remedy"><source>marker.run_open.remedy</source><target>Nothing. The card moves on when the worker ends.</target></trans-unit>
             <trans-unit id="marker.worker_waiting"><source>marker.worker_waiting</source><target>The worker waits for %conditions%.</target></trans-unit>
+            <trans-unit id="bridge.wait.field.time_limit"><source>bridge.wait.field.time_limit</source><target>Time limit</target></trans-unit>
+            <trans-unit id="bridge.wait.field.time_limit_value"><source>bridge.wait.field.time_limit_value</source><target>%minutes% min, until %clock%</target></trans-unit>
+            <trans-unit id="bridge.wait.field.at_the_limit"><source>bridge.wait.field.at_the_limit</source><target>At the limit</target></trans-unit>
+            <trans-unit id="bridge.wait.field.at_the_limit_value"><source>bridge.wait.field.at_the_limit_value</source><target>The worker resumes in the same session and learns that the wait timed out. It then decides what to do.</target></trans-unit>
+            <trans-unit id="bridge.wait.resume_now"><source>bridge.wait.resume_now</source><target>Resume now</target></trans-unit>
+            <trans-unit id="bridge.wait.change_limit"><source>bridge.wait.change_limit</source><target>Change the time limit</target></trans-unit>
+            <trans-unit id="bridge.wait.change_limit.submit"><source>bridge.wait.change_limit.submit</source><target>Save the time limit</target></trans-unit>
+            <trans-unit id="bridge.wait.cancel"><source>bridge.wait.cancel</source><target>Cancel the wait</target></trans-unit>
+            <trans-unit id="bridge.wait.cancel.confirm"><source>bridge.wait.cancel.confirm</source><target>Cancel the wait? The worker stops and does not resume.</target></trans-unit>
+            <trans-unit id="bridge.wait.error.no_open_wait"><source>bridge.wait.error.no_open_wait</source><target>The card has no open wait. It ended before your request arrived.</target></trans-unit>
+            <trans-unit id="bridge.wait.error.limit_over_maximum"><source>bridge.wait.error.limit_over_maximum</source><target>The time limit is longer than the longest wait that the workflow allows.</target></trans-unit>
+            <trans-unit id="bridge.wait.error.limit_passed"><source>bridge.wait.error.limit_passed</source><target>The new time limit has passed already. Resume the worker now, or choose a longer limit.</target></trans-unit>
+            <trans-unit id="bridge.form.change_wait_limit_form.minutes.label"><source>bridge.form.change_wait_limit_form.minutes.label</source><target>Time limit in minutes</target></trans-unit>
+            <trans-unit id="bridge.form.change_wait_limit_form.minutes.help"><source>bridge.form.change_wait_limit_form.minutes.help</source><target>Counted from the start of the wait. The longest limit is %max% minutes.</target></trans-unit>
             <trans-unit id="marker.worker_waiting.remedy"><source>marker.worker_waiting.remedy</source><target>Nothing. The worker resumes in the same session when a condition is true or the time limit passes.</target></trans-unit>
+            <trans-unit id="marker.wait_bridge_offline"><source>marker.wait_bridge_offline</source><target>Bridge offline: the wait of the worker ended, and its bridge cannot resume the session.</target></trans-unit>
+            <trans-unit id="marker.wait_bridge_offline.remedy"><source>marker.wait_bridge_offline.remedy</source><target>Start the bridge, or cancel the wait.</target></trans-unit>
             <trans-unit id="marker.no_bridge_online"><source>marker.no_bridge_online</source><target>No bridge is online to take this work.</target></trans-unit>
             <trans-unit id="marker.no_bridge_online.remedy"><source>marker.no_bridge_online.remedy</source><target>Start a bridge, or run `loupe login`.</target></trans-unit>
             <trans-unit id="marker.no_capable_bridge"><source>marker.no_capable_bridge</source><target>A bridge is online, but none can run this work.</target></trans-unit>
-            <trans-unit id="marker.no_capable_bridge.remedy"><source>marker.no_capable_bridge.remedy</source><target>Map this kind of work in the bridge rule file, or set `appPrompts: true`. Run `loupe init` again if the bridge is old. If every account that runs it fails the check for this project, open Agents and fix that account, then run `loupe bridge reload`.</target></trans-unit>
+            <trans-unit id="marker.no_capable_bridge.remedy"><source>marker.no_capable_bridge.remedy</source><target>Map this kind of work in the bridge rule file, or set `appPrompts: true`. Run `loupe update` if the bridge is old, because a bridge without the `waits` capability takes no work. If every account that runs it fails the check for this project, open Agents and fix that account, then run `loupe bridge reload`.</target></trans-unit>
             <trans-unit id="marker.bridge_paused"><source>marker.bridge_paused</source><target>Work waits: the bridge is paused.</target></trans-unit>
             <trans-unit id="marker.bridge_paused.remedy"><source>marker.bridge_paused.remedy</source><target>Resume the bridge on the Agents page.</target></trans-unit>
             <trans-unit id="marker.usage_limit"><source>marker.usage_limit</source><target>Work waits for the usage of an account to reset.</target></trans-unit>

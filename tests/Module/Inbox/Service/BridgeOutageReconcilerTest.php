@@ -528,7 +528,7 @@ final class BridgeOutageReconcilerTest extends KernelTestCase
     private function bridge(int $seenSecondsAgo): Bridge
     {
         $bridge = new Bridge($this->project->owner, Uuid::v4(), [(string) $this->project->id], 'b4e39aa7', new \DateTimeImmutable(self::NOW)->modify(\sprintf('-%d seconds', $seenSecondsAgo)));
-        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS];
+        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS];
         $bridge->workKinds = ['implement'];
         $this->em->persist($bridge);
         $this->em->flush();

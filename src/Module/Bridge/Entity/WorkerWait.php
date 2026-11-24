@@ -47,6 +47,10 @@ class WorkerWait implements ProjectScopedSubject
     #[ORM\Column(name: 'met_conditions', type: Types::JSON, nullable: true, options: ['jsonb' => true])]
     public ?array $metConditions = null;
 
+    /** Set by the card change that stops the parked run. A resume request refuses a wait that has it, before the queue runs the stop. */
+    #[ORM\Column(name: 'stop_requested_at', nullable: true)]
+    public ?\DateTimeImmutable $stopRequestedAt = null;
+
     /** The run that resumed the session after the wait ended. A plain id, because the run can be purged first. */
     #[ORM\Column(name: 'resume_run_id', type: UuidType::NAME, nullable: true)]
     public ?Uuid $resumeRunId = null;

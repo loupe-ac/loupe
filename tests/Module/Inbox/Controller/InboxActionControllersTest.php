@@ -337,7 +337,7 @@ final class InboxActionControllersTest extends WebTestCase
     public function test_the_card_page_starts_a_session_from_the_main_part(): void
     {
         $session = new Bridge($this->project->owner, Uuid::v4(), [$this->project->id?->toRfc4122() ?? ''], 'b4e39aa7', new \DateTimeImmutable());
-        $session->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION];
+        $session->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_SESSION];
         $this->em()->persist($session);
         $this->em()->flush();
         $item = $this->runItem(state: WorkerRunState::Running, linkCard: true);
@@ -365,7 +365,7 @@ final class InboxActionControllersTest extends WebTestCase
     public function test_a_session_todo_shows_the_prompt_in_an_editable_field_and_sends_the_edit(): void
     {
         $session = new Bridge($this->project->owner, Uuid::v4(), [$this->project->id?->toRfc4122() ?? ''], 'b4e39aa7', new \DateTimeImmutable());
-        $session->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION];
+        $session->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_SESSION];
         $session->lastSeenAt = new \DateTimeImmutable();
         $this->em()->persist($session);
         $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Rebuild it', blocking: false, origin: InboxAskOrigin::Agent);
@@ -392,7 +392,7 @@ final class InboxActionControllersTest extends WebTestCase
     private function itemSessionBridge(string $name = 'geoffrey-mbp'): void
     {
         $session = new Bridge($this->project->owner, Uuid::v4(), [$this->project->id?->toRfc4122() ?? ''], 'b4e39aa7', new \DateTimeImmutable());
-        $session->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION];
+        $session->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_SESSION];
         $session->workKinds = [Bridge::workKindOf(InboxItem::SUBJECT_TYPE, WorkRequest::SESSION_KIND)];
         $session->name = $name;
         $this->em()->persist($session);
@@ -480,7 +480,7 @@ final class InboxActionControllersTest extends WebTestCase
     public function test_a_session_prompt_field_the_owner_cleared_starts_the_session_with_no_prompt(): void
     {
         $session = new Bridge($this->project->owner, Uuid::v4(), [$this->project->id?->toRfc4122() ?? ''], 'b4e39aa7', new \DateTimeImmutable());
-        $session->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION];
+        $session->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_SESSION];
         $session->lastSeenAt = new \DateTimeImmutable();
         $this->em()->persist($session);
         $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Rebuild it', blocking: false, origin: InboxAskOrigin::Agent);
@@ -1179,7 +1179,7 @@ final class InboxActionControllersTest extends WebTestCase
 
     private function commandTodo(): InboxItem
     {
-        $this->bridge->capabilities = [Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_RUN_COMMAND];
+        $this->bridge->capabilities = [Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_RUN_COMMAND];
         $this->bridge->projects = [(string) $this->project->id];
         $this->bridge->lastSeenAt = new \DateTimeImmutable();
         $this->bridge->commandEntries = [['name' => 'design-export', 'description' => null, 'params' => [['name' => 'out', 'pattern' => '[a-z/]+', 'description' => null]], 'run' => ['bin/console', 'app:export', '{out}'], 'timeout' => '10m']];
@@ -1255,7 +1255,7 @@ final class InboxActionControllersTest extends WebTestCase
     private function sessionBridge(): void
     {
         $session = new Bridge($this->project->owner, Uuid::v4(), [$this->project->id?->toRfc4122() ?? ''], 'b4e39aa7', new \DateTimeImmutable());
-        $session->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION];
+        $session->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_SESSION];
         $session->lastSeenAt = new \DateTimeImmutable();
         $this->em()->persist($session);
         $this->em()->flush();

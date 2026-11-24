@@ -1,0 +1,19 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Module\Bridge\Command;
+
+use App\Module\Project\Entity\Project;
+use Symfony\Component\Uid\Uuid;
+
+final readonly class ChangeWaitLimitCommand
+{
+    public function __construct(
+        public Project $project,
+        public Uuid $cardId,
+        /** The new limit in minutes, counted from the start of the wait. */
+        public int $minutes,
+    ) {
+    }
+}

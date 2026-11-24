@@ -380,7 +380,7 @@ final class ReadinessChecklistTest extends KernelTestCase
         $project = $this->newProject('readiness-incapable@example.com');
         $this->bind($project);
         $bridge = $this->seedBridge($this->em(), $project->owner, projects: [(string) $project->id]);
-        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS];
+        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS];
         $this->em()->flush();
 
         $readiness = $this->readiness($this->checklist(), $project);
@@ -636,7 +636,7 @@ final class ReadinessChecklistTest extends KernelTestCase
         $old->lastSeenAt = new \DateTimeImmutable('-30 seconds');
         $new = $this->seedCapableBridge($project);
         $incapable = $this->seedBridge($this->em(), $project->owner, projects: [(string) $project->id]);
-        $incapable->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS];
+        $incapable->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS];
         $incapable->lastSeenAt = new \DateTimeImmutable('+1 second');
         $this->em()->flush();
 
@@ -669,7 +669,7 @@ final class ReadinessChecklistTest extends KernelTestCase
     private function seedCapableBridge(Project $project, bool $appPrompts = true): Bridge
     {
         $bridge = $this->seedBridge($this->em(), $project->owner, projects: [(string) $project->id]);
-        $bridge->capabilities = $appPrompts ? [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_APP_PROMPTS] : [Bridge::CAPABILITY_WORK_REQUESTS];
+        $bridge->capabilities = $appPrompts ? [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_APP_PROMPTS] : [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS];
         $this->em()->flush();
 
         return $bridge;

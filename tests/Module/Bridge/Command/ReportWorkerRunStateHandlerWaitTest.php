@@ -51,7 +51,6 @@ final class ReportWorkerRunStateHandlerWaitTest extends KernelTestCase
     {
         yield 'unfinished' => ['unfinished'];
         yield 'no-result' => ['no-result'];
-        yield 'waiting-on-forge' => ['waiting-on-forge'];
     }
 
     #[DataProvider('parkedEnds')]
@@ -95,16 +94,55 @@ final class ReportWorkerRunStateHandlerWaitTest extends KernelTestCase
         self::assertSame(WorkerRunState::Waiting, $this->reload($run)->state);
     }
 
-    public function test_a_wait_that_ended_in_a_way_that_resumes_nothing_leaves_the_state_alone(): void
+    /** @return iterable<string, array{WorkerWaitEndReason}> */
+    public static function stoppingEnds(): iterable
+    {
+        yield 'cancelled' => [WorkerWaitEndReason::CancelledByPerson];
+        yield 'moved' => [WorkerWaitEndReason::CardMoved];
+        yield 'finished' => [WorkerWaitEndReason::CardFinished];
+        yield 'held' => [WorkerWaitEndReason::CardHeld];
+    }
+
+    #[DataProvider('stoppingEnds')]
+    public function test_the_end_of_a_live_run_whose_wait_was_stopped_records_a_stop(WorkerWaitEndReason $reason): void
     {
         $run = $this->runningRun();
         $wait = $this->wait($run);
-        $wait->end(WorkerWaitEndReason::CardMoved, new \DateTimeImmutable('2026-09-23 10:03:00'));
+        $wait->end($reason, new \DateTimeImmutable('2026-09-23 10:03:00'));
         $this->em()->flush();
 
         $this->end('unfinished');
 
-        self::assertSame(WorkerRunState::Unfinished, $this->reload($run)->state);
+        self::assertSame(WorkerRunState::Stopped, $this->reload($run)->state);
+        self::assertSame(['running', 'stopped'], $this->history($run));
+    }
+
+    /** @return iterable<string, array{WorkerWaitEndReason, string}> */
+    public static function stoppingEndsWithOutcome(): iterable
+    {
+        foreach (self::stoppingEnds() as $name => [$reason]) {
+            yield $name.' then succeeded' => [$reason, 'succeeded'];
+            yield $name.' then blocked' => [$reason, 'blocked'];
+            yield $name.' then failed' => [$reason, 'failed'];
+            yield $name.' then not-started' => [$reason, 'not-started'];
+            yield $name.' then gave-up' => [$reason, 'gave-up'];
+            yield $name.' then usage-limit' => [$reason, 'usage-limit'];
+            yield $name.' then network' => [$reason, 'network'];
+        }
+    }
+
+    #[DataProvider('stoppingEndsWithOutcome')]
+    public function test_an_outcome_end_of_a_stopped_wait_still_records_a_stop(WorkerWaitEndReason $reason, string $end): void
+    {
+        $run = $this->runningRun();
+        $wait = $this->wait($run);
+        $wait->end($reason, new \DateTimeImmutable('2026-09-23 10:03:00'));
+        $this->em()->flush();
+
+        $this->end($end);
+
+        self::assertSame(WorkerRunState::Stopped, $this->reload($run)->state);
+        self::assertSame(['running', 'stopped'], $this->history($run));
     }
 
     public function test_a_run_with_no_wait_ends_as_reported(): void
@@ -264,6 +302,23 @@ final class ReportWorkerRunStateHandlerWaitTest extends KernelTestCase
         self::assertSame(WorkerRunState::Succeeded, $this->reload($run)->state);
     }
 
+    public function test_a_finished_end_after_a_person_ended_the_wait_in_another_request_records_a_stop(): void
+    {
+        $run = $this->runningRun();
+        $wait = $this->wait($run);
+        // Another request ends the wait after this one loaded it. The managed entity stays open.
+        $this->em()->getConnection()->executeStatement(
+            'UPDATE bridge_worker_waits SET ended_at = ?, end_reason = ? WHERE id = ?',
+            ['2026-09-23 10:03:00', WorkerWaitEndReason::CancelledByPerson->value, $wait->id?->toRfc4122()],
+        );
+        self::assertTrue($wait->isOpen());
+
+        $this->end('succeeded');
+
+        self::assertSame(WorkerWaitEndReason::CancelledByPerson, $this->reloadWait($wait)->endReason);
+        self::assertSame(WorkerRunState::Stopped, $this->reload($run)->state);
+    }
+
     /** @return iterable<string, array{string, WorkerRunState}> */
     public static function otherEnds(): iterable
     {
@@ -340,7 +395,7 @@ final class ReportWorkerRunStateHandlerWaitTest extends KernelTestCase
             exitCode: $exit,
             hasResult: match ($state) {
                 WorkerRunState::Failed, WorkerRunState::NoResult => false,
-                WorkerRunState::Succeeded, WorkerRunState::Unfinished, WorkerRunState::Blocked, WorkerRunState::WaitingOnForge, WorkerRunState::GaveUp => true,
+                WorkerRunState::Succeeded, WorkerRunState::Unfinished, WorkerRunState::Blocked, WorkerRunState::GaveUp => true,
                 default => null,
             },
             failureReason: WorkerRunState::NotStarted === $state ? 'no claude' : null,
@@ -349,7 +404,6 @@ final class ReportWorkerRunStateHandlerWaitTest extends KernelTestCase
                 WorkerRunState::Succeeded => 'finished',
                 WorkerRunState::Unfinished => 'unfinished',
                 WorkerRunState::Blocked => 'blocked',
-                WorkerRunState::WaitingOnForge => 'waiting',
                 default => null,
             },
             continues: $continues,

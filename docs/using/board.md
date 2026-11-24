@@ -705,6 +705,44 @@ again by itself. See [Usage limits](worker-runs.md#usage-limits).
 When the bridge that holds the work of a card loses its network, the card also
 shows **Waiting**. See [Network outages](worker-runs.md#network-outages).
 
+### A worker that waits
+
+A worker can wait for the checks of a pull request, or for another condition of its card, and use no model while it waits.
+The card then shows **Waiting for** and the time that the worker has waited.
+The status lists the conditions, the pull request of each one, and these fields:
+
+- **Since** is the start of the wait.
+- **Time limit** is the limit in minutes, with the time at which it ends.
+- **At the limit** says what happens then. The worker resumes in the same session, learns that the wait timed out, and decides what to do.
+
+People who may manage the project see three controls under the status:
+
+- **Resume now** ends the wait at once. The worker resumes in the same session, and learns that a person ended the wait.
+- **Change the time limit** opens a field for the new limit in minutes. The limit counts from the start of the wait. The workflow sets the longest limit, and the field shows it. A limit that has passed already is refused. Use **Resume now** instead.
+- **Cancel the wait** asks you to confirm. The worker then stops and does not resume. The run shows as stopped.
+
+Moving the card to another column, finishing it, or holding it also ends the wait.
+These changes ask for no confirmation, because you made them.
+The worker stops and does not resume.
+Other people see the wait and no controls.
+
+#### When the bridge is offline at the end of the wait
+
+A wait can end while the bridge that holds the session is offline.
+Only that bridge can resume the session, so the card shows **Stuck** with **Bridge offline**.
+The remedy says: start the bridge, or cancel the wait.
+When the bridge sends its heartbeat again, Loupe asks it to resume the session.
+
+People who may manage the project see two controls under the status:
+
+- **Resume now** asks for the resume at once. The bridge runs it when it is back.
+- **Cancel the wait** asks you to confirm. The worker then stops and does not resume.
+
+**Change the time limit** does not show, because the wait has ended.
+Moving the card, finishing it, or holding it also stops the worker.
+
+See [Waits](../reference/worker-runs.md#waits).
+
 ### Try now
 
 **Try now** starts the waiting work of an account before its reset time. Use it
@@ -1287,7 +1325,7 @@ carries `kind`, `occurredAt` and `actor`.
 `kind` is `created`, `moved`, `fix-requested`, `fix-withdrawn`, `stopped`, `ready-to-merge`, `synced`,
 `run-finished`, `paused`, `pause-released`, `verdict`, `review-overridden`,
 `override-ended`, `document-verdict`, `verdict-failed`, `auto-approved`,
-`approval-dismissed`, `human-review-changed` or `value-changed`. `actor` carries `kind` and
+`approval-dismissed`, `human-review-changed`, `value-changed` or `wait-ended`. `actor` carries `kind` and
 `name`. Its `kind` is `human`, `agent`, `reviewer` or `system`. `name` is the
 current name of the person
 behind the event. It is null when there is no person, such as for a deleted
@@ -1329,6 +1367,9 @@ A `human-review-changed` event sets `humanReview`, with `value`, `cause` and
 `ruleId`. `value` is true when the switch went on. `cause` is `person`, `agent`,
 `rule` or `rollout`. `ruleId` names the workflow rule that set the switch, and
 is null for any other cause.
+
+A `wait-ended` event sets `reason`: `resumed-by-person`, `cancelled-by-person`, `card-moved`,
+`card-finished` or `card-held`. It records an end that a person or a change of the card caused.
 
 A `value-changed` event sets `valueChange`, with `key`, `value` and `previous`.
 `key` is the declared key of the card value that changed. `previous` is null when

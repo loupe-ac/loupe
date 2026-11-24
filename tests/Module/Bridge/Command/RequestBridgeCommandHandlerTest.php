@@ -348,7 +348,6 @@ final class RequestBridgeCommandHandlerTest extends KernelTestCase
         yield 'running' => [WorkerRunState::Running];
         yield 'stopping' => [WorkerRunState::Stopping];
         yield 'succeeded' => [WorkerRunState::Succeeded];
-        yield 'waiting on the forge' => [WorkerRunState::WaitingOnForge];
     }
 
     #[DataProvider('notResumable')]

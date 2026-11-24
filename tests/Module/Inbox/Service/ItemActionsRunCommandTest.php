@@ -77,7 +77,7 @@ final class ItemActionsRunCommandTest extends KernelTestCase
         $this->project = $this->project($em, $this->owner($em, 'run-command-actions'), 'run-command-actions');
         $this->card = $this->card($em, $this->project, 7);
         $this->bridge = new Bridge($this->project->owner, Uuid::v4(), [(string) $this->project->id], 'b4e39aa7', new \DateTimeImmutable());
-        $this->bridge->capabilities = [Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_RUN_COMMAND];
+        $this->bridge->capabilities = [Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_RUN_COMMAND];
         $this->bridge->commandEntries = [self::entryRow()];
         $this->bridge->worktrees = [
             ['projectId' => (string) $this->project->id, 'branch' => 'main', 'path' => '/work/loupe'],
@@ -186,7 +186,7 @@ final class ItemActionsRunCommandTest extends KernelTestCase
     {
         yield 'a bridge that follows the project and is live' => [null, static function (self $test): void {}];
         yield 'a bridge without the run-command capability' => ['inbox.action.run-command.disabled.unsupported', static function (self $test): void {
-            $test->bridge->capabilities = [Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_WORK_REQUESTS];
+            $test->bridge->capabilities = [Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS];
         }];
         yield 'a bridge that takes no work requests' => ['inbox.action.run-command.disabled.unsupported', static function (self $test): void {
             $test->bridge->capabilities = [Bridge::CAPABILITY_RUN_COMMAND];

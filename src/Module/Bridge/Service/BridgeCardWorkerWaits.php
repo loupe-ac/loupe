@@ -57,21 +57,28 @@ final readonly class BridgeCardWorkerWaits implements CardWorkerWaits
     #[\Override]
     public function end(Uuid $waitId, WaitEnd $reason, array $met): void
     {
-        $wait = $this->workerWaits->find($waitId);
-        if (null === $wait) {
-            return;
-        }
-
         $entries = array_map(static fn (WaitedCondition $condition): array => [
             'key' => $condition->key,
             'params' => $condition->params,
             'pullRequestId' => $condition->pullRequestId?->toRfc4122(),
             'token' => $condition->token,
         ], $met);
-        if (!$wait->end(WorkerWaitEndReason::fromEnd($reason), $this->clock->now(), $entries)) {
+        // The same lock as the end of a person, so the first end of the wait wins.
+        $wait = $this->workerWaits->find($waitId);
+        if (null === $wait) {
             return;
         }
-        $this->em->flush();
+        $ended = $this->em->wrapInTransaction(function () use ($wait, $waitId, $reason, $entries): bool {
+            if (!$this->workerWaits->lockOpen($waitId) || !$wait->end(WorkerWaitEndReason::fromEnd($reason), $this->clock->now(), $entries)) {
+                return false;
+            }
+            $this->em->flush();
+
+            return true;
+        });
+        if (!$ended) {
+            return;
+        }
 
         $run = $this->workerRuns->find($wait->runId);
         if (WorkerRunState::Waiting === $run?->state) {
