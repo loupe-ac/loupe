@@ -27,9 +27,6 @@ const (
 	RunNotStarted = "not-started"
 	RunUnfinished = "unfinished"
 	RunBlocked    = "blocked"
-	// RunWaitingOnForge is a run that ended with its work waiting on the
-	// forge, such as checks on a pushed pull request.
-	RunWaitingOnForge = "waiting-on-forge"
 	// RunStopping and RunStopped follow a person's stop. RunStopped closes the
 	// run and is no outcome, so it carries no exit code and no result.
 	RunStopping = "stopping"
@@ -70,7 +67,7 @@ func IsClosing(state string) bool {
 // IsOutcome reports whether state is how a worker ended.
 func IsOutcome(state string) bool {
 	switch state {
-	case RunSucceeded, RunNoResult, RunFailed, RunNotStarted, RunUnfinished, RunBlocked, RunWaitingOnForge, RunUsageLimit, RunNetwork:
+	case RunSucceeded, RunNoResult, RunFailed, RunNotStarted, RunUnfinished, RunBlocked, RunUsageLimit, RunNetwork:
 		return true
 	}
 

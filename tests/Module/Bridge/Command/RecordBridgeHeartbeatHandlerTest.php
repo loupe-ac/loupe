@@ -320,7 +320,7 @@ final class RecordBridgeHeartbeatHandlerTest extends KernelTestCase
         $bridgeId = Uuid::v4();
         $handler = $this->handler();
         $announced = $this->recordAvailability();
-        $beat = static fn (): RecordBridgeHeartbeatCommand => new RecordBridgeHeartbeatCommand($owner, $bridgeId, $projects, 'b4e39aa7', paused: false, capabilities: [Bridge::CAPABILITY_WORK_REQUESTS], workKinds: ['implement']);
+        $beat = static fn (): RecordBridgeHeartbeatCommand => new RecordBridgeHeartbeatCommand($owner, $bridgeId, $projects, 'b4e39aa7', paused: false, capabilities: [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS], workKinds: ['implement']);
 
         $handler($beat());
         self::assertSame([$projects], self::announcedProjects($announced), 'The first beat of a new bridge announces.');
@@ -357,23 +357,23 @@ final class RecordBridgeHeartbeatHandlerTest extends KernelTestCase
         $projects = [(string) $this->project($em, $owner, 'Availability Changes')->id];
         $bridgeId = Uuid::v4();
         $handler = $this->handler();
-        $handler(self::beat($owner, $bridgeId, $projects, false, [Bridge::CAPABILITY_WORK_REQUESTS], ['implement']));
+        $handler(self::beat($owner, $bridgeId, $projects, false, [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS], ['implement']));
         $announced = $this->recordAvailability();
 
-        $handler(self::beat($owner, $bridgeId, $projects, true, [Bridge::CAPABILITY_WORK_REQUESTS], ['implement']));
+        $handler(self::beat($owner, $bridgeId, $projects, true, [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS], ['implement']));
         self::assertCount(1, self::announcedProjects($announced), 'A pause announces.');
 
-        $handler(self::beat($owner, $bridgeId, $projects, true, [Bridge::CAPABILITY_WORK_REQUESTS], ['implement']));
+        $handler(self::beat($owner, $bridgeId, $projects, true, [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS], ['implement']));
         $handler(self::beat($owner, $bridgeId, $projects, null, null, ['implement']));
         self::assertCount(1, self::announcedProjects($announced), 'The same pause and a beat with no report announce nothing.');
 
-        $handler(self::beat($owner, $bridgeId, $projects, true, [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_INTERACTIVE], ['implement']));
+        $handler(self::beat($owner, $bridgeId, $projects, true, [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_INTERACTIVE], ['implement']));
         self::assertCount(2, self::announcedProjects($announced), 'Other capabilities announce.');
 
-        $handler(self::beat($owner, $bridgeId, $projects, true, [Bridge::CAPABILITY_INTERACTIVE, Bridge::CAPABILITY_WORK_REQUESTS], ['implement']));
+        $handler(self::beat($owner, $bridgeId, $projects, true, [Bridge::CAPABILITY_INTERACTIVE, Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS], ['implement']));
         self::assertCount(2, self::announcedProjects($announced), 'The order of the capabilities does not count.');
 
-        $handler(self::beat($owner, $bridgeId, $projects, true, [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_INTERACTIVE], ['implement', 'fix']));
+        $handler(self::beat($owner, $bridgeId, $projects, true, [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_INTERACTIVE], ['implement', 'fix']));
         self::assertCount(3, self::announcedProjects($announced), 'Other work kinds announce.');
     }
 
@@ -430,7 +430,7 @@ final class RecordBridgeHeartbeatHandlerTest extends KernelTestCase
         $left = (string) $this->project($em, $owner, 'Narrowed Left')->id;
         $bridgeId = Uuid::v4();
         $handler = $this->handler();
-        $both = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_APP_PROMPTS];
+        $both = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_APP_PROMPTS];
         $narrowedAt = fn (): ?\DateTimeImmutable => $this->reload($owner, $bridgeId)->narrowedAt;
 
         $handler(self::beat($owner, $bridgeId, [$kept, $left], false, $both, ['implement']));
@@ -439,8 +439,8 @@ final class RecordBridgeHeartbeatHandlerTest extends KernelTestCase
 
         foreach ([
             'a dropped kind' => [[$kept, $left], $both, ['implement']],
-            'a dropped capability' => [[$kept, $left], [Bridge::CAPABILITY_WORK_REQUESTS], ['implement']],
-            'a dropped project' => [[$kept], [Bridge::CAPABILITY_WORK_REQUESTS], ['implement']],
+            'a dropped capability' => [[$kept, $left], [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS], ['implement']],
+            'a dropped project' => [[$kept], [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS], ['implement']],
         ] as $case => [$projects, $capabilities, $kinds]) {
             $clock->sleep(30);
             $handler(self::beat($owner, $bridgeId, $projects, false, $capabilities, $kinds));

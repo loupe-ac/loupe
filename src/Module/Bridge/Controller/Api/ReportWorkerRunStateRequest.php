@@ -29,8 +29,8 @@ final class ReportWorkerRunStateRequest
     /** The kinds a bridge reports. A person opens an interactive run, never a bridge. */
     public const array BRIDGE_KINDS = ['worker', 'command'];
 
-    /** The status a worker gives in its structured result. */
-    public const array RESULT_STATUSES = ['finished', 'blocked', 'unfinished', 'waiting'];
+    /** The status a worker gives in its structured result. A bridge from before the wait tool can still send `waiting`, which the server stores as unfinished. */
+    public const array RESULT_STATUSES = ['finished', 'blocked', 'unfinished', WorkerRunState::LEGACY_WAITING_STATUS];
 
     public function __construct(
         #[Assert\NotBlank]
@@ -203,13 +203,16 @@ final class ReportWorkerRunStateRequest
     /** @return list<string> */
     public static function bridgeStates(): array
     {
-        return array_values(array_map(
-            static fn (WorkerRunState $state): string => $state->value,
-            array_filter(
-                WorkerRunState::cases(),
-                static fn (WorkerRunState $state): bool => !$state->isInferred() && WorkerRunState::Closed !== $state,
-            ),
-        ));
+        return [
+            ...array_values(array_map(
+                static fn (WorkerRunState $state): string => $state->value,
+                array_filter(
+                    WorkerRunState::cases(),
+                    static fn (WorkerRunState $state): bool => !$state->isInferred() && WorkerRunState::Closed !== $state,
+                ),
+            )),
+            WorkerRunState::LEGACY_WAITING_STATE,
+        ];
     }
 
     #[Assert\Callback]
@@ -309,7 +312,7 @@ final class ReportWorkerRunStateRequest
     #[Assert\Callback]
     public function validateOutcome(ExecutionContextInterface $context): void
     {
-        $state = WorkerRunState::tryFrom($this->state ?? '');
+        $state = self::stateOf($this->state ?? '');
         if (null === $state || !$state->isOutcome() || $state->isInferred()) {
             return;
         }
@@ -392,7 +395,13 @@ final class ReportWorkerRunStateRequest
 
     public function state(): WorkerRunState
     {
-        return WorkerRunState::from($this->state ?? throw new \LogicException('state is required after validation.'));
+        return self::stateOf($this->state ?? '') ?? throw new \LogicException('state is required after validation.');
+    }
+
+    /** A bridge from before the wait tool reports a run that waits on the forge. The server stores it as unfinished. */
+    private static function stateOf(string $reported): ?WorkerRunState
+    {
+        return WorkerRunState::LEGACY_WAITING_STATE === $reported ? WorkerRunState::Unfinished : WorkerRunState::tryFrom($reported);
     }
 
     /** The columns carry no time zone, so every moment converts to UTC here. */

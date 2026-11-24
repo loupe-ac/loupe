@@ -1652,8 +1652,6 @@ func classify(res workerResult) string {
 		return api.RunNoResult
 	case res.status == "blocked":
 		return api.RunBlocked
-	case res.status == "waiting":
-		return api.RunWaitingOnForge
 	case res.status == "unfinished":
 		return api.RunUnfinished
 	}

@@ -16,13 +16,13 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 
 /**
- * A run that ends waiting on the forge has just pushed a head. The stored
+ * A run that parks its session on a wait has just pushed a head. The stored
  * state still holds the checks of the old head, so the card would show a
  * failure that no longer applies. This reads the pull requests of the card at
  * once, and again after a delay for a forge that moves the head late.
  */
 #[AsEventListener]
-final readonly class RefreshPullRequestsOnRunWaitingOnForge
+final readonly class RefreshPullRequestsOnRunWaiting
 {
     private const int LATE_READ_DELAY_MILLISECONDS = 30_000;
 
@@ -42,7 +42,7 @@ final readonly class RefreshPullRequestsOnRunWaitingOnForge
             $runs = [];
             foreach ($this->workerRuns->findByIds($event->runIds) as $run) {
                 $cardId = $run->cardId();
-                if (WorkerRunState::WaitingOnForge === $run->state && null !== $cardId) {
+                if (WorkerRunState::Waiting === $run->state && null !== $cardId) {
                     $cardIds[$cardId->toRfc4122()] = $cardId;
                     $runs[] = $run;
                 }

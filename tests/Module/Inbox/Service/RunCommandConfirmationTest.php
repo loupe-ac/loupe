@@ -57,7 +57,7 @@ final class RunCommandConfirmationTest extends KernelTestCase
         ));
 
         $this->bridge = new Bridge($this->project->owner, Uuid::v4(), [], 'b4e39aa7', new \DateTimeImmutable());
-        $this->bridge->capabilities = [Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_RUN_COMMAND];
+        $this->bridge->capabilities = [Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_RUN_COMMAND];
         $this->bridge->projects = [(string) $this->project->id];
         $this->bridge->lastSeenAt = new \DateTimeImmutable();
         $this->bridge->commandEntries = [self::entry('design-export', ['bin/console', 'app:export', '{out}'])];

@@ -30,8 +30,10 @@ The workflow also makes the moves that follow a pull request.
 A `recover` request belongs to no column. The workflow opens it in any column,
 when the work of a rule fails and its retries run out.
 
-The implementation worker ends when it opens the pull request, and it reports
-`waiting`. It does not wait for CI. This repository runs no Codex review before
+The implementation worker opens the pull request as a draft, and then calls
+`run_wait` for the checks of that pull request. It uses no model while it
+waits, and Loupe resumes the same session when the checks pass or fail. It
+fixes a failure in that session. This repository runs no Codex review before
 the push, and the worker opens the pull request as a draft. The workflow reads
 the pull request after each push, and asks a separate review worker to review
 the draft. A failed review asks for a fix at once. When the review passes and
@@ -383,7 +385,7 @@ setting off, a request for `rebase-stacked` work waits for a bridge with that
 entry, and then pauses the card.
 
 The `fix` round fixes the conflict, each failing check and each open review
-item, pushes, and reports `waiting`. A fix that ends `unfinished` pauses the
+item, pushes, and waits for the checks with `run_wait`. A fix that ends `unfinished` pauses the
 card, because Lifecycle retries only `failed` and `timeout`. The `merge` and `sync` entries take the one open pull request of the card.
 The merge reads the pull request again before it merges: the same head, an
 approval, and every required check green. The approval must also cover every
@@ -495,7 +497,7 @@ open pull request gets the same round, so use `implementation` for that card.
 
 The final reply of each worker starts with `STAGE RESULT:`. The bridge does not
 read that line. It asks each worker for a structured result, with a `status` of
-`finished`, `blocked`, `unfinished` or `waiting` and a one-sentence `summary`. The worker
+`finished`, `blocked` or `unfinished` and a one-sentence `summary`. The worker
 sets `status` from its `STAGE RESULT:` form, as the table in
 `plugins/loupe-lifecycle/skills/loupe-stage-product-design/references/stage-contract.md`
 says. The **Runs** tab of the Activity page, at `/projects/{id}/worker-runs`,
@@ -528,8 +530,8 @@ comment in place when the block clears.
    `/loupe-lifecycle:product-design`, then take it through an approval, Tech design, an
    approval and Implementation. Request changes on one design document, and
    check that a revise worker starts. Check that the implementation worker
-   reports `waiting` once its pull request is open, and that the workflow moves
-   the card to In review on green checks. Approve the pull request, and check
+   waits with `run_wait` once its pull request is open, and that the workflow
+   moves the card to In review on green checks. Approve the pull request, and check
    that it merges and that the workflow moves the card to Done. Record the
    `STAGE RESULT` of each worker run on the card.
 

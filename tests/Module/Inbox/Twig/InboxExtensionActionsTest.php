@@ -127,7 +127,7 @@ final class InboxExtensionActionsTest extends KernelTestCase
     public function test_start_session_takes_the_main_part_when_a_session_bridge_is_online_and_nothing_else_fits(): void
     {
         $session = new Bridge($this->project->owner, Uuid::v4(), [$this->project->id?->toRfc4122() ?? ''], 'b4e39aa7', new \DateTimeImmutable());
-        $session->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION];
+        $session->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_SESSION];
         $this->em()->persist($session);
         $this->em()->flush();
         $item = $this->runItem(WorkerRunState::Running);

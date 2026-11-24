@@ -214,8 +214,6 @@ func TestAWorkResultFollowsHowTheRunEnded(t *testing.T) {
 		"finished":                   {"implement", workerResult{hasResult: true, status: "finished"}, procResult{}, "done"},
 		"finished with a reason":     {"implement", workerResult{hasResult: true, status: "finished", reason: "nothing-to-build"}, procResult{}, "done nothing-to-build"},
 		"finished with a bad reason": {"implement", workerResult{hasResult: true, status: "finished", reason: "Nothing To Build"}, procResult{}, "done"},
-		"waiting with a reason":      {"implement", workerResult{hasResult: true, status: "waiting", reason: "waiting-checks"}, procResult{}, "done waiting-checks"},
-		"waiting":                    {"implement", workerResult{hasResult: true, status: "waiting"}, procResult{}, "done"},
 		"blocked with a reason":      {"implement", workerResult{hasResult: true, status: "blocked", reason: "needs-design"}, procResult{}, "refused needs-design"},
 		"blocked with a bad reason":  {"implement", workerResult{hasResult: true, status: "blocked", reason: "Needs Design"}, procResult{}, "refused blocked"},
 		"unfinished":                 {"implement", workerResult{hasResult: true, status: "unfinished"}, procResult{}, "refused unfinished"},
@@ -526,7 +524,7 @@ func TestTheHeartbeatRenewsTheHeldClaims(t *testing.T) {
 	if got := client.sent[1].WorkClaims; len(got) != 0 {
 		t.Fatalf("claims after the result = %v", got)
 	}
-	if got := client.sent[0].Capabilities; !slices.Equal(got, []string{"commands", "rerun-command", "session-usage", "try-now", "run-command", "git-identities", "work-requests"}) {
+	if got := client.sent[0].Capabilities; !slices.Equal(got, []string{"commands", "rerun-command", "session-usage", "try-now", "run-command", "git-identities", "waits", "work-requests"}) {
 		t.Fatalf("capabilities = %v", got)
 	}
 }
