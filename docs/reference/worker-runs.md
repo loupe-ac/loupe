@@ -856,6 +856,7 @@ A move of the card to another column ends an open wait with `card-moved`.
 A move into a terminal column ends it with `card-finished`.
 A hold of the card ends it with `card-held`.
 Each of these three ends stops a parked run, as a cancel does, and asks for no confirmation.
+A later `unfinished`, `waiting-on-forge`, `no-result`, `succeeded` or `blocked` report of that run closes it as `stopped`.
 A wait that ends while its run still ends its turn leaves the state of the run as the bridge reports it.
 
 ### How a wait ends
