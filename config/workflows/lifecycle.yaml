@@ -1095,6 +1095,12 @@ markers:
                         - card.run.worker_active: {}
                         - card.inbox.open_question: { blocking: true }
                         - card.rule.retry_scheduled: {}
+    - key: wait-bridge-offline
+      kind: stuck
+      label: marker.wait_bridge_offline
+      remedy: marker.wait_bridge_offline.remedy
+      link: agents
+      when: { card.run.wait_resume_stranded: {} }
     - key: run-needs-you
       kind: stuck
       label: marker.run_needs_you

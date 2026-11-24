@@ -859,6 +859,32 @@ Any later closing report of that run, a failure or an interruption too, closes i
 A cancel, a move, a finish or a hold that ends a wait while its run still ends its turn forces the state `stopped` when the run closes.
 The other end reasons leave the state of the run as the bridge reports it.
 
+### A wait that ends while its bridge is offline
+
+A wait is stranded when it ended in a way that resumes the session, its run is in the state `waiting`, and no run resumed it yet.
+A run that still runs is not stranded, because its end sends the resume.
+Only the bridge that holds the session can resume it.
+When that bridge sends no heartbeat, the condition `card.run.wait_resume_stranded` is true.
+The Lifecycle template then shows the card as **Stuck**, with the marker `wait-bridge-offline` and the label **Bridge offline**.
+The remedy line says: "Start the bridge, or cancel the wait."
+
+The wait keeps its end reason.
+A task runs every minute and requests the resume again for each stranded wait whose bridge sends its heartbeat.
+It skips a wait whose resume still waits for the bridge, so the bridge gets one resume at a time.
+`app.bridge.stranded_wait_resume_schedule` in `config/services.yaml` is the cron expression of the task.
+
+The status box of the stuck card offers two controls to a person who may manage the project.
+**Change the time limit** does not show, because the wait has ended.
+Each control posts with a CSRF token.
+
+| Control | Route | Effect |
+|---|---|---|
+| Resume now | `POST /projects/{id}/cards/{cardId}/wait/resume` | Requests the `wait-ended` resume at once. The bridge runs it when it is back and the request has not expired. After that, the task requests it again |
+| Cancel the wait | `POST /projects/{id}/cards/{cardId}/wait/cancel` | Stops the parked run, withdraws a resume that still waits for the bridge, and writes a `wait-ended` row with the reason `cancelled-by-person` to the card history. The run shows as `stopped`, so the wait is no longer stranded and the marker turns off |
+
+A move, a finish or a hold of the card also stops the parked run of a stranded wait.
+These changes ask for no confirmation, and each one writes a `wait-ended` history row.
+
 ### How a wait ends
 
 Loupe tests the open wait of a card in each evaluation of the card.

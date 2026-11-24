@@ -127,6 +127,20 @@ class BridgeRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /** The last heartbeat of a bridge, or null when no bridge has this id. */
+    public function findLastSeenAt(Uuid $bridgeId): ?\DateTimeImmutable
+    {
+        $seenAt = $this->createQueryBuilder('b')
+            ->select('b.lastSeenAt')
+            ->andWhere('b.id = :id')
+            ->setParameter('id', $bridgeId, UuidType::NAME)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        return $seenAt['lastSeenAt'] ?? null;
+    }
+
     /** @return list<Bridge> */
     public function findByOwner(User $owner): array
     {

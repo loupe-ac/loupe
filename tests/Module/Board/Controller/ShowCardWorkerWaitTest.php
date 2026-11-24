@@ -44,6 +44,7 @@ final class ShowCardWorkerWaitTest extends WebTestCase
 
         $controls = $crawler->filter('.lp-card-overview__state > [data-card-wait-controls]');
         self::assertCount(1, $controls);
+        self::assertCount(0, $crawler->filter('[data-card-wait-stranded]'));
         $resume = $controls->filter('form[data-card-wait-resume]');
         self::assertSame('/projects/'.$project->id.'/cards/'.$cardId.'/wait/resume', $resume->attr('action'));
         self::assertSame('Resume now', trim($resume->filter('button')->text()));
@@ -111,12 +112,42 @@ final class ShowCardWorkerWaitTest extends WebTestCase
         self::assertMatchesRegularExpression('/90 min, until/', $refused->filter('[data-card-state="waiting"]')->text());
     }
 
+    public function test_a_stranded_wait_shows_the_remedy_and_only_resume_now_and_cancel(): void
+    {
+        [$crawler, $project, $cardId] = $this->showWaitingCard('card-wait-stranded@example.com', stranded: true);
+
+        $box = $crawler->filter('[data-card-state="stuck"]');
+        self::assertCount(1, $box);
+        self::assertStringContainsString('Bridge offline', $box->text());
+        self::assertStringContainsString('Start the bridge, or cancel the wait.', $box->text());
+        $labels = $box->filter('.lp-status-box__field dt')->each(static fn (Crawler $dt): string => trim($dt->text()));
+        self::assertNotContains('Time limit', $labels);
+        $controls = $crawler->filter('.lp-card-overview__state > [data-card-wait-controls]');
+        self::assertCount(1, $controls);
+        self::assertSame('/projects/'.$project->id.'/cards/'.$cardId.'/wait/resume', $controls->filter('form[data-card-wait-resume]')->attr('action'));
+        self::assertCount(0, $controls->filter('[data-card-wait-limit]'));
+        self::assertCount(1, $crawler->filter('[data-card-wait-stranded]'));
+        self::assertSame('Cancel the wait? The worker stops and does not resume.', $controls->filter('form[data-card-wait-cancel]')->attr('data-turbo-confirm'));
+    }
+
+    public function test_a_confirmed_cancel_of_a_stranded_wait_stops_the_run(): void
+    {
+        [$crawler, $project, $cardId, $client] = $this->showWaitingCard('card-wait-stranded-cancel@example.com', stranded: true);
+
+        $client->submit($crawler->filter('form[data-card-wait-cancel]')->form());
+
+        self::assertResponseRedirects('/projects/'.$project->id.'/board/cards/'.$cardId);
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $wait = $em->getRepository(WorkerWait::class)->findOneBy(['cardId' => Uuid::fromString($cardId)]);
+        self::assertSame(WorkerRunState::Stopped, $em->find(WorkerRun::class, $wait?->runId)?->state);
+    }
+
     /**
      * @param non-empty-string $email
      *
      * @return array{0: Crawler, 1: Project, 2: string, 3: KernelBrowser}
      */
-    private function showWaitingCard(string $email, bool $manage = true): array
+    private function showWaitingCard(string $email, bool $manage = true, bool $stranded = false): array
     {
         $client = static::createClient();
         $client->disableReboot();
@@ -130,11 +161,22 @@ final class ShowCardWorkerWaitTest extends WebTestCase
         $cardId = $card->id ?? throw new \LogicException('Seeded.');
         $bridgeId = Uuid::v4();
         $opened = new \DateTimeImmutable('-12 minutes');
-        $run = new WorkerRun($project, $bridgeId, WorkSubject::CARD, $cardId, $card->number, 'implementation', WorkerRunState::Running, Uuid::v4(), startedAt: $opened);
+        $run = new WorkerRun($project, $bridgeId, WorkSubject::CARD, $cardId, $card->number, 'implementation', $stranded ? WorkerRunState::Waiting : WorkerRunState::Running, Uuid::v4(), startedAt: $opened);
         $em->persist($run);
         $em->flush();
-        $em->persist(new WorkerWait($project, $cardId, $run->id ?? throw new \LogicException('Seeded.'), $run->id, $bridgeId, Uuid::v4(), [], $opened, $opened->modify('+60 minutes')));
-        $card->markers = [[
+        $wait = new WorkerWait($project, $cardId, $run->id ?? throw new \LogicException('Seeded.'), $run->id, $bridgeId, Uuid::v4(), [], $opened, $opened->modify('+60 minutes'));
+        if ($stranded) {
+            $wait->end(WorkerWaitEndReason::Condition, $opened->modify('+5 minutes'));
+        }
+        $em->persist($wait);
+        $card->markers = [$stranded ? [
+            'key' => 'wait-bridge-offline',
+            'kind' => 'stuck',
+            'label' => 'marker.wait_bridge_offline',
+            'remedy' => 'marker.wait_bridge_offline.remedy',
+            'params' => [],
+            'since' => $opened->format(\DATE_ATOM),
+        ] : [
             'key' => 'worker-waiting',
             'kind' => 'waiting',
             'label' => 'marker.worker_waiting',

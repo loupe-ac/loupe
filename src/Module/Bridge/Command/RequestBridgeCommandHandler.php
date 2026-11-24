@@ -10,6 +10,8 @@ use App\Module\Bridge\Entity\BridgeCommand;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Repository\BridgeCommandRepository;
 use App\Module\Bridge\Repository\BridgeRepository;
+use App\Module\Bridge\Repository\WorkerRunRepository;
+use App\Module\Bridge\Repository\WorkerWaitRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\BridgeCommandPayload;
 use App\Module\Bridge\Service\BridgeCommandTtl;
@@ -19,6 +21,7 @@ use App\Module\Bridge\ValueObject\BridgeCommandCause;
 use App\Module\Bridge\ValueObject\BridgeCommandKind;
 use App\Module\Bridge\ValueObject\WorkerRunChangeKind;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
+use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Outbox\OutboxWriter;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
@@ -61,6 +64,8 @@ final readonly class RequestBridgeCommandHandler
         private Auditor $auditor,
         private WorkRequestRepository $workRequests,
         private ProjectRepository $projects,
+        private WorkerRunRepository $workerRuns,
+        private WorkerWaitRepository $workerWaits,
     ) {
     }
 
@@ -103,6 +108,16 @@ final readonly class RequestBridgeCommandHandler
                 // no key share, because a workflow pass holds one while it waits for the bridge lock of this request.
                 if (BridgeCommandKind::ResumeRun === $command->kind) {
                     $this->projects->lockForWrite($run->project);
+                    // A stop of a stranded wait takes the bridge lock too, so the state read before the lock can be old.
+                    $stored = $this->workerRuns->storedStateOf($run->id ?? throw new \LogicException('A stored run has an id.'));
+                    // A stopped run takes a resume of a person, and never the resume of a wait that ended.
+                    if (BridgeCommandCause::WaitEnded === $command->cause ? WorkerRunState::Waiting !== $stored : !($stored?->isResumable() ?? false)) {
+                        return self::NOT_RESUMABLE;
+                    }
+                    // The mark stays after the stop, so only a run still Waiting is held back. A stopped run takes a resume of a person.
+                    if (WorkerRunState::Waiting === $stored && $this->workerWaits->isStopRequestedOfRun($run->id ?? throw new \LogicException('A stored run has an id.'))) {
+                        return self::NOT_RESUMABLE;
+                    }
                     if ($this->isCardHeld($run)) {
                         return self::CARD_HELD;
                     }
