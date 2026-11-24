@@ -124,6 +124,11 @@ final class ReportWorkerRunStateHandlerWaitTest extends KernelTestCase
         foreach (self::stoppingEnds() as $name => [$reason]) {
             yield $name.' then succeeded' => [$reason, 'succeeded'];
             yield $name.' then blocked' => [$reason, 'blocked'];
+            yield $name.' then failed' => [$reason, 'failed'];
+            yield $name.' then not-started' => [$reason, 'not-started'];
+            yield $name.' then gave-up' => [$reason, 'gave-up'];
+            yield $name.' then usage-limit' => [$reason, 'usage-limit'];
+            yield $name.' then network' => [$reason, 'network'];
         }
     }
 

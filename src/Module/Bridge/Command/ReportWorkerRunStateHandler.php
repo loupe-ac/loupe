@@ -124,8 +124,8 @@ final readonly class ReportWorkerRunStateHandler
                 $history = $this->workerRunStateChanges->statesOf($run);
                 $wait = $this->workerWaits->findAwaitingResumeOfRun($run->id ?? throw new \LogicException('A stored run has an id.'));
                 $state = self::effectiveState($command->state, null !== $wait, $history);
-                // The owner ended the wait of a live run. Whatever end report follows records the stop that the owner asked for.
-                if (WorkerRunState::Waiting !== $state && self::endsWork($command->state) && $this->workerWaits->endedToStopRun($run->id ?? throw new \LogicException('A stored run has an id.'))) {
+                // The owner ended the wait of a live run. Whatever closing report follows, a failure or an interruption too, records the stop that the owner asked for.
+                if (WorkerRunState::Waiting !== $state && !$command->state->isOpen() && $this->workerWaits->endedToStopRun($run->id ?? throw new \LogicException('A stored run has an id.'))) {
                     $state = WorkerRunState::Stopped;
                 }
                 $moves = self::moves($run->state, $state, $history);
@@ -212,12 +212,6 @@ final readonly class ReportWorkerRunStateHandler
         $parked = self::isParked($reported);
 
         return $parked && ($hasWait || \in_array(WorkerRunState::Waiting, $history, true)) ? WorkerRunState::Waiting : $reported;
-    }
-
-    /** A parked end, or an outcome that says the work finished or hit a block. */
-    private static function endsWork(WorkerRunState $reported): bool
-    {
-        return self::isParked($reported) || \in_array($reported, [WorkerRunState::Succeeded, WorkerRunState::Blocked], true);
     }
 
     private static function isParked(WorkerRunState $reported): bool
