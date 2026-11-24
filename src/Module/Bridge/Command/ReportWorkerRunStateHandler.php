@@ -123,7 +123,16 @@ final readonly class ReportWorkerRunStateHandler
             } else {
                 $history = $this->workerRunStateChanges->statesOf($run);
                 $wait = $this->workerWaits->findAwaitingResumeOfRun($run->id ?? throw new \LogicException('A stored run has an id.'));
+                // Claim the open wait before anything reads it, as WorkerWaitEnder does, so a person's end and this report never both write the end reason.
+                if (null !== $wait && $wait->isOpen() && !$this->workerWaits->lockOpen($wait->id ?? throw new \LogicException('A stored wait has an id.'))) {
+                    $this->em->refresh($wait);
+                    $wait = $this->workerWaits->findAwaitingResumeOfRun($run->id);
+                }
                 $state = self::effectiveState($command->state, null !== $wait, $history);
+                // The owner ended the wait of a live run. Whatever closing report follows, a failure or an interruption too, records the stop that the owner asked for.
+                if (WorkerRunState::Waiting !== $state && !$command->state->isOpen() && $this->workerWaits->endedToStopRun($run->id ?? throw new \LogicException('A stored run has an id.'))) {
+                    $state = WorkerRunState::Stopped;
+                }
                 $moves = self::moves($run->state, $state, $history);
             }
 
@@ -205,9 +214,14 @@ final readonly class ReportWorkerRunStateHandler
      */
     private static function effectiveState(WorkerRunState $reported, bool $hasWait, array $history): WorkerRunState
     {
-        $parked = \in_array($reported, [WorkerRunState::Unfinished, WorkerRunState::WaitingOnForge, WorkerRunState::NoResult], true);
+        $parked = self::isParked($reported);
 
         return $parked && ($hasWait || \in_array(WorkerRunState::Waiting, $history, true)) ? WorkerRunState::Waiting : $reported;
+    }
+
+    private static function isParked(WorkerRunState $reported): bool
+    {
+        return \in_array($reported, [WorkerRunState::Unfinished, WorkerRunState::WaitingOnForge, WorkerRunState::NoResult], true);
     }
 
     /** The error code of a subject or a work request that the project does not hold, else null. */
@@ -327,7 +341,7 @@ final readonly class ReportWorkerRunStateHandler
 
     private function apply(WorkerRun $run, ReportWorkerRunStateCommand $command, WorkerRunState $state, bool $billed): void
     {
-        if (WorkerRunState::Stopped === $command->state) {
+        if (WorkerRunState::Stopped === $state) {
             $run->recordStop($command->endedAt ?? $command->at, $command->output);
             $this->fillPeakContext($run, $command);
             $this->fillWake($run, $command);

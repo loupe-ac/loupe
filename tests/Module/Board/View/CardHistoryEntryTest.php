@@ -438,6 +438,15 @@ final class CardHistoryEntryTest extends TestCase
         self::assertEquals(new TranslatableMessage('board.card.history.resume_skipped', ['%number%' => 963]), $entry->sentence);
     }
 
+    public function test_a_wait_end_names_its_reason(): void
+    {
+        $entry = CardHistoryEntry::of($this->event(CardEventKind::WaitEnded, Actor::System, null, ['reason' => 'cancelled-by-person']));
+
+        self::assertSame('lucide:hourglass', $entry->icon);
+        self::assertSame('board.card.history.wait_ended.cancelled_by_person', $entry->sentence->getMessage());
+        self::assertSame('board.card.history.changed', CardHistoryEntry::of($this->event(CardEventKind::WaitEnded, Actor::System, null, []))->sentence->getMessage());
+    }
+
     public function test_a_skipped_resume_with_no_question_number_reads_as_changed(): void
     {
         $entry = CardHistoryEntry::of($this->event(CardEventKind::ResumeSkipped, Actor::System, null, []));

@@ -30,6 +30,14 @@ final readonly class CardHistoryEntry
         'agent-review' => 'board.card.history.reason.agent_review',
     ];
 
+    private const array WAIT_END_REASONS = [
+        'resumed-by-person' => 'board.card.history.wait_ended.resumed_by_person',
+        'cancelled-by-person' => 'board.card.history.wait_ended.cancelled_by_person',
+        'card-moved' => 'board.card.history.wait_ended.card_moved',
+        'card-finished' => 'board.card.history.wait_ended.card_finished',
+        'card-held' => 'board.card.history.wait_ended.card_held',
+    ];
+
     private const array REFUSALS = [
         'verdict_stale' => 'board.card.history.verdict_failed_cause.verdict_stale',
         'verdict_changed' => 'board.card.history.verdict_failed_cause.verdict_changed',
@@ -106,6 +114,7 @@ final readonly class CardHistoryEntry
                 : null,
             CardEventKind::HumanReviewChanged => self::humanReview($event, $actor, $detail),
             CardEventKind::ValueChanged => self::valueChanged($event, $actor, $detail, $historyPhrases),
+            CardEventKind::WaitEnded => self::waitEnded($event, $actor, $detail),
             CardEventKind::ResumeSkipped => \is_int($detail['number'] ?? null)
                 ? new self('lucide:circle-slash', $event->occurredAt, $actor, new TranslatableMessage('board.card.history.resume_skipped', ['%number%' => $detail['number']]))
                 : null,
@@ -149,6 +158,15 @@ final readonly class CardHistoryEntry
     private static function ownerLabel(?User $user): string|TranslatableMessage
     {
         return $user->fullName ?? new TranslatableMessage('board.card.history.actor.deleted');
+    }
+
+    /** @param array<string, mixed> $detail */
+    private static function waitEnded(CardEvent $event, string|TranslatableMessage $actor, array $detail): ?self
+    {
+        $reason = $detail['reason'] ?? null;
+        $key = \is_string($reason) ? self::WAIT_END_REASONS[$reason] ?? null : null;
+
+        return null === $key ? null : new self('lucide:hourglass', $event->occurredAt, $actor, new TranslatableMessage($key));
     }
 
     /** @param array<string, mixed> $detail */

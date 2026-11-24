@@ -77,6 +77,8 @@
                 <source>github.form.choose_install_project_form.project.invalid</source>
                 <target>Pick one of your projects, or a new project.</target>
             </trans-unit>
-        </body>
+            <trans-unit id="bridge.form.change_wait_limit_form.minutes.required"><source>bridge.form.change_wait_limit_form.minutes.required</source><target>Enter the time limit in minutes.</target></trans-unit>
+            <trans-unit id="bridge.form.change_wait_limit_form.minutes.positive"><source>bridge.form.change_wait_limit_form.minutes.positive</source><target>The time limit must be at least 1 minute.</target></trans-unit>
+</body>
     </file>
 </xliff>
