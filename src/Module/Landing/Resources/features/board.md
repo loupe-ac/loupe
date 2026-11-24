@@ -5,7 +5,7 @@ lead: "Every card shows its stage. If it's working, waiting, stuck or needs you,
 description: "The Loupe board shows the stage of every card, and marks which cards are working, waiting, stuck or need you."
 blocks:
   - title: "Stuck looks different from busy."
-    text: "A card carries one mark at most. The line under it says why the card is there and what will move it on."
+    text: "A card carries one mark at most. The line under it says why the card is there and what will move it on. A worker can also wait for a build or a review. Loupe resumes the same session when the event happens."
   - title: "Epics get their own lane."
     text: "An epic and its child cards share a lane that runs across every column. Its progress bar counts the finished children, and the lane takes on their combined state."
   - title: "Everything a card produced, linked from it."

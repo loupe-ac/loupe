@@ -67,7 +67,7 @@ final class FeaturePagesControllerTest extends WebTestCase
     }
 
     #[DataProvider('features')]
-    public function test_a_feature_page_draws_four_pictures_three_blocks_and_the_other_tiles(string $slug, string $title): void
+    public function test_a_feature_page_draws_a_picture_for_the_hero_and_each_block_and_the_other_tiles(string $slug, string $title): void
     {
         $client = $this->clientWithSiteHost('localhost');
 
@@ -75,8 +75,10 @@ final class FeaturePagesControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('h1', $title);
-        self::assertCount(4, $crawler->filter('.lp-shot'));
-        self::assertCount(3, $crawler->filter('[data-feature-block]'));
+        $blocks = $crawler->filter('[data-feature-block]')->count();
+        self::assertGreaterThanOrEqual(3, $blocks);
+        self::assertLessThanOrEqual(5, $blocks);
+        self::assertCount($blocks + 1, $crawler->filter('.lp-shot'));
         self::assertCount(7, $crawler->filter('a.lp-feature-tile'));
         self::assertCount(0, $crawler->filter('a.lp-feature-tile[href="/features/'.$slug.'"]'));
         self::assertSelectorTextContains('.lp-home-closing__title', 'Put the first card on the board.');

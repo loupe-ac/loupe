@@ -5302,6 +5302,10 @@
                 <source>landing.shot.book_now</source>
                 <target>Book now</target>
             </trans-unit>
+            <trans-unit id="landing.shot.both_formats_work_the_accounting_import_reads_iso_dates">
+                <source>landing.shot.both_formats_work_the_accounting_import_reads_iso_dates</source>
+                <target>Both formats work. The accounting import reads ISO dates.</target>
+            </trans-unit>
             <trans-unit id="landing.shot.bug">
                 <source>landing.shot.bug</source>
                 <target>Bug</target>
@@ -5350,9 +5354,17 @@
                 <source>landing.shot.email_guests_a_check_in_guide</source>
                 <target>Email guests a check-in guide</target>
             </trans-unit>
+            <trans-unit id="landing.shot.export_format">
+                <source>landing.shot.export_format</source>
+                <target>Format</target>
+            </trans-unit>
             <trans-unit id="landing.shot.feature">
                 <source>landing.shot.feature</source>
                 <target>Feature</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.fifty_rows">
+                <source>landing.shot.fifty_rows</source>
+                <target>50 rows</target>
             </trans-unit>
             <trans-unit id="landing.shot.fix_the_broken_map_pin">
                 <source>landing.shot.fix_the_broken_map_pin</source>
@@ -5398,6 +5410,14 @@
                 <source>landing.shot.in_review</source>
                 <target>In review</target>
             </trans-unit>
+            <trans-unit id="landing.shot.iso_dates">
+                <source>landing.shot.iso_dates</source>
+                <target>ISO dates</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.iso_dates_2026_11_24">
+                <source>landing.shot.iso_dates_2026_11_24</source>
+                <target>ISO dates, 2026-11-24</target>
+            </trans-unit>
             <trans-unit id="landing.shot.june_to_august">
                 <source>landing.shot.june_to_august</source>
                 <target>June to August</target>
@@ -5417,6 +5437,14 @@
             <trans-unit id="landing.shot.let_owners_override_a_rate">
                 <source>landing.shot.let_owners_override_a_rate</source>
                 <target>Let owners override a rate</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.local_dates">
+                <source>landing.shot.local_dates</source>
+                <target>Local dates</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.local_dates_24_nov_2026">
+                <source>landing.shot.local_dates_24_nov_2026</source>
+                <target>Local dates, 24 Nov 2026</target>
             </trans-unit>
             <trans-unit id="landing.shot.make_cabin_search_faster">
                 <source>landing.shot.make_cabin_search_faster</source>
@@ -5450,9 +5478,21 @@
                 <source>landing.shot.model_b</source>
                 <target>Model B</target>
             </trans-unit>
+            <trans-unit id="landing.shot.no_change_to_the_accounting_import">
+                <source>landing.shot.no_change_to_the_accounting_import</source>
+                <target>no change to the accounting import</target>
+            </trans-unit>
             <trans-unit id="landing.shot.now">
                 <source>landing.shot.now</source>
                 <target>now</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.one_hundred_rows">
+                <source>landing.shot.one_hundred_rows</source>
+                <target>100</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.one_retry_five_retries">
+                <source>landing.shot.one_retry_five_retries</source>
+                <target>1, 5</target>
             </trans-unit>
             <trans-unit id="landing.shot.open">
                 <source>landing.shot.open</source>
@@ -5473,6 +5513,10 @@
             <trans-unit id="landing.shot.owners_set_a_nightly_rate_for">
                 <source>landing.shot.owners_set_a_nightly_rate_for</source>
                 <target>Owners set a nightly rate for each season. A guest sees the rate for the nights they picked, and the total before they pay.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.page_size">
+                <source>landing.shot.page_size</source>
+                <target>Page size</target>
             </trans-unit>
             <trans-unit id="landing.shot.peak_rates_apply_from">
                 <source>landing.shot.peak_rates_apply_from</source>
@@ -5514,6 +5558,10 @@
                 <source>landing.shot.product_design_written_review_it_in</source>
                 <target>Product design written. Review it in Loupe when you are ready.</target>
             </trans-unit>
+            <trans-unit id="landing.shot.retry_limit">
+                <source>landing.shot.retry_limit</source>
+                <target>Retries</target>
+            </trans-unit>
             <trans-unit id="landing.shot.round_prices_to_whole_dollars">
                 <source>landing.shot.round_prices_to_whole_dollars</source>
                 <target>Round prices to whole dollars</target>
@@ -5546,6 +5594,10 @@
                 <source>landing.shot.sleeps_6_fire_pit</source>
                 <target>Sleeps 6, fire pit</target>
             </trans-unit>
+            <trans-unit id="landing.shot.the_accounting_import_needs_a_new_parser">
+                <source>landing.shot.the_accounting_import_needs_a_new_parser</source>
+                <target>the accounting import needs a new parser</target>
+            </trans-unit>
             <trans-unit id="landing.shot.the_current_rate">
                 <source>landing.shot.the_current_rate</source>
                 <target>the current rate</target>
@@ -5562,6 +5614,10 @@
                 <source>landing.shot.the_rate_it_was_sold_at</source>
                 <target>the rate it was sold at</target>
             </trans-unit>
+            <trans-unit id="landing.shot.three_retries">
+                <source>landing.shot.three_retries</source>
+                <target>3 retries</target>
+            </trans-unit>
             <trans-unit id="landing.shot.two_tests_cover_the_same_payment">
                 <source>landing.shot.two_tests_cover_the_same_payment</source>
                 <target>Two tests cover the same payment error. The old one expects a retry. The new one expects a message.</target>
@@ -5569,6 +5625,10 @@
             <trans-unit id="landing.shot.what_should_a_guest_see_when">
                 <source>landing.shot.what_should_a_guest_see_when</source>
                 <target>What should a guest see when a cabin has no price for the dates they picked?</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.which_date_format_should_the_booking_export_use">
+                <source>landing.shot.which_date_format_should_the_booking_export_use</source>
+                <target>Which date format should the booking export use?</target>
             </trans-unit>
             <trans-unit id="landing.shot.which_test_should_the_checkout_fix">
                 <source>landing.shot.which_test_should_the_checkout_fix</source>
