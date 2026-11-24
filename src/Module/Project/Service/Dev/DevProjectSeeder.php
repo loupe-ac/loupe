@@ -39,6 +39,7 @@ final readonly class DevProjectSeeder implements DevSeederInterface
     public const string SETUP_INIT_STOPPED_EMPTY_PROJECT_NAME = 'Dev Project (setup: init stopped, no repository)';
     public const string SETUP_BRIDGE_PENDING_EMPTY_PROJECT_NAME = 'Dev Project (setup: bridge pending, no repository)';
     public const string SETUP_DONE_PROJECT_NAME = 'Dev Project (setup: done, with repository)';
+    public const string INBOX_FLAT_PROJECT_NAME = 'Dev Project (inbox, not grouped)';
 
     public function __construct(
         private ProjectRepository $projects,
@@ -143,6 +144,12 @@ final readonly class DevProjectSeeder implements DevSeederInterface
         return DevSeedId::of('project/project/setup-done');
     }
 
+    /** The project whose template turns off the grouping of the inbox, so its open list is flat. */
+    public static function inboxFlatProjectId(): Uuid
+    {
+        return DevSeedId::of('project/project/inbox-flat');
+    }
+
     #[\Override]
     public function key(): string
     {
@@ -181,6 +188,7 @@ final readonly class DevProjectSeeder implements DevSeederInterface
         $this->project($context, $context->devUser(), self::setupInitStoppedEmptyProjectId(), self::SETUP_INIT_STOPPED_EMPTY_PROJECT_NAME, secondsAgo: 460, setUp: false);
         $this->project($context, $context->devUser(), self::setupBridgePendingEmptyProjectId(), self::SETUP_BRIDGE_PENDING_EMPTY_PROJECT_NAME, secondsAgo: 470, setUp: false);
         $this->project($context, $context->devUser(), self::setupDoneProjectId(), self::SETUP_DONE_PROJECT_NAME, secondsAgo: 480);
+        $this->project($context, $context->devUser(), self::inboxFlatProjectId(), self::INBOX_FLAT_PROJECT_NAME, secondsAgo: 510);
     }
 
     private function project(SeedContext $context, User $owner, Uuid $id, string $name, string $workflowTemplate = 'simple', int $secondsAgo = 0, bool $setUp = true): void
