@@ -129,7 +129,6 @@ final class ResumeAskingSessionOnResumableWorkerRunEndedTest extends KernelTestC
     {
         yield 'a success' => [WorkerRunState::Succeeded];
         yield 'a stop by a person' => [WorkerRunState::Stopped];
-        yield 'a wait on the forge' => [WorkerRunState::WaitingOnForge];
     }
 
     #[\PHPUnit\Framework\Attributes\DataProvider('noResumeEnds')]
@@ -194,7 +193,6 @@ final class ResumeAskingSessionOnResumableWorkerRunEndedTest extends KernelTestC
             output: 'worker output',
             resultStatus: match ($state) {
                 WorkerRunState::Blocked => 'blocked',
-                WorkerRunState::WaitingOnForge => 'waiting',
                 default => null,
             },
         ));

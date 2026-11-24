@@ -535,7 +535,7 @@ final class WorkerRunStatesApiTest extends WebTestCase
         self::assertSame($expected, $this->onlyRun()->resultReason);
     }
 
-    public function test_a_worker_that_waits_on_the_forge_closes_as_waiting_on_forge(): void
+    public function test_a_bridge_from_before_the_wait_tool_that_waits_on_the_forge_closes_as_unfinished(): void
     {
         $client = static::createClient();
         $em = $this->em();
@@ -556,7 +556,7 @@ final class WorkerRunStatesApiTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(201);
         $run = $this->onlyRun();
-        self::assertSame(WorkerRunState::WaitingOnForge, $run->state);
+        self::assertSame(WorkerRunState::Unfinished, $run->state);
         self::assertSame('waiting', $run->resultStatus);
     }
 
@@ -1394,7 +1394,6 @@ final class WorkerRunStatesApiTest extends WebTestCase
         yield 'waiting-on-forge with a finished status' => [array_merge($result, ['state' => 'waiting-on-forge', 'resultStatus' => 'finished'])];
         yield 'waiting-on-forge with a non-zero exit code' => [array_merge($result, ['state' => 'waiting-on-forge', 'exitCode' => 1, 'resultStatus' => 'waiting'])];
         yield 'waiting-on-forge with no result' => [array_merge($outcome, ['state' => 'waiting-on-forge', 'hasResult' => false])];
-        yield 'gave-up after a worker that waits on the forge' => [array_merge($result, ['state' => 'gave-up', 'resultStatus' => 'waiting'])];
         yield 'usage-limit after a good result' => [array_merge($result, ['state' => 'usage-limit', 'resultStatus' => 'finished'])];
         yield 'usage-limit after a run that never started' => [array_merge($outcome, ['state' => 'usage-limit', 'exitCode' => null, 'failureReason' => 'no claude'])];
         yield 'network after a good result' => [array_merge($result, ['state' => 'network', 'resultStatus' => 'finished'])];

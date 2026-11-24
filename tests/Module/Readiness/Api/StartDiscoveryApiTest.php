@@ -190,7 +190,7 @@ final class StartDiscoveryApiTest extends WebTestCase
         }
         if ($bridge) {
             $live = new Bridge(AgentCredential::managed($this->em(), $owner, $owner->id), Uuid::v4(), [(string) $project->id], 'b4e39aa7', new \DateTimeImmutable());
-            $live->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_APP_PROMPTS];
+            $live->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_APP_PROMPTS];
             $this->em()->persist($live);
         }
         $this->em()->flush();

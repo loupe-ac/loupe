@@ -304,7 +304,7 @@ final class WorkRequestClaimApiTest extends WebTestCase
 
     private function capable(Bridge $bridge): void
     {
-        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS];
+        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS];
         $bridge->accounts = [['name' => 'work', 'harness' => 'claude', 'state' => 'ready', 'reason' => null, 'kinds' => ['implement', 'design-export']]];
         $this->em()->flush();
     }

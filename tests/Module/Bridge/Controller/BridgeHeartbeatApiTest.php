@@ -739,7 +739,7 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         $this->put($client, (string) Uuid::v4(), $this->agentToken($client, $owner), [
             'projects' => [(string) $followed->id, (string) $foreign->id],
             'cliVersion' => 'b4e39aa7',
-            'capabilities' => [Bridge::CAPABILITY_WORK_REQUESTS],
+            'capabilities' => [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS],
         ]);
 
         self::assertResponseStatusCodeSame(200);
@@ -767,7 +767,7 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         $this->put($client, (string) Uuid::v4(), $this->agentToken($client, $owner), [
             'projects' => [(string) $held->id, (string) $free->id],
             'cliVersion' => 'b4e39aa7',
-            'capabilities' => [Bridge::CAPABILITY_WORK_REQUESTS],
+            'capabilities' => [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS],
         ]);
 
         self::assertResponseStatusCodeSame(200);
@@ -789,14 +789,14 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         $this->put($client, (string) Uuid::v4(), $raw, [
             'projects' => [(string) $project->id],
             'cliVersion' => 'b4e39aa7',
-            'capabilities' => [Bridge::CAPABILITY_WORK_REQUESTS],
+            'capabilities' => [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS],
         ]);
         self::assertSame([(string) $any->id], array_column($this->reply($client)['workRequests'], 'workRequestId'));
 
         $this->put($client, (string) Uuid::v4(), $raw, [
             'projects' => [(string) $project->id],
             'cliVersion' => 'b4e39aa7',
-            'capabilities' => [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_INTERACTIVE],
+            'capabilities' => [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_INTERACTIVE],
         ]);
         self::assertSame([(string) $any->id, (string) $interactive->id], array_column($this->reply($client)['workRequests'], 'workRequestId'));
     }
@@ -816,7 +816,7 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         $body = [
             'projects' => [(string) $project->id],
             'cliVersion' => 'b4e39aa7',
-            'capabilities' => [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_RUN_COMMAND],
+            'capabilities' => [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_RUN_COMMAND],
         ];
 
         $this->put($client, (string) Uuid::v4(), $raw, $body);
@@ -864,7 +864,7 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         $this->put($client, (string) $bridgeId, $this->agentToken($client, $owner), [
             'projects' => [(string) $project->id],
             'cliVersion' => 'b4e39aa7',
-            'capabilities' => [Bridge::CAPABILITY_WORK_REQUESTS],
+            'capabilities' => [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS],
             'workClaims' => [
                 ['id' => (string) $held->id, 'claimToken' => (string) $token],
                 ['id' => strtoupper((string) $held->id), 'claimToken' => (string) $token],
@@ -955,7 +955,7 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         $this->put($client, (string) $bridgeId, $this->agentToken($client, $owner), [
             'projects' => [(string) $project->id],
             'cliVersion' => 'b4e39aa7',
-            'capabilities' => [Bridge::CAPABILITY_WORK_REQUESTS],
+            'capabilities' => [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS],
         ]);
 
         self::assertResponseStatusCodeSame(200);
@@ -1303,7 +1303,7 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         return [
             'projects' => [(string) $project->id],
             'cliVersion' => 'b4e39aa7',
-            'capabilities' => [Bridge::CAPABILITY_WORK_REQUESTS],
+            'capabilities' => [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS],
             'accounts' => $accounts,
             'skipped' => $skipped,
         ];

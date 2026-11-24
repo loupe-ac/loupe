@@ -242,7 +242,7 @@ final class TryAccountNowControllerTest extends WebTestCase
     {
         $client = static::createClient();
         [$owner, $project, $bridge] = $this->scenario('outdated');
-        $bridge->capabilities = [Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_WORK_REQUESTS];
+        $bridge->capabilities = [Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS];
         $this->em()->flush();
         $bridgeId = $bridge->id;
         $this->em()->clear();
@@ -265,7 +265,7 @@ final class TryAccountNowControllerTest extends WebTestCase
             ['name' => 'claude', 'harness' => 'claude', 'state' => 'ready', 'reason' => null, 'kinds' => ['implement']],
             ['name' => 'codex', 'harness' => 'codex', 'state' => 'ready', 'reason' => null, 'kinds' => ['review']],
         ]);
-        $bridge->capabilities = [Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_TRY_NOW];
+        $bridge->capabilities = [Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_TRY_NOW];
         $em->flush();
 
         return [$owner, $project, $bridge];

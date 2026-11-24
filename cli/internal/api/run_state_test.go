@@ -442,7 +442,7 @@ func TestReportRunStateSendsTheWorkRequest(t *testing.T) {
 }
 
 func TestIsOutcomeNamesTheEndsOfARun(t *testing.T) {
-	for _, state := range []string{RunSucceeded, RunNoResult, RunFailed, RunNotStarted, RunUnfinished, RunBlocked, RunWaitingOnForge} {
+	for _, state := range []string{RunSucceeded, RunNoResult, RunFailed, RunNotStarted, RunUnfinished, RunBlocked} {
 		if !IsOutcome(state) {
 			t.Fatalf("IsOutcome(%q) = false", state)
 		}

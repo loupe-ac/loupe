@@ -1391,7 +1391,7 @@ func (s *Set) Pools() map[string]int {
 }
 
 // ResultStatuses are the values of a worker result's status.
-var ResultStatuses = []string{"finished", "blocked", "unfinished", "waiting"}
+var ResultStatuses = []string{"finished", "blocked", "unfinished"}
 
 // resultFieldPattern is the shape of a result field name.
 var resultFieldPattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_]*$`)

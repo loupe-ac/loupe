@@ -43,7 +43,7 @@ use Ubermuda\AuditBundle\AuditSubject;
  * closes the run also writes its usage, through WorkerRunUsageRecorder.
  * A state that is not open also revokes the run credentials of the launch.
  *
- * A run with a wait that reports unfinished, no-result or waiting-on-forge ends
+ * A run with a wait that reports unfinished or no-result ends
  * as waiting. That holds while the wait is open and after it ended in a way that
  * resumes, until a run resumes it. A finished or blocked end closes an open wait.
  * Any other end keeps its own state and leaves the wait as it is.
@@ -205,7 +205,7 @@ final readonly class ReportWorkerRunStateHandler
      */
     private static function effectiveState(WorkerRunState $reported, bool $hasWait, array $history): WorkerRunState
     {
-        $parked = \in_array($reported, [WorkerRunState::Unfinished, WorkerRunState::WaitingOnForge, WorkerRunState::NoResult], true);
+        $parked = \in_array($reported, [WorkerRunState::Unfinished, WorkerRunState::NoResult], true);
 
         return $parked && ($hasWait || \in_array(WorkerRunState::Waiting, $history, true)) ? WorkerRunState::Waiting : $reported;
     }

@@ -51,7 +51,6 @@ final class ReportWorkerRunStateHandlerWaitTest extends KernelTestCase
     {
         yield 'unfinished' => ['unfinished'];
         yield 'no-result' => ['no-result'];
-        yield 'waiting-on-forge' => ['waiting-on-forge'];
     }
 
     #[DataProvider('parkedEnds')]
@@ -340,7 +339,7 @@ final class ReportWorkerRunStateHandlerWaitTest extends KernelTestCase
             exitCode: $exit,
             hasResult: match ($state) {
                 WorkerRunState::Failed, WorkerRunState::NoResult => false,
-                WorkerRunState::Succeeded, WorkerRunState::Unfinished, WorkerRunState::Blocked, WorkerRunState::WaitingOnForge, WorkerRunState::GaveUp => true,
+                WorkerRunState::Succeeded, WorkerRunState::Unfinished, WorkerRunState::Blocked, WorkerRunState::GaveUp => true,
                 default => null,
             },
             failureReason: WorkerRunState::NotStarted === $state ? 'no claude' : null,
@@ -349,7 +348,6 @@ final class ReportWorkerRunStateHandlerWaitTest extends KernelTestCase
                 WorkerRunState::Succeeded => 'finished',
                 WorkerRunState::Unfinished => 'unfinished',
                 WorkerRunState::Blocked => 'blocked',
-                WorkerRunState::WaitingOnForge => 'waiting',
                 default => null,
             },
             continues: $continues,

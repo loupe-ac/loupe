@@ -1498,7 +1498,7 @@ final class RunInboxActionHandlerTest extends KernelTestCase
             $test->bridge->commandEntries = [['name' => 'design-export', 'description' => null, 'params' => [], 'run' => ['make'], 'timeout' => '10m']];
         }];
         yield 'a bridge that did not opt in' => [static function (self $test): void {
-            $test->bridge->capabilities = [Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_RUN_COMMAND];
+            $test->bridge->capabilities = [Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_RUN_COMMAND];
         }];
     }
 
@@ -1621,7 +1621,7 @@ final class RunInboxActionHandlerTest extends KernelTestCase
 
     private function commandBridge(): void
     {
-        $this->bridge->capabilities = [Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_RUN_COMMAND];
+        $this->bridge->capabilities = [Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_RUN_COMMAND];
         $this->bridge->projects = [(string) $this->project->id];
         $this->bridge->lastSeenAt = new \DateTimeImmutable();
         $this->bridge->commandEntries = [[
@@ -1676,7 +1676,7 @@ final class RunInboxActionHandlerTest extends KernelTestCase
 
     private function sessionBridge(bool $itemSessions = false): void
     {
-        $this->bridge->capabilities = [Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION];
+        $this->bridge->capabilities = [Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_SESSION];
         $this->bridge->workKinds = $itemSessions ? [Bridge::workKindOf(InboxItem::SUBJECT_TYPE, WorkRequest::SESSION_KIND)] : [];
         $this->bridge->projects = [(string) $this->project->id];
         $this->em()->flush();

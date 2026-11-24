@@ -16526,8 +16526,8 @@
                             "no-result",
                             "unfinished",
                             "blocked",
-                            "waiting-on-forge",
-                            "gave-up"
+                            "gave-up",
+                            "waiting-on-forge"
                         ]
                     },
                     "at": {

@@ -201,7 +201,19 @@ Then, when the instruction files name a changelog entry, write it and run its ch
 
 ## After the push
 
-The stage ends at the push. The app reads the pull request again after each push, so no stage waits for CI. A failed check or a conflict reaches a fix round as a fix request. Green checks move the card, and a pull request with the approval that the forge requires and green checks reaches the merge stage. Report `waiting`, and name the pull request URL.
+The stage does not poll for CI. It waits with the `run_wait` tool, and Loupe resumes the same session when the wait ends. The stage ends after the push as the next list says.
+
+1. Call `run_wait`. Pass the session id from the prompt, the limit `limitMinutes` of 60, and two conditions. Each condition names the pull request in `pullRequestUrl`. The keys are `pr.checks_passed` and `pr.checks_failed`. When the tool refuses the limit, use the maximum that the refusal names.
+2. When the tool says that a condition is true already, read the checks with the forge adapter, and go to item 5.
+3. When the tool refuses for another reason, stop with `STAGE RESULT: blocked: wait refused: <reason>`.
+4. When the tool accepts the wait, end the turn at once. Stop with `STAGE RESULT: waiting <pr url>` and the structured status `unfinished`. Never end with the status `waiting`. That status no longer exists.
+5. Loupe resumes the session when a condition is true, when the limit passes, or when the pull request leaves the card. Read the checks with the forge adapter.
+   - Checks passed: stop with `STAGE RESULT: checks passed <pr url>` and the structured status `finished`.
+   - Checks failed: read the failed logs, fix the cause in this branch, run the gate, push as "Push without force" says, and go to item 1.
+   - The wait timed out and checks still run: go to item 1. When the tool refuses for the chain cap, stop with `STAGE RESULT: blocked: checks still pending <pr url>`.
+   - The pull request left the card: stop with `STAGE RESULT: blocked: pull request left the card`.
+
+The app also reads the pull request after each push. A conflict with the base reaches a fix round as a fix request.
 
 ## Finish without code
 

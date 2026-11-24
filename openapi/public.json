@@ -9191,7 +9191,6 @@
                                     "no-result",
                                     "unfinished",
                                     "blocked",
-                                    "waiting-on-forge",
                                     "waiting",
                                     "gave-up",
                                     "timed-out",

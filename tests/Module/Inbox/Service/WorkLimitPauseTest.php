@@ -117,9 +117,9 @@ final class WorkLimitPauseTest extends KernelTestCase
     public function test_a_resumed_round_counts_once_and_its_answered_stop_is_not_quoted(): void
     {
         $wait = $this->workLimitWait(rounds: [
-            [1, [WorkerRunState::Blocked, WorkerRunState::WaitingOnForge]],
-            [2, [WorkerRunState::WaitingOnForge]],
-            [3, [WorkerRunState::Blocked, WorkerRunState::WaitingOnForge]],
+            [1, [WorkerRunState::Blocked, WorkerRunState::Waiting]],
+            [2, [WorkerRunState::Waiting]],
+            [3, [WorkerRunState::Blocked, WorkerRunState::Waiting]],
         ], fires: 3);
         $text = $this->service(CardWaitText::class);
         $body = $text->body([$wait]);
@@ -134,8 +134,8 @@ final class WorkLimitPauseTest extends KernelTestCase
         $wait = $this->workLimitWait(rounds: [
             [1, [WorkerRunState::Failed]],
             [2, [WorkerRunState::Failed]],
-            [1, [WorkerRunState::WaitingOnForge]],
-            [2, [WorkerRunState::WaitingOnForge]],
+            [1, [WorkerRunState::Waiting]],
+            [2, [WorkerRunState::Waiting]],
         ], fires: 2);
 
         $body = $this->service(CardWaitText::class)->body([$wait]);
@@ -147,9 +147,9 @@ final class WorkLimitPauseTest extends KernelTestCase
     public function test_a_round_that_a_hold_gave_back_counts_its_newer_request_only(): void
     {
         $wait = $this->workLimitWait(rounds: [
-            [1, [WorkerRunState::WaitingOnForge]],
+            [1, [WorkerRunState::Waiting]],
             [2, [WorkerRunState::Failed]],
-            [2, [WorkerRunState::WaitingOnForge]],
+            [2, [WorkerRunState::Waiting]],
         ], fires: 2);
 
         self::assertStringContainsString('The last 2 fix rounds all finished', $this->service(CardWaitText::class)->body([$wait]));
@@ -158,7 +158,7 @@ final class WorkLimitPauseTest extends KernelTestCase
     public function test_a_round_with_no_run_is_not_called_failed(): void
     {
         $wait = $this->workLimitWait(rounds: [
-            [1, [WorkerRunState::WaitingOnForge]],
+            [1, [WorkerRunState::Waiting]],
             [2, []],
         ], fires: 2);
 
@@ -172,10 +172,10 @@ final class WorkLimitPauseTest extends KernelTestCase
     public function test_older_requests_with_no_round_number_are_named_as_unknown(): void
     {
         $wait = $this->workLimitWait(rounds: [
-            [null, [WorkerRunState::WaitingOnForge]],
-            [null, [WorkerRunState::WaitingOnForge]],
-            [3, [WorkerRunState::WaitingOnForge]],
-            [4, [WorkerRunState::WaitingOnForge]],
+            [null, [WorkerRunState::Waiting]],
+            [null, [WorkerRunState::Waiting]],
+            [3, [WorkerRunState::Waiting]],
+            [4, [WorkerRunState::Waiting]],
         ], fires: 4);
 
         $body = $this->service(CardWaitText::class)->body([$wait]);
@@ -188,7 +188,7 @@ final class WorkLimitPauseTest extends KernelTestCase
     {
         $wait = $this->workLimitWait(rounds: [
             [null, [WorkerRunState::Blocked]],
-            [null, [WorkerRunState::WaitingOnForge]],
+            [null, [WorkerRunState::Waiting]],
         ], fires: 2);
 
         $body = $this->service(CardWaitText::class)->body([$wait]);
@@ -201,8 +201,8 @@ final class WorkLimitPauseTest extends KernelTestCase
     public function test_the_body_lists_what_the_review_found_before_each_round(): void
     {
         $wait = $this->workLimitWait(rounds: [
-            [1, [WorkerRunState::WaitingOnForge]],
-            [2, [WorkerRunState::WaitingOnForge]],
+            [1, [WorkerRunState::Waiting]],
+            [2, [WorkerRunState::Waiting]],
         ], fires: 2, earlierFindings: ['First finding', 'Second finding']);
 
         $body = $this->service(CardWaitText::class)->body([$wait]);
@@ -301,7 +301,7 @@ final class WorkLimitPauseTest extends KernelTestCase
         $state->fires = $fires;
         $em->persist($state);
 
-        $states = [WorkerRunState::Succeeded, WorkerRunState::Succeeded, WorkerRunState::Blocked, WorkerRunState::WaitingOnForge, WorkerRunState::WaitingOnForge, WorkerRunState::WaitingOnForge, WorkerRunState::WaitingOnForge, WorkerRunState::WaitingOnForge, WorkerRunState::Blocked, $lastState];
+        $states = [WorkerRunState::Succeeded, WorkerRunState::Succeeded, WorkerRunState::Blocked, WorkerRunState::Waiting, WorkerRunState::Waiting, WorkerRunState::Waiting, WorkerRunState::Waiting, WorkerRunState::Waiting, WorkerRunState::Blocked, $lastState];
         $rounds ??= array_map(static fn (WorkerRunState $runState, int $i): array => [$i + 1, [$runState]], $states, array_keys($states));
         $at = new \DateTimeImmutable('2026-10-27 22:20:00');
         $lastRun = array_key_last($rounds);

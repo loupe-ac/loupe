@@ -75,4 +75,4 @@ Review the pull request of one card at one head commit, and send the result to L
 
 ## Final reply
 
-Follow "Final reply" in `../loupe-stage-product-design/references/stage-contract.md` for the first characters, the three sentences, the structured result and the reason code. The form `reviewed` takes `finished` and the code `done`. The form `not ready <url>: head moved` takes `waiting` and the code `waiting-checks`.
+Follow "Final reply" in `../loupe-stage-product-design/references/stage-contract.md` for the first characters, the three sentences, the structured result and the reason code. The form `reviewed` takes `finished` and the code `done`. The form `not ready <url>: head moved` takes `finished` and the code `waiting-checks`.
