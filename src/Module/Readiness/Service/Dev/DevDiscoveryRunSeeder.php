@@ -97,11 +97,11 @@ final readonly class DevDiscoveryRunSeeder implements DevSeederInterface
         $this->run($context, $cancelledProject, self::cancelledRunId(), 300, DiscoveryRunState::Failed, $context->devUser());
 
         $this->run($context, $project, self::runId(), 120, DiscoveryRunState::Requested);
-        $this->run($context, $project, self::endedRunId(), 7200, DiscoveryRunState::Done);
+        $this->run($context, $project, self::endedRunId(), 270, DiscoveryRunState::Done);
 
         // An ended worker run: an open run of a bridge that never beats times out, and that end fails a live run.
         if (!$this->workerRuns->find(self::workerRunId()) instanceof WorkerRun) {
-            $endedAt = $context->at(6600);
+            $endedAt = $context->at(200);
             $worker = new WorkerRun(
                 project: $project,
                 bridgeId: DevSeedId::of('readiness/discovery-bridge'),
@@ -111,7 +111,7 @@ final readonly class DevDiscoveryRunSeeder implements DevSeederInterface
                 workKind: 'discovery',
                 state: WorkerRunState::Succeeded,
                 runKey: DevSeedId::of('readiness/discovery-worker-run-key'),
-                startedAt: $context->at(7140),
+                startedAt: $context->at(250),
                 endedAt: $endedAt,
                 exitCode: 0,
                 hasResult: true,
@@ -137,7 +137,7 @@ final readonly class DevDiscoveryRunSeeder implements DevSeederInterface
 
         $run = new DiscoveryRun($project, $context->at($secondsAgo));
         $run->state = $state;
-        $run->endedAt = DiscoveryRunState::Done === $state ? $context->at(6600) : null;
+        $run->endedAt = DiscoveryRunState::Done === $state ? $context->at(200) : null;
         if (null !== $cancelledBy) {
             $run->failureReason = CancelDiscoveryHandler::REASON;
             $run->cancelledBy = $cancelledBy;
