@@ -80,6 +80,35 @@ final class ListWorkerRunsControllerTest extends WebTestCase
         self::assertStringNotContainsString('/board/cards/', (string) $crawler->filter('.lp-run-drawer__metadata')->html());
     }
 
+    public function test_a_discovery_run_is_labelled_and_links_to_the_workshop(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+
+        $owner = $this->user($em, 'runs-discovery@example.com');
+        $project = $this->project($em, $owner, 'Discoveries');
+        $runId = Uuid::v7();
+        $this->seedRun($em, $project, workKind: 'discovery', cardId: $runId, subjectType: 'discovery');
+
+        $projectId = (string) $project->id;
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/worker-runs');
+
+        self::assertResponseIsSuccessful();
+        $row = $crawler->filter('.lp-data-table__row a[data-worker-run-discovery]');
+        $drawer = $crawler->filter('.lp-run-drawer__metadata a[data-worker-run-discovery]');
+        self::assertSame(1, $crawler->filter('.lp-data-table__primary > a[data-worker-run-discovery]')->count(), 'A link cannot sit inside the button of the row.');
+        foreach ([$row->first(), $drawer] as $link) {
+            self::assertSame('Discovery', trim($link->text()));
+            self::assertSame('/projects/'.$projectId, $link->attr('href'));
+            self::assertSame('_top', $link->attr('data-turbo-frame'));
+        }
+        self::assertStringContainsString((string) $runId, $crawler->filter('div[data-worker-run-subject]')->text());
+        self::assertCount(1, $crawler->filter('.lp-data-table__primary button.lp-data-table__target[data-action="modal#open"]'));
+    }
+
     /**
      * The output is agent-written text nobody reviewed, and the page shows it to
      * everyone who can view the project.

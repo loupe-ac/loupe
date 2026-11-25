@@ -31,8 +31,10 @@
        The drawer stays inside the row and the frame, so a live reload sees it open and waits. #}
     <div class="lp-data-table__row" role="row" data-worker-run-id="{{ run.id }}" data-controller="modal" data-modal-drawer-value="true"{% if reopen and listQuery.search|lower == (run.id ~ '')|lower %} data-modal-reopen-value="true"{% endif %}>
         <div class="lp-data-table__cell lp-data-table__primary" role="cell">
+            {# A button holds no link, so the link of a discovery run sits beside the row target. #}
+            {% if run.subjectType == 'discovery' %}<a class="lp-data-table__number" href="{{ path('app_project_workshop', {id: project.id}) }}" data-turbo-frame="_top" data-worker-run-discovery>{{ 'bridge.worker_runs.subject.discovery'|trans }}</a>{% endif %}
             <button type="button" class="lp-data-table__target" data-action="modal#open">
-                {% if run.cardNumber is not null %}<span class="lp-data-table__number">{{ 'bridge.worker_runs.card_number'|trans({'%number%': run.cardNumber}) }}</span>{% else %}<span class="lp-data-table__number" data-worker-run-subject>{{ run.subjectType }}</span>{% endif %}
+                {% if run.cardNumber is not null %}<span class="lp-data-table__number">{{ 'bridge.worker_runs.card_number'|trans({'%number%': run.cardNumber}) }}</span>{% elseif run.subjectType != 'discovery' %}<span class="lp-data-table__number" data-worker-run-subject>{{ run.subjectType }}</span>{% endif %}
                 {% if item.cardTitle is not null %}<span class="lp-data-table__title">{{ item.cardTitle }}</span>{% endif %}
                 <span class="sr-only">{{ 'bridge.worker_runs.details.open'|trans }}</span>
             </button>
