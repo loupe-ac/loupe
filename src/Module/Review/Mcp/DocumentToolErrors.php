@@ -51,7 +51,7 @@ final readonly class DocumentToolErrors
         // Before the rename below, which builds a new DomainErrors without the guard mark.
         if ($errors->fromGuard) {
             return new ToolCallException(
-                \sprintf('%s: %s', array_key_first($errors->errors), $this->translator->trans(array_first($errors->errors), locale: 'en')),
+                \sprintf('%s: %s', array_key_first($errors->errors), ToolCallErrorMessages::guardSentence($this->translator, array_first($errors->errors))),
                 previous: $errors,
             );
         }

@@ -7,6 +7,7 @@ namespace App\Tests\Module\Review\Command;
 use App\Api\Problem\ApiProblemException;
 use App\Exception\DomainErrors;
 use App\Module\Review\Command\SubmitReviewCommand;
+use App\Module\Review\Command\SubmitReviewHandler;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\DocumentStatus;
 use App\Module\Review\Entity\Verdict;
@@ -61,6 +62,37 @@ final class SubmitReviewVerdictGuardTest extends KernelTestCase
         self::assertSame('in-review', $this->storedStatus($document));
         self::assertSame([], $this->audit->operations());
         self::assertSame(0, $this->submitted);
+    }
+
+    public function test_the_handler_of_the_container_asks_a_tagged_guard(): void
+    {
+        $document = $this->decisionDocument();
+        $guard = self::getContainer()->get(StubVerdictGuard::class);
+        self::assertInstanceOf(StubVerdictGuard::class, $guard);
+        $guard->key = self::KEY;
+        $handler = self::getContainer()->get(SubmitReviewHandler::class);
+        self::assertInstanceOf(SubmitReviewHandler::class, $handler);
+
+        try {
+            $handler(new SubmitReviewCommand($document->owner, $document, 'changes-requested', 1, 'Rework it.'));
+            self::fail('The verdict was not refused.');
+        } catch (DomainErrors $refusal) {
+            self::assertSame(['verdict' => self::KEY], $refusal->errors);
+        }
+    }
+
+    public function test_a_key_with_no_message_never_reaches_a_caller(): void
+    {
+        $document = $this->decisionDocument();
+        $refusal = $this->refusal($document, 'approved', new StubVerdictGuard('review.guard.no_such_message'));
+        $problems = self::getContainer()->get(DocumentApiProblems::class);
+        self::assertInstanceOf(DocumentApiProblems::class, $problems);
+
+        $problem = $problems->from($refusal);
+
+        self::assertInstanceOf(ApiProblemException::class, $problem);
+        self::assertSame(ToolCallErrorMessages::GUARD_REFUSED, $problem->problem->detail);
+        self::assertSame('verdict: '.ToolCallErrorMessages::GUARD_REFUSED, $this->toolErrors()->forDocument($refusal, $document)->getMessage());
     }
 
     public function test_a_guard_that_returns_null_lets_the_verdict_through(): void

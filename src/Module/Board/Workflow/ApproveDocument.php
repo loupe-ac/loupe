@@ -127,6 +127,11 @@ final readonly class ApproveDocument implements Action
     /** The short code of the first refusal, such as `verdict_stale`: the last part of its translation key. */
     private static function refusalCode(DomainErrors $refusal): string
     {
+        // The key of a guard can end as a code of the app does, and would then show the wrong cause.
+        if ($refusal->fromGuard) {
+            return 'verdict_refused';
+        }
+
         $key = array_first($refusal->errors);
 
         return str_contains($key, '.') ? substr($key, (int) strrpos($key, '.') + 1) : $key;

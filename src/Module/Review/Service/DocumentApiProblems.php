@@ -118,7 +118,7 @@ final readonly class DocumentApiProblems
     public function from(DomainErrors $errors): ApiProblemException|DomainErrors
     {
         if ($errors->fromGuard) {
-            $detail = $this->translator->trans(array_first($errors->errors), locale: 'en');
+            $detail = ToolCallErrorMessages::guardSentence($this->translator, array_first($errors->errors));
 
             return new ApiProblemException(new ApiProblem(409, 'verdict_refused', 'Verdict refused', $detail), $errors);
         }
