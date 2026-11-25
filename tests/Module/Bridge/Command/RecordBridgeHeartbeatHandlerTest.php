@@ -27,9 +27,11 @@ use App\Module\Bridge\ValueObject\BridgeHostSampleReport;
 use App\Module\Bridge\ValueObject\CliInstallMethod;
 use App\Module\Bridge\ValueObject\CliUpdateState;
 use App\Module\Bridge\ValueObject\WorkRequestState;
+use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Support\RecordedEvents;
 use App\Tests\Support\RecordingAuditor;
+use Doctrine\DBAL\DriverManager;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
@@ -328,6 +330,40 @@ final class RecordBridgeHeartbeatHandlerTest extends KernelTestCase
         $handler($beat());
         $handler($beat());
         self::assertCount(1, self::announcedProjects($announced), 'A routine beat announces nothing.');
+    }
+
+    /** The test transaction holds the locks of the heartbeat, so a second session sees what a no-taker expiry waits for. */
+    public function test_a_heartbeat_locks_out_the_no_taker_expiry_and_no_other_heartbeat(): void
+    {
+        self::bootKernel();
+        $owner = $this->user($this->em(), 'heartbeat-availability-lock@example.com');
+
+        $this->handler()(new RecordBridgeHeartbeatCommand($owner, Uuid::v4(), [], 'b4e39aa7'));
+
+        $other = DriverManager::getConnection($this->em()->getConnection()->getParams());
+        try {
+            $availability = ['bridge-availability:'.$owner->id?->toRfc4122()];
+            self::assertFalse((bool) $other->fetchOne('SELECT pg_try_advisory_xact_lock(hashtext(?))', $availability));
+            self::assertTrue((bool) $other->fetchOne('SELECT pg_try_advisory_xact_lock_shared(hashtext(?))', $availability));
+        } finally {
+            $other->close();
+        }
+    }
+
+    /** The reply lists the offers before the availability change expires the work that this bridge cannot run. */
+    public function test_the_reply_offers_no_request_that_the_same_heartbeat_expired(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $owner = $this->user($em, 'heartbeat-untaken@example.com');
+        $project = $this->project($em, $owner, 'Heartbeat Untaken');
+        $request = $this->seedWorkRequest($em, $project, subject: new WorkSubject(WorkSubject::PROJECT, $project->id ?? throw new \LogicException('A stored project has an id.')), failWhenNoTaker: true);
+
+        $result = $this->handler()(self::beat($owner, Uuid::v4(), [(string) $project->id], false, [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS], []));
+
+        self::assertSame([], $result->workRequests);
+        $em->clear();
+        self::assertSame(WorkRequestState::Expired, $em->find(WorkRequest::class, $request->id)?->state);
     }
 
     public function test_a_bridge_back_from_quiet_announces_a_change_of_availability(): void

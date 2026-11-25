@@ -121,6 +121,7 @@ final readonly class OpenWorkRequestHandler
                 $request->run = $command->run;
                 $request->role = $command->role;
                 $request->round = $command->round;
+                $request->failWhenNoTaker = $command->failWhenNoTaker;
                 // The key share read waits for a hold write, so a hold that commits first marks the request here and a later one marks it itself.
                 if (null !== $this->workHolds->heldProject($command->project->id ?? throw new \LogicException('A stored project has an id.'))) {
                     $request->workHoldSince = $request->createdAt;

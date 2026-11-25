@@ -353,6 +353,35 @@ class WorkRequestRepository extends ServiceEntityRepository
     }
 
     /**
+     * The open requests about a subject other than a card that fail when no bridge can take them, oldest first.
+     *
+     * @param list<string>|null $projectIds RFC 4122 ids, or null for every project
+     *
+     * @return list<WorkRequest>
+     */
+    public function findOpenOfOtherSubjectsThatFailWhenNoTaker(?array $projectIds = null): array
+    {
+        if ([] === $projectIds) {
+            return [];
+        }
+
+        $qb = $this->createQueryBuilder('w')
+            ->andWhere('w.state = :open')
+            ->andWhere('w.subjectType <> :card')
+            ->andWhere('w.failWhenNoTaker = true')
+            ->setParameter('open', WorkRequestState::Open->value)
+            ->setParameter('card', WorkSubject::CARD)
+            ->orderBy('w.createdAt', 'ASC')
+            ->addOrderBy('w.id', 'ASC');
+        if (null !== $projectIds) {
+            $qb->andWhere('w.project IN (:projects)')
+                ->setParameter('projects', $projectIds);
+        }
+
+        return array_values($qb->getQuery()->getResult());
+    }
+
+    /**
      * The open requests of a kind whose rule id starts with the prefix and that waited for a bridge
      * since the deadline or longer, oldest first. A reopen restarts the wait, and a work hold stops it.
      *

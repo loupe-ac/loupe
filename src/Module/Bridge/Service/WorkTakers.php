@@ -100,6 +100,23 @@ final readonly class WorkTakers
         return $readings;
     }
 
+    /** The reason to fail an open request now because no bridge can take it, or null when it can wait. */
+    public function noTakerReason(WorkRequest $request): ?string
+    {
+        if (WorkRequestState::Open !== $request->state) {
+            return null;
+        }
+
+        $id = $request->id ?? throw new \LogicException('A stored request has an id.');
+        $reading = $this->forRequests($request->project, [$request])[$id->toRfc4122()] ?? null;
+
+        return match ($reading?->state) {
+            WorkTakerState::None => WorkRequest::REASON_NO_TAKER,
+            WorkTakerState::NotCapable => $reading->appPromptsMissing ? WorkRequest::REASON_NO_CAPABLE_TAKER_APP_PROMPTS : WorkRequest::REASON_NO_CAPABLE_TAKER,
+            default => null,
+        };
+    }
+
     /**
      * Disconnected when the bridge of the claim sent no heartbeat within the liveness window, or when the request
      * waits after a network outage. The reading changes at the end of the claim or of the wait.
@@ -180,16 +197,18 @@ final readonly class WorkTakers
     }
 
     /**
-     * The reading for work of $kind that the project would request now, with a prompt or without. The readiness
-     * guide and the start of a discovery use it, so they agree with the engine that holds the real request.
+     * The reading for work of $kind about a subject of $subjectType that the project would request now, with a prompt
+     * or without. The readiness guide and the start of a discovery use it, so they agree with the engine that holds
+     * the real request.
      */
-    public function capableFor(Project $project, string $kind, bool $hasPrompt): WorkTakerReading
+    public function capableFor(Project $project, string $subjectType, string $kind, bool $hasPrompt): WorkTakerReading
     {
+        $workKind = Bridge::workKindOf($subjectType, $kind);
         [$followers, $narrowedAt, $quietBefore, $window, $expiredIds] = $this->followersOf($project);
         $projectId = (string) $project->id;
         $takers = array_values(array_filter($followers, static fn (Bridge $bridge): bool => $bridge->takesWorkRequests()
-            && !$bridge->failsProjectFor($projectId, $kind)
-            && (\in_array($kind, $bridge->workKinds, true) || ($hasPrompt && \in_array(Bridge::CAPABILITY_APP_PROMPTS, $bridge->capabilities ?? [], true)))));
+            && !$bridge->failsProjectFor($projectId, $workKind)
+            && (\in_array($workKind, $bridge->workKinds, true) || ($hasPrompt && \in_array(Bridge::CAPABILITY_APP_PROMPTS, $bridge->capabilities ?? [], true)))));
 
         return $this->read($this->clock->now(), $followers, $takers, $narrowedAt, $quietBefore, $window, $hasPrompt, $expiredIds);
     }

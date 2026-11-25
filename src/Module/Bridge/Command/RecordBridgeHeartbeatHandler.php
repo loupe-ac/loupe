@@ -104,6 +104,8 @@ final readonly class RecordBridgeHeartbeatHandler
         // and one would trip the primary key.
         [$bridge, $created, $commands, $pauseChanged, $workRequests, $lostClaims, $blocked, $renamedIn, $poolsChanged, $followedBefore, $wasQuiet, $availabilityChanged, $usageChanged, $readingsStored] = $this->em->wrapInTransaction(function () use ($command, $ownerId, $projects, $samples): array {
             $this->bridges->lockForWrite($ownerId, $command->bridgeId);
+            // Before any row lock, so a no-taker expiry reads the bridges before this heartbeat or after its commit.
+            $this->bridges->lockAvailabilityForWrite($ownerId);
 
             $now = $this->clock->now();
             $bridge = $this->bridges->findOneByOwnerAndId($command->owner, $command->bridgeId);
@@ -310,6 +312,9 @@ final readonly class RecordBridgeHeartbeatHandler
                 new AuditSubject('bridge', (string) $bridge->id),
             );
         }
+
+        // A listener of the availability change can expire a request that the list holds.
+        $workRequests = array_values(array_filter($workRequests, static fn (WorkRequest $request): bool => WorkRequestState::Open === $request->state));
 
         return new RecordBridgeHeartbeatResult($bridge, CliCompatibility::RANGE, $commands, $workRequests, $lostClaims, $watchSessions, $blocked);
     }

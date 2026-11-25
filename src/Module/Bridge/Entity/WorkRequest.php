@@ -184,6 +184,11 @@ class WorkRequest
     #[ORM\Column(name: 'round_number', nullable: true)]
     public ?int $round = null;
 
+    /** Whether a request about a subject other than a card expires at once when no online bridge could take it. */
+    // The database default covers an insert of the previous image, which runs during a deploy.
+    #[ORM\Column(name: 'fail_when_no_taker', options: ['default' => false])]
+    public bool $failWhenNoTaker = false;
+
     /** What the card held when the request opened. A row from before the column reads as an empty context. */
     public WorkRequestContext $context {
         get => WorkRequestContext::fromArray($this->contextData);

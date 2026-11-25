@@ -9,6 +9,7 @@ use App\Module\Bridge\Entity\Bridge;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\FactsPass;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\Query;
 use Doctrine\ORM\Query\Expr\Join;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Bridge\Doctrine\Types\UuidType;
@@ -36,6 +37,38 @@ class BridgeRepository extends ServiceEntityRepository
             'SELECT pg_advisory_xact_lock(hashtext(?))',
             ['bridge:'.$ownerId.':'.$bridgeId->toRfc4122()],
         );
+    }
+
+    /**
+     * Held by each writer that can give open work a taker, until its transaction ends. The writers of one owner
+     * share it, and it blocks lockAvailabilityForExpiry().
+     */
+    public function lockAvailabilityForWrite(string $ownerId): void
+    {
+        $this->getEntityManager()->getConnection()->executeStatement(
+            'SELECT pg_advisory_xact_lock_shared(hashtext(?))',
+            ['bridge-availability:'.$ownerId],
+        );
+    }
+
+    /** Keeps each writer of lockAvailabilityForWrite() out until the transaction ends, so a read of "no taker" stays true. */
+    public function lockAvailabilityForExpiry(string $ownerId): void
+    {
+        $this->getEntityManager()->getConnection()->executeStatement(
+            'SELECT pg_advisory_xact_lock(hashtext(?))',
+            ['bridge-availability:'.$ownerId],
+        );
+    }
+
+    /** Reloads the bridges of the owner, because a plain read keeps the values of a bridge that is already loaded. */
+    public function refreshOfOwner(User $owner): void
+    {
+        $this->createQueryBuilder('b')
+            ->andWhere('b.owner = :owner')
+            ->setParameter('owner', $owner)
+            ->getQuery()
+            ->setHint(Query::HINT_REFRESH, true)
+            ->getResult();
     }
 
     /** Serialises the name claims of one owner's bridges until the transaction ends. */

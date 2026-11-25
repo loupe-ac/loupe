@@ -40,6 +40,8 @@ final readonly class OpenWorkRequestCommand
         public ?string $role = null,
         /** The round of the rule that this request opens, counted from 1 after each reset of the rule. */
         public ?int $round = null,
+        /** Expires a request about a subject other than a card at once when no online bridge could take it. A card ignores it. */
+        public bool $failWhenNoTaker = false,
     ) {
     }
 }

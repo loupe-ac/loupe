@@ -11,7 +11,8 @@ use Symfony\Component\Scheduler\Attribute\AsCronTask;
 
 /**
  * Expires the open requests about a subject other than a card that no bridge
- * took in time, every minute. `app:expire-subject-work-requests` is the manual backstop.
+ * took in time, and those that fail because no bridge can take them, every minute.
+ * `app:expire-subject-work-requests` is the manual backstop.
  */
 #[AsCronTask('%app.bridge.work_request_reopen_schedule%')]
 final readonly class ExpireSubjectWorkRequestsTask
