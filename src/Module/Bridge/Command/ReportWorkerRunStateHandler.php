@@ -16,7 +16,7 @@ use App\Module\Bridge\Repository\WorkerRunBilledCostRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkerRunStateChangeRepository;
 use App\Module\Bridge\Repository\WorkerWaitRepository;
-use App\Module\Bridge\Repository\WorkRequestRepository;
+use App\Module\Bridge\Service\ReportedWorkRequest;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Bridge\Service\WorkerRunSearchIndexer;
 use App\Module\Bridge\Service\WorkerRunUsageRecorder;
@@ -54,7 +54,7 @@ final readonly class ReportWorkerRunStateHandler
         private ProjectRepository $projects,
         private WorkerRunRepository $workerRuns,
         private WorkerRunBilledCostRepository $workerRunBilledCosts,
-        private WorkRequestRepository $workRequests,
+        private ReportedWorkRequest $reportedWorkRequest,
         private WorkerRunStateChangeRepository $workerRunStateChanges,
         private WorkerWaitRepository $workerWaits,
         private WorkerRunSearchIndexer $searchIndexer,
@@ -90,18 +90,21 @@ final readonly class ReportWorkerRunStateHandler
             $resumedWait = null;
             if (null === $run) {
                 // A run takes its subject and request once, so only a new run needs the check.
-                $request = null === $command->workRequestId ? null : $this->workRequests->findOneOfSubject($command->workRequestId, $project, $command->subject);
+                $request = null === $command->workRequestId ? null : $this->reportedWorkRequest->find($command->workRequestId, $project, $command->subject);
                 $error = $this->refusal($project, $command, $request);
                 if (null !== $error) {
                     return [new ReportWorkerRunStateResult(null, newState: false, error: $error), false, false, false];
                 }
                 $role = $request?->role;
+                $subject = $request?->subject() ?? $command->subject;
+                // A request that left its card has no card number, and neither has its run.
+                $moved = null !== $request && $request->subjectType !== $command->subject->type;
                 $run = new WorkerRun(
                     project: $project,
                     bridgeId: $command->bridgeId,
-                    subjectType: $command->subject->type,
-                    subjectId: $command->subject->id,
-                    cardNumber: $command->cardNumber,
+                    subjectType: $subject->type,
+                    subjectId: $subject->id,
+                    cardNumber: $moved ? null : $command->cardNumber,
                     workKind: $command->workKind,
                     state: $command->state,
                     runKey: $command->runKey,

@@ -10,8 +10,8 @@ import (
 
 func TestStartDiscoveryPostsAndParsesTheAnswer(t *testing.T) {
 	for name, body := range map[string]string{
-		"flat":    `{"runId":"r1","cardNumber":7,"cardId":"c1","url":"https://x/r"}`,
-		"wrapped": `{"data":{"runId":"r1","cardNumber":7,"cardId":"c1","url":"https://x/r"}}`,
+		"flat":    `{"runId":"r1","url":"https://x/r"}`,
+		"wrapped": `{"data":{"runId":"r1","url":"https://x/r"}}`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			var method, path string
@@ -29,7 +29,7 @@ func TestStartDiscoveryPostsAndParsesTheAnswer(t *testing.T) {
 			if method != http.MethodPost || path != "/api/v1/projects/my proj/discovery" {
 				t.Errorf("request = %s %s", method, path)
 			}
-			if d.RunID != "r1" || d.CardNumber != 7 || d.CardID != "c1" || d.URL != "https://x/r" {
+			if d.RunID != "r1" || d.URL != "https://x/r" {
 				t.Errorf("discovery = %+v", d)
 			}
 		})
@@ -39,12 +39,12 @@ func TestStartDiscoveryPostsAndParsesTheAnswer(t *testing.T) {
 func TestStartDiscoveryReportsAFailure(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusConflict)
-		_, _ = w.Write([]byte(`{"title":"Conflict","detail":"Discovery runs on card 4."}`))
+		_, _ = w.Write([]byte(`{"title":"Conflict","detail":"Discovery already runs."}`))
 	}))
 	defer srv.Close()
 
 	_, err := New(srv.URL, "key", srv.Client()).StartDiscovery(context.Background(), "p")
-	if err == nil || !strings.Contains(err.Error(), "HTTP 409: Conflict Discovery runs on card 4.") {
+	if err == nil || !strings.Contains(err.Error(), "HTTP 409: Conflict Discovery already runs.") {
 		t.Fatalf("err = %v", err)
 	}
 }

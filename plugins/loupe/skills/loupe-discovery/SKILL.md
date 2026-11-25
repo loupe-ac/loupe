@@ -7,7 +7,7 @@ description: "Use when a bridge runs a discovery run of a Loupe project, when a 
 
 Discovery finds what Loupe works better with before agents work the cards of a project. A check that the project does not meet is a suggestion, never a failure. You read the project setup, the workflow and the repository, and you write a readiness report. The owner ticks proposals in the report. When the owner approves the report, Loupe creates one card in Next for each ticked proposal.
 
-The prompt names the project, the `projectId`, the card number and the `cardId` of the discovery card.
+The prompt names the project, the `projectId` and the id of the discovery run. A prompt of an older server names no run id. It names the number and the `cardId` of a discovery card instead.
 
 ## Read only
 
@@ -20,7 +20,9 @@ You can run commands that only read, such as `git remote -v`, `ls` or `cat`. Do 
 ## Steps
 
 1. Call `readiness_get`. Each of its `rows` has a `key`, `done` and `status`. The keys are `agent`, `workflow`, `bridge`, `github`, `agent_account` and `repository`. These rows tell you what Loupe sees of the setup.
-2. Read the `discovery` field of `readiness_get`. It is the latest run of the project. Its `cardNumber` must be the card number of your prompt. If it is not, stop and report the mismatch.
+2. Read the `discovery` field of `readiness_get`. It is the latest run of the project, and it must be the run of your prompt. When it is not, stop and report the mismatch.
+   - A prompt that names a run id: `discovery.runId` is that id.
+   - A prompt that names a card number: `discovery.cardNumber` is that number. An answer with no `cardNumber` cannot prove that the run is yours, so it is a mismatch. The server was updated after it wrote the prompt. Do not continue, also on a resume. In your reply, say that the owner starts discovery again when the report is still needed.
 3. Keep `discovery.runId`. It is the `runId` that `readiness_report_submit` takes. When `discovery.state` is `revising`, follow "Revising a report" below. When it is `reported` and your own `inbox_ask` of "The routing table" step 5 is answered, you resume after the report: go to step 6 of that section, and submit no report. When it is none of `requested`, `revising` or `reported`, or it is `reported` with no such answer, the run takes no report. Stop and report the state.
 4. Call `workflow_get`. It returns the `template` with its `key` and `version`, and the `columns`. Its `kinds` list each kind of work that the workflow asks a bridge to do. Each kind has an `origin` of `template` or `app`, the `rules` that ask for it, and its `checks`. The checks name what that work needs.
 5. Read the repository. Find the build and test commands, the CI config and the agent instruction files, such as `AGENTS.md` or `CLAUDE.md`. Read `.loupe/lifecycle.md` and its sections when the file exists. Read the git remote.
@@ -68,7 +70,7 @@ You can run commands that only read, such as `git remote -v`, `ls` or `cat`. Do 
 9. Call `card_search` with the key words of each suggestion before you write its proposal. `card_search` returns finished cards too, so read each row's `status`. When an open card covers the suggestion, set `openCardNumber` to its number.
 10. Some suggestions need the owner on a settings page or in a browser. Do not propose a card for such a suggestion. Say what the owner must do in the evidence of the finding.
 11. Call `readiness_report_submit` with `runId`, `workflow`, `findings`, `proposals` and `summary`. Set `workflow` to the template `key`. Each finding has a `check`, a `status` of `ready` or `suggested`, an `evidence` in short Markdown, an `actor` and an `action`. Keep the `summary` to a few sentences. The tool returns the `documentId` and the `url` of the report.
-12. Open a review of the report in the inbox. Call `inbox_ask` with one item of `kind` `review`, `reviewDocumentId` set to the `documentId`, and `cardIds` set to the `cardId`.
+12. Open a review of the report in the inbox. Call `inbox_ask` with one item of `kind` `review`, `reviewDocumentId` set to the `documentId`. When the prompt names a `cardId`, also set `cardIds` to it.
     - Pass `sessionId` and `bridgeId` from the footer line "Your session id is … and your bridge id is …". When the prompt has no such line, the inbox is off, so skip this step.
     - Leave `blocking` false, so the ask closes at once. Loupe does not put the report in the inbox for you.
 13. End with a short reply that gives the report `url` and the number of suggestions.
@@ -164,9 +166,9 @@ A change that only the owner can make, such as a branch rule or a merge setting,
 
 ## Revising a report
 
-The prompt of a revision names the kind `discovery-revise`. The owner asked for changes to the report, and the run is `revising`.
+The owner asked for changes to the report, and the run is `revising`.
 
-1. Read the report document with `document_get`. The `discovery` field of `readiness_get` names the card, and the card links the document with the tag `readiness-report`.
+1. Read the report document with `document_get`. Its id is `discovery.documentId` of `readiness_get`. An older server sends no `documentId`. It sends `discovery.cardId`, and `card_get` on that card links the document with the tag `readiness-report`.
 2. Read the comments with `document_get_review`. Address each comment, and check the repository again where a comment asks for it.
 3. Call `readiness_report_submit` with the same `runId`, and the whole revised `workflow`, `findings`, `proposals` and `summary`. Loupe stores a new version of the same document, and replaces the proposals that made no card.
 4. End with the report `url`. Skip step 12 of the steps above, because the owner already has the report in the inbox.

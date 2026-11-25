@@ -22,7 +22,7 @@ final class ReadinessReportWriterTest extends KernelTestCase
     protected function setUp(): void
     {
         self::bootKernel();
-        $this->run = $this->discoveryRun($this->discoveryCard($this->workflowProject('report-writer')));
+        $this->run = $this->discoveryRun($this->workflowProject('report-writer'));
     }
 
     public function test_the_report_groups_findings_and_opens_with_a_second_level_heading(): void

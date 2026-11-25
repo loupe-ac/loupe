@@ -82,6 +82,7 @@ framework:
             App\Module\Insights\Messenger\RefreshProjectInsights: insights
             App\Module\Notification\Messenger\DeliverWebPush: jobs
             App\Module\OpenRouter\Messenger\ReadBilledCost: jobs
+            App\Module\Readiness\Messenger\RequestDiscoveryRevision: jobs
             App\Module\Workflow\Messenger\EvaluateCard: card_eval
             App\Module\Workflow\Messenger\RunRuleAskAnswer: interactive
 

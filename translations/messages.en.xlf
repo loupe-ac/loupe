@@ -3004,7 +3004,7 @@
             </trans-unit>
             <trans-unit id="project.connect.tool.discovery_start">
                 <source>project.connect.tool.discovery_start</source>
-                <target>Start a read-only discovery run on a new Backlog card. A live bridge must serve the project, and the project needs a workflow with board automation on.</target>
+                <target>Start a read-only discovery run. A live bridge must serve the project, and the project needs a workflow with board automation on.</target>
             </trans-unit>
             <trans-unit id="project.connect.tool.readiness_report_submit">
                 <source>project.connect.tool.readiness_report_submit</source>
@@ -8167,6 +8167,7 @@ workflow:
             <trans-unit id="bridge.worker_runs.details.title"><source>bridge.worker_runs.details.title</source><target>Run attempt</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.close"><source>bridge.worker_runs.details.close</source><target>Close</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.card"><source>bridge.worker_runs.details.card</source><target>Card</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.subject.discovery"><source>bridge.worker_runs.subject.discovery</source><target>Discovery</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.subject"><source>bridge.worker_runs.details.subject</source><target>Subject</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.session"><source>bridge.worker_runs.details.session</source><target>Session</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.continues"><source>bridge.worker_runs.details.continues</source><target>Resumes run</target></trans-unit>
@@ -10464,12 +10465,6 @@ workflow:
             <trans-unit id="workflow.waiting.not.card_follows_finished"><source>workflow.waiting.not.card_follows_finished</source><target>Waiting: every card that this card follows is finished.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_is_child"><source>workflow.waiting.card_is_child</source><target>Waiting: the card is not a child of an epic.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_is_child"><source>workflow.waiting.not.card_is_child</source><target>Waiting: the card is a child of an epic.</target></trans-unit>
-            <trans-unit id="workflow.waiting.card_discovery_requested"><source>workflow.waiting.card_discovery_requested</source><target>Waiting: the card has no requested discovery.</target></trans-unit>
-            <trans-unit id="workflow.waiting.not.card_discovery_requested"><source>workflow.waiting.not.card_discovery_requested</source><target>Waiting: the card has a requested discovery.</target></trans-unit>
-            <trans-unit id="workflow.waiting.card_discovery_approved"><source>workflow.waiting.card_discovery_approved</source><target>Waiting: the owner has not approved the discovery report of the card.</target></trans-unit>
-            <trans-unit id="workflow.waiting.not.card_discovery_approved"><source>workflow.waiting.not.card_discovery_approved</source><target>Waiting: the owner approved the discovery report of the card.</target></trans-unit>
-            <trans-unit id="workflow.waiting.card_discovery_revising"><source>workflow.waiting.card_discovery_revising</source><target>Waiting: no discovery report of the card needs a revision.</target></trans-unit>
-            <trans-unit id="workflow.waiting.not.card_discovery_revising"><source>workflow.waiting.not.card_discovery_revising</source><target>Waiting: a discovery report of the card needs a revision.</target></trans-unit>
             <trans-unit id="workflow.waiting.site_review_verdict_unsent"><source>workflow.waiting.site_review_verdict_unsent</source><target>Waiting: no verdict of the card waits to be sent.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.site_review_verdict_unsent"><source>workflow.waiting.not.site_review_verdict_unsent</source><target>Waiting: a verdict of the card waits to be sent.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_fix_run_uncommented"><source>workflow.waiting.card_fix_run_uncommented</source><target>Waiting: each open or recent fix run of the card has a pull request comment.</target></trans-unit>
@@ -10688,7 +10683,6 @@ workflow:
             <trans-unit id="workflow.source.forge"><source>workflow.source.forge</source><target>Forge</target></trans-unit>
             <trans-unit id="workflow.source.bridge"><source>workflow.source.bridge</source><target>Bridge</target></trans-unit>
             <trans-unit id="workflow.source.agent_review"><source>workflow.source.agent_review</source><target>Agent review</target></trans-unit>
-            <trans-unit id="workflow.source.readiness"><source>workflow.source.readiness</source><target>Readiness</target></trans-unit>
             <trans-unit id="workflow.source.inbox"><source>workflow.source.inbox</source><target>Inbox</target></trans-unit>
             <trans-unit id="workflow.source.workflow"><source>workflow.source.workflow</source><target>Workflow</target></trans-unit>
             <trans-unit id="workflow.slot.next"><source>workflow.slot.next</source><target>Next</target></trans-unit>
@@ -10957,21 +10951,20 @@ workflow:
             <trans-unit id="readiness.row.repository.bridge_paused"><source>readiness.row.repository.bridge_paused</source><target>Discovery waits for a bridge that is not paused</target></trans-unit>
             <trans-unit id="readiness.row.repository.no_workflow"><source>readiness.row.repository.no_workflow</source><target>Discovery waits for a workflow</target></trans-unit>
             <trans-unit id="readiness.row.repository.automation_off"><source>readiness.row.repository.automation_off</source><target>Discovery waits for board automation</target></trans-unit>
-            <trans-unit id="readiness.row.repository.running"><source>readiness.row.repository.running</source><target>Running on card #%number%</target></trans-unit>
-            <trans-unit id="readiness.row.repository.card"><source>readiness.row.repository.card</source><target>Open card</target></trans-unit>
+            <trans-unit id="readiness.row.repository.running"><source>readiness.row.repository.running</source><target>Discovery runs</target></trans-unit>
             <trans-unit id="readiness.row.repository.failed"><source>readiness.row.repository.failed</source><target>Discovery failed: %reason%</target></trans-unit>
             <trans-unit id="readiness.row.repository.retry"><source>readiness.row.repository.retry</source><target>Run again</target></trans-unit>
-            <trans-unit id="readiness.row.repository.revising"><source>readiness.row.repository.revising</source><target>A worker revises the report on card #%number%</target></trans-unit>
+            <trans-unit id="readiness.row.repository.revising"><source>readiness.row.repository.revising</source><target>A worker revises the report</target></trans-unit>
             <trans-unit id="readiness.row.repository.open_report"><source>readiness.row.repository.open_report</source><target>Open report</target></trans-unit>
             <trans-unit id="readiness.row.repository.reported"><source>readiness.row.repository.reported</source><target>The report waits for your review</target></trans-unit>
             <trans-unit id="readiness.row.repository.done"><source>readiness.row.repository.done</source><target>Reviewed</target></trans-unit>
             <trans-unit id="readiness.discovery.error.no_bridge"><source>readiness.discovery.error.no_bridge</source><target>No bridge serves this project now. Start a bridge that serves this project, then run discovery again.</target></trans-unit>
-            <trans-unit id="readiness.discovery.error.no_capable_bridge"><source>readiness.discovery.error.no_capable_bridge</source><target>A bridge is online, but none can run discovery. Map the discovery kind in the bridge rule file, or set appPrompts to true, then run discovery again.</target></trans-unit>
+            <trans-unit id="readiness.discovery.error.no_capable_bridge"><source>readiness.discovery.error.no_capable_bridge</source><target>A bridge is online, but none can run discovery. Map the discovery kind with subject: discovery in the bridge rule file, or set appPrompts to true, then run discovery again.</target></trans-unit>
             <trans-unit id="readiness.discovery.error.no_capable_bridge_app_prompts"><source>readiness.discovery.error.no_capable_bridge_app_prompts</source><target>A bridge is online, but none can run discovery. Run `loupe init` again, then run discovery again.</target></trans-unit>
             <trans-unit id="readiness.discovery.error.bridge_paused"><source>readiness.discovery.error.bridge_paused</source><target>Every bridge that can run discovery is paused. Resume new work on a bridge on the Agents page, then run discovery again.</target></trans-unit>
             <trans-unit id="readiness.discovery.error.no_workflow"><source>readiness.discovery.error.no_workflow</source><target>This project has no workflow. Choose a workflow for this project, then run discovery again.</target></trans-unit>
             <trans-unit id="readiness.discovery.error.automation_off"><source>readiness.discovery.error.automation_off</source><target>Board automation is off for this project. Switch on "Run the workflow of the board" on the Automation tab of the project settings, then run discovery again.</target></trans-unit>
-            <trans-unit id="readiness.discovery.error.running"><source>readiness.discovery.error.running</source><target>Discovery already runs on card #%number%. Wait until that run ends.</target></trans-unit>
+            <trans-unit id="readiness.discovery.error.running"><source>readiness.discovery.error.running</source><target>Discovery already runs. Wait until that run ends.</target></trans-unit>
             <trans-unit id="readiness.settings.title"><source>readiness.settings.title</source><target>Agent readiness</target></trans-unit>
             <trans-unit id="readiness.settings.description"><source>readiness.settings.description</source><target>Check what this project needs before agents can work on it.</target></trans-unit>
             <trans-unit id="readiness.settings.discovery.title"><source>readiness.settings.discovery.title</source><target>Discovery</target></trans-unit>
@@ -11000,9 +10993,13 @@ workflow:
             <trans-unit id="readiness.form.update_agent_account_form.login.help"><source>readiness.form.update_agent_account_form.login.help</source><target>Leave it empty to clear the recorded login.</target></trans-unit>
             <trans-unit id="readiness.discovery.reason.no_taker"><source>readiness.discovery.reason.no_taker</source><target>No bridge took the work.</target></trans-unit>
             <trans-unit id="readiness.discovery.reason.card_moved"><source>readiness.discovery.reason.card_moved</source><target>The discovery card left Backlog before the work ended.</target></trans-unit>
-            <trans-unit id="readiness.discovery.reason.no_capable_taker"><source>readiness.discovery.reason.no_capable_taker</source><target>A bridge is online, but none can run discovery. Map the discovery kind in the bridge rule file, or set appPrompts to true.</target></trans-unit>
+            <trans-unit id="readiness.discovery.reason.no_capable_taker"><source>readiness.discovery.reason.no_capable_taker</source><target>A bridge is online, but none can run discovery. Map the discovery kind with subject: discovery in the bridge rule file, or set appPrompts to true.</target></trans-unit>
             <trans-unit id="readiness.discovery.reason.no_capable_taker_app_prompts"><source>readiness.discovery.reason.no_capable_taker_app_prompts</source><target>A bridge is online, but none can run discovery. Run `loupe init` again, so the bridge reports the app-prompts capability.</target></trans-unit>
-            <trans-unit id="readiness.discovery.reason.worker_ended"><source>readiness.discovery.reason.worker_ended</source><target>The worker ended without a report. Open card #%number% to see its run.</target></trans-unit>
+            <trans-unit id="readiness.discovery.reason.worker_ended"><source>readiness.discovery.reason.worker_ended</source><target>The worker ended without a report. See its run on the Agents page.</target></trans-unit>
+            <trans-unit id="readiness.discovery.reason.request_refused"><source>readiness.discovery.reason.request_refused</source><target>The app could not ask a bridge for the work.</target></trans-unit>
+            <trans-unit id="readiness.discovery.reason.request_failed"><source>readiness.discovery.reason.request_failed</source><target>The request for the work failed. Run discovery again.</target></trans-unit>
+            <trans-unit id="readiness.discovery.superseded_archive_reason"><source>readiness.discovery.superseded_archive_reason</source><target>Replaced by a newer discovery run</target></trans-unit>
+            <trans-unit id="readiness.report.error.superseded"><source>readiness.report.error.superseded</source><target>This report was replaced by a newer discovery run.</target></trans-unit>
             <trans-unit id="board.verdict.action.post_review"><source>board.verdict.action.post_review</source><target>Posts your verdict as a review on the pull requests you pick.</target></trans-unit>
             <trans-unit id="board.verdict.review.source"><source>board.verdict.review.source</source><target>Sent from the Loupe live review of card %number%. [Open the notes in Loupe](%card_url%)</target></trans-unit>
             <trans-unit id="board.verdict.review.preview"><source>board.verdict.review.preview</source><target>· [Open the preview](%preview_url%)</target></trans-unit>

@@ -5,21 +5,22 @@ declare(strict_types=1);
 namespace App\Module\Readiness\EventListener;
 
 use App\Module\Readiness\Entity\DiscoveryRunState;
+use App\Module\Readiness\Messenger\RequestDiscoveryRevision;
 use App\Module\Readiness\Repository\DiscoveryRunRepository;
 use App\Module\Review\Entity\Verdict;
 use App\Module\Review\Event\ReviewSubmitted;
-use App\Module\Workflow\Contract\CardEvaluations;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
+use Symfony\Component\Messenger\MessageBusInterface;
 
-/** The owner asked for changes to a discovery report. The run moves to Revising, and the app rule asks a worker to revise the same report. */
+/** The owner asked for changes to a discovery report. The run moves to Revising, and a queued message asks a worker to revise the same report. */
 #[AsEventListener]
 final readonly class ReviseDiscoveryReportOnChangesRequested
 {
     public function __construct(
         private DiscoveryRunRepository $discoveryRuns,
-        private CardEvaluations $evaluations,
+        private MessageBusInterface $bus,
         private EntityManagerInterface $em,
         private LoggerInterface $logger,
     ) {
@@ -32,17 +33,17 @@ final readonly class ReviseDiscoveryReportOnChangesRequested
         }
         $document = $event->review->version->document;
         $run = $this->discoveryRuns->findByReportDocument($document);
-        if (null === $run || DiscoveryRunState::Reported !== $run->state
-            || $event->review->version->versionNumber !== $document->currentVersion()->versionNumber) {
+        if (null === $run || $event->review->version->versionNumber !== $document->currentVersion()->versionNumber) {
+            return;
+        }
+        $fresh = $this->discoveryRuns->freshStateOf($run);
+        if (DiscoveryRunState::Reported !== $fresh['state']) {
             return;
         }
 
         $run->state = DiscoveryRunState::Revising;
         $this->em->flush();
+        $this->bus->dispatch(new RequestDiscoveryRevision((string) $run->id, $fresh['workRequestId']?->toRfc4122()));
         $this->logger->info('readiness.report_revision_requested', ['discoveryRunId' => (string) $run->id, 'projectId' => (string) $run->project->id, 'documentId' => (string) $document->id]);
-
-        if ($this->evaluations->isOn()) {
-            $this->evaluations->forCards([$run->card->id ?? throw new \LogicException('A stored card has an id.')], self::class);
-        }
     }
 }

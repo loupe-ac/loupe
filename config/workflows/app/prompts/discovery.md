@@ -1,4 +1,4 @@
-Run discovery for project {project} (projectId {projectId}). Card {cardNumber} (cardId {cardId}) tracks the discovery.
+Run discovery {subjectId} of project {project} (projectId {projectId}).
 Use the loupe-discovery skill when it is installed.
 
 Discovery finds what the project needs before agents can work on it.

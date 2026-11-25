@@ -7,7 +7,6 @@ namespace App\Module\Project\Command;
 use App\Module\Project\Stats\ProjectStats;
 use App\Module\Project\Stats\ProjectStatsProviderInterface;
 use App\Module\Project\Workshop\WorkshopAttentionProviderInterface;
-use App\Module\Project\Workshop\WorkshopCard;
 use App\Module\Project\Workshop\WorkshopCardsProviderInterface;
 use App\Module\Project\Workshop\WorkshopConnectionsProviderInterface;
 use App\Module\Project\Workshop\WorkshopReadinessProviderInterface;
@@ -41,8 +40,6 @@ final readonly class ShowWorkshopHandler
         $attention = $this->attention->forProject($command->project);
         $inMotion = $this->cards->forProject($command->project);
         $readiness = $this->readiness->forProject($command->project);
-        // The discovery run is part of the guide, so it does not end the quiet state the guide shows in.
-        $moving = array_filter($inMotion->cards, static fn (WorkshopCard $card): bool => $card->number !== $readiness?->discoveryCardNumber);
 
         return new ShowWorkshopView(
             $command->project,
@@ -51,7 +48,7 @@ final readonly class ShowWorkshopHandler
             $inMotion,
             $this->connections->forProject($command->project),
             $readiness,
-            [] === $attention && [] === $moving && 0 === $inMotion->more,
+            [] === $attention && [] === $inMotion->cards && 0 === $inMotion->more,
         );
     }
 }

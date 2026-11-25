@@ -381,47 +381,24 @@ final class ShowWorkshopControllerTest extends WebTestCase
         }
     }
 
-    public function test_the_open_run_of_the_discovery_card_keeps_the_workshop_quiet(): void
+    public function test_a_discovery_run_keeps_the_workshop_quiet_and_links_no_card(): void
     {
         $client = self::createClient();
         $em = self::getContainer()->get(EntityManagerInterface::class);
         $owner = $this->user($em, 'workshop-guide-discovering@example.com');
         [$project] = $this->projects($em, $owner, 'Guide discovering');
         $this->readyForDiscovery($em, $owner, $project);
-        $run = self::getContainer()->get(StartDiscoveryHandler::class)(new StartDiscoveryCommand($project, Actor::Human));
-        $this->openRun($em, $project, $run->card, WorkerRunState::Running, 'discovery', '-5 minutes');
-        $em->clear();
-        $client->loginUser($owner);
-
-        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id);
-
-        self::assertResponseIsSuccessful();
-        self::assertSelectorExists('[data-readiness-guide][data-readiness-layout="full"]');
-        self::assertSelectorExists('[data-readiness-row="repository"][data-readiness-discovery-state="requested"]');
-        self::assertSelectorTextContains('[data-readiness-row="repository"]', 'Running on card #'.$run->card->number);
-        self::assertSame('/projects/'.$project->id.'/board/cards/'.$run->card->id, $crawler->filter('[data-readiness-row="repository"] a')->attr('href'));
-    }
-
-    public function test_the_discovery_card_still_shows_in_motion_when_another_card_moves(): void
-    {
-        $client = self::createClient();
-        $em = self::getContainer()->get(EntityManagerInterface::class);
-        $owner = $this->user($em, 'workshop-guide-discovering-busy@example.com');
-        [$project] = $this->projects($em, $owner, 'Guide discovering busy');
-        $this->readyForDiscovery($em, $owner, $project);
-        $run = self::getContainer()->get(StartDiscoveryHandler::class)(new StartDiscoveryCommand($project, Actor::Human));
-        $this->openRun($em, $project, $run->card, WorkerRunState::Running, 'discovery', '-5 minutes');
-        $card = self::getContainer()->get(CreateCardHandler::class)(new CreateCardCommand($project, 'Running work', '', 'feature'));
-        $this->openRun($em, $project, $card, WorkerRunState::Running, 'implement', '-5 minutes');
+        self::getContainer()->get(StartDiscoveryHandler::class)(new StartDiscoveryCommand($project, Actor::Human));
         $em->clear();
         $client->loginUser($owner);
 
         $client->request(Request::METHOD_GET, '/projects/'.$project->id);
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorExists('.lp-workshop-supporting > [data-readiness-guide][data-readiness-layout="sidebar"]');
-        self::assertSelectorExists('[data-workshop-card="'.$run->card->number.'"]');
-        self::assertSelectorExists('[data-workshop-card="'.$card->number.'"]');
+        self::assertSelectorExists('[data-readiness-guide][data-readiness-layout="full"]');
+        self::assertSelectorExists('[data-readiness-row="repository"][data-readiness-discovery-state="requested"]');
+        self::assertSelectorTextContains('[data-readiness-row="repository"]', 'Discovery runs');
+        self::assertSelectorNotExists('[data-readiness-row="repository"] a');
     }
 
     public function test_an_open_inbox_item_puts_the_guide_in_the_support_rail(): void

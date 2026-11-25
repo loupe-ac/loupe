@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Module\Readiness\Entity;
 
+use App\Module\Account\Entity\User;
 use App\Module\Board\Entity\Card;
 use App\Module\Project\Entity\Project;
 use App\Module\Readiness\Repository\DiscoveryRunRepository;
 use App\Module\Review\Entity\Document;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
@@ -19,6 +21,9 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Table(name: 'discovery_runs')]
 class DiscoveryRun
 {
+    /** The subject type of the work requests and worker runs of a run. Their subject id is the run id. */
+    public const string SUBJECT_TYPE = 'discovery';
+
     public const int MAX_FAILURE_REASON_LENGTH = 1000;
 
     #[ORM\Column(type: UuidType::NAME, unique: true)]
@@ -40,17 +45,35 @@ class DiscoveryRun
     #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $endedAt = null;
 
+    /** The latest work request the app opened for the run. No path finds the run through it. */
+    #[ORM\Column(type: UuidType::NAME, nullable: true)]
+    public ?Uuid $workRequestId = null;
+
+    /**
+     * The work requests that were live when a report of the run arrived. The report answered their work, so their
+     * end fails nothing. All of them, because a bridge can send the end of a worker several revisions late.
+     *
+     * @var list<string>|null RFC 4122 ids
+     */
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    public ?array $answeredWorkRequestIds = null;
+
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    #[ORM\ManyToOne(targetEntity: User::class)]
+    public ?User $cancelledBy = null;
+
     public function __construct(
         #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
         #[ORM\ManyToOne(targetEntity: Project::class)]
         public readonly Project $project,
 
-        #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-        #[ORM\ManyToOne(targetEntity: Card::class)]
-        public readonly Card $card,
-
         #[ORM\Column]
         public readonly \DateTimeImmutable $createdAt = new \DateTimeImmutable(),
+
+        /** The Backlog card of a run that started when a run had a card. A new run has none. */
+        #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
+        #[ORM\ManyToOne(targetEntity: Card::class)]
+        public readonly ?Card $card = null,
     ) {
     }
 

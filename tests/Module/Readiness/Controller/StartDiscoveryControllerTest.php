@@ -11,7 +11,6 @@ use App\Module\Project\Entity\Project;
 use App\Module\Readiness\Entity\DiscoveryRun;
 use App\Module\Readiness\Entity\DiscoveryRunState;
 use App\Module\Readiness\Repository\DiscoveryRunRepository;
-use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Entity\WorkflowBinding;
 use App\Module\Workflow\Template\ShippedTemplates;
 use App\Tests\Module\Readiness\ReadinessScenario;
@@ -40,7 +39,6 @@ final class StartDiscoveryControllerTest extends WebTestCase
         $runs = $this->runs($project);
         self::assertCount(1, $runs);
         self::assertSame(DiscoveryRunState::Requested, $runs[0]->state);
-        self::assertSame(Actor::Human, $runs[0]->card->reporter);
         $client->followRedirect();
         self::assertSelectorExists('[data-readiness-row="repository"][data-readiness-discovery-state="requested"]');
     }
@@ -94,7 +92,7 @@ final class StartDiscoveryControllerTest extends WebTestCase
         $runs = $this->runs($project);
         self::assertCount(1, $runs);
         $client->followRedirect();
-        self::assertSelectorTextContains('body', 'Discovery already runs on card #'.$runs[0]->card->number);
+        self::assertSelectorTextContains('body', 'Discovery already runs. Wait until that run ends.');
     }
 
     public function test_a_request_without_a_valid_csrf_token_is_refused(): void

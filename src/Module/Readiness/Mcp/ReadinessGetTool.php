@@ -13,7 +13,7 @@ use Mcp\Capability\Attribute\McpTool;
 use Mcp\Exception\ToolCallException;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
-#[McpTool(name: self::NAME, description: 'Read the readiness checks of this project: whether an agent connected, a bridge runs, the GitHub App is installed, the agents push as their own GitHub account, discovery ran, and the optional review widget has a site that may sign in. Each row says whether it is done, with a short status. discovery is the latest discovery run, or null when discovery never ran. discovery.runId is the run id that readiness_report_submit takes. The checks show here while the Workshop guide is hidden too. To start discovery, call discovery_start.')]
+#[McpTool(name: self::NAME, description: 'Read the readiness checks of this project: whether an agent connected, a bridge runs, the GitHub App is installed, the agents push as their own GitHub account, discovery ran, and the optional review widget has a site that may sign in. Each row says whether it is done, with a short status. discovery is the latest discovery run, or null when discovery never ran. discovery.runId is the run id that readiness_report_submit takes. discovery.documentId is the report document of the run, or null before the first report. The checks show here while the Workshop guide is hidden too. To start discovery, call discovery_start.')]
 final readonly class ReadinessGetTool
 {
     use ResolvesBoundProject;
@@ -31,7 +31,7 @@ final readonly class ReadinessGetTool
      * @return array{
      *     guideHidden: bool,
      *     rows: list<array{key: string, done: bool, status: string}>,
-     *     discovery: array{runId: string, state: string, cardId: string, cardNumber: int, reason: string|null, createdAt: string}|null,
+     *     discovery: array{runId: string, state: string, reason: string|null, createdAt: string, documentId: string|null}|null,
      * }
      */
     public function __invoke(): array
@@ -50,10 +50,9 @@ final readonly class ReadinessGetTool
                 'discovery' => null === $run ? null : [
                     'runId' => (string) $run->id,
                     'state' => $run->state->value,
-                    'cardId' => (string) $run->card->id,
-                    'cardNumber' => $run->card->number,
                     'reason' => $run->failureReason,
                     'createdAt' => $run->createdAt->format(\DATE_ATOM),
+                    'documentId' => $run->reportDocument?->id?->toRfc4122(),
                 ],
             ];
         } catch (ToolCallException $e) {

@@ -424,6 +424,31 @@ func TestMatchWorkRunsTheSubjectOfTheEntry(t *testing.T) {
 	}
 }
 
+// A discovery request has no card. An entry takes it with subject: discovery,
+// and with appPrompts a card-only entry leaves it to the app prompt.
+func TestMatchWorkTakesADiscoveryRequest(t *testing.T) {
+	discovery := workRequest("discovery")
+	discovery.SubjectType, discovery.SubjectID, discovery.CardNumber = "discovery", "0199a0e2-aaaa-7c5e-9f2a-3b1c6d7e8f90", 0
+	discovery.Prompt = "Run discovery {subjectId}."
+	base := claudeAccount + claudeDefaults + "projects:\n  loupe:\n    dir: {dir}\n"
+
+	s := checked(t, base+"work:\n  discovery:\n    subject: discovery\n    prompt: Discover {subjectId}.\n")
+	if m := s.MatchWork(discovery); m.Skip != Run || !strings.HasPrefix(m.Prompt, "Discover "+discovery.SubjectID) {
+		t.Fatalf("subject entry: match = %+v", m)
+	}
+	if !slices.Contains(s.WorkKindsOn(), "discovery:discovery") || !slices.Contains(s.Capabilities(), "subject-discovery") {
+		t.Fatalf("kinds = %v, capabilities = %v", s.WorkKindsOn(), s.Capabilities())
+	}
+
+	cardOnly := base + "work:\n  discovery:\n    prompt: Discover.\n"
+	if m := checked(t, cardOnly).MatchWork(discovery); m.Skip != NoRule {
+		t.Fatalf("card entry without appPrompts: match = %+v", m)
+	}
+	if m := checked(t, "appPrompts: true\n"+cardOnly).MatchWork(discovery); m.Skip != Run || !strings.HasPrefix(m.Prompt, "Run discovery "+discovery.SubjectID) {
+		t.Fatalf("card entry with appPrompts: match = %+v", m)
+	}
+}
+
 // A card subject fills the card placeholders and the subject ones alike.
 func TestMatchWorkFillsTheSubjectOfACard(t *testing.T) {
 	s := checked(t, claudeAccount+claudeDefaults+"projects:\n  loupe:\n    dir: {dir}\nwork:\n  implement:\n    prompt: '{cardId} {cardNumber} {subjectType} {subjectId}'\n")

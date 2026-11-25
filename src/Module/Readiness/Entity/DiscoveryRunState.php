@@ -11,4 +11,6 @@ enum DiscoveryRunState: string
     case Revising = 'revising';
     case Failed = 'failed';
     case Done = 'done';
+    /** A newer run replaced the report before the owner gave a verdict. */
+    case Superseded = 'superseded';
 }

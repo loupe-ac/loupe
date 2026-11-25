@@ -19,7 +19,7 @@
                 <span class="lp-run-drawer__identifier">{{ run.cardId() }}</span>
             </dd></div>
             {% else %}
-            <div data-worker-run-subject><dt>{{ 'bridge.worker_runs.details.subject'|trans }}</dt><dd>{{ run.subjectType }} <span class="lp-run-drawer__identifier">{{ run.subjectId }}</span></dd></div>
+            <div data-worker-run-subject><dt>{{ 'bridge.worker_runs.details.subject'|trans }}</dt><dd>{% if run.subjectType == 'discovery' %}<a href="{{ path('app_project_workshop', {id: project.id}) }}" data-turbo-frame="_top" data-worker-run-discovery>{{ 'bridge.worker_runs.subject.discovery'|trans }}</a>{% else %}{{ run.subjectType }}{% endif %} <span class="lp-run-drawer__identifier">{{ run.subjectId }}</span></dd></div>
             {% endif %}
             <div><dt>{{ 'bridge.worker_runs.column.work_kind'|trans }}</dt><dd data-worker-run-work-kind>{{ run.workKind ?? 'bridge.worker_runs.no_work_kind'|trans }}</dd></div>
             {# The bridge writes these names, so they are rendered as text. Never add |raw here. #}

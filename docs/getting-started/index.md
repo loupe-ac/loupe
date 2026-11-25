@@ -152,7 +152,7 @@ review. It calls `document_get_review` and sends a new version. [Documents and r
 ## 6. Act on the conflict findings
 
 [Run discovery](../using/workshop.md#run-discovery) before agents work the cards
-of this project. It compares the way the repository already works with what the
+of this project. A run creates no card, and the Workshop shows it. It compares the way the repository already works with what the
 workflow needs, and it changes nothing except the routing table, which it writes
 only after you agree. You get a readiness report.
 

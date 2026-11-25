@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Module\Bridge\Command;
 
-use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\InteractiveRuns;
+use App\Module\Bridge\Service\ReportedWorkRequest;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Bridge\WorkSubject\WorkSubjectHandlers;
@@ -19,7 +19,7 @@ final readonly class ReportInteractiveLaunchHandler
         private InteractiveRuns $interactiveRuns,
         private WorkSubjectHandlers $subjects,
         private InitInstallWaits $installWaits,
-        private WorkRequestRepository $workRequests,
+        private ReportedWorkRequest $reportedWorkRequest,
     ) {
     }
 
@@ -35,15 +35,20 @@ final readonly class ReportInteractiveLaunchHandler
         if (!$this->subjects->belongsTo($project, $command->subject)) {
             return new ReportInteractiveLaunchResult(null, created: false, error: ReportInteractiveLaunchResult::SUBJECT_NOT_FOUND);
         }
-        if (null !== $command->workRequestId && null === $this->workRequests->findOneOfSubject($command->workRequestId, $project, $command->subject)) {
+        $request = null === $command->workRequestId ? null : $this->reportedWorkRequest->find($command->workRequestId, $project, $command->subject);
+        if (null !== $command->workRequestId && null === $request) {
             return new ReportInteractiveLaunchResult(null, created: false, error: ReportInteractiveLaunchResult::WORK_REQUEST_NOT_FOUND);
         }
+        // A request that left its card has no card number, and neither has its run.
+        $moved = null !== $request && $request->subjectType !== $command->subject->type;
+        $subject = $request?->subject() ?? $command->subject;
+        $cardNumber = $moved ? null : $command->cardNumber;
 
         [$run, $created] = match ($command->state) {
             WorkerRunState::Running => $this->interactiveRuns->recordLaunch(
                 $project,
-                $command->subject,
-                $command->cardNumber,
+                $subject,
+                $cardNumber,
                 $command->sessionId,
                 $command->workKind,
                 $command->bridgeId,
@@ -56,8 +61,8 @@ final readonly class ReportInteractiveLaunchHandler
             ),
             WorkerRunState::NotStarted => $this->interactiveRuns->recordLaunchFailure(
                 $project,
-                $command->subject,
-                $command->cardNumber,
+                $subject,
+                $cardNumber,
                 $command->sessionId,
                 $command->workKind,
                 $command->bridgeId,

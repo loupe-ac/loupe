@@ -267,7 +267,7 @@ final class ListSitesApiTest extends WebTestCase
         $client = static::createClient();
         $client->disableReboot();
         $started = $this->workflowProject('discovery-started');
-        $this->discoveryRun($this->discoveryCard($started));
+        $this->discoveryRun($started);
         $owner = $started->owner;
         $owner->emailVerifiedAt = new \DateTimeImmutable();
         AcceptedTerms::stamp($owner, static::getContainer());

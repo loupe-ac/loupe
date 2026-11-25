@@ -26,7 +26,6 @@ final class RawRows
         'board_card_verdicts' => ['kind' => 'approved'],
         'board_card_verdict_deliveries' => ['state' => 'pending'],
         'card_pauses' => ['kind' => 'rule'],
-        'discovery_runs' => ['state' => 'running'],
         'documents' => ['status' => 'draft'],
         'reviews' => ['verdict' => 'approved'],
         'agent_reviews' => ['conclusion' => 'passed'],

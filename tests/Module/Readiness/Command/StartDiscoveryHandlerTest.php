@@ -6,10 +6,9 @@ namespace App\Tests\Module\Readiness\Command;
 
 use App\Exception\DomainErrors;
 use App\Module\Board\Entity\BoardAutomationSettings;
-use App\Module\Board\Entity\CardSourceKind;
-use App\Module\Bridge\Entity\Bridge;
+use App\Module\Board\Repository\CardRepository;
 use App\Module\Bridge\Entity\WorkRequest;
-use App\Module\Bridge\Repository\WorkRequestRepository;
+use App\Module\Bridge\Event\WorkRequestChanged;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Project\Entity\Project;
 use App\Module\Readiness\Command\DiscoveryRunning;
@@ -17,16 +16,15 @@ use App\Module\Readiness\Command\StartDiscoveryCommand;
 use App\Module\Readiness\Command\StartDiscoveryHandler;
 use App\Module\Readiness\Entity\DiscoveryRun;
 use App\Module\Readiness\Entity\DiscoveryRunState;
+use App\Module\Readiness\Event\DiscoveryReportWithdrawn;
 use App\Module\Readiness\Repository\DiscoveryRunRepository;
+use App\Module\Review\Entity\Document;
 use App\Module\Workflow\Contract\Actor;
-use App\Module\Workflow\Engine\Engine;
-use App\Module\Workflow\Messenger\EvaluateCard;
 use App\Tests\Module\Readiness\DiscoveryScenario;
-use App\Tests\Support\AgentCredential;
 use App\Tests\Support\RecordingAuditor;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
-use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
-use Symfony\Component\Uid\Uuid;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 final class StartDiscoveryHandlerTest extends KernelTestCase
 {
@@ -38,75 +36,127 @@ final class StartDiscoveryHandlerTest extends KernelTestCase
     {
         self::bootKernel();
         $this->audit = RecordingAuditor::installedIn(self::getContainer());
-        $this->transport()->reset();
     }
 
-    public function test_a_start_creates_a_tooling_card_in_the_backlog_and_a_requested_run(): void
+    public function test_a_start_makes_a_run_with_no_card_and_opens_its_work_request(): void
     {
         $project = $this->liveProject();
 
         $run = $this->handler()(new StartDiscoveryCommand($project, Actor::Human));
 
         self::assertSame(DiscoveryRunState::Requested, $run->state);
-        self::assertSame($project, $run->project);
-        $card = $run->card;
-        self::assertSame('Discover what '.$project->name.' needs for agents', $card->title);
-        self::assertSame('tooling', $card->type);
-        self::assertTrue($card->column->backlog);
-        self::assertSame(Actor::Human, $card->reporter);
-        self::assertSame(CardSourceKind::Person, $card->source->kind);
-        self::assertNotSame('', $card->body);
-        self::assertSame([(string) $card->id], $this->evaluatedCardIds());
+        self::assertNull($run->card);
+        $cards = self::getContainer()->get(CardRepository::class);
+        self::assertInstanceOf(CardRepository::class, $cards);
+        self::assertSame([], $cards->findBy(['project' => $project]));
+        $requests = $this->discoveryRequests($run);
+        self::assertCount(1, $requests);
+        $request = $requests[0];
+        self::assertSame(
+            ['discovery', 'discovery', 'subject-discovery', null, true, WorkRequestState::Open],
+            [$request->kind, $request->ruleId, $request->capability, $request->cardNumber, $request->failWhenNoTaker, $request->state],
+        );
+        self::assertSame(file_get_contents(\dirname(__DIR__, 4).'/config/workflows/app/prompts/discovery.md'), $request->prompt);
+        self::assertTrue($this->storedRun($run)->workRequestId?->equals($request->id));
         $started = array_values(array_filter($this->audit->sink->events, static fn ($event): bool => 'readiness.discovery_started' === $event->operation));
         self::assertCount(1, $started);
         self::assertSame((string) $run->id, $started[0]->context['discoveryRunId']);
-        self::assertSame((string) $card->id, $started[0]->context['cardId']);
+        self::assertSame((string) $request->id, $started[0]->context['workRequestId']);
+        self::assertSame('human', $started[0]->context['reporter']);
     }
 
-    public function test_an_agent_start_records_the_agent_as_reporter(): void
+    /** The open announces the request before it returns, so the expiry reaches the run while the start has no request id. */
+    public function test_a_request_that_expires_inside_the_open_leaves_the_run_failed_and_stores_its_id(): void
     {
-        $run = $this->handler()(new StartDiscoveryCommand($this->liveProject(), Actor::Agent));
-
-        self::assertSame(Actor::Agent, $run->card->reporter);
-        self::assertSame(CardSourceKind::Agent, $run->card->source->kind);
-    }
-
-    public function test_the_queued_evaluation_opens_the_discovery_request(): void
-    {
-        $project = $this->liveProject();
+        $project = $this->boundProject();
+        $bridge = $this->discoveryBridge($project);
+        $dispatcher = self::getContainer()->get('event_dispatcher');
+        self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
+        $opened = 0;
+        // The bridge stops serving the project after the gate passed, so the no-taker listener expires the request.
+        $dispatcher->addListener(WorkRequestChanged::class, function (WorkRequestChanged $event) use ($bridge, &$opened): void {
+            if (WorkRequestState::Open === $event->state) {
+                ++$opened;
+                $bridge->projects = [];
+                $this->em()->flush();
+            }
+        });
 
         $run = $this->handler()(new StartDiscoveryCommand($project, Actor::Human));
-        $engine = self::getContainer()->get(Engine::class);
-        self::assertInstanceOf(Engine::class, $engine);
-        foreach ($this->evaluatedCardIds() as $cardId) {
-            $engine->evaluate(Uuid::fromString($cardId), new \DateTimeImmutable());
+
+        self::assertSame(1, $opened);
+        $stored = $this->storedRun($run);
+        self::assertSame([DiscoveryRunState::Failed, WorkRequest::REASON_NO_TAKER], [$stored->state, $stored->failureReason]);
+        $requests = $this->discoveryRequests($stored);
+        self::assertCount(1, $requests);
+        self::assertSame(WorkRequestState::Expired, $requests[0]->state);
+        self::assertTrue($stored->workRequestId?->equals($requests[0]->id));
+    }
+
+    /** The request expires inside the open, and a listener of the expiry throws before the subject handler hears of it. */
+    public function test_a_start_that_throws_after_its_request_expired_leaves_the_run_failed(): void
+    {
+        $project = $this->boundProject();
+        $bridge = $this->discoveryBridge($project);
+        $dispatcher = self::getContainer()->get('event_dispatcher');
+        self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
+        $expired = 0;
+        $dispatcher->addListener(WorkRequestChanged::class, function (WorkRequestChanged $event) use ($bridge, &$expired): void {
+            if (WorkRequestState::Open === $event->state) {
+                $bridge->projects = [];
+                $this->em()->flush();
+            }
+            if (WorkRequestState::Expired === $event->state) {
+                ++$expired;
+                throw new \RuntimeException('The announcement failed.');
+            }
+        }, 100);
+
+        try {
+            $this->handler()(new StartDiscoveryCommand($project, Actor::Human));
+            self::fail('The start must throw.');
+        } catch (\RuntimeException $e) {
+            self::assertSame('The announcement failed.', $e->getMessage());
         }
 
-        $requests = $this->requests($run);
-        self::assertCount(1, $requests);
-        self::assertSame(['discovery', WorkRequestState::Open], [$requests[0]->ruleId, $requests[0]->state]);
+        self::assertSame(1, $expired);
+        $row = $this->em()->getConnection()->fetchAssociative('SELECT state, failure_reason FROM discovery_runs WHERE project_id = ?', [(string) $project->id]);
+        self::assertSame(['state' => 'failed', 'failure_reason' => StartDiscoveryHandler::REQUEST_FAILED], $row);
+    }
+
+    /** A bridge whose discovery entry runs cards only cannot take work about a discovery run. */
+    public function test_a_bridge_that_runs_discovery_for_cards_only_is_refused(): void
+    {
+        $project = $this->boundProject();
+        $this->discoveryBridge($project, ['discovery']);
+
+        $this->assertRefused($project, ['bridge' => StartDiscoveryHandler::NO_CAPABLE_BRIDGE_APP_PROMPTS]);
+    }
+
+    public function test_a_bridge_that_maps_the_discovery_subject_passes(): void
+    {
+        $project = $this->boundProject();
+        $bridge = $this->discoveryBridge($project, ['discovery:discovery']);
+        $bridge->capabilities = [...$bridge->capabilities ?? [], 'subject-discovery'];
+        $this->em()->flush();
+
+        $run = $this->handler()(new StartDiscoveryCommand($project, Actor::Human));
+
+        self::assertSame(DiscoveryRunState::Requested, $this->storedRun($run)->state);
     }
 
     public function test_a_project_with_no_live_bridge_is_refused(): void
     {
-        $project = $this->workflowProject('discovery-start-no-bridge');
-        $this->bridge($project, new \DateTimeImmutable('-1 day'));
+        $project = $this->boundProject();
+        $this->discoveryBridge($project, lastSeenAt: new \DateTimeImmutable('-1 day'));
 
-        try {
-            $this->handler()(new StartDiscoveryCommand($project, Actor::Human));
-            self::fail('A start with no live bridge must be refused.');
-        } catch (DomainErrors $e) {
-            self::assertSame(['bridge' => StartDiscoveryHandler::NO_LIVE_BRIDGE], $e->errors);
-        }
-
-        self::assertSame([], $this->runs($project));
-        self::assertSame([], $this->evaluatedCardIds());
+        $this->assertRefused($project, ['bridge' => StartDiscoveryHandler::NO_LIVE_BRIDGE]);
     }
 
     public function test_a_project_with_no_workflow_is_refused(): void
     {
         $project = $this->workflowProject('discovery-start-no-workflow');
-        $this->bridge($project, new \DateTimeImmutable());
+        $this->discoveryBridge($project);
 
         $this->assertRefused($project, ['workflow' => StartDiscoveryHandler::NO_WORKFLOW]);
     }
@@ -120,40 +170,83 @@ final class StartDiscoveryHandlerTest extends KernelTestCase
         $this->assertRefused($project, ['automation' => StartDiscoveryHandler::AUTOMATION_OFF]);
     }
 
-    public function test_a_second_start_while_a_run_is_requested_names_its_card(): void
+    /** @return iterable<string, array{DiscoveryRunState}> */
+    public static function liveStates(): iterable
+    {
+        yield 'requested' => [DiscoveryRunState::Requested];
+        yield 'revising' => [DiscoveryRunState::Revising];
+    }
+
+    #[DataProvider('liveStates')]
+    public function test_a_start_while_a_run_is_live_names_that_run(DiscoveryRunState $state): void
     {
         $project = $this->liveProject();
-        $first = $this->handler()(new StartDiscoveryCommand($project, Actor::Human));
+        $live = $this->discoveryRun($project, $state);
 
         try {
             $this->handler()(new StartDiscoveryCommand($project, Actor::Human));
-            self::fail('A second start must be refused while a run is requested.');
+            self::fail('A second start must be refused while a run is live.');
         } catch (DiscoveryRunning $e) {
-            self::assertSame($first->card->number, $e->cardNumber);
+            self::assertSame((string) $live->id, (string) $e->runId);
         }
 
         self::assertCount(1, $this->runs($project));
     }
 
-    public function test_a_start_after_a_failed_run_makes_a_new_card(): void
+    public function test_a_start_after_a_failed_run_makes_a_new_run(): void
     {
         $project = $this->liveProject();
-        $first = $this->handler()(new StartDiscoveryCommand($project, Actor::Human));
-        $first->fail('lost', new \DateTimeImmutable());
-        $this->em()->flush();
+        $this->discoveryRun($project, DiscoveryRunState::Failed);
 
         $second = $this->handler()(new StartDiscoveryCommand($project, Actor::Human));
 
-        self::assertNotSame($first->card->id, $second->card->id);
         self::assertSame(DiscoveryRunState::Requested, $second->state);
         self::assertCount(2, $this->runs($project));
     }
 
-    private function liveProject(): Project
+    public function test_a_start_supersedes_a_reported_run_archives_its_report_and_withdraws_it(): void
+    {
+        $project = $this->liveProject();
+        $reported = $this->discoveryRun($project, DiscoveryRunState::Reported, '2026-10-02 10:00:00');
+        $report = new Document($project->owner, $project, 'Report');
+        $report->addVersion('x', '<p>x</p>');
+        $this->em()->persist($report);
+        $reported->reportDocument = $report;
+        $done = $this->discoveryRun($project, DiscoveryRunState::Done, '2026-10-02 09:00:00');
+        // The verdict or the report committed after this entity was loaded.
+        $reported->state = DiscoveryRunState::Requested;
+        $this->em()->flush();
+        $this->em()->getConnection()->executeStatement("UPDATE discovery_runs SET state = 'reported' WHERE id = ?", [(string) $reported->id]);
+        $withdrawn = [];
+        $dispatcher = self::getContainer()->get('event_dispatcher');
+        self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
+        $dispatcher->addListener(DiscoveryReportWithdrawn::class, static function (DiscoveryReportWithdrawn $event) use (&$withdrawn): void {
+            $withdrawn[] = [(string) $event->projectId, (string) $event->runId];
+        });
+
+        $this->handler()(new StartDiscoveryCommand($project, Actor::Human));
+
+        self::assertSame([[(string) $project->id, (string) $reported->id]], $withdrawn);
+        $stored = $this->storedRun($reported);
+        self::assertSame(DiscoveryRunState::Superseded, $stored->state);
+        self::assertNotNull($stored->endedAt);
+        self::assertNotNull($stored->reportDocument?->archivedAt);
+        self::assertSame('Replaced by a newer discovery run', $stored->reportDocument->archiveReason);
+        self::assertSame(DiscoveryRunState::Done, $this->storedRun($done)->state);
+    }
+
+    private function boundProject(): Project
     {
         $project = $this->workflowProject('discovery-start');
         $this->bindLifecycle($project);
-        $this->bridge($project, new \DateTimeImmutable());
+
+        return $project;
+    }
+
+    private function liveProject(): Project
+    {
+        $project = $this->boundProject();
+        $this->discoveryBridge($project);
 
         return $project;
     }
@@ -169,16 +262,6 @@ final class StartDiscoveryHandlerTest extends KernelTestCase
         }
 
         self::assertSame([], $this->runs($project));
-        self::assertSame([], $this->evaluatedCardIds());
-    }
-
-    private function bridge(Project $project, \DateTimeImmutable $lastSeenAt): void
-    {
-        $em = $this->em();
-        $bridge = new Bridge(AgentCredential::managed($em, $project->owner, $project->owner->id), Uuid::v4(), [(string) $project->id], 'b4e39aa7', $lastSeenAt);
-        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_APP_PROMPTS];
-        $em->persist($bridge);
-        $em->flush();
     }
 
     private function handler(): StartDiscoveryHandler
@@ -192,45 +275,9 @@ final class StartDiscoveryHandlerTest extends KernelTestCase
     /** @return list<DiscoveryRun> */
     private function runs(Project $project): array
     {
-        return array_values($this->discoveryRuns()->findBy(['project' => $project]));
-    }
-
-    /** @return list<WorkRequest> */
-    private function requests(DiscoveryRun $run): array
-    {
-        $repository = self::getContainer()->get(WorkRequestRepository::class);
-        self::assertInstanceOf(WorkRequestRepository::class, $repository);
-
-        return array_values($repository->findBy(['subjectId' => $run->card->id]));
-    }
-
-    /** @return list<string> */
-    private function evaluatedCardIds(): array
-    {
-        $ids = [];
-        foreach ($this->transport()->getSent() as $envelope) {
-            $message = $envelope->getMessage();
-            if ($message instanceof EvaluateCard) {
-                $ids[] = $message->cardId;
-            }
-        }
-
-        return $ids;
-    }
-
-    private function transport(): InMemoryTransport
-    {
-        $transport = self::getContainer()->get('messenger.transport.card_eval');
-        self::assertInstanceOf(InMemoryTransport::class, $transport);
-
-        return $transport;
-    }
-
-    private function discoveryRuns(): DiscoveryRunRepository
-    {
-        $repository = static::getContainer()->get(DiscoveryRunRepository::class);
+        $repository = self::getContainer()->get(DiscoveryRunRepository::class);
         self::assertInstanceOf(DiscoveryRunRepository::class, $repository);
 
-        return $repository;
+        return array_values($repository->findBy(['project' => $project]));
     }
 }
