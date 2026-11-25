@@ -97,7 +97,7 @@ final class ExpireSubjectWorkRequestsHandlerTest extends KernelTestCase
         self::assertSame([(string) $lapsed->id], array_column($this->outboxPayloads(), 'workRequestId'));
     }
 
-    /** A bridge that goes quiet sends no event, so the sweep finds the work that it can no longer take. */
+    /** No event reaches these requests, so only the sweep can find that no bridge can take one. */
     public function test_a_request_that_fails_with_no_taker_expires_long_before_the_timeout(): void
     {
         self::bootKernel();

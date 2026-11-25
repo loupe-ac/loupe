@@ -17,8 +17,8 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
  * took in time, so the module of the subject hears of it. A request that fails
  * with no taker expires as soon as no bridge can take it. Open work of a card
  * waits with no time limit, except a session request of a person, which
- * expires here after a short wait. A request of a held project stays open,
- * and the end of the hold restarts its time. Answers how many expired.
+ * expires here after a short wait. This sweep leaves a request of a held
+ * project open, and the end of the hold restarts its time. Answers how many expired.
  */
 final readonly class ExpireSubjectWorkRequestsHandler
 {

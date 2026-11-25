@@ -311,6 +311,9 @@ final readonly class RecordBridgeHeartbeatHandler
             );
         }
 
+        // A listener of the availability change can expire a request that the list holds.
+        $workRequests = array_values(array_filter($workRequests, static fn (WorkRequest $request): bool => WorkRequestState::Open === $request->state));
+
         return new RecordBridgeHeartbeatResult($bridge, CliCompatibility::RANGE, $commands, $workRequests, $lostClaims, $watchSessions, $blocked);
     }
 
