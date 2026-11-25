@@ -1344,6 +1344,32 @@ class WorkerRunRepository extends ServiceEntityRepository
     }
 
     /**
+     * The runs about the subject that a bridge can stop, oldest report first. An interactive session takes no command.
+     *
+     * @return list<WorkerRun>
+     */
+    public function findStoppableOfSubject(Project $project, WorkSubject $subject): array
+    {
+        return array_values($this->createQueryBuilder('r')
+            ->andWhere('r.project = :project')
+            ->andWhere('r.subjectType = :subjectType AND r.subjectId = :subjectId')
+            ->andWhere('r.state IN (:stoppableStates)')
+            ->andWhere('r.kind <> :interactive')
+            ->setParameter('project', $project)
+            ->setParameter('subjectType', $subject->type)
+            ->setParameter('subjectId', $subject->id, UuidType::NAME)
+            ->setParameter('stoppableStates', array_map(
+                static fn (WorkerRunState $state): string => $state->value,
+                WorkerRunState::stoppableStates(),
+            ))
+            ->setParameter('interactive', WorkerRunKind::Interactive->value)
+            ->orderBy('r.receivedAt', 'ASC')
+            ->addOrderBy('r.id', 'ASC')
+            ->getQuery()
+            ->getResult());
+    }
+
+    /**
      * One page of a project's runs, newest report first.
      *
      * The order matches idx_bridge_worker_runs_project_received, and it stays the

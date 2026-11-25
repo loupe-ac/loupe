@@ -19,6 +19,7 @@ use App\Module\Project\Workshop\WorkshopGitIdentity;
 use App\Module\Project\Workshop\WorkshopReadiness;
 use App\Module\Project\Workshop\WorkshopReadinessProviderInterface;
 use App\Module\Project\Workshop\WorkshopReadinessRow;
+use App\Module\Readiness\Command\CancelDiscoveryHandler;
 use App\Module\Readiness\Command\StartDiscoveryHandler;
 use App\Module\Readiness\Entity\DiscoveryRun;
 use App\Module\Readiness\Entity\DiscoveryRunState;
@@ -36,6 +37,8 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 final readonly class ReadinessChecklist implements WorkshopReadinessProviderInterface
 {
     public const string START_TOKEN = 'readiness-discovery-start';
+
+    public const string CANCEL_TOKEN = 'readiness-discovery-cancel';
 
     /** The reason of a run that failed when a run had a card, and the card left Backlog. */
     public const string REASON_CARD_MOVED = 'card-moved';
@@ -284,6 +287,9 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
         $reason = $run->failureReason ?? $run->state->value;
 
         return match ($reason) {
+            CancelDiscoveryHandler::REASON => null === $run->cancelledBy
+                ? $this->translator->trans('readiness.discovery.reason.cancelled_by_deleted_account')
+                : $this->translator->trans('readiness.discovery.reason.cancelled_by', ['%name%' => $run->cancelledBy->fullName]),
             WorkRequest::REASON_NO_TAKER => $this->translator->trans('readiness.discovery.reason.no_taker'),
             self::REASON_CARD_MOVED => $this->translator->trans('readiness.discovery.reason.card_moved'),
             StartDiscoveryHandler::REQUEST_REFUSED => $this->translator->trans('readiness.discovery.reason.request_refused'),

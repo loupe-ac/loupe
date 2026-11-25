@@ -16,6 +16,7 @@ use App\Module\Readiness\Entity\DiscoveryRun;
 use App\Module\Readiness\Entity\DiscoveryRunState;
 use App\Module\Readiness\Event\DiscoveryReportWithdrawn;
 use App\Module\Readiness\Repository\DiscoveryRunRepository;
+use App\Module\Readiness\Service\DiscoveryWorkRequestStore;
 use App\Module\Readiness\Service\ReadinessChecklist;
 use App\Module\Review\Command\ArchiveDocumentCommand;
 use App\Module\Review\Command\ArchiveDocumentHandler;
@@ -55,6 +56,7 @@ final readonly class StartDiscoveryHandler
         private ReadinessChecklist $checklist,
         private DiscoveryRunRepository $discoveryRuns,
         private OpenWorkRequestHandler $openWorkRequest,
+        private DiscoveryWorkRequestStore $storeWorkRequest,
         private ArchiveDocumentHandler $archiveDocument,
         private AppRules $appRules,
         private EntityManagerInterface $em,
@@ -132,9 +134,8 @@ final readonly class StartDiscoveryHandler
             throw $e;
         }
 
-        // Only the id changes: the flush writes no state, so a run that failed inside the open stays Failed.
-        $run->workRequestId = $request->id;
-        $this->em->flush();
+        // Only the id changes, so a run that failed or was cancelled meanwhile stays Failed, and the store cancels its request.
+        $this->storeWorkRequest->store($run, $request, DiscoveryRunState::Requested);
         // Outside the project lock, because a verdict locks the project row and then the document row.
         $this->retire($project, $superseded);
 

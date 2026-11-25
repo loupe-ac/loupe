@@ -19,6 +19,7 @@ use App\Module\Project\Entity\Project;
 use App\Module\Project\Workshop\WorkshopConnectionsProviderInterface;
 use App\Module\Project\Workshop\WorkshopReadiness;
 use App\Module\Project\Workshop\WorkshopReadinessRow;
+use App\Module\Readiness\Command\CancelDiscoveryHandler;
 use App\Module\Readiness\Command\StartDiscoveryHandler;
 use App\Module\Readiness\Entity\DiscoveryRun;
 use App\Module\Readiness\Entity\DiscoveryRunState;
@@ -161,6 +162,26 @@ final class ReadinessChecklistTest extends KernelTestCase
         yield 'card moved' => [ReadinessChecklist::REASON_CARD_MOVED, 'The discovery card left Backlog before the work ended.'];
         yield 'request refused' => [StartDiscoveryHandler::REQUEST_REFUSED, 'The app could not ask a bridge for the work.'];
         yield 'request failed' => [StartDiscoveryHandler::REQUEST_FAILED, 'The request for the work failed. Run discovery again.'];
+    }
+
+    /** @return iterable<string, array{bool, string}> */
+    public static function cancellers(): iterable
+    {
+        yield 'a person' => [true, 'Cancelled by Riley Chen.'];
+        yield 'a deleted account' => [false, 'Cancelled by a deleted account.'];
+    }
+
+    #[DataProvider('cancellers')]
+    public function test_a_cancelled_run_names_who_cancelled_it(bool $accountStays, string $text): void
+    {
+        $project = $this->newProject('readiness-discovery-cancelled@example.com');
+        $run = $this->discoveryRun($project, DiscoveryRunState::Failed, CancelDiscoveryHandler::REASON);
+        $run->cancelledBy = $accountStays ? $project->owner : null;
+        $this->em()->flush();
+
+        $row = $this->row($this->readiness($this->checklist(), $project), 'repository');
+
+        self::assertSame(['%reason%' => str_replace('Riley Chen', $project->owner->fullName, $text)], $row->statusParameters);
     }
 
     public function test_a_failed_run_with_no_live_bridge_shows_the_raw_reason_and_no_action(): void

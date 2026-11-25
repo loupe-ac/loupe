@@ -93,6 +93,32 @@ final class StartDiscoveryHandlerTest extends KernelTestCase
         self::assertTrue($stored->workRequestId?->equals($requests[0]->id));
     }
 
+    /** A cancel that commits between the stored run and its request finds no request to cancel. */
+    public function test_a_run_that_is_cancelled_before_its_request_opens_keeps_no_live_request(): void
+    {
+        $project = $this->liveProject();
+        $dispatcher = self::getContainer()->get('event_dispatcher');
+        self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
+        $opened = 0;
+        $dispatcher->addListener(WorkRequestChanged::class, function (WorkRequestChanged $event) use (&$opened): void {
+            if (WorkRequestState::Open === $event->state) {
+                ++$opened;
+                // The row alone changes, as when the other request read the live requests before this one committed.
+                $this->em()->getConnection()->executeStatement("UPDATE discovery_runs SET state = 'failed', failure_reason = 'cancelled'");
+            }
+        });
+
+        $run = $this->handler()(new StartDiscoveryCommand($project, Actor::Human));
+
+        self::assertSame(1, $opened);
+        $stored = $this->storedRun($run);
+        self::assertSame([DiscoveryRunState::Failed, 'cancelled'], [$stored->state, $stored->failureReason]);
+        $requests = $this->discoveryRequests($stored);
+        self::assertCount(1, $requests);
+        self::assertSame(WorkRequestState::Cancelled, $requests[0]->state);
+        self::assertTrue($stored->workRequestId?->equals($requests[0]->id));
+    }
+
     /** The request expires inside the open, and a listener of the expiry throws before the subject handler hears of it. */
     public function test_a_start_that_throws_after_its_request_expired_leaves_the_run_failed(): void
     {
