@@ -244,7 +244,7 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
         $canStart = null === $refusal;
         $start = $this->urls->generate('app_readiness_discovery_start', ['id' => (string) $project->id]);
         $cancel = $this->urls->generate('app_readiness_discovery_cancel', ['id' => (string) $project->id]);
-        $row = static fn (string $status, bool $done = false, ?string $actionLabel = null, ?string $actionUrl = null, array $parameters = [], ?string $csrf = null, bool $cancellable = false): WorkshopReadinessRow => new WorkshopReadinessRow(
+        $row = static fn (string $status, bool $done = false, ?string $actionLabel = null, ?string $actionUrl = null, array $parameters = [], ?string $csrf = null, bool $cancellable = false, bool $startAfter = false): WorkshopReadinessRow => new WorkshopReadinessRow(
             'repository',
             'readiness.row.repository.label',
             $done,
@@ -253,11 +253,17 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
             actionUrl: $actionUrl,
             statusParameters: $parameters,
             actionCsrfTokenId: $csrf,
+            secondaryActionLabel: $startAfter ? 'readiness.row.repository.run_again' : null,
+            secondaryActionUrl: $startAfter ? $start : null,
+            secondaryActionCsrfTokenId: $startAfter ? self::START_TOKEN : null,
             cancelUrl: $cancellable ? $cancel : null,
             cancelCsrfTokenId: $cancellable ? self::CANCEL_TOKEN : null,
             discoveryState: $run?->state->value ?? 'none',
             discoveryCancelled: DiscoveryRunState::Failed === $run?->state && CancelDiscoveryHandler::REASON === $run->failureReason,
         );
+
+        $report = $run?->reportDocument;
+        $liveReport = null === $report || null !== $report->archivedAt ? null : $this->urls->generate('app_document_review', ['projectId' => (string) $project->id, 'documentId' => (string) $report->id]);
 
         return match ($run?->state) {
             // A start supersedes older runs, so the latest run is not superseded. It would read as no run.
@@ -284,11 +290,15 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
                 actionUrl: null === $run->reportDocument ? null : $this->urls->generate('app_document_review', ['projectId' => (string) $project->id, 'documentId' => (string) $run->reportDocument->id]),
                 cancellable: true,
             ),
-            DiscoveryRunState::Reported => $row(
-                'readiness.row.repository.reported',
-                actionLabel: null === $run->reportDocument ? null : 'readiness.row.repository.open_report',
-                actionUrl: null === $run->reportDocument ? null : $this->urls->generate('app_document_review', ['projectId' => (string) $project->id, 'documentId' => (string) $run->reportDocument->id]),
-            ),
+            // The owner may never give a verdict, so a report that waits can still be replaced.
+            DiscoveryRunState::Reported => null === $liveReport
+                ? $row(
+                    'readiness.row.repository.reported',
+                    actionLabel: $canStart ? 'readiness.row.repository.run_again' : null,
+                    actionUrl: $canStart ? $start : null,
+                    csrf: $canStart ? self::START_TOKEN : null,
+                )
+                : $row('readiness.row.repository.reported', actionLabel: 'readiness.row.repository.open_report', actionUrl: $liveReport, startAfter: $canStart),
             DiscoveryRunState::Done => $row('readiness.row.repository.done', done: true),
         };
     }

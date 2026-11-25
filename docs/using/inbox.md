@@ -383,7 +383,7 @@ A verdict on the report page or through the API also closes the request.
 You can dismiss it. The report still waits, and the Workshop still opens it.
 A retry of the background job does not open it again.
 No agent and no API key can withdraw it.
-When a newer discovery run replaces the report, Loupe cancels the request.
+When a newer discovery run replaces the report, or you archive the report, Loupe cancels the request.
 
 With the inbox off, Loupe opens no request. Switching the inbox on later opens none for a report that already waits.
 
