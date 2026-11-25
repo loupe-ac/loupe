@@ -64,6 +64,7 @@ final class ReadinessToolsTest extends KernelTestCase
             'state' => 'failed',
             'reason' => WorkRequest::REASON_NO_TAKER,
             'createdAt' => $run->createdAt->format(\DATE_ATOM),
+            'documentId' => null,
         ], $answer['discovery']);
     }
 
@@ -156,6 +157,10 @@ final class ReadinessToolsTest extends KernelTestCase
         self::assertSame($document, $run->reportDocument);
         self::assertSame(DiscoveryRunState::Reported, $run->state);
         self::assertStringEndsWith('/projects/'.$project->id.'/documents/'.$document->id.'/review', $answer['url']);
+        // A revising worker has no card to find the report through.
+        $discovery = $this->readinessGet()()['discovery'];
+        self::assertNotNull($discovery);
+        self::assertSame($answer['documentId'], $discovery['documentId']);
     }
 
     public function test_readiness_report_submit_takes_an_actor_and_an_action_and_defaults_them_for_an_older_plugin(): void
