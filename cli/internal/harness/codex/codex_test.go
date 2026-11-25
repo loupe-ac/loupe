@@ -631,6 +631,9 @@ func TestCheckLoupeMcpServer(t *testing.T) {
 		if len(got) != 1 || got[0].Reason != reason || got[0].Project != "loupe" || !strings.Contains(got[0].Detail, detail) {
 			t.Fatalf("problems = %+v, want %q for project loupe with %q", got, reason, detail)
 		}
+		if got[0].Temporary != strings.HasSuffix(reason, "timed out") {
+			t.Fatalf("problem %+v has the wrong Temporary", got[0])
+		}
 	}
 
 	t.Run("passes and runs in the project with the resolved home", func(t *testing.T) {
@@ -682,9 +685,9 @@ func TestCheckLoupeMcpServer(t *testing.T) {
 	t.Run("the check times out", func(t *testing.T) {
 		h, home := plain(t, approveCfg)
 		old := checkTimeout
-		checkTimeout = 50 * time.Millisecond
+		checkTimeout = 2 * time.Second
 		defer func() { checkTimeout = old }()
-		one(t, check(t, h, home, fakeCodexMcp(t, "sleep 5", true)), "MCP check timed out", "codex mcp get did not answer in")
+		one(t, check(t, h, home, fakeCodexMcp(t, "exec sleep 10", true)), "MCP check timed out", "codex mcp get did not answer in")
 	})
 	t.Run("tools need approval", func(t *testing.T) {
 		h, home := plain(t, "[mcp_servers.loupe]\ncommand = \"loupe\"\n")
@@ -760,8 +763,22 @@ func TestCheck(t *testing.T) {
 	})
 	t.Run("not logged in", func(t *testing.T) {
 		got := New("", "", "").Check(ctx, harness.CheckSpec{Env: fakeCodex(t, "1")})
-		if !reflect.DeepEqual(reasons(got), []string{"not logged in"}) {
-			t.Fatalf("problems = %v", got)
+		if !reflect.DeepEqual(reasons(got), []string{"not logged in"}) || got[0].Temporary {
+			t.Fatalf("problems = %+v", got)
+		}
+	})
+	t.Run("the login check times out", func(t *testing.T) {
+		env := fakeCodex(t, "0")
+		bin := strings.TrimSuffix(strings.TrimPrefix(env[0], "PATH="), ":/bin:/usr/bin")
+		if err := os.WriteFile(filepath.Join(bin, "codex"), []byte("#!/bin/sh\nexec sleep 10\n"), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		old := checkTimeout
+		checkTimeout = 50 * time.Millisecond
+		defer func() { checkTimeout = old }()
+		got := New("", "", "").Check(ctx, harness.CheckSpec{Env: env})
+		if !reflect.DeepEqual(reasons(got), []string{"login check timed out"}) || !got[0].Temporary {
+			t.Fatalf("problems = %+v", got)
 		}
 	})
 	t.Run("not on PATH", func(t *testing.T) {

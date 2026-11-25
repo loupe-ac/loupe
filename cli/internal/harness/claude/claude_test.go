@@ -513,11 +513,11 @@ func TestCheckStopsWhenClaudeIsNotOnPath(t *testing.T) {
 
 func TestALoginCheckThatTimesOutSaysSo(t *testing.T) {
 	got := loginProblem(errors.Join(errors.New("signal: killed"), context.DeadlineExceeded), "")
-	if got.Reason != "login check timed out" {
-		t.Fatalf("Reason = %q, want login check timed out", got.Reason)
+	if got.Reason != "login check timed out" || !got.Temporary {
+		t.Fatalf("problem = %+v, want a temporary login check timed out", got)
 	}
-	if got := loginProblem(errors.New("exit status 1"), ""); got.Reason != "not logged in" {
-		t.Fatalf("Reason = %q, want not logged in", got.Reason)
+	if got := loginProblem(errors.New("exit status 1"), ""); got.Reason != "not logged in" || got.Temporary {
+		t.Fatalf("problem = %+v, want a lasting not logged in", got)
 	}
 }
 

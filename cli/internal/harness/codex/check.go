@@ -298,7 +298,7 @@ func pluginProblems(slug string, packages []string, have map[string]Plugin, list
 		return nil
 	}
 	if listErr != nil {
-		return []harness.Problem{{Reason: "codex plugins could not be read", Project: slug, Detail: listErr.Error() + "; " + fix}}
+		return []harness.Problem{{Reason: "codex plugins could not be read", Project: slug, Detail: listErr.Error() + "; " + fix, Temporary: errors.Is(listErr, context.DeadlineExceeded)}}
 	}
 	var problems []harness.Problem
 	for _, name := range packages {
@@ -326,7 +326,10 @@ func (h Harness) mcpProblems(ctx context.Context, binary, home, slug, dir string
 	}
 	out, err := runCheck(ctx, binary, dir, env, args...)
 	if errors.Is(err, context.DeadlineExceeded) {
-		return fail("MCP check timed out", "codex mcp get did not answer in "+checkTimeout.String())
+		timedOut := fail("MCP check timed out", "codex mcp get did not answer in "+checkTimeout.String())
+		timedOut[0].Temporary = true
+
+		return timedOut
 	}
 	if err != nil {
 		return fail("loupe MCP server not declared", fix)
@@ -446,7 +449,7 @@ func profileProblems(home, profile string, env []string) []harness.Problem {
 func loginProblems(ctx context.Context, binary, dir string, env []string) []harness.Problem {
 	_, err := runCheck(ctx, binary, dir, env, "login", "status")
 	if errors.Is(err, context.DeadlineExceeded) {
-		return []harness.Problem{{Reason: "login check timed out", Detail: "codex login status did not answer in " + checkTimeout.String()}}
+		return []harness.Problem{{Reason: "login check timed out", Detail: "codex login status did not answer in " + checkTimeout.String(), Temporary: true}}
 	}
 	if err != nil {
 		return []harness.Problem{{Reason: "not logged in", Detail: "run `codex login`"}}
