@@ -947,7 +947,8 @@ Limits of this release:
 
 The bridge checks each account that the `accounts` block of `rules.yaml`
 declares, when it starts and on each `loupe bridge reload`. It also checks an
-account that no rule uses. A check of a Claude Code account asks two
+account that no rule uses. A running bridge checks a failing account again, as
+[Rechecks](#rechecks) says. A check of a Claude Code account asks two
 questions:
 
 1. Is `claude` on the `PATH` of the account, which an env file can set? A
@@ -994,9 +995,7 @@ running, and a request for an entry that is off waits, as it does when no
 bridge takes it. The log line `account_failed` names the account, the reason
 and the detail. The heartbeat sends each account with its harness, its state
 and a short reason, and the Agents page in Loupe shows them. A path, an email
-or a key never leaves the machine. The bridge checks again only on a reload,
-so run `loupe bridge reload` after you fix an account. `loupe status` runs the
-same checks.
+or a key never leaves the machine. `loupe status` runs the same checks.
 
 A problem in one project fails only that project. The account stays ready for
 its other projects, and the log line is `project_failed`. An entry is off for
@@ -1009,6 +1008,28 @@ and they count the others.
 The Agents page and `loupe status` mark an account that no rule uses as unused.
 A failing unused account turns off no rule. Only a failing account that a rule
 uses makes `loupe status` exit with a non-zero code.
+
+#### Rechecks
+
+A running bridge checks each failing account again every 5 minutes, also an
+account that fails for single projects only. This needs CLI 2.11.0 or later. An
+older bridge checks again only on a reload or a restart.
+
+A check command that does not answer in time is often a temporary fault. When
+the check at the start finds such a timeout, the first recheck runs 30 seconds
+after the start. The start does not wait for it.
+
+A recheck only turns work on. When an account or a project passes, the bridge
+turns its entries on and sends a heartbeat at once. Loupe then offers the
+waiting requests to the bridge, with no reload. An account or a project that is
+ready stays ready, so a fault that starts while the bridge runs shows only after
+a reload or a restart. When a recheck stops before the project checks, such as
+on a lost login, the failed projects keep their old state.
+
+The log line `account_recovered` or `project_recovered` names each part that
+passes again. A part that still fails gets a new `account_failed` or
+`project_failed` line only when its reason changes. Run `loupe bridge reload` to
+check at once. A reload does not wait for a recheck.
 
 ### Account usage
 

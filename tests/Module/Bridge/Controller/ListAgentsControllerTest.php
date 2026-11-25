@@ -349,7 +349,7 @@ final class ListAgentsControllerTest extends WebTestCase
         self::assertSame('failing', $failing->attr('data-agent-account-state'));
         self::assertStringContainsString('Failing', $failing->text());
         self::assertStringContainsString('claude is not logged in', $failing->filter('[data-agent-account-reason]')->text());
-        self::assertStringContainsString('until the account passes its check and the bridge reloads', $failing->text());
+        self::assertStringContainsString('until it passes its check', $failing->text());
         self::assertCount(0, $ready->filter('[data-agent-account-reason]'));
         // The guard: the older bridge's card renders, so the absent block is not an absent card.
         self::assertCount(1, $crawler->filter('[data-agent-connection-id="'.$older->id.'"] [data-agent-health]'));

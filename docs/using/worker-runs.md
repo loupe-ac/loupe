@@ -554,7 +554,9 @@ A bridge that checks its accounts reports the result with each heartbeat. The
 card of the bridge then lists each account: the account name, its harness, and
 **Ready** or **Failing**. A failing account shows in red, with the reason the
 check failed and a note. The rules that use a failing account stay off until
-the account passes its check and the bridge reloads. The heading gives the time
+the account passes its check. A running bridge
+[checks it again](../extending/cli-bridge.md#rechecks) every 5 minutes. An
+older bridge needs a reload. The heading gives the time
 of the heartbeat that carried the accounts. A later heartbeat with no account
 report keeps the rows and their time. A bridge that sends no account report,
 such as an older bridge, shows no accounts.
