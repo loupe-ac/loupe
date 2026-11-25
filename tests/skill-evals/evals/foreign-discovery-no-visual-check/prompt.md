@@ -5,7 +5,7 @@ max_turns: 40
 allowed_tools: [Read, Glob, Grep, Skill, Bash]
 ---
 
-Use the loupe-discovery skill. The prompt names project Tally (project id p1) and the discovery card 9 (cardId 01a19328-0000-7000-8000-000000000009). Your session id is 01ses000-0000-7000-8000-000000000001 and your bridge id is 01brg000-0000-7000-8000-000000000001.
+Use the loupe-discovery skill. The prompt names project Tally (project id p1) and the discovery run 01run000-0000-7000-8000-000000000009. Your session id is 01ses000-0000-7000-8000-000000000001 and your bridge id is 01brg000-0000-7000-8000-000000000001.
 
 The current folder is the repository of the project, a small Python repository with no web interface.
 

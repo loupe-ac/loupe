@@ -1241,7 +1241,7 @@
     },
     {
       "name": "discovery_start",
-      "description": "Start a discovery run on this project. Loupe creates a new tooling card in the Backlog, and a bridge that serves the project runs a read-only worker on it. The worker reads the repository and the workflow, and reports what the project needs before agents work on it. A live bridge must serve the project, the project must have a workflow with board automation on, and only one run can be open at a time. Call readiness_get to follow the run.",
+      "description": "Start a discovery run on this project. A bridge that serves the project runs a read-only worker. The worker reads the repository and the workflow, and reports what the project needs before agents work on it. A live bridge must serve the project, the project must have a workflow with board automation on, and only one run can be open at a time. Call readiness_get to follow the run.",
       "inputSchema": {
         "type": "object",
         "properties": {}
@@ -2681,7 +2681,7 @@
     },
     {
       "name": "readiness_get",
-      "description": "Read the readiness checks of this project: whether an agent connected, a bridge runs, the GitHub App is installed, the agents push as their own GitHub account, discovery ran, and the optional review widget has a site that may sign in. Each row says whether it is done, with a short status. discovery is the latest discovery run, or null when discovery never ran. discovery.runId is the run id that readiness_report_submit takes. The checks show here while the Workshop guide is hidden too. To start discovery, call discovery_start.",
+      "description": "Read the readiness checks of this project: whether an agent connected, a bridge runs, the GitHub App is installed, the agents push as their own GitHub account, discovery ran, and the optional review widget has a site that may sign in. Each row says whether it is done, with a short status. discovery is the latest discovery run, or null when discovery never ran. discovery.runId is the run id that readiness_report_submit takes. discovery.documentId is the report document of the run, or null before the first report. The checks show here while the Workshop guide is hidden too. To start discovery, call discovery_start.",
       "inputSchema": {
         "type": "object",
         "properties": {}
@@ -2705,7 +2705,7 @@
     },
     {
       "name": "readiness_report_submit",
-      "description": "Submit the readiness report of a discovery run. Loupe writes the report as a document for the owner to review, and links it to the discovery card. runId is the run that discovery_start or readiness_get named. workflow names the workflow the project uses. findings lists the checks you made, each with a check name, a status of ready or suggested, and the evidence you found. Use suggested for a check that the project does not meet yet, and gap is accepted as an alias. proposals lists cards that would close a suggestion, each with a key that is unique in the report, a title, a type and a body. The type is a type key from board_columns that has no children capability. When an open card of this project covers a proposal already, pass its number as openCardNumber, and the report shows that card instead of a tick box. The owner ticks the proposals to keep and approves the report, and Loupe then creates one card in Next for each ticked proposal. One report is allowed for each run, and only while the run waits for it. When the owner asked for changes, the run is revising, and one call with the same runId stores a new version of the same report and replaces the proposals that made no card.",
+      "description": "Submit the readiness report of a discovery run. Loupe writes the report as a document for the owner to review. runId is the run that discovery_start or readiness_get named. workflow names the workflow the project uses. findings lists the checks you made, each with a check name, a status of ready or suggested, the evidence you found, an actor (owner, agent or none) and an action of one sentence. The report lists each suggested finding that has an actor under \"What remains\", grouped by actor. An older plugin may leave actor and action out, and the actor is then none. Use suggested for a check that the project does not meet yet, and gap is accepted as an alias. proposals lists cards that would close a suggestion, each with a key that is unique in the report, a title, a type and a body. The type is a type key from board_columns that has no children capability. When an open card of this project covers a proposal already, pass its number as openCardNumber, and the report shows that card instead of a tick box. The owner ticks the proposals to keep and approves the report, and Loupe then creates one card in Next for each ticked proposal. One report is allowed for each run, and only while the run waits for it. When the owner asked for changes, the run is revising, and one call with the same runId stores a new version of the same report and replaces the proposals that made no card.",
       "inputSchema": {
         "type": "object",
         "properties": {
