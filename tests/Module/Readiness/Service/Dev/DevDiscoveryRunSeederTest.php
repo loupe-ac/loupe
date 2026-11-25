@@ -107,6 +107,24 @@ final class DevDiscoveryRunSeederTest extends KernelTestCase
         self::assertNull($run->project->readinessGuideHiddenAt);
     }
 
+    public function test_the_seeded_times_of_the_new_states_follow_their_projects(): void
+    {
+        $context = SeedContextFactory::create(self::getContainer());
+        DevProjectFixture::create(self::getContainer(), $context);
+
+        $this->service(DevDiscoveryRunSeeder::class)->seed($context);
+        $this->service(EntityManagerInterface::class)->clear();
+
+        $runs = $this->service(DiscoveryRunRepository::class);
+        $notice = $runs->find(DevDiscoveryRunSeeder::noticeRunId()) ?? throw new \LogicException('The run of the notice is missing.');
+        $cancelled = $runs->find(DevDiscoveryRunSeeder::cancelledRunId()) ?? throw new \LogicException('The cancelled run is missing.');
+        self::assertGreaterThan($notice->project->createdAt, $notice->project->readinessGuideHiddenAt);
+        self::assertGreaterThan($notice->project->readinessGuideHiddenAt, $notice->createdAt);
+        self::assertGreaterThan($cancelled->project->createdAt, $cancelled->createdAt);
+        self::assertGreaterThan($cancelled->createdAt, $cancelled->endedAt);
+        self::assertLessThanOrEqual($context->now, $cancelled->endedAt);
+    }
+
     /** The twin of the three preview states. */
     public function test_the_dev_project_has_no_run(): void
     {

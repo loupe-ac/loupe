@@ -153,7 +153,8 @@ The Run discovery row shows the state of the latest run:
 **Cancel** ends a run that shows **Discovery runs**. Anyone who can open the Workshop can use it. Today that is the project owner.
 The Run discovery row offers it.
 When the owner hid the readiness guide, the top of the Workshop shows a **Discovery runs** notice with **Cancel** instead.
-The notice offers no start. It goes away when the run ends.
+The notice offers no start. It shows only before the first report arrives, and while a worker revises the report.
+It goes away when the report waits for your review, and it comes back during a revision. It also goes away when the run ends.
 
 A cancel does these things:
 

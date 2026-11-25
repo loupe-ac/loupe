@@ -88,13 +88,13 @@ final readonly class DevDiscoveryRunSeeder implements DevSeederInterface
 
         $noticeProject = $this->project(DevProjectSeeder::setupDoneProjectId());
         if (null === $noticeProject->readinessGuideHiddenAt) {
-            $noticeProject->readinessGuideHiddenAt = $context->at(600);
+            $noticeProject->readinessGuideHiddenAt = $context->at(300);
             $this->em->flush();
         }
         $this->run($context, $noticeProject, self::noticeRunId(), 180, DiscoveryRunState::Requested);
 
         $cancelledProject = $this->project(DevProjectSeeder::inboxFlatProjectId());
-        $this->run($context, $cancelledProject, self::cancelledRunId(), 900, DiscoveryRunState::Failed, $context->devUser());
+        $this->run($context, $cancelledProject, self::cancelledRunId(), 300, DiscoveryRunState::Failed, $context->devUser());
 
         $this->run($context, $project, self::runId(), 120, DiscoveryRunState::Requested);
         $this->run($context, $project, self::endedRunId(), 7200, DiscoveryRunState::Done);
