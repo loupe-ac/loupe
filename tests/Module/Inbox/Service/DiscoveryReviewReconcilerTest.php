@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Inbox\Service;
 
+use App\Module\Inbox\Command\DeclineInboxItemCommand;
+use App\Module\Inbox\Command\DeclineInboxItemHandler;
 use App\Module\Inbox\Command\SubmitInboxDocumentReviewCommand;
 use App\Module\Inbox\Command\SubmitInboxDocumentReviewHandler;
 use App\Module\Inbox\Entity\InboxAskOrigin;
@@ -111,6 +113,19 @@ final class DiscoveryReviewReconcilerTest extends KernelTestCase
 
         $item = $this->items()[0];
         self::assertSame([InboxItemState::Cancelled, InboxCloser::Loupe, InboxCloseCause::FactEnded], [$item->state, $item->closedBy, $item->closeCause]);
+    }
+
+    public function test_the_owner_can_dismiss_the_item_and_the_report_still_waits(): void
+    {
+        $this->report();
+        $item = $this->items()[0];
+        $decline = self::getContainer()->get(DeclineInboxItemHandler::class);
+        self::assertInstanceOf(DeclineInboxItemHandler::class, $decline);
+
+        $decline(new DeclineInboxItemCommand($item, ''));
+
+        self::assertSame(InboxItemState::Declined, $item->state);
+        self::assertSame(DiscoveryRunState::Reported, $this->storedRun($this->run)->state);
     }
 
     /** The events arrive after their commits, so the announcement of a replaced report can arrive last. */

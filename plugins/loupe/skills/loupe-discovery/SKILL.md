@@ -171,7 +171,7 @@ The owner asked for changes to the report, and the run is `revising`.
 1. Read the report document with `document_get`. Its id is `discovery.documentId` of `readiness_get`. An older server sends no `documentId`. It sends `discovery.cardId`, and `card_get` on that card links the document with the tag `readiness-report`.
 2. Read the comments with `document_get_review`. Address each comment, and check the repository again where a comment asks for it.
 3. Call `readiness_report_submit` with the same `runId`, and the whole revised `workflow`, `findings`, `proposals` and `summary`. Loupe stores a new version of the same document, and replaces the proposals that made no card.
-4. End with the report `url`. Skip step 12 of the steps above, because the owner already has the report in the inbox.
+4. End with the report `url`. Skip step 12 of the steps above.
 
 If the owner approves the report while you revise it, the tool refuses your submit. Report the refusal and stop.
 
