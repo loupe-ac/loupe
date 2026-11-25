@@ -26,9 +26,14 @@ final class DevDiscoveryReviewSeederTest extends KernelTestCase
         self::assertInstanceOf(DevDiscoveryReviewSeeder::class, $seeder);
 
         $seeder->seed($context);
-        $seeder->seed($context);
         $em = self::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
+        self::assertSame(1, $em->getConnection()->executeStatement('DELETE FROM inbox_item_documents'));
+        self::assertSame(1, $em->getConnection()->executeStatement('DELETE FROM inbox_reviews'));
+        $em->clear();
+        $context = SeedContextFactory::create(self::getContainer());
+        $seeder->seed($context);
+        $seeder->seed($context);
         $em->clear();
 
         $runs = self::getContainer()->get(DiscoveryRunRepository::class);
@@ -41,5 +46,7 @@ final class DevDiscoveryReviewSeederTest extends KernelTestCase
         $item = $items->findOpenForDiscoveryRun($run->project, DevDiscoveryReviewSeeder::runId()) ?? throw new \LogicException('The item is missing.');
         self::assertSame([(string) DevDiscoveryReviewSeeder::itemId(), InboxItemState::Open, false], [(string) $item->id, $item->state, $item->isAutomatic()]);
         self::assertSame(1, $items->count(['project' => $run->project]));
+        self::assertSame(1, (int) $em->getConnection()->fetchOne('SELECT COUNT(*) FROM inbox_item_documents WHERE item_id = ?', [(string) $item->id]));
+        self::assertSame(1, (int) $em->getConnection()->fetchOne('SELECT COUNT(*) FROM inbox_reviews WHERE item_id = ?', [(string) $item->id]));
     }
 }

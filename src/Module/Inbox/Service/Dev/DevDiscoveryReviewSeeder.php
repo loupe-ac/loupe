@@ -124,7 +124,7 @@ final readonly class DevDiscoveryReviewSeeder implements DevSeederInterface
             return $report;
         }
 
-        $report = new Document($context->devUser(), $project, 'Readiness report', $context->at(600));
+        $report = new Document($context->devUser(), $project, 'Readiness report', $context->at(630));
         $report->addVersion(
             "# Readiness report\n\nThe repository has a build command and a test command.\n",
             '<h1>Readiness report</h1><p>The repository has a build command and a test command.</p>',

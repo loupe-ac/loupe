@@ -4,10 +4,15 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Inbox\Service;
 
+use App\Exception\DomainErrors;
 use App\Module\Inbox\Command\DeclineInboxItemCommand;
 use App\Module\Inbox\Command\DeclineInboxItemHandler;
+use App\Module\Inbox\Command\JoinInboxAskCommand;
+use App\Module\Inbox\Command\JoinInboxAskHandler;
 use App\Module\Inbox\Command\SubmitInboxDocumentReviewCommand;
 use App\Module\Inbox\Command\SubmitInboxDocumentReviewHandler;
+use App\Module\Inbox\Command\WithdrawInboxItemCommand;
+use App\Module\Inbox\Command\WithdrawInboxItemHandler;
 use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxCloseCause;
 use App\Module\Inbox\Entity\InboxCloser;
@@ -16,6 +21,8 @@ use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Entity\InboxReview;
 use App\Module\Inbox\Entity\InboxReviewVerdict;
+use App\Module\Inbox\Messenger\NotifyInboxOwner;
+use App\Module\Inbox\Messenger\NotifyInboxOwnerKind;
 use App\Module\Inbox\Repository\InboxItemRepository;
 use App\Module\Inbox\Repository\InboxReviewRepository;
 use App\Module\Project\Entity\Project;
@@ -30,16 +37,19 @@ use App\Module\Review\Command\SubmitReviewCommand;
 use App\Module\Review\Command\SubmitReviewHandler;
 use App\Module\Review\Entity\Document;
 use App\Tests\Module\Inbox\InboxScenario;
+use App\Tests\Module\Inbox\QueuedPushes;
 use App\Tests\Module\Readiness\DiscoveryScenario;
 use PHPUnit\Framework\Attributes\TestWith;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Uid\Uuid;
 
 /** The review item of a waiting discovery report, from the report to the verdict. */
 final class DiscoveryReviewReconcilerTest extends KernelTestCase
 {
     use DiscoveryScenario;
     use InboxScenario;
+    use QueuedPushes;
 
     private Project $project;
 
@@ -67,6 +77,7 @@ final class DiscoveryReviewReconcilerTest extends KernelTestCase
         self::assertEquals($this->run->id, $item->discoveryRunId);
         self::assertCount(1, $item->documents);
         self::assertSame($report, $this->reviewOf($item)->document);
+        self::assertEquals([new NotifyInboxOwner((string) $item->id, NotifyInboxOwnerKind::Notice)], $this->queuedPushes());
     }
 
     public function test_a_second_announcement_of_the_same_report_opens_no_second_item(): void
@@ -113,6 +124,7 @@ final class DiscoveryReviewReconcilerTest extends KernelTestCase
 
         $item = $this->items()[0];
         self::assertSame([InboxItemState::Cancelled, InboxCloser::Loupe, InboxCloseCause::FactEnded], [$item->state, $item->closedBy, $item->closeCause]);
+        self::assertSame('A newer discovery run replaced this report.', $item->note);
     }
 
     public function test_the_owner_can_dismiss_the_item_and_the_report_still_waits(): void
@@ -126,6 +138,44 @@ final class DiscoveryReviewReconcilerTest extends KernelTestCase
 
         self::assertSame(InboxItemState::Declined, $item->state);
         self::assertSame(DiscoveryRunState::Reported, $this->storedRun($this->run)->state);
+    }
+
+    /** An agent can join the item, and the session check of a withdrawal would then let it through. */
+    #[TestWith([true])]
+    #[TestWith([false])]
+    public function test_no_caller_withdraws_the_item(bool $joined): void
+    {
+        $this->report();
+        $item = $this->items()[0];
+        $sessionId = null;
+        if ($joined) {
+            $sessionId = Uuid::v7();
+            $join = self::getContainer()->get(JoinInboxAskHandler::class);
+            self::assertInstanceOf(JoinInboxAskHandler::class, $join);
+            $join(new JoinInboxAskCommand($item, $sessionId));
+        }
+        $withdraw = self::getContainer()->get(WithdrawInboxItemHandler::class);
+        self::assertInstanceOf(WithdrawInboxItemHandler::class, $withdraw);
+
+        try {
+            $withdraw(new WithdrawInboxItemCommand($item, 'Not needed.', $sessionId));
+            self::fail('The report waits, so its item stays.');
+        } catch (DomainErrors $error) {
+            self::assertSame(['itemId' => WithdrawInboxItemHandler::REPORT_REVIEW_NOT_WITHDRAWABLE], $error->errors);
+        }
+        self::assertSame(InboxItemState::Open, $item->state);
+    }
+
+    /** The control of the late announcements: the same steps open an item while the report waits. */
+    public function test_a_late_announcement_of_a_report_that_still_waits_opens_the_item(): void
+    {
+        $this->setInboxFlag(false);
+        $report = $this->report();
+        $this->setInboxFlag(true);
+
+        $this->announce($report);
+
+        self::assertCount(1, $this->items());
     }
 
     /** The events arrive after their commits, so the announcement of a replaced report can arrive last. */

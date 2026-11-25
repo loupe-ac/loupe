@@ -163,7 +163,7 @@ class InboxItem implements ProjectScopedSubject
         #[ORM\Column]
         public bool $blocking,
 
-        /** Who wrote the item. Loupe writes every wait, workflow item and its own notices, an agent every item it asks, and an API key every item it creates. */
+        /** Who wrote the item. Loupe writes every wait, workflow item, discovery report review and its own notices, an agent every item it asks, and an API key every item it creates. */
         #[ORM\Column(length: 20, enumType: InboxAskOrigin::class)]
         public readonly InboxAskOrigin $origin,
 

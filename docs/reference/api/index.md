@@ -424,7 +424,8 @@ needs a key of the owner of the project.
    open item. The item closes as `cancelled` with the cause `withdrawn`, and the
    reason becomes its note. A key may withdraw any open question, to-do or
    review that an agent or a key asked, also an ask that a worker waits on. It
-   cannot withdraw a wait, a notice or a workflow question that Loupe opened.
+   cannot withdraw a wait, a notice, a readiness report review or a workflow
+   question that Loupe opened.
    A closed item answers `409` `item_not_open`. An item that no caller
    withdraws answers `409` `item_not_withdrawable`.
 2. `POST .../inbox/items/{itemId}/actions` takes `{action}` and runs it. The

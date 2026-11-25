@@ -117,6 +117,7 @@ final readonly class InboxToolErrorMessages
             InboxItemCloser::ITEM_NOT_OPEN => 'The item is already closed. Read its answer with inbox_get.',
             WithdrawInboxItemHandler::REASON_BLANK => 'Pass the reason you no longer need the item.',
             WithdrawInboxItemHandler::REASON_TOO_LONG => \sprintf('A withdraw reason must be at most %d characters.', InboxLimits::MAX_WITHDRAW_REASON_LENGTH),
+            WithdrawInboxItemHandler::REPORT_REVIEW_NOT_WITHDRAWABLE => 'Loupe opened this item for a discovery report that waits for review, so no agent can withdraw it. It closes with the verdict, or when a newer run replaces the report.',
             WithdrawInboxItemHandler::WAIT_NOT_WITHDRAWABLE => 'Loupe opened this item for a card that waits for a person, so no agent can withdraw it. It closes when the card no longer waits.',
             WithdrawInboxItemHandler::NOTICE_NOT_WITHDRAWABLE => 'Loupe opened this notice for a fact about the project, so no agent can withdraw it. It closes when the fact ends.',
             WithdrawInboxItemHandler::WORKFLOW_NOT_WITHDRAWABLE => 'A rule asked this workflow question, so no agent can withdraw it. It closes when the rule no longer asks.',
