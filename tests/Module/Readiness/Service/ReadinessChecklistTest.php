@@ -256,6 +256,85 @@ final class ReadinessChecklistTest extends KernelTestCase
         self::assertSame('/projects/'.$project->id.'/documents/'.$run->reportDocument->id.'/review', $row->actionUrl);
     }
 
+    public function test_a_reported_run_with_a_live_report_offers_the_report_and_a_new_run(): void
+    {
+        $project = $this->newProject('readiness-discovery-report-again@example.com');
+        $this->bind($project);
+        $this->seedCapableBridge($project);
+        $run = $this->reportedRun($project, archived: false);
+
+        $row = $this->row($this->readiness($this->checklist(), $project), 'repository');
+
+        self::assertSame(['readiness.row.repository.reported', 'readiness.row.repository.open_report', null], [$row->status, $row->actionLabel, $row->actionCsrfTokenId]);
+        self::assertSame('/projects/'.$project->id.'/documents/'.$run->reportDocument?->id.'/review', $row->actionUrl);
+        self::assertSame('readiness.row.repository.run_again', $row->secondaryActionLabel);
+        self::assertSame('/projects/'.$project->id.'/readiness/discovery/start', $row->secondaryActionUrl);
+        self::assertSame(ReadinessChecklist::START_TOKEN, $row->secondaryActionCsrfTokenId);
+        self::assertNull($row->cancelUrl);
+    }
+
+    /** @return iterable<string, array{?bool}> */
+    public static function goneReports(): iterable
+    {
+        yield 'archived report' => [true];
+        yield 'no report' => [null];
+    }
+
+    #[DataProvider('goneReports')]
+    public function test_a_reported_run_with_no_live_report_offers_only_a_new_run(?bool $archived): void
+    {
+        $project = $this->newProject('readiness-discovery-report-gone@example.com');
+        $this->bind($project);
+        $this->seedCapableBridge($project);
+        $this->reportedRun($project, $archived);
+
+        $row = $this->row($this->readiness($this->checklist(), $project), 'repository');
+
+        self::assertSame(['readiness.row.repository.reported', 'reported', false], [$row->status, $row->discoveryState, $row->done]);
+        self::assertSame('readiness.row.repository.run_again', $row->actionLabel);
+        self::assertSame('/projects/'.$project->id.'/readiness/discovery/start', $row->actionUrl);
+        self::assertSame(ReadinessChecklist::START_TOKEN, $row->actionCsrfTokenId);
+        self::assertNull($row->secondaryActionUrl);
+    }
+
+    /** @return iterable<string, array{?bool, ?string}> */
+    public static function refusedReports(): iterable
+    {
+        yield 'live report' => [false, 'readiness.row.repository.open_report'];
+        yield 'archived report' => [true, null];
+        yield 'no report' => [null, null];
+    }
+
+    #[DataProvider('refusedReports')]
+    public function test_a_reported_run_offers_no_new_run_while_discovery_cannot_start(?bool $archived, ?string $actionLabel): void
+    {
+        $project = $this->newProject('readiness-discovery-report-refused@example.com');
+        $this->seedCapableBridge($project);
+        $this->reportedRun($project, $archived);
+
+        $row = $this->row($this->readiness($this->checklist(), $project), 'repository');
+
+        self::assertSame(StartDiscoveryHandler::NO_WORKFLOW, $this->checklist()->startRefusal($project));
+        self::assertSame($actionLabel, $row->actionLabel);
+        self::assertNull($row->actionCsrfTokenId);
+        self::assertNull($row->secondaryActionUrl);
+        self::assertNull($row->secondaryActionCsrfTokenId);
+    }
+
+    /** @param ?bool $archived null makes a run with no report document */
+    private function reportedRun(Project $project, ?bool $archived): DiscoveryRun
+    {
+        $run = $this->discoveryRun($project, DiscoveryRunState::Reported);
+        if (null !== $archived) {
+            $run->reportDocument = new Document($project->owner, $project, 'Report');
+            $run->reportDocument->archivedAt = $archived ? new \DateTimeImmutable() : null;
+            $this->em()->persist($run->reportDocument);
+            $this->em()->flush();
+        }
+
+        return $run;
+    }
+
     public function test_a_reported_run_waits_for_review_and_a_done_run_marks_the_check_done(): void
     {
         $reported = $this->newProject('readiness-discovery-reported@example.com');
