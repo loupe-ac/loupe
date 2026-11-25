@@ -21,6 +21,7 @@ use App\Module\Readiness\Entity\DiscoveryRunState;
 use App\Module\Readiness\Repository\DiscoveryRunRepository;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Repository\DocumentRepository;
+use App\Module\Review\Repository\DocumentVersionRepository;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
@@ -30,8 +31,8 @@ use Symfony\Component\Uid\Uuid;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
- * Keeps one open review item for each discovery report that waits for a verdict. A verdict closes the item,
- * as it closes any review item of a document. Every method is safe to run twice.
+ * Keeps at most one open review item for each discovery report that waits for a verdict. A verdict closes the item,
+ * as it closes any review item of a document. Every method is safe to run twice, also after the owner dismisses the item.
  */
 final readonly class DiscoveryReviewReconciler
 {
@@ -39,6 +40,7 @@ final readonly class DiscoveryReviewReconciler
         private EntityManagerInterface $em,
         private ProjectRepository $projects,
         private DocumentRepository $documents,
+        private DocumentVersionRepository $documentVersions,
         private DiscoveryRunRepository $discoveryRuns,
         private InboxItemRepository $inboxItems,
         private InboxItemCloser $closer,
@@ -54,7 +56,7 @@ final readonly class DiscoveryReviewReconciler
     ) {
     }
 
-    public function waiting(Uuid $projectId, Uuid $runId, Uuid $documentId): void
+    public function waiting(Uuid $projectId, Uuid $runId, Uuid $documentId, int $versionNumber): void
     {
         $project = $this->projects->find($projectId);
         $document = $this->documents->find($documentId);
@@ -62,11 +64,13 @@ final readonly class DiscoveryReviewReconciler
             return;
         }
 
-        $opened = $this->em->wrapInTransaction(function () use ($project, $document, $runId): bool {
+        $opened = $this->em->wrapInTransaction(function () use ($project, $document, $runId, $versionNumber): bool {
             $this->em->lock($project, LockMode::PESSIMISTIC_WRITE);
             // The message runs after the report commits, so a verdict or a newer run can have ended the wait since.
             if (DiscoveryRunState::Reported !== $this->discoveryRuns->findStateOfReport($document)
-                || null !== $this->inboxItems->findOpenForDiscoveryRun($project, $runId)) {
+                || null !== $this->inboxItems->findOpenForDiscoveryRun($project, $runId)
+                // The queue can deliver a message again, also after the owner dismissed its item.
+                || $this->inboxItems->hasForDiscoveryReportSince($project, $runId, $versionNumber)) {
                 return false;
             }
             $this->open($project, $document, $runId);
@@ -117,6 +121,7 @@ final readonly class DiscoveryReviewReconciler
             searchLanguage: $project->searchLanguage,
         );
         $item->discoveryRunId = $runId;
+        $item->discoveryReportVersion = $this->documentVersions->findLatest($document)->versionNumber;
         $item->documents->add(new InboxItemDocument($item, $document, $now));
         $this->em->persist($item);
         $this->em->persist(new InboxReview($item, $document));

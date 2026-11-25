@@ -18,6 +18,6 @@ final readonly class OpenDiscoveryReviewHandler
 
     public function __invoke(OpenDiscoveryReview $message): void
     {
-        $this->reconciler->waiting(Uuid::fromString($message->projectId), Uuid::fromString($message->runId), Uuid::fromString($message->documentId));
+        $this->reconciler->waiting(Uuid::fromString($message->projectId), Uuid::fromString($message->runId), Uuid::fromString($message->documentId), $message->versionNumber);
     }
 }

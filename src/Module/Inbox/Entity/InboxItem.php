@@ -131,6 +131,10 @@ class InboxItem implements ProjectScopedSubject
     #[ORM\Column(type: UuidType::NAME, nullable: true)]
     public ?Uuid $discoveryRunId = null;
 
+    /** The latest report version when this review item opened. An announcement of this version or an older one opens no other item. */
+    #[ORM\Column(nullable: true)]
+    public ?int $discoveryReportVersion = null;
+
     /** @var Collection<int, InboxItemCard> */
     #[ORM\OneToMany(targetEntity: InboxItemCard::class, mappedBy: 'item', cascade: ['persist'], orphanRemoval: true)]
     #[ORM\OrderBy(['linkedAt' => 'ASC'])]

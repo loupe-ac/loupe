@@ -10,6 +10,7 @@ final readonly class OpenDiscoveryReview
         public string $projectId,
         public string $runId,
         public string $documentId,
+        public int $versionNumber,
     ) {
     }
 }

@@ -35,6 +35,8 @@ use App\Module\Readiness\Entity\DiscoveryRun;
 use App\Module\Readiness\Entity\DiscoveryRunState;
 use App\Module\Readiness\Event\DiscoveryReportWaiting;
 use App\Module\Readiness\Event\DiscoveryReportWithdrawn;
+use App\Module\Review\Command\ReviseDocumentCommand;
+use App\Module\Review\Command\ReviseDocumentHandler;
 use App\Module\Review\Command\SubmitReviewCommand;
 use App\Module\Review\Command\SubmitReviewHandler;
 use App\Module\Review\Entity\Document;
@@ -122,7 +124,7 @@ final class DiscoveryReviewReconcilerTest extends KernelTestCase
 
         self::assertSame([], $this->items());
         self::assertEquals(
-            [new OpenDiscoveryReview((string) $this->project->id, (string) $this->run->id, (string) $report->id)],
+            [new OpenDiscoveryReview((string) $this->project->id, (string) $this->run->id, (string) $report->id, 1)],
             array_map(static fn (Envelope $envelope): object => $envelope->getMessage(), $this->queuedReviewMessages()),
         );
         $this->work();
@@ -192,10 +194,8 @@ final class DiscoveryReviewReconcilerTest extends KernelTestCase
     {
         $this->report();
         $item = $this->items()[0];
-        $decline = self::getContainer()->get(DeclineInboxItemHandler::class);
-        self::assertInstanceOf(DeclineInboxItemHandler::class, $decline);
 
-        $decline(new DeclineInboxItemCommand($item, ''));
+        $this->dismiss($item);
 
         self::assertSame(InboxItemState::Declined, $item->state);
         self::assertSame(DiscoveryRunState::Reported, $this->storedRun($this->run)->state);
@@ -264,15 +264,90 @@ final class DiscoveryReviewReconcilerTest extends KernelTestCase
         self::assertSame([], $this->items());
     }
 
+    /** The queue can deliver a message again, such as after a worker dies before the acknowledgement. */
+    public function test_a_redelivered_message_keeps_a_dismissed_item_closed(): void
+    {
+        $this->report();
+        $this->dismiss($this->items()[0]);
+
+        $this->redeliver($this->queuedReviewMessages()[0]);
+
+        self::assertSame([InboxItemState::Declined], $this->states());
+    }
+
+    public function test_a_redelivered_message_keeps_a_dismissed_item_closed_after_an_edit_of_the_report(): void
+    {
+        $report = $this->report();
+        $this->dismiss($this->items()[0]);
+        $revise = self::getContainer()->get(ReviseDocumentHandler::class);
+        self::assertInstanceOf(ReviseDocumentHandler::class, $revise);
+        $revise(new ReviseDocumentCommand(document: $report, markdown: '# Edited', description: 'Edited.'));
+
+        $this->redeliver($this->queuedReviewMessages()[0]);
+
+        self::assertSame([InboxItemState::Declined], $this->states());
+    }
+
+    public function test_a_revised_report_opens_a_new_item_after_a_dismissal(): void
+    {
+        $report = $this->report();
+        $this->dismiss($this->items()[0]);
+        $this->verdictOnThePage($report, 'changes-requested');
+
+        $this->report();
+
+        self::assertSame([InboxItemState::Declined, InboxItemState::Open], $this->states());
+    }
+
+    public function test_a_late_message_of_an_older_version_keeps_a_dismissed_item_closed(): void
+    {
+        $report = $this->submitReport();
+        $first = $this->queuedReviewMessages()[0];
+        // The worker has not reached the message of the first version.
+        $this->handled = 1;
+        $this->verdictOnThePage($report, 'changes-requested');
+        $this->report();
+        $this->dismiss($this->items()[0]);
+
+        $this->redeliver($first);
+
+        self::assertSame([InboxItemState::Declined], $this->states());
+    }
+
     private function report(): Document
+    {
+        $report = $this->submitReport();
+        $this->work();
+
+        return $report;
+    }
+
+    private function submitReport(): Document
     {
         $submit = self::getContainer()->get(SubmitReadinessReportHandler::class);
         self::assertInstanceOf(SubmitReadinessReportHandler::class, $submit);
 
-        $report = $submit(new SubmitReadinessReportCommand($this->project, (string) $this->run->id, 'lifecycle', [new ReportFinding('Tests run', 'ready', 'Yes.')]));
-        $this->work();
+        return $submit(new SubmitReadinessReportCommand($this->project, (string) $this->run->id, 'lifecycle', [new ReportFinding('Tests run', 'ready', 'Yes.')]));
+    }
 
-        return $report;
+    private function dismiss(InboxItem $item): void
+    {
+        $decline = self::getContainer()->get(DeclineInboxItemHandler::class);
+        self::assertInstanceOf(DeclineInboxItemHandler::class, $decline);
+        $decline(new DeclineInboxItemCommand($item, ''));
+    }
+
+    /** @return list<InboxItemState> */
+    private function states(): array
+    {
+        return array_map(static fn (InboxItem $item): InboxItemState => $item->state, $this->items());
+    }
+
+    private function redeliver(Envelope $envelope): void
+    {
+        $bus = self::getContainer()->get(MessageBusInterface::class);
+        self::assertInstanceOf(MessageBusInterface::class, $bus);
+        $bus->dispatch($envelope->with(new ReceivedStamp('jobs')));
     }
 
     /** Handles each queued discovery review message once, as the jobs worker does. */

@@ -111,6 +111,7 @@ final readonly class DevDiscoveryReviewSeeder implements DevSeederInterface
             searchLanguage: $project->searchLanguage,
         );
         $item->discoveryRunId = self::runId();
+        $item->discoveryReportVersion = 1;
         $context->ids->assign($item, self::itemId());
         $this->em->persist($item);
 
