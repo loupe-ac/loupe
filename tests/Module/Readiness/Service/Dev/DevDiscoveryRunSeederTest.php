@@ -68,7 +68,7 @@ final class DevDiscoveryRunSeederTest extends KernelTestCase
 
         self::assertNotNull($workers->find(DevDiscoveryRunSeeder::workerRunId()));
         self::assertSame(1, $workers->count(['subjectType' => DiscoveryRun::SUBJECT_TYPE]));
-        self::assertSame(4, $this->service(DiscoveryRunRepository::class)->count([]));
+        self::assertSame(6, $this->service(DiscoveryRunRepository::class)->count([]));
     }
 
     public function test_it_seeds_a_live_run_behind_a_hidden_guide_for_the_workshop_notice(): void
@@ -125,7 +125,24 @@ final class DevDiscoveryRunSeederTest extends KernelTestCase
         self::assertLessThanOrEqual($context->now, $cancelled->endedAt);
     }
 
-    /** The twin of the three preview states. */
+    public function test_it_seeds_a_revising_run_with_its_report_and_a_cancel_with_no_account(): void
+    {
+        $context = SeedContextFactory::create(self::getContainer());
+        DevProjectFixture::create(self::getContainer(), $context);
+
+        $this->service(DevDiscoveryRunSeeder::class)->seed($context);
+        $this->service(EntityManagerInterface::class)->clear();
+
+        $runs = $this->service(DiscoveryRunRepository::class);
+        $revising = $runs->find(DevDiscoveryRunSeeder::revisingRunId()) ?? throw new \LogicException('The revising run is missing.');
+        self::assertSame(DiscoveryRunState::Revising, $revising->state);
+        self::assertSame((string) DevDiscoveryRunSeeder::revisingReportId(), (string) $revising->reportDocument?->id);
+        $orphaned = $runs->find(DevDiscoveryRunSeeder::orphanedCancelRunId()) ?? throw new \LogicException('The cancelled run is missing.');
+        self::assertSame([DiscoveryRunState::Failed, CancelDiscoveryHandler::REASON], [$orphaned->state, $orphaned->failureReason]);
+        self::assertNull($orphaned->cancelledBy);
+    }
+
+    /** The twin of the preview states. */
     public function test_the_dev_project_has_no_run(): void
     {
         $context = SeedContextFactory::create(self::getContainer());
