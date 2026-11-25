@@ -456,7 +456,7 @@ func (r *router) checkAccounts(ctx context.Context, set *rules.Set) []accountRes
 	sites := slices.Clone(r.skills.sites)
 	r.skills.mu.Unlock()
 
-	return checkAccountsWith(ctx, set, sites)
+	return checkAccountsWith(ctx, set, sites, nil)
 }
 
 // describePluginReport is one line of `loupe status` for a home.
