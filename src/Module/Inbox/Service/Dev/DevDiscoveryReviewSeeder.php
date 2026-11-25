@@ -14,6 +14,7 @@ use App\Module\Inbox\Entity\InboxItemDocument;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxReview;
 use App\Module\Inbox\Repository\InboxItemRepository;
+use App\Module\Inbox\Repository\InboxReviewRepository;
 use App\Module\Inbox\Service\InboxSearchIndexer;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
@@ -43,6 +44,7 @@ final readonly class DevDiscoveryReviewSeeder implements DevSeederInterface
         private DocumentRepository $documents,
         private DiscoveryRunRepository $discoveryRuns,
         private InboxItemRepository $inboxItems,
+        private InboxReviewRepository $inboxReviews,
         private InboxSearchIndexer $searchIndexer,
     ) {
     }
@@ -82,11 +84,22 @@ final readonly class DevDiscoveryReviewSeeder implements DevSeederInterface
         $report = $this->report($context, $project);
         $this->run($context, $project, $report);
 
-        if ($this->inboxItems->find(self::itemId()) instanceof InboxItem) {
-            return;
+        $item = $this->inboxItems->find(self::itemId()) ?? $this->item($context, $project);
+        // Each part is found or written on its own, so a re-seed restores whichever one is missing.
+        if (!$item->documents->exists(static fn (int $key, InboxItemDocument $link): bool => $link->document === $report)) {
+            $link = new InboxItemDocument($item, $report, $item->createdAt);
+            $item->documents->add($link);
+            $this->em->persist($link);
         }
+        if (null === $this->inboxReviews->findOneBy(['item' => $item])) {
+            $this->em->persist(new InboxReview($item, $report));
+        }
+        $this->em->flush();
+        $this->searchIndexer->index($item);
+    }
 
-        $createdAt = $context->at(600);
+    private function item(SeedContext $context, Project $project): InboxItem
+    {
         $item = new InboxItem(
             project: $project,
             number: $this->inboxItems->nextNumber($project),
@@ -94,16 +107,14 @@ final readonly class DevDiscoveryReviewSeeder implements DevSeederInterface
             title: 'Review the readiness report',
             blocking: false,
             origin: InboxAskOrigin::Loupe,
-            createdAt: $createdAt,
+            createdAt: $context->at(615),
             searchLanguage: $project->searchLanguage,
         );
         $item->discoveryRunId = self::runId();
-        $item->documents->add(new InboxItemDocument($item, $report, $createdAt));
         $context->ids->assign($item, self::itemId());
         $this->em->persist($item);
-        $this->em->persist(new InboxReview($item, $report));
-        $this->em->flush();
-        $this->searchIndexer->index($item);
+
+        return $item;
     }
 
     private function report(SeedContext $context, Project $project): Document
