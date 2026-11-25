@@ -93,6 +93,37 @@ final class StartDiscoveryHandlerTest extends KernelTestCase
         self::assertTrue($stored->workRequestId?->equals($requests[0]->id));
     }
 
+    /** The request expires inside the open, and a listener of the expiry throws before the subject handler hears of it. */
+    public function test_a_start_that_throws_after_its_request_expired_leaves_the_run_failed(): void
+    {
+        $project = $this->boundProject();
+        $bridge = $this->discoveryBridge($project);
+        $dispatcher = self::getContainer()->get('event_dispatcher');
+        self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
+        $expired = 0;
+        $dispatcher->addListener(WorkRequestChanged::class, function (WorkRequestChanged $event) use ($bridge, &$expired): void {
+            if (WorkRequestState::Open === $event->state) {
+                $bridge->projects = [];
+                $this->em()->flush();
+            }
+            if (WorkRequestState::Expired === $event->state) {
+                ++$expired;
+                throw new \RuntimeException('The announcement failed.');
+            }
+        }, 100);
+
+        try {
+            $this->handler()(new StartDiscoveryCommand($project, Actor::Human));
+            self::fail('The start must throw.');
+        } catch (\RuntimeException $e) {
+            self::assertSame('The announcement failed.', $e->getMessage());
+        }
+
+        self::assertSame(1, $expired);
+        $row = $this->em()->getConnection()->fetchAssociative('SELECT state, failure_reason FROM discovery_runs WHERE project_id = ?', [(string) $project->id]);
+        self::assertSame(['state' => 'failed', 'failure_reason' => StartDiscoveryHandler::REQUEST_FAILED], $row);
+    }
+
     /** A bridge whose discovery entry runs cards only cannot take work about a discovery run. */
     public function test_a_bridge_that_runs_discovery_for_cards_only_is_refused(): void
     {

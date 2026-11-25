@@ -12,7 +12,10 @@ use App\Module\Board\Entity\CardSourceKind;
 use App\Module\Board\Repository\BoardColumnRepository;
 use App\Module\Bridge\Command\WithdrawWorkRequestCommand;
 use App\Module\Bridge\Command\WithdrawWorkRequestHandler;
+use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\ValueObject\WorkRequestState;
+use App\Module\Bridge\ValueObject\WorkSubject;
+use App\Module\Readiness\Entity\DiscoveryRun;
 use App\Module\Readiness\Entity\DiscoveryRunState;
 use App\Module\Readiness\Repository\DiscoveryProposalRepository;
 use App\Module\Readiness\Repository\DiscoveryRunRepository;
@@ -49,6 +52,7 @@ final readonly class CreateTickedCardsOnReviewSubmitted
         private ProposalSlot $proposalSlot,
         private DecisionBlockService $decisionBlocks,
         private WithdrawWorkRequestHandler $withdrawWorkRequest,
+        private WorkRequestRepository $workRequests,
         private EntityManagerInterface $em,
         private ClockInterface $clock,
         private LoggerInterface $logger,
@@ -141,9 +145,13 @@ final readonly class CreateTickedCardsOnReviewSubmitted
         $run->endedAt = $this->clock->now();
         $this->em->flush();
 
-        // The approval wins over a revision under way. The run is Done first, so the cancel of the request fails no run.
-        if ($wasRevising && null !== $fresh['workRequestId']) {
-            ($this->withdrawWorkRequest)(new WithdrawWorkRequestCommand($fresh['workRequestId'], WorkRequestState::Cancelled));
+        // The approval wins over a revision under way. The run is Done first, so the cancel of a request fails no run.
+        // Every live request, because the run can name an older one than the latest open.
+        if ($wasRevising) {
+            $subject = new WorkSubject(DiscoveryRun::SUBJECT_TYPE, $run->id ?? throw new \LogicException('A stored run has an id.'));
+            foreach ($this->workRequests->findLiveOfSubject($subject) as $request) {
+                ($this->withdrawWorkRequest)(new WithdrawWorkRequestCommand($request->id ?? throw new \LogicException('A persisted work request has an id.'), WorkRequestState::Cancelled));
+            }
         }
 
         $this->logger->info('readiness.report_approved', ['discoveryRunId' => (string) $run->id, 'projectId' => (string) $project->id, 'cardsCreated' => $created]);

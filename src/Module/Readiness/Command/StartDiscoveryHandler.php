@@ -9,6 +9,7 @@ use App\Module\Bridge\Command\OpenWorkRequestCommand;
 use App\Module\Bridge\Command\OpenWorkRequestHandler;
 use App\Module\Bridge\Command\WorkRequestAlreadyLive;
 use App\Module\Bridge\ValueObject\WorkRequestContext;
+use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Project\Entity\Project;
 use App\Module\Readiness\Entity\DiscoveryRun;
@@ -169,14 +170,14 @@ final readonly class StartDiscoveryHandler
 
     /**
      * A failed transaction closes the entity manager, so the writes go through the connection.
-     * A failure after the request committed keeps the run live, because a bridge can still claim it.
+     * A run with an open or claimed request stays live, because a worker can still report. A request in any other state takes no report.
      */
     private function failUnflushed(Uuid $runId): void
     {
         $connection = $this->em->getConnection();
         $committed = $connection->fetchOne(
-            'SELECT id FROM work_requests WHERE subject_type = :type AND subject_id = :id ORDER BY created_at DESC LIMIT 1',
-            ['type' => DiscoveryRun::SUBJECT_TYPE, 'id' => $runId->toRfc4122()],
+            'SELECT id FROM work_requests WHERE subject_type = :type AND subject_id = :id AND state IN (:open, :claimed) ORDER BY created_at DESC LIMIT 1',
+            ['type' => DiscoveryRun::SUBJECT_TYPE, 'id' => $runId->toRfc4122(), 'open' => WorkRequestState::Open->value, 'claimed' => WorkRequestState::Claimed->value],
         );
         if (\is_string($committed)) {
             $connection->executeStatement(

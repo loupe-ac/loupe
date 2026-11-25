@@ -44,7 +44,7 @@ class DiscoveryRun
     #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $endedAt = null;
 
-    /** The latest work request the app opened for the run. Only the paths that cancel that request read it. */
+    /** The latest work request the app opened for the run. No path finds the run through it. */
     #[ORM\Column(type: UuidType::NAME, nullable: true)]
     public ?Uuid $workRequestId = null;
 

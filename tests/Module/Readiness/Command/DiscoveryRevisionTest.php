@@ -5,6 +5,15 @@ declare(strict_types=1);
 namespace App\Tests\Module\Readiness\Command;
 
 use App\Module\Bridge\Entity\Bridge;
+use Symfony\Component\Uid\Uuid;
+use Symfony\Component\Messenger\Event\WorkerMessageFailedEvent;
+use Symfony\Component\Messenger\Stamp\RedeliveryStamp;
+use Symfony\Component\Messenger\Envelope;
+use PHPUnit\Framework\Attributes\DataProvider;
+use App\Module\Readiness\Command\StartDiscoveryHandler;
+use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Bridge\Event\WorkerRunChanged;
+use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Event\WorkRequestChanged;
 use App\Module\Bridge\ValueObject\WorkRequestState;
@@ -181,6 +190,106 @@ final class DiscoveryRevisionTest extends KernelTestCase
         self::assertSame(DiscoveryRunState::Done, $this->run->state);
     }
 
+    /** The bridge settles a request only after its worker ends, so the old worker can end while the next revision waits for its message. */
+    public function test_a_revised_report_cancels_its_request_so_the_old_worker_cannot_fail_the_next_revision(): void
+    {
+        $report = $this->report();
+        $this->verdict($report, 'changes-requested');
+        $this->handle($this->revisionMessage());
+        $old = $this->discoveryRequests($this->run)[0];
+        $old->state = WorkRequestState::Claimed;
+        $this->em()->flush();
+        $this->report();
+        $this->verdict($report, 'changes-requested');
+
+        $this->end($this->workerRun($old, WorkerRunState::Lost));
+
+        self::assertSame(DiscoveryRunState::Revising, $this->storedRun($this->run)->state);
+        self::assertSame(WorkRequestState::Cancelled, $this->discoveryRequests($this->run)[0]->state);
+    }
+
+    /** The message stores the id after it opens the request, so a quick report can come first. */
+    public function test_a_revised_report_cancels_a_revise_request_whose_id_the_run_does_not_hold_yet(): void
+    {
+        $this->verdict($this->report(), 'changes-requested');
+        $request = $this->discoveryRequest($this->run, 'discovery-revise');
+
+        $this->report();
+
+        self::assertSame(WorkRequestState::Cancelled, $request->state);
+        self::assertSame(DiscoveryRunState::Reported, $this->storedRun($this->run)->state);
+    }
+
+    /** A cancel stops the worker, and the first worker still asks the owner its questions after the report. */
+    public function test_a_first_report_leaves_the_discovery_request_live(): void
+    {
+        $request = $this->discoveryRequest($this->run);
+        $request->state = WorkRequestState::Claimed;
+        $this->run->workRequestId = $request->id;
+        $this->em()->flush();
+
+        $this->report();
+
+        self::assertSame(WorkRequestState::Claimed, $request->state);
+    }
+
+    /** The process can die between the open and the store of the id, so the run can name an older request. */
+    public function test_an_approval_during_a_revision_cancels_every_live_request_of_the_run(): void
+    {
+        $report = $this->report();
+        $first = $this->discoveryRequest($this->run);
+        $this->run->workRequestId = $first->id;
+        $this->em()->flush();
+        $review = $this->verdict($report, 'changes-requested');
+        $newer = $this->discoveryRequest($this->run, 'discovery-revise');
+
+        $this->verdict($report, 'approved', $review);
+
+        self::assertSame([WorkRequestState::Cancelled, WorkRequestState::Cancelled], [$first->state, $newer->state]);
+    }
+
+    /** @return iterable<string, array{bool, DiscoveryRunState}> */
+    public static function failedDeliveries(): iterable
+    {
+        yield 'with a retry left' => [true, DiscoveryRunState::Revising];
+        yield 'with no retry left' => [false, DiscoveryRunState::Failed];
+    }
+
+    #[DataProvider('failedDeliveries')]
+    public function test_a_revise_message_that_gives_up_fails_the_run(bool $willRetry, DiscoveryRunState $expected): void
+    {
+        $this->verdict($this->report(), 'changes-requested');
+
+        $this->failDelivery($this->revisionMessage(), $willRetry);
+
+        $stored = $this->storedRun($this->run);
+        self::assertSame($expected, $stored->state);
+        self::assertSame($willRetry ? null : StartDiscoveryHandler::REQUEST_FAILED, $stored->failureReason);
+    }
+
+    /** A failed transaction closes the entity manager, which is the usual way a delivery fails. */
+    public function test_a_revise_message_that_gives_up_fails_the_run_after_the_entity_manager_closed(): void
+    {
+        $this->verdict($this->report(), 'changes-requested');
+        $message = $this->revisionMessage();
+        $this->em()->close();
+
+        $this->failDelivery($message, false);
+
+        self::assertSame('failed', $this->connection()->fetchOne('SELECT state FROM discovery_runs WHERE id = ?', [(string) $this->run->id]));
+    }
+
+    public function test_a_late_failure_of_a_revise_message_leaves_a_reported_run_alone(): void
+    {
+        $this->verdict($this->report(), 'changes-requested');
+        $message = $this->revisionMessage();
+        $this->report();
+
+        $this->failDelivery($message, false);
+
+        self::assertSame(DiscoveryRunState::Reported, $this->storedRun($this->run)->state);
+    }
+
     public function test_each_report_announces_that_it_waits_after_its_commit(): void
     {
         $connection = self::getContainer()->get(Connection::class);
@@ -199,6 +308,51 @@ final class DiscoveryRevisionTest extends KernelTestCase
 
         $expected = [(string) $this->project->id, (string) $this->run->id, (string) $report->id, $outside];
         self::assertSame([$expected, $expected], $waiting);
+    }
+
+    private function failDelivery(RequestDiscoveryRevision $message, bool $willRetry): void
+    {
+        $dispatcher = self::getContainer()->get('event_dispatcher');
+        self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
+        // The retry strategy of the transport reads the count and decides whether a retry is left.
+        $envelope = new Envelope($message, $willRetry ? [] : [new RedeliveryStamp(100)]);
+        $dispatcher->dispatch(new WorkerMessageFailedEvent($envelope, 'jobs', new \RuntimeException('The database went away.')));
+    }
+
+    private function connection(): Connection
+    {
+        $connection = self::getContainer()->get(Connection::class);
+        self::assertInstanceOf(Connection::class, $connection);
+
+        return $connection;
+    }
+
+    private function workerRun(WorkRequest $request, WorkerRunState $state): WorkerRun
+    {
+        $worker = new WorkerRun(
+            project: $this->project,
+            bridgeId: Uuid::v7(),
+            subjectType: DiscoveryRun::SUBJECT_TYPE,
+            subjectId: $this->run->id ?? throw new \LogicException('Stored.'),
+            cardNumber: null,
+            workKind: $request->kind,
+            state: $state,
+            workRequestId: $request->id,
+            ruleId: $request->ruleId,
+        );
+        $this->em()->persist($worker);
+        $this->em()->flush();
+
+        return $worker;
+    }
+
+    private function end(WorkerRun $worker): void
+    {
+        $dispatcher = self::getContainer()->get('event_dispatcher');
+        self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
+        foreach (WorkerRunChanged::ofRuns([$worker]) as $event) {
+            $dispatcher->dispatch($event);
+        }
     }
 
     private function report(): Document
