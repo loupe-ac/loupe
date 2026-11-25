@@ -452,11 +452,17 @@ func checkInputs(slugs []string, sites []api.Site) codexCheckInputs {
 // checkAccounts checks the accounts of the router's rule set with the projects
 // the app listed last.
 func (r *router) checkAccounts(ctx context.Context, set *rules.Set) []accountResult {
+	return r.checkNamedAccounts(ctx, set, nil)
+}
+
+// checkNamedAccounts is checkAccounts for the accounts only names. A nil only
+// checks every declared account.
+func (r *router) checkNamedAccounts(ctx context.Context, set *rules.Set, only []string) []accountResult {
 	r.skills.mu.Lock()
 	sites := slices.Clone(r.skills.sites)
 	r.skills.mu.Unlock()
 
-	return checkAccountsWith(ctx, set, sites, nil)
+	return checkAccountsWith(ctx, set, sites, only)
 }
 
 // describePluginReport is one line of `loupe status` for a home.
