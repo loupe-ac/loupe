@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Migrations;
 
+use App\Module\Inbox\Entity\InboxAskOrigin;
+use App\Module\Inbox\Entity\InboxCloseCause;
+use App\Module\Inbox\Entity\InboxCloser;
+use App\Module\Inbox\Entity\InboxItem;
+use App\Module\Inbox\Entity\InboxItemKind;
+use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Project\Entity\Project;
 use App\Module\Readiness\Entity\DiscoveryRun;
 use App\Module\Readiness\Entity\DiscoveryRunState;
@@ -23,6 +29,8 @@ final class DiscoveryRunsEndOnArchivedReportMigrationTest extends KernelTestCase
 
     private Project $project;
 
+    private int $itemNumber = 0;
+
     protected function setUp(): void
     {
         self::bootKernel();
@@ -39,6 +47,53 @@ final class DiscoveryRunsEndOnArchivedReportMigrationTest extends KernelTestCase
         self::assertSame(DiscoveryRunState::Superseded, $stored->state);
         self::assertNotNull($stored->endedAt);
         self::assertEqualsWithDelta(time(), $stored->endedAt->getTimestamp(), 120);
+    }
+
+    public function test_the_open_review_of_an_ended_run_closes(): void
+    {
+        $item = $this->reviewItem($this->runWithReport(DiscoveryRunState::Reported, archived: true));
+
+        $this->migrate();
+
+        $stored = $this->storedItem($item);
+        self::assertSame(
+            [InboxItemState::Cancelled, InboxCloser::Loupe, InboxCloseCause::FactEnded, 'A newer discovery run replaced this report, or a person archived it.'],
+            [$stored->state, $stored->closedBy, $stored->closeCause, $stored->note],
+        );
+        self::assertNotNull($stored->closedAt);
+        self::assertEqualsWithDelta(time(), $stored->closedAt->getTimestamp(), 120);
+        self::assertEquals($stored->closedAt, $stored->updatedAt);
+    }
+
+    public function test_the_review_of_a_run_that_stays_reported_stays_open(): void
+    {
+        $ended = $this->reviewItem($this->runWithReport(DiscoveryRunState::Reported, archived: true));
+        $waiting = $this->reviewItem($this->runWithReport(DiscoveryRunState::Reported, archived: false));
+
+        $this->migrate();
+
+        self::assertSame(InboxItemState::Cancelled, $this->storedItem($ended)->state);
+        $stored = $this->storedItem($waiting);
+        self::assertSame([InboxItemState::Open, null], [$stored->state, $stored->closedAt]);
+    }
+
+    public function test_a_review_that_the_owner_dismissed_keeps_its_answer(): void
+    {
+        $open = $this->reviewItem($this->runWithReport(DiscoveryRunState::Reported, archived: true));
+        $dismissed = $this->reviewItem($this->runWithReport(DiscoveryRunState::Reported, archived: true));
+        $dismissed->state = InboxItemState::Declined;
+        $dismissed->closedBy = InboxCloser::Owner;
+        $dismissed->closedAt = new \DateTimeImmutable('2026-10-03 09:00:00');
+        $dismissed->note = 'Later';
+
+        $this->migrate();
+
+        self::assertSame(InboxItemState::Cancelled, $this->storedItem($open)->state);
+        $stored = $this->storedItem($dismissed);
+        self::assertEquals(
+            [InboxItemState::Declined, InboxCloser::Owner, null, 'Later', new \DateTimeImmutable('2026-10-03 09:00:00')],
+            [$stored->state, $stored->closedBy, $stored->closeCause, $stored->note, $stored->closedAt],
+        );
     }
 
     /** @return iterable<string, array{DiscoveryRunState, ?bool}> */
@@ -77,6 +132,30 @@ final class DiscoveryRunsEndOnArchivedReportMigrationTest extends KernelTestCase
         }
 
         return $run;
+    }
+
+    private function reviewItem(DiscoveryRun $run): InboxItem
+    {
+        $item = new InboxItem(
+            project: $this->project,
+            number: ++$this->itemNumber,
+            kind: InboxItemKind::Review,
+            title: 'Review the readiness report',
+            blocking: false,
+            origin: InboxAskOrigin::Loupe,
+        );
+        $item->discoveryRunId = $run->id;
+        $this->em()->persist($item);
+        $this->em()->flush();
+
+        return $item;
+    }
+
+    private function storedItem(InboxItem $item): InboxItem
+    {
+        $this->em()->clear();
+
+        return $this->em()->find(InboxItem::class, $item->id) ?? throw new \LogicException('The item is stored.');
     }
 
     private function migrate(): void
