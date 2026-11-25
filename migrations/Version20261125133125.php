@@ -9,6 +9,7 @@ use Doctrine\Migrations\AbstractMigration;
 
 final class Version20261125133125 extends AbstractMigration
 {
+    #[\Override]
     public function getDescription(): string
     {
         return 'Link an inbox review item to the discovery run whose report it waits on';
@@ -19,6 +20,7 @@ final class Version20261125133125 extends AbstractMigration
         $this->addSql('ALTER TABLE inbox_items ADD discovery_run_id UUID DEFAULT NULL');
     }
 
+    #[\Override]
     public function down(Schema $schema): void
     {
         $this->addSql('ALTER TABLE inbox_items DROP discovery_run_id');
