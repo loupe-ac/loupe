@@ -40,6 +40,27 @@ class InboxItemRepository extends ServiceEntityRepository
         parent::__construct($registry, InboxItem::class);
     }
 
+    public function findOpenForDiscoveryRun(Project $project, Uuid $runId): ?InboxItem
+    {
+        return $this->findOneBy(['project' => $project, 'discoveryRunId' => $runId, 'state' => InboxItemState::Open]);
+    }
+
+    /** Whether the run has an item, open or closed, for this report version or a later one. */
+    public function hasForDiscoveryReportSince(Project $project, Uuid $runId, int $versionNumber): bool
+    {
+        return null !== $this->createQueryBuilder('i')
+            ->select('i.id')
+            ->andWhere('i.project = :project')
+            ->andWhere('i.discoveryRunId = :runId')
+            ->andWhere('i.discoveryReportVersion >= :versionNumber')
+            ->setParameter('project', $project)
+            ->setParameter('runId', $runId, UuidType::NAME)
+            ->setParameter('versionNumber', $versionNumber)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
     /**
      * The open items that ask a person something and name one of the cards, in one query, oldest first.
      * A wait item is Loupe's own mark of a card that waits for a person, and a notice names no card.

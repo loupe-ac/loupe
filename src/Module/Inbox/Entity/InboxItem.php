@@ -127,6 +127,14 @@ class InboxItem implements ProjectScopedSubject
     #[ORM\Column(length: self::MAX_DEDUPE_KEY_LENGTH, nullable: true)]
     public ?string $dedupeKey = null;
 
+    /** The discovery run whose report this review item waits on. No foreign key: the item keeps the id after the run is gone, so it stays a review. */
+    #[ORM\Column(type: UuidType::NAME, nullable: true)]
+    public ?Uuid $discoveryRunId = null;
+
+    /** The latest report version when this review item opened. An announcement of this version or an older one opens no other item. */
+    #[ORM\Column(nullable: true)]
+    public ?int $discoveryReportVersion = null;
+
     /** @var Collection<int, InboxItemCard> */
     #[ORM\OneToMany(targetEntity: InboxItemCard::class, mappedBy: 'item', cascade: ['persist'], orphanRemoval: true)]
     #[ORM\OrderBy(['linkedAt' => 'ASC'])]
@@ -159,7 +167,7 @@ class InboxItem implements ProjectScopedSubject
         #[ORM\Column]
         public bool $blocking,
 
-        /** Who wrote the item. Loupe writes every wait, workflow item and its own notices, an agent every item it asks, and an API key every item it creates. */
+        /** Who wrote the item. Loupe writes every wait, workflow item, discovery report review and its own notices, an agent every item it asks, and an API key every item it creates. */
         #[ORM\Column(length: 20, enumType: InboxAskOrigin::class)]
         public readonly InboxAskOrigin $origin,
 
@@ -194,10 +202,10 @@ class InboxItem implements ProjectScopedSubject
         return InboxItemKind::Question === $this->kind || $this->freeText;
     }
 
-    /** Loupe opened it for a waiting card, as opposed to an agent's ask or a notice. */
+    /** Loupe opened it for a waiting card, as opposed to an agent's ask, a notice, or the review of a discovery report, which takes a verdict. */
     public function isAutomatic(): bool
     {
-        return InboxAskOrigin::Loupe === $this->origin && \in_array($this->kind, [InboxItemKind::Wait, InboxItemKind::Review], true);
+        return null === $this->discoveryRunId && InboxAskOrigin::Loupe === $this->origin && \in_array($this->kind, [InboxItemKind::Wait, InboxItemKind::Review], true);
     }
 
     /** The owner dismissed it. A notice of Loupe stays dismissed until its fact ends, and opens again only when the fact returns. */

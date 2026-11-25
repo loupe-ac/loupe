@@ -70,9 +70,9 @@ You can run commands that only read, such as `git remote -v`, `ls` or `cat`. Do 
 9. Call `card_search` with the key words of each suggestion before you write its proposal. `card_search` returns finished cards too, so read each row's `status`. When an open card covers the suggestion, set `openCardNumber` to its number.
 10. Some suggestions need the owner on a settings page or in a browser. Do not propose a card for such a suggestion. Say what the owner must do in the evidence of the finding.
 11. Call `readiness_report_submit` with `runId`, `workflow`, `findings`, `proposals` and `summary`. Set `workflow` to the template `key`. Each finding has a `check`, a `status` of `ready` or `suggested`, an `evidence` in short Markdown, an `actor` and an `action`. Keep the `summary` to a few sentences. The tool returns the `documentId` and the `url` of the report.
-12. Open a review of the report in the inbox. Call `inbox_ask` with one item of `kind` `review`, `reviewDocumentId` set to the `documentId`. When the prompt names a `cardId`, also set `cardIds` to it.
-    - Pass `sessionId` and `bridgeId` from the footer line "Your session id is … and your bridge id is …". When the prompt has no such line, the inbox is off, so skip this step.
-    - Leave `blocking` false, so the ask closes at once. Loupe does not put the report in the inbox for you.
+12. When the prompt names a run id, open no review of the report. Loupe puts the report in the owner's inbox itself. A prompt that names a card number comes from an older server, which opens no item. In that case only, call `inbox_ask` with one item of `kind` `review`, `reviewDocumentId` set to the `documentId`. When the prompt names a `cardId`, also set `cardIds` to it.
+    - Pass `sessionId` and `bridgeId` from the footer line "Your session id is … and your bridge id is …". When the prompt has no such line, the inbox is off, so skip the call.
+    - Leave `blocking` false, so the ask closes at once.
 13. End with a short reply that gives the report `url` and the number of suggestions.
 
 ## Deep checks
@@ -171,7 +171,7 @@ The owner asked for changes to the report, and the run is `revising`.
 1. Read the report document with `document_get`. Its id is `discovery.documentId` of `readiness_get`. An older server sends no `documentId`. It sends `discovery.cardId`, and `card_get` on that card links the document with the tag `readiness-report`.
 2. Read the comments with `document_get_review`. Address each comment, and check the repository again where a comment asks for it.
 3. Call `readiness_report_submit` with the same `runId`, and the whole revised `workflow`, `findings`, `proposals` and `summary`. Loupe stores a new version of the same document, and replaces the proposals that made no card.
-4. End with the report `url`. Skip step 12 of the steps above, because the owner already has the report in the inbox.
+4. End with the report `url`. Skip step 12 of the steps above.
 
 If the owner approves the report while you revise it, the tool refuses your submit. Report the refusal and stop.
 

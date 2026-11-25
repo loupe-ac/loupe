@@ -60,7 +60,7 @@ final readonly class InboxApiProblems
         if (\in_array(InboxItemCloser::ITEM_NOT_OPEN, $keys, true)) {
             return $this->itemNotOpen($refusal);
         }
-        if ([] !== array_intersect($keys, [WithdrawInboxItemHandler::WAIT_NOT_WITHDRAWABLE, WithdrawInboxItemHandler::NOTICE_NOT_WITHDRAWABLE, WithdrawInboxItemHandler::WORKFLOW_NOT_WITHDRAWABLE])) {
+        if ([] !== array_intersect($keys, [WithdrawInboxItemHandler::WAIT_NOT_WITHDRAWABLE, WithdrawInboxItemHandler::NOTICE_NOT_WITHDRAWABLE, WithdrawInboxItemHandler::WORKFLOW_NOT_WITHDRAWABLE, WithdrawInboxItemHandler::REPORT_REVIEW_NOT_WITHDRAWABLE])) {
             return new ApiProblemException(new ApiProblem(409, 'item_not_withdrawable', 'Item not withdrawable', 'Loupe or a workflow rule opened this item, so no caller withdraws it. It closes when what it waits for ends.'), $refusal);
         }
 

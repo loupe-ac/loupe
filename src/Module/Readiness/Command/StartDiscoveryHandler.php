@@ -11,8 +11,6 @@ use App\Module\Bridge\Command\WorkRequestAlreadyLive;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\ValueObject\WorkRequestContext;
 use App\Module\Bridge\ValueObject\WorkSubject;
-use App\Module\Project\Entity\Project;
-use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Readiness\Entity\DiscoveryRun;
 use App\Module\Readiness\Entity\DiscoveryRunState;
 use App\Module\Readiness\Event\DiscoveryReportWithdrawn;
@@ -60,7 +58,6 @@ final readonly class StartDiscoveryHandler
         private DiscoveryWorkRequestStore $storeWorkRequest,
         private FailDiscoveryRunHandler $failDiscoveryRun,
         private WorkRequestRepository $workRequests,
-        private ProjectRepository $projects,
         private ManagerRegistry $registry,
         private ArchiveDocumentHandler $archiveDocument,
         private AppRules $appRules,
@@ -103,6 +100,12 @@ final readonly class StartDiscoveryHandler
             $run = new DiscoveryRun($project, $this->clock->now());
             $this->em->persist($run);
             $this->em->flush();
+            foreach ($superseded as $old) {
+                $this->events->dispatch(new DiscoveryReportWithdrawn(
+                    $project->id ?? throw new \LogicException('A stored project has an id.'),
+                    $old->id ?? throw new \LogicException('A stored run has an id.'),
+                ));
+            }
 
             return $run;
         });
@@ -131,13 +134,13 @@ final readonly class StartDiscoveryHandler
             if (null !== $stored) {
                 $this->fail($stored, self::REQUEST_REFUSED);
             }
-            $this->retireStored($project, $superseded);
+            $this->retireStored($superseded);
 
             throw $e;
         } catch (\Throwable $e) {
             $this->resetClosedManager();
             $this->settleAfterThrow($runId);
-            $this->retireStored($project, $superseded);
+            $this->retireStored($superseded);
 
             throw $e;
         }
@@ -145,7 +148,7 @@ final readonly class StartDiscoveryHandler
         // Only the id changes, so a run that failed or was cancelled meanwhile stays Failed, and the store cancels its request.
         $this->storeWorkRequest->store($run, $request, DiscoveryRunState::Requested);
         // Outside the project lock, because a verdict locks the project row and then the document row.
-        $this->retire($project, $superseded);
+        $this->retire($superseded);
 
         $this->auditor->record(
             'readiness.discovery_started',
@@ -164,30 +167,22 @@ final readonly class StartDiscoveryHandler
     }
 
     /** @param list<DiscoveryRun> $superseded */
-    private function retire(Project $project, array $superseded): void
+    private function retire(array $superseded): void
     {
         foreach ($superseded as $old) {
             if (null !== $old->reportDocument) {
                 ($this->archiveDocument)(new ArchiveDocumentCommand($old->reportDocument, $this->translator->trans(self::SUPERSEDED_ARCHIVE_REASON)));
             }
-            $this->events->dispatch(new DiscoveryReportWithdrawn(
-                $project->id ?? throw new \LogicException('A stored project has an id.'),
-                $old->id ?? throw new \LogicException('A stored run has an id.'),
-            ));
         }
     }
 
     /**
-     * A reset detaches every loaded entity, so this reads the project and the runs again.
+     * A reset detaches every loaded entity, so this reads the runs again.
      *
      * @param list<DiscoveryRun> $superseded
      */
-    private function retireStored(Project $project, array $superseded): void
+    private function retireStored(array $superseded): void
     {
-        $stored = $this->projects->find($project->requireId());
-        if (null === $stored) {
-            return;
-        }
         $runs = [];
         foreach ($superseded as $old) {
             $run = $this->discoveryRuns->find($old->id);
@@ -195,7 +190,7 @@ final readonly class StartDiscoveryHandler
                 $runs[] = $run;
             }
         }
-        $this->retire($stored, $runs);
+        $this->retire($runs);
     }
 
     /** A failed transaction closes the entity manager, and the failed start still has to write. */

@@ -31,6 +31,7 @@ final readonly class WithdrawInboxItemHandler
     public const string WAIT_NOT_WITHDRAWABLE = 'inbox.item.error.wait_not_withdrawable';
     public const string NOTICE_NOT_WITHDRAWABLE = 'inbox.item.error.notice_not_withdrawable';
     public const string WORKFLOW_NOT_WITHDRAWABLE = 'inbox.item.error.workflow_not_withdrawable';
+    public const string REPORT_REVIEW_NOT_WITHDRAWABLE = 'inbox.item.error.report_review_not_withdrawable';
     public const string NOT_ASKING_SESSION = 'inbox.item.error.withdraw_not_asking_session';
 
     public function __construct(
@@ -54,6 +55,10 @@ final readonly class WithdrawInboxItemHandler
         // Loupe opened the item and closes it when the card stops waiting.
         if ($command->item->isAutomatic()) {
             throw new DomainErrors(['itemId' => self::WAIT_NOT_WITHDRAWABLE]);
+        }
+        // Nothing opens the item again while the report waits. An agent can join it, so the session check does not stop this.
+        if (null !== $command->item->discoveryRunId) {
+            throw new DomainErrors(['itemId' => self::REPORT_REVIEW_NOT_WITHDRAWABLE]);
         }
         if (InboxItemKind::Notice === $command->item->kind) {
             throw new DomainErrors(['itemId' => self::NOTICE_NOT_WITHDRAWABLE]);

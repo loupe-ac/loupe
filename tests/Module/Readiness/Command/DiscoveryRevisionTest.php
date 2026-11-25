@@ -440,7 +440,7 @@ final class DiscoveryRevisionTest extends KernelTestCase
         self::assertSame(DiscoveryRunState::Reported, $this->storedRun($this->run)->state);
     }
 
-    public function test_each_report_announces_that_it_waits_after_its_commit(): void
+    public function test_each_report_announces_that_it_waits_inside_its_transaction(): void
     {
         $connection = self::getContainer()->get(Connection::class);
         self::assertInstanceOf(Connection::class, $connection);
@@ -456,7 +456,7 @@ final class DiscoveryRevisionTest extends KernelTestCase
         $this->verdict($report, 'changes-requested');
         $this->report();
 
-        $expected = [(string) $this->project->id, (string) $this->run->id, (string) $report->id, $outside];
+        $expected = [(string) $this->project->id, (string) $this->run->id, (string) $report->id, $outside + 1];
         self::assertSame([$expected, $expected], $waiting);
     }
 

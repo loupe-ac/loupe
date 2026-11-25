@@ -174,6 +174,7 @@ You can start a new run while a report waits for your review.
 The row offers no start in that state, so use `loupe discovery start`, the `discovery_start` MCP tool or the public API.
 The new run replaces the waiting report, and the old run is Superseded.
 Loupe archives the old report document with the reason "Replaced by a newer discovery run". The document stays readable among the archived documents.
+Loupe also cancels the open inbox review of the old report.
 Loupe refuses each verdict on that report with "This report was replaced by a newer discovery run.", so its proposals create no card.
 
 ## Review the report
@@ -181,6 +182,7 @@ Loupe refuses each verdict on that report with "This report was replaced by a ne
 The worker submits its report with the `readiness_report_submit` MCP tool.
 Loupe writes the report as a document with the tag `readiness-report`.
 The Run discovery row opens it with **Open report**.
+When the inbox is on, the report also opens a [readiness report review](inbox.md#readiness-report-reviews) in the inbox.
 The document lists the checks that are ready under **Ready**, the other checks under **Suggested**, and one section for each card the worker proposes.
 
 Each finding names who acts on it and what to do.
