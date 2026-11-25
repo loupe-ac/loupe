@@ -133,13 +133,8 @@ trait DiscoveryScenario
         self::assertSame(file_get_contents(\dirname(__DIR__, 3).'/config/workflows/app/prompts/'.$request->kind.'.md'), $row['prompt']);
         self::assertIsString($row['context']);
         self::assertSame(new WorkRequestContext()->toArray(), json_decode($row['context'], true));
-        // The timeout of work about a run counts from here, and the card request waited with no limit.
-        if ('open' === $row['state']) {
-            self::assertIsString($row['reopened_at']);
-            self::assertEqualsWithDelta(time(), new \DateTimeImmutable($row['reopened_at'])->getTimestamp(), 120);
-        } else {
-            self::assertNull($row['reopened_at']);
-        }
+        // Only a claimed request moves, so no open timeout restarts.
+        self::assertNull($row['reopened_at']);
 
         if (null === $worker) {
             return;
