@@ -9089,10 +9089,20 @@
     .lp-readiness-row__text small {
         @apply text-xs text-fg-dim;
     }
-    .lp-readiness-row__action {
-        @apply ml-auto;
+    .lp-readiness-row__actions {
+        @apply ml-auto flex items-center gap-4;
     }
-    .lp-readiness-row__action > button {
+    .lp-readiness-row__actions button {
+        @apply cursor-pointer;
+    }
+    /* The notice of a running discovery, for a viewer who sees no readiness row: the status box with Cancel beside it. */
+    .lp-discovery-notice {
+        @apply flex flex-wrap items-center gap-4 mb-6;
+    }
+    .lp-discovery-notice > .lp-status-box {
+        @apply flex-1 min-w-64;
+    }
+    .lp-discovery-notice button {
         @apply cursor-pointer;
     }
 

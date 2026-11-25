@@ -68,6 +68,8 @@ The page has no Hide button. To hide the guide, use the [Agent readiness](projec
 Open cards with no worker run, such as cards in Backlog or Next, do not change this layout.
 A discovery run has no card, so it does not change this layout either, and the guide stays in front while discovery runs.
 The page reloads when a bridge reports a change that alters the rows, so a bridge that comes online turns its row to done without a reload by hand.
+In both layouts, the page also reloads when a discovery run starts or changes its state.
+While a card drawer is open, the page waits until you close it.
 
 When an item needs you or a card is in motion, the Workshop shows its normal layout.
 The checklist then sits at the top of the right column. Its × control hides the guide.
@@ -141,14 +143,29 @@ The Run discovery row shows the state of the latest run:
 | Discovery waits for a bridge that is not paused | Discovery never ran, and every bridge that can run it is paused | None. Resume new work on a bridge on the Agents page |
 | Discovery waits for a workflow | Discovery never ran, and the project has no workflow | None. Choose a workflow for the project |
 | Discovery waits for board automation | Discovery never ran, and the workflow of the board is off | None. Switch on **Run the workflow of the board** |
-| Discovery runs | Loupe asked for a worker, or a worker runs. A second start is refused until the run ends | None |
-| Discovery failed: reason | The run ended with no report. "No bridge took the work." means that no online bridge serves the project, so the request failed at once. It also shows when no bridge claimed the request for 2 hours. "A bridge is online, but none can run discovery." means that the request failed at once, because no online bridge could take it. "The worker ended without a report." means that the worker stopped before it reported | Run again, when discovery can start |
-| A worker revises the report | You asked for changes to the report. The run is in the Revising state | Open report |
+| Discovery runs | Loupe asked for a worker, or a worker runs. The work is a new report, or the revision of a report after you asked for changes. A second start is refused until the run ends | [Cancel](#cancel-a-run). While a worker revises the report, also Open report |
+| Discovery failed: reason | The run failed. "Cancelled by" and a name means that this person selected **Cancel**. "Cancelled by a deleted account." means that the account of that person no longer exists. "No bridge took the work." means that no online bridge serves the project, so the request failed at once. It also shows when no bridge claimed the request for 2 hours. "A bridge is online, but none can run discovery." means that the request failed at once, because no online bridge could take it. "The worker ended without a report." means that the worker stopped before it reported | Run again, when discovery can start |
 | The report waits for your review | The worker reported. The run is in the Reported state | Open report |
 | Reviewed | The owner approved the report. The run is in the Done state, and the row is done | None |
 
-To stop a running worker, stop its run on the [Agents page](../extending/cli-bridge.md#pause-stop-and-resume).
-Only a person who can manage the project can stop it. The discovery run then fails, and the row offers **Run again**.
+## Cancel a run
+
+**Cancel** ends a run that shows **Discovery runs**. Anyone who can open the Workshop can use it. Today that is the project owner.
+The Run discovery row offers it.
+When the owner hid the readiness guide, the top of the Workshop shows a **Discovery runs** notice with **Cancel** instead.
+The notice offers no start. It goes away when the run ends.
+
+A cancel does these things:
+
+- The run fails. The row then reads "Discovery failed: Cancelled by" and your name. It offers **Run again** when discovery can start.
+- Loupe cancels the open work request of the run, so no bridge starts it.
+- Loupe asks the bridge to [stop](worker-runs.md#stop-resume-and-cancel) each worker run of the discovery run that is still open. An interactive session takes no command, so close it yourself.
+
+A bridge that [takes no commands](worker-runs.md#stop-resume-and-cancel) cannot stop its worker. The cancel still succeeds, and Loupe refuses a report that the worker sends later.
+A cancel of a revision keeps the report document. An approval of that report creates no card.
+
+You can also stop the worker run on the [Agents page](../extending/cli-bridge.md#pause-stop-and-resume).
+The discovery run then fails too.
 
 ## Replace a waiting report
 

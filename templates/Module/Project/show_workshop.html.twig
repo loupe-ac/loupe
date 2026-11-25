@@ -9,9 +9,17 @@
 {% endblock %}
 
 {% block body %}
-<twig:Ds:Workspace class="lp-workshop" data-workshop data-controller="card-drawer">
-    {% set readiness = is_granted(constant('App\\Module\\Project\\Security\\ProjectVoter::MANAGE'), workshop.project) ? workshop.readiness : null %}
-    {% if readiness is not null and workshop.quiet %}
+{% set readiness = is_granted(constant('App\\Module\\Project\\Security\\ProjectVoter::MANAGE'), workshop.project) ? workshop.readiness : null %}
+{% set guideOnly = readiness is not null and workshop.quiet %}
+{#- Outside the guide, a discovery change reloads the page too, so no notice and no Cancel goes stale. The controller holds the whole workspace, so an open card drawer holds the reload. -#}
+{% set pageRefresh = guideOnly ? {} : {
+    'data-worker-run-refresh-target': 'frame',
+    'data-worker-run-refresh-whole-value': 'true',
+    'data-worker-run-refresh-project-value': workshop.project.id ~ '',
+    'data-worker-run-refresh-events-value': ['project.discovery_changed']|json_encode,
+} %}
+<twig:Ds:Workspace class="lp-workshop" data-workshop data-controller="{{ guideOnly ? 'card-drawer' : 'card-drawer worker-run-refresh' }}" {{ ...pageRefresh }}>
+    {% if guideOnly %}
     {% do mercure_subscribe(worker_runs_topic(workshop.project)) %}
     {% do mercure_subscribe(board_topic(workshop.project)) %}
     {#- A run, a card change, an inbox item or a bridge report can change the guide, so the whole page reloads. -#}
@@ -20,12 +28,22 @@
          data-worker-run-refresh-target="frame"
          data-worker-run-refresh-whole-value="true"
          data-worker-run-refresh-project-value="{{ workshop.project.id }}"
-         data-worker-run-refresh-events-value="{{ ['worker_run.changed', 'board.card_changed', 'inbox.open_count_changed', 'bridge.readiness_changed']|json_encode }}">
+         data-worker-run-refresh-events-value="{{ ['worker_run.changed', 'board.card_changed', 'inbox.open_count_changed', 'bridge.readiness_changed', 'project.discovery_changed']|json_encode }}">
         <twig:Ds:PageHeader variant="workshop" :title="'readiness.guide.heading'|trans({'%project%': workshop.project.name})" :description="'readiness.guide.count'|trans({'%done%': readiness.doneCount, '%total%': readiness.total})" />
         {% include '@Project/_readiness_checklist.html.twig' with {project: workshop.project, readiness: readiness, layout: 'full'} only %}
     </div>
     {% else %}
+    {% do mercure_subscribe(board_topic(workshop.project)) %}
     <twig:Ds:PageHeader variant="workshop" :title="'project.workshop.page.heading'|trans" :description="'project.workshop.page.description'|trans({'%project%': workshop.project.name})" />
+
+    {% if readiness is null and workshop.discoveryRunning %}
+    <div class="lp-discovery-notice" data-discovery-notice>
+        <twig:Ds:StatusBox kind="working" :title="'project.workshop.discovery.title'|trans" :chip="'project.workshop.discovery.chip'|trans" :lead="'project.workshop.discovery.lead'|trans" />
+        <twig:Ds:ActionForm :action="path('app_readiness_discovery_cancel', {id: workshop.project.id})" token="readiness-discovery-cancel">
+            <twig:Ds:Button type="submit">{{ 'project.workshop.discovery.cancel'|trans }}</twig:Ds:Button>
+        </twig:Ds:ActionForm>
+    </div>
+    {% endif %}
 
     <div class="lp-workshop-layout">
         <div class="lp-workshop-primary">
@@ -56,7 +74,6 @@
             <twig:Ds:SectionHeading>{{ 'project.workshop.in_motion.title'|trans }}
                 <twig:block name="actions"><a class="lp-workshop-text-link" href="{{ path('app_project_board', {id: workshop.project.id}) }}">{{ 'project.workshop.in_motion.action'|trans }} <twig:ux:icon name="lucide:chevron-right" /></a></twig:block>
             </twig:Ds:SectionHeading>
-            {% do mercure_subscribe(board_topic(workshop.project)) %}
             <div class="lp-live-frame"
                  data-controller="worker-run-refresh"
                  data-worker-run-refresh-url-value="{{ path('app_project_workshop_in_motion', {id: workshop.project.id}) }}"

@@ -23,6 +23,9 @@ final readonly class WorkshopReadinessRow
         public array $statusParameters = [],
         /** A set token id makes the action a POST form that carries this CSRF token. */
         public ?string $actionCsrfTokenId = null,
+        /** A set URL adds a Cancel button, a POST form, beside the action. It comes with its CSRF token id. */
+        public ?string $cancelUrl = null,
+        public ?string $cancelCsrfTokenId = null,
         /** The state of the latest discovery run, or none, on the row that shows discovery. */
         public ?string $discoveryState = null,
         /** The section of the guide that holds the row. A row of the optional section does not count as a required step. */

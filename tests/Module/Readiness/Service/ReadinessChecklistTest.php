@@ -124,7 +124,7 @@ final class ReadinessChecklistTest extends KernelTestCase
         self::assertNull($row->actionCsrfTokenId);
     }
 
-    public function test_a_requested_run_says_that_discovery_runs_and_links_nothing(): void
+    public function test_a_requested_run_says_that_discovery_runs_and_offers_cancel_alone(): void
     {
         $project = $this->newProject('readiness-discovery-running@example.com');
         $this->seedCapableBridge($project);
@@ -137,6 +137,34 @@ final class ReadinessChecklistTest extends KernelTestCase
         self::assertSame([], $row->statusParameters);
         self::assertNull($row->actionUrl);
         self::assertNull($row->actionCsrfTokenId);
+        self::assertSame('/projects/'.$project->id.'/discovery/cancel', $row->cancelUrl);
+        self::assertSame(ReadinessChecklist::CANCEL_TOKEN, $row->cancelCsrfTokenId);
+    }
+
+    /** @return iterable<string, array{?DiscoveryRunState, bool}> */
+    public static function discoveryStates(): iterable
+    {
+        yield 'no run' => [null, false];
+        yield 'requested' => [DiscoveryRunState::Requested, true];
+        yield 'revising' => [DiscoveryRunState::Revising, true];
+        yield 'reported' => [DiscoveryRunState::Reported, false];
+        yield 'failed' => [DiscoveryRunState::Failed, false];
+        yield 'done' => [DiscoveryRunState::Done, false];
+        yield 'superseded' => [DiscoveryRunState::Superseded, false];
+    }
+
+    #[DataProvider('discoveryStates')]
+    public function test_discovery_is_running_and_cancellable_only_while_a_run_waits_for_a_worker(?DiscoveryRunState $state, bool $running): void
+    {
+        $project = $this->newProject('readiness-discovery-live@example.com');
+        if (null !== $state) {
+            $this->discoveryRun($project, $state);
+        }
+
+        $checklist = $this->checklist();
+
+        self::assertSame($running, $checklist->discoveryRunning($project));
+        self::assertSame($running, null !== $this->row($this->readiness($checklist, $project), 'repository')->cancelUrl);
     }
 
     #[DataProvider('knownReasons')]
@@ -195,7 +223,7 @@ final class ReadinessChecklistTest extends KernelTestCase
         self::assertNull($row->actionUrl);
     }
 
-    public function test_a_revising_run_links_its_report(): void
+    public function test_a_revising_run_says_that_discovery_runs_links_its_report_and_offers_cancel(): void
     {
         $project = $this->newProject('readiness-discovery-revising@example.com');
         $run = $this->discoveryRun($project, DiscoveryRunState::Revising);
@@ -205,7 +233,8 @@ final class ReadinessChecklistTest extends KernelTestCase
 
         $row = $this->row($this->readiness($this->checklist(), $project), 'repository');
 
-        self::assertSame(['readiness.row.repository.revising', 'revising', false], [$row->status, $row->discoveryState, $row->done]);
+        self::assertSame(['readiness.row.repository.running', 'revising', false], [$row->status, $row->discoveryState, $row->done]);
+        self::assertSame(['/projects/'.$project->id.'/discovery/cancel', ReadinessChecklist::CANCEL_TOKEN], [$row->cancelUrl, $row->cancelCsrfTokenId]);
         self::assertSame([], $row->statusParameters);
         self::assertSame('readiness.row.repository.open_report', $row->actionLabel);
         self::assertSame('/projects/'.$project->id.'/documents/'.$run->reportDocument->id.'/review', $row->actionUrl);

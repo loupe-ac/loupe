@@ -8931,6 +8931,10 @@ workflow:
                 <source>project.workshop.needs_you.clear</source>
                 <target>No request needs your answer.</target>
             </trans-unit>
+            <trans-unit id="project.workshop.discovery.title"><source>project.workshop.discovery.title</source><target>Discovery runs</target></trans-unit>
+            <trans-unit id="project.workshop.discovery.chip"><source>project.workshop.discovery.chip</source><target>Running</target></trans-unit>
+            <trans-unit id="project.workshop.discovery.lead"><source>project.workshop.discovery.lead</source><target>Discovery works on the readiness report of this project. No new run can start until this run ends.</target></trans-unit>
+            <trans-unit id="project.workshop.discovery.cancel"><source>project.workshop.discovery.cancel</source><target>Cancel</target></trans-unit>
             <trans-unit id="project.workshop.in_motion.eyebrow">
                 <source>project.workshop.in_motion.eyebrow</source>
                 <target>Work</target>
@@ -10954,7 +10958,6 @@ workflow:
             <trans-unit id="readiness.row.repository.running"><source>readiness.row.repository.running</source><target>Discovery runs</target></trans-unit>
             <trans-unit id="readiness.row.repository.failed"><source>readiness.row.repository.failed</source><target>Discovery failed: %reason%</target></trans-unit>
             <trans-unit id="readiness.row.repository.retry"><source>readiness.row.repository.retry</source><target>Run again</target></trans-unit>
-            <trans-unit id="readiness.row.repository.revising"><source>readiness.row.repository.revising</source><target>A worker revises the report</target></trans-unit>
             <trans-unit id="readiness.row.repository.open_report"><source>readiness.row.repository.open_report</source><target>Open report</target></trans-unit>
             <trans-unit id="readiness.row.repository.reported"><source>readiness.row.repository.reported</source><target>The report waits for your review</target></trans-unit>
             <trans-unit id="readiness.row.repository.done"><source>readiness.row.repository.done</source><target>Reviewed</target></trans-unit>
