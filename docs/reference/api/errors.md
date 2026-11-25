@@ -206,7 +206,7 @@ One or more decisions have no answer yet. Answer them first, or request changes.
 
 ### discovery_running
 
-A discovery run is open on this project. The answer holds `cardNumber`, the card of that run.
+A discovery run is open on this project. The answer holds `runId`, the id of that run.
 
 ### document_archived
 

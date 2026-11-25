@@ -1630,11 +1630,11 @@ in its column. A person or an agent moves it.
 
 Loupe adds its own rules to the rules of every template. The **Workflow** page
 lists them in their own group, **Rules the app adds**, below the rules of the
-template. The group shows only when the app adds at least one rule. An app rule
-watches the Backlog, a terminal column, or every column, because each template
-names its own slots. No template rule can take the id of an app rule.
+template. The group shows only when the app adds at least one rule. Each app
+rule watches every column, because each template names its own slots. No
+template rule can take the id of an app rule.
 
-A request of an app rule can carry a prompt that ships with Loupe. A bridge that
+A request that the app adds can carry a prompt that ships with Loupe. A bridge that
 sets `appPrompts: true` runs it for a kind that its `work:` map does not hold.
 See [Command-line bridge](../extending/cli-bridge.md#work-requests).
 
@@ -1643,28 +1643,16 @@ ships for its kind. This covers all 18 kinds, such as `tech-design`, `implement`
 `fix`, `merge` and `recover`. A `work:` entry of the bridge rule file still wins
 over the shipped prompt.
 
-The app adds seven rules.
+The app adds four rules.
 
-The rule `discovery` watches the Backlog. It asks for work of
-kind `discovery` when the card carries a requested
-[discovery run](workshop.md#run-discovery), and it sends the discovery prompt
-with the request. The rule sets `onNoTaker: fail`, so the request fails at once
-when no online bridge could take it, and the run fails with the cause: no bridge
-serves the project, or a bridge is online and cannot run discovery. A request
-that a capable bridge does not claim waits until a bridge claims it.
-
-The rule `discovery-revise` also watches the Backlog. It asks for work of kind
-`discovery-revise` when you asked for changes to the report of a
-[discovery run](workshop.md#review-the-report), and it sends the revision prompt
-with the request. The worker submits a new version of the same report. An
-approval of the report while the worker revises it cancels the request. The rule
-also sets `onNoTaker: fail`, so the run fails at once with the cause when no
-online bridge can take the revision.
-
-The rule `discovery-approved` also watches the Backlog. It moves the card to the
-first terminal column when the owner approved the report of the discovery run.
 The file of the app rules also names the slot where the cards of the ticked
-proposals land, with the key `proposalSlot`. Loupe ships it as `next`.
+proposals of a [discovery report](workshop.md#review-the-report) land, with the
+key `proposalSlot`. Loupe ships it as `next`.
+
+No rule asks for discovery work. A [discovery run](workshop.md#run-discovery)
+has no card, and Loupe opens its work request itself, as it does for an
+analysis. The same file lists these requests under `requests`, with their
+prompts and their `checks` lists. No template names discovery.
 
 The rules `post-widget-review` and `sync-site-review-check` watch every column.
 They act on the verdict that a reviewer sends from the
