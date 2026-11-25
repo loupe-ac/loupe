@@ -748,7 +748,7 @@ must see the `loupe` MCP server and the Loupe skills. A failing account fails
 the check, and the next line says how to fix it. With no rule file at the
 default path, it checks no account. A `--rules` path with no file fails. The bridge runs no work on a failing account until a check finds it ready. A
 running bridge checks it again every 5 minutes, and a reload or a restart
-checks it at once. The timed recheck needs CLI 2.11.0 or later.
+checks it at once. CLI 2.10.0 and earlier have no timed recheck.
 
 The `Rules:` lines are notes too. When the rule file exists, the check notes a
 file that sets no permission default, one that has no `appPrompts` and no `work`

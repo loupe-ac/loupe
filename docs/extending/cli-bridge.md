@@ -1012,8 +1012,8 @@ uses makes `loupe status` exit with a non-zero code.
 #### Rechecks
 
 A running bridge checks each failing account again every 5 minutes, also an
-account that fails for single projects only. This needs CLI 2.11.0 or later. An
-older bridge checks again only on a reload or a restart.
+account that fails for single projects only. A bridge on CLI 2.10.0 or earlier
+checks again only on a reload or a restart.
 
 A check command that does not answer in time is often a temporary fault. When
 the check at the start finds such a timeout, the first recheck runs 30 seconds
