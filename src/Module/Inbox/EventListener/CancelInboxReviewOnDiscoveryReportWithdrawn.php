@@ -4,27 +4,22 @@ declare(strict_types=1);
 
 namespace App\Module\Inbox\EventListener;
 
-use App\Module\Inbox\Service\DiscoveryReviewReconciler;
+use App\Module\Inbox\Messenger\CancelDiscoveryReview;
 use App\Module\Readiness\Event\DiscoveryReportWithdrawn;
-use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 #[AsEventListener]
 final readonly class CancelInboxReviewOnDiscoveryReportWithdrawn
 {
     public function __construct(
-        private DiscoveryReviewReconciler $reconciler,
-        private LoggerInterface $logger,
+        private MessageBusInterface $bus,
     ) {
     }
 
     public function __invoke(DiscoveryReportWithdrawn $event): void
     {
-        // The new run started already. A failure here must not fail that start.
-        try {
-            $this->reconciler->withdrawn($event->projectId, $event->runId);
-        } catch (\Throwable $e) {
-            $this->logger->error('inbox.discovery_review_cancel_failed', ['discoveryRunId' => (string) $event->runId, 'projectId' => (string) $event->projectId, 'exception' => $e]);
-        }
+        // The Doctrine transport commits the message with the newer run, and the queue retries a failure.
+        $this->bus->dispatch(new CancelDiscoveryReview((string) $event->projectId, (string) $event->runId));
     }
 }

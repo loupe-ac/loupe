@@ -217,16 +217,19 @@ final class StartDiscoveryHandlerTest extends KernelTestCase
         $reported->state = DiscoveryRunState::Requested;
         $this->em()->flush();
         $this->em()->getConnection()->executeStatement("UPDATE discovery_runs SET state = 'reported' WHERE id = ?", [(string) $reported->id]);
+        $connection = $this->em()->getConnection();
+        $outside = $connection->getTransactionNestingLevel();
         $withdrawn = [];
         $dispatcher = self::getContainer()->get('event_dispatcher');
         self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
-        $dispatcher->addListener(DiscoveryReportWithdrawn::class, static function (DiscoveryReportWithdrawn $event) use (&$withdrawn): void {
-            $withdrawn[] = [(string) $event->projectId, (string) $event->runId];
+        $dispatcher->addListener(DiscoveryReportWithdrawn::class, static function (DiscoveryReportWithdrawn $event) use (&$withdrawn, $connection): void {
+            $withdrawn[] = [(string) $event->projectId, (string) $event->runId, $connection->getTransactionNestingLevel()];
         });
 
         $this->handler()(new StartDiscoveryCommand($project, Actor::Human));
 
-        self::assertSame([[(string) $project->id, (string) $reported->id]], $withdrawn);
+        // Inside the transaction of the new run, so a queued message of a listener commits with it.
+        self::assertSame([[(string) $project->id, (string) $reported->id, $outside + 1]], $withdrawn);
         $stored = $this->storedRun($reported);
         self::assertSame(DiscoveryRunState::Superseded, $stored->state);
         self::assertNotNull($stored->endedAt);

@@ -121,6 +121,7 @@ final readonly class SubmitReadinessReportHandler
             $run->state = DiscoveryRunState::Reported;
             $run->answeredWorkRequestIds = $answered;
             $this->em->flush();
+            $this->announceWaiting($run, $document);
 
             return $document;
         });
@@ -143,11 +144,6 @@ final readonly class SubmitReadinessReportHandler
             ],
             new AuditSubject('discovery_run', (string) $run->id),
         );
-        $this->events->dispatch(new DiscoveryReportWaiting(
-            $project->id ?? throw new \LogicException('A stored project has an id.'),
-            $run->id ?? throw new \LogicException('A stored run has an id.'),
-            $document->id ?? throw new \LogicException('A stored document has an id.'),
-        ));
 
         return $document;
     }
@@ -191,8 +187,18 @@ final readonly class SubmitReadinessReportHandler
         $run->state = DiscoveryRunState::Reported;
         $run->answeredWorkRequestIds = $answered;
         $this->em->flush();
+        $this->announceWaiting($run, $document);
 
         return $document;
+    }
+
+    private function announceWaiting(DiscoveryRun $run, Document $document): void
+    {
+        $this->events->dispatch(new DiscoveryReportWaiting(
+            $run->project->id ?? throw new \LogicException('A stored project has an id.'),
+            $run->id ?? throw new \LogicException('A stored run has an id.'),
+            $document->id ?? throw new \LogicException('A stored document has an id.'),
+        ));
     }
 
     /**

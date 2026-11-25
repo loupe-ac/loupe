@@ -375,6 +375,8 @@ A removed target shows an unavailable state, while completed results retain thei
 When a [discovery](workshop.md#run-discovery) run reports, Loupe opens the review request **Review the readiness report**.
 It links the report document, and it does not block an agent.
 A revised report opens a new request. A report has at most one open request.
+The background worker opens and cancels the request, so the change can show a moment later.
+When that job fails, the queue tries it up to three more times, and then keeps it with the failed jobs.
 
 You answer it as any [review request](#review-requests), and the verdict acts on the discovery run.
 A verdict on the report page or through the API also closes the request.

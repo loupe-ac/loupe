@@ -64,7 +64,7 @@ final readonly class DiscoveryReviewReconciler
 
         $opened = $this->em->wrapInTransaction(function () use ($project, $document, $runId): bool {
             $this->em->lock($project, LockMode::PESSIMISTIC_WRITE);
-            // The report committed before this lock, so a verdict or a newer run can have ended the wait since.
+            // The message runs after the report commits, so a verdict or a newer run can have ended the wait since.
             if (DiscoveryRunState::Reported !== $this->discoveryRuns->findStateOfReport($document)
                 || null !== $this->inboxItems->findOpenForDiscoveryRun($project, $runId)) {
                 return false;

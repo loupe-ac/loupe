@@ -21,8 +21,10 @@ use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Entity\InboxReview;
 use App\Module\Inbox\Entity\InboxReviewVerdict;
+use App\Module\Inbox\Messenger\CancelDiscoveryReview;
 use App\Module\Inbox\Messenger\NotifyInboxOwner;
 use App\Module\Inbox\Messenger\NotifyInboxOwnerKind;
+use App\Module\Inbox\Messenger\OpenDiscoveryReview;
 use App\Module\Inbox\Repository\InboxItemRepository;
 use App\Module\Inbox\Repository\InboxReviewRepository;
 use App\Module\Project\Entity\Project;
@@ -42,6 +44,9 @@ use App\Tests\Module\Readiness\DiscoveryScenario;
 use PHPUnit\Framework\Attributes\TestWith;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Messenger\Envelope;
+use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Messenger\Stamp\ReceivedStamp;
 use Symfony\Component\Uid\Uuid;
 
 /** The review item of a waiting discovery report, from the report to the verdict. */
@@ -54,6 +59,8 @@ final class DiscoveryReviewReconcilerTest extends KernelTestCase
     private Project $project;
 
     private DiscoveryRun $run;
+
+    private int $handled = 0;
 
     protected function setUp(): void
     {
@@ -103,6 +110,43 @@ final class DiscoveryReviewReconcilerTest extends KernelTestCase
         self::assertSame([InboxItemState::Resolved, InboxCloser::Owner], [$item->state, $item->closedBy]);
         self::assertSame(InboxReviewVerdict::from($verdict), $this->reviewOf($item)->verdict);
         self::assertSame($expected, $this->storedRun($this->run)->state);
+    }
+
+    /** The message commits with the report, so a failure of the queue worker cannot drop it. */
+    public function test_a_report_queues_the_item_and_the_worker_opens_it(): void
+    {
+        $submit = self::getContainer()->get(SubmitReadinessReportHandler::class);
+        self::assertInstanceOf(SubmitReadinessReportHandler::class, $submit);
+
+        $report = $submit(new SubmitReadinessReportCommand($this->project, (string) $this->run->id, 'lifecycle', [new ReportFinding('Tests run', 'ready', 'Yes.')]));
+
+        self::assertSame([], $this->items());
+        self::assertEquals(
+            [new OpenDiscoveryReview((string) $this->project->id, (string) $this->run->id, (string) $report->id)],
+            array_map(static fn (Envelope $envelope): object => $envelope->getMessage(), $this->queuedReviewMessages()),
+        );
+        $this->work();
+        self::assertCount(1, $this->items());
+    }
+
+    public function test_a_report_whose_announcement_fails_is_not_stored(): void
+    {
+        $dispatcher = self::getContainer()->get('event_dispatcher');
+        self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
+        self::assertInstanceOf(\Symfony\Component\EventDispatcher\EventDispatcherInterface::class, $dispatcher);
+        $dispatcher->addListener(DiscoveryReportWaiting::class, static fn () => throw new \RuntimeException('The queue refused the message.'));
+
+        try {
+            $this->report();
+            self::fail('The announcement fails the report.');
+        } catch (\RuntimeException $error) {
+            self::assertSame('The queue refused the message.', $error->getMessage());
+        }
+
+        self::assertSame(
+            DiscoveryRunState::Requested->value,
+            self::getContainer()->get('doctrine.dbal.default_connection')->fetchOne('SELECT state FROM discovery_runs WHERE id = ?', [(string) $this->run->id]),
+        );
     }
 
     public function test_a_revised_report_opens_a_new_item(): void
@@ -208,7 +252,30 @@ final class DiscoveryReviewReconcilerTest extends KernelTestCase
         $submit = self::getContainer()->get(SubmitReadinessReportHandler::class);
         self::assertInstanceOf(SubmitReadinessReportHandler::class, $submit);
 
-        return $submit(new SubmitReadinessReportCommand($this->project, (string) $this->run->id, 'lifecycle', [new ReportFinding('Tests run', 'ready', 'Yes.')]));
+        $report = $submit(new SubmitReadinessReportCommand($this->project, (string) $this->run->id, 'lifecycle', [new ReportFinding('Tests run', 'ready', 'Yes.')]));
+        $this->work();
+
+        return $report;
+    }
+
+    /** Handles each queued discovery review message once, as the jobs worker does. */
+    private function work(): void
+    {
+        $bus = self::getContainer()->get(MessageBusInterface::class);
+        self::assertInstanceOf(MessageBusInterface::class, $bus);
+        foreach (\array_slice($this->queuedReviewMessages(), $this->handled) as $envelope) {
+            ++$this->handled;
+            $bus->dispatch($envelope->with(new ReceivedStamp('jobs')));
+        }
+    }
+
+    /** @return list<Envelope> */
+    private function queuedReviewMessages(): array
+    {
+        return array_values(array_filter(
+            [...$this->jobs()->getSent()],
+            static fn (Envelope $envelope): bool => $envelope->getMessage() instanceof OpenDiscoveryReview || $envelope->getMessage() instanceof CancelDiscoveryReview,
+        ));
     }
 
     private function verdictOnThePage(Document $report, string $verdict): void
@@ -240,6 +307,7 @@ final class DiscoveryReviewReconcilerTest extends KernelTestCase
         $dispatcher = self::getContainer()->get('event_dispatcher');
         self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
         $dispatcher->dispatch($event);
+        $this->work();
     }
 
     /** @return list<InboxItem> */

@@ -6,7 +6,7 @@ namespace App\Module\Readiness\Event;
 
 use Symfony\Component\Uid\Uuid;
 
-/** A report, new or revised, waits for the verdict of the owner. Dispatched after the commit. */
+/** A report, new or revised, waits for the verdict of the owner. Dispatched inside the transaction that stores the report, so a message that a listener queues commits with it. */
 final readonly class DiscoveryReportWaiting
 {
     public function __construct(

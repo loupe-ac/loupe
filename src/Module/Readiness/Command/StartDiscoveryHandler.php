@@ -96,6 +96,12 @@ final readonly class StartDiscoveryHandler
             $run = new DiscoveryRun($project, $this->clock->now());
             $this->em->persist($run);
             $this->em->flush();
+            foreach ($superseded as $old) {
+                $this->events->dispatch(new DiscoveryReportWithdrawn(
+                    $project->id ?? throw new \LogicException('A stored project has an id.'),
+                    $old->id ?? throw new \LogicException('A stored run has an id.'),
+                ));
+            }
 
             return $run;
         });
@@ -120,13 +126,13 @@ final readonly class StartDiscoveryHandler
         } catch (DomainErrors|WorkRequestAlreadyLive $e) {
             $run->fail(self::REQUEST_REFUSED, $this->clock->now());
             $this->em->flush();
-            $this->retire($project, $superseded);
+            $this->retire($superseded);
 
             throw $e;
         } catch (\Throwable $e) {
             $this->failUnflushed($runId);
             if ($this->em->isOpen()) {
-                $this->retire($project, $superseded);
+                $this->retire($superseded);
             }
 
             throw $e;
@@ -136,7 +142,7 @@ final readonly class StartDiscoveryHandler
         $run->workRequestId = $request->id;
         $this->em->flush();
         // Outside the project lock, because a verdict locks the project row and then the document row.
-        $this->retire($project, $superseded);
+        $this->retire($superseded);
 
         $this->auditor->record(
             'readiness.discovery_started',
@@ -155,16 +161,12 @@ final readonly class StartDiscoveryHandler
     }
 
     /** @param list<DiscoveryRun> $superseded */
-    private function retire(Project $project, array $superseded): void
+    private function retire(array $superseded): void
     {
         foreach ($superseded as $old) {
             if (null !== $old->reportDocument) {
                 ($this->archiveDocument)(new ArchiveDocumentCommand($old->reportDocument, $this->translator->trans(self::SUPERSEDED_ARCHIVE_REASON)));
             }
-            $this->events->dispatch(new DiscoveryReportWithdrawn(
-                $project->id ?? throw new \LogicException('A stored project has an id.'),
-                $old->id ?? throw new \LogicException('A stored run has an id.'),
-            ));
         }
     }
 
