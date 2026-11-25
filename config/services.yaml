@@ -76,6 +76,9 @@ parameters:
     # Every minute, because a bridge goes quiet after three heartbeat intervals
     # and a run shown as running for longer than that misleads.
     app.bridge.run_timeout_schedule: '* * * * *'
+    # Every minute, so a wait that its offline bridge could not resume gets its
+    # resume again soon after the bridge is back.
+    app.bridge.stranded_wait_resume_schedule: '* * * * *'
     # How long an open interactive run may show no sign of life, in seconds,
     # before the sweep closes it as stale. Zero switches the sweep off.
     app.bridge.default_interactive_stale_after_seconds: 43200
@@ -87,6 +90,8 @@ parameters:
     app.forge.repository_check_schedule: '7 * * * *'
     # The backstop for a card wait that no event reported.
     app.inbox.card_wait_sweep_schedule: '*/15 * * * *'
+    # Every minute, so an ask whose deadline passed is answered soon after it.
+    app.inbox.default_close_schedule: '* * * * *'
     # Every minute, so the notice closes soon after a bridge is back.
     app.inbox.bridge_outage_schedule: '* * * * *'
     # How long work waits with no bridge that could take it before the notice opens, in minutes.

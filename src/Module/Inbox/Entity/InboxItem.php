@@ -23,6 +23,8 @@ use Symfony\Component\Uid\Uuid;
 // a DROP plus a plain CREATE INDEX, downgrading it to a B-tree that @@ never uses.
 #[ORM\Index(name: 'idx_inbox_items_search_vector', columns: ['search_vector'])]
 #[ORM\Index(name: 'idx_inbox_items_project_search_language', columns: ['project_id', 'search_language'])]
+// The deadline task reads only the items that carry a deadline. The predicate is written the way Postgres stores it.
+#[ORM\Index(name: 'idx_inbox_items_defaults_at', columns: ['defaults_at'], options: ['where' => '(defaults_at IS NOT NULL)'])]
 #[ORM\Table(name: 'inbox_items')]
 #[ORM\UniqueConstraint(name: 'uniq_inbox_item_project_number', columns: ['project_id', 'number'])]
 // One open item per dedupe key in a project. The predicate is written the way
@@ -64,6 +66,29 @@ class InboxItem implements ProjectScopedSubject
     /** Whether the owner may dismiss the item. Loupe never offers it on a workflow question, because the rule needs one of its options. */
     #[ORM\Column(options: ['default' => true])]
     public bool $dismissible;
+
+    /** The index into $options of the answer the agent recommends. Null when it recommends none. */
+    #[ORM\Column(nullable: true)]
+    public ?int $recommendedOption = null;
+
+    #[ORM\Column(length: 10, nullable: true, enumType: InboxConfidence::class)]
+    public ?InboxConfidence $confidence = null;
+
+    /** The template label of the ask, such as `naming`. Null for an ask with no label. */
+    #[ORM\Column(length: 40, nullable: true)]
+    public ?string $label = null;
+
+    /** When Loupe answers the item with its recommended option. Null when no deadline applies. */
+    #[ORM\Column(nullable: true)]
+    public ?\DateTimeImmutable $defaultsAt = null;
+
+    /** @var list<string>|null one cost line for each option, in the order of $options. An empty line means the option has no cost to name. */
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    public ?array $optionCosts = null;
+
+    /** @var array<string, string>|null Markdown that backs the answer, by the name of its field */
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    public ?array $details = null;
 
     /** @var list<array{action: string, reason: string, recommended: bool, cardId: ?string, command?: array{entry: string, branch: string, params: array<string, string>}|null, proposedEntry?: string|null, prompt?: string|null}>|null what the asking agent suggests, in the order it sent. A row stored before run-command lacks the command keys, and one stored before the prompt lacks prompt. */
     #[ORM\Column(type: Types::JSON, nullable: true)]

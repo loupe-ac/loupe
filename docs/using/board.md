@@ -452,7 +452,9 @@ the time out.
 The page carries the full Markdown body, every pull request link, and the times
 the card was created, last changed and completed. Its **Feedback** tab shows the
 live-review notes on the card. See
-[Review feedback on a card](#review-feedback-on-a-card). Its Status field is a
+[Review feedback on a card](#review-feedback-on-a-card). Its **Decisions** tab
+lists the choices that agents made on the card. See
+[The Decisions tab](#the-decisions-tab). Its Status field is a
 column control, which moves a card
 with no drag. That is the way to move a card from a keyboard.
 
@@ -587,6 +589,48 @@ offers the matching cards of the project. The **Add a linked card** button adds
 a row, and the cross at the end of a row removes it. Saving replaces the card's
 whole set of links.
 
+#### The Decisions tab
+
+A card has a **Decisions** tab while the inbox is on. The tab label shows how
+many decisions the card holds, such as **Decisions 3**. The tab lists the
+choices that agents made on the card without you. It lists them in a table
+named **Decisions made without you**, newest first.
+
+A row shows the label of the decision, the choice of the agent in bold, and the
+other options below it. The **How** column tells how the choice came to stand:
+
+- **Logged**: the agent made the choice and told you after the fact.
+- **Default at the deadline**: you did not answer a question in time, so Loupe
+  answered with the option that the agent recommended.
+- **Changed by you**: you replaced the choice.
+
+The tab is empty until an agent makes a decision on the card.
+
+#### Change a decision
+
+You can change a decision that you did not make. Press **Change** on its row
+and a dialog opens. Pick one of the other options, or write your own choice in
+**Something else**. Your words win when you do both. A note is optional.
+Loupe refuses a change that names no choice, or the choice that already stands.
+
+Only the owner of the project sees **Change**. A defaulted decision uses the
+same dialog. That is how you reopen a question that Loupe answered for you.
+
+A saved change stays open until a worker acts on it. The row reads **Changed by
+you to ..., not acted on yet**. A card with an open pull request then gets a fix
+round with the reason "the owner changed a decision". The worker redoes the work
+that the decision affects and marks the change as addressed. The row then reads
+**The worker acted on it**. A second change on the same row is not offered.
+
+When the card is in a terminal column, no worker picks up a change. Loupe then
+offers a follow-up card in the tab. Press **Create follow-up card**. Loupe puts
+a new card in the backlog and links it to the finished card. The offer then
+shows a link to the new card. The offer shows once, right after the change.
+Reload the tab and the offer is gone, and the row keeps the change.
+
+The tab updates on its own when an agent writes a decision or you change one.
+An open dialog holds the update until you close it.
+
 #### Managed and unmanaged cards
 
 A project can run a workflow template. A card of such a project is managed:
@@ -660,6 +704,44 @@ again by itself. See [Usage limits](worker-runs.md#usage-limits).
 
 When the bridge that holds the work of a card loses its network, the card also
 shows **Waiting**. See [Network outages](worker-runs.md#network-outages).
+
+### A worker that waits
+
+A worker can wait for the checks of a pull request, or for another condition of its card, and use no model while it waits.
+The card then shows **Waiting for** and the time that the worker has waited.
+The status lists the conditions, the pull request of each one, and these fields:
+
+- **Since** is the start of the wait.
+- **Time limit** is the limit in minutes, with the time at which it ends.
+- **At the limit** says what happens then. The worker resumes in the same session, learns that the wait timed out, and decides what to do.
+
+People who may manage the project see three controls under the status:
+
+- **Resume now** ends the wait at once. The worker resumes in the same session, and learns that a person ended the wait.
+- **Change the time limit** opens a field for the new limit in minutes. The limit counts from the start of the wait. The workflow sets the longest limit, and the field shows it. A limit that has passed already is refused. Use **Resume now** instead.
+- **Cancel the wait** asks you to confirm. The worker then stops and does not resume. The run shows as stopped.
+
+Moving the card to another column, finishing it, or holding it also ends the wait.
+These changes ask for no confirmation, because you made them.
+The worker stops and does not resume.
+Other people see the wait and no controls.
+
+#### When the bridge is offline at the end of the wait
+
+A wait can end while the bridge that holds the session is offline.
+Only that bridge can resume the session, so the card shows **Stuck** with **Bridge offline**.
+The remedy says: start the bridge, or cancel the wait.
+When the bridge sends its heartbeat again, Loupe asks it to resume the session.
+
+People who may manage the project see two controls under the status:
+
+- **Resume now** asks for the resume at once. The bridge runs it when it is back.
+- **Cancel the wait** asks you to confirm. The worker then stops and does not resume.
+
+**Change the time limit** does not show, because the wait has ended.
+Moving the card, finishing it, or holding it also stops the worker.
+
+See [Waits](../reference/worker-runs.md#waits).
 
 ### Try now
 
@@ -1243,7 +1325,7 @@ carries `kind`, `occurredAt` and `actor`.
 `kind` is `created`, `moved`, `fix-requested`, `fix-withdrawn`, `stopped`, `ready-to-merge`, `synced`,
 `run-finished`, `paused`, `pause-released`, `verdict`, `review-overridden`,
 `override-ended`, `document-verdict`, `verdict-failed`, `auto-approved`,
-`approval-dismissed`, `human-review-changed` or `value-changed`. `actor` carries `kind` and
+`approval-dismissed`, `human-review-changed`, `value-changed` or `wait-ended`. `actor` carries `kind` and
 `name`. Its `kind` is `human`, `agent`, `reviewer` or `system`. `name` is the
 current name of the person
 behind the event. It is null when there is no person, such as for a deleted
@@ -1285,6 +1367,9 @@ A `human-review-changed` event sets `humanReview`, with `value`, `cause` and
 `ruleId`. `value` is true when the switch went on. `cause` is `person`, `agent`,
 `rule` or `rollout`. `ruleId` names the workflow rule that set the switch, and
 is null for any other cause.
+
+A `wait-ended` event sets `reason`: `resumed-by-person`, `cancelled-by-person`, `card-moved`,
+`card-finished` or `card-held`. It records an end that a person or a change of the card caused.
 
 A `value-changed` event sets `valueChange`, with `key`, `value` and `previous`.
 `key` is the declared key of the card value that changed. `previous` is null when

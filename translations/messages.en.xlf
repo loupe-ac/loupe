@@ -3294,6 +3294,10 @@
                 <source>project.connect.tool.bridge_command_cancel</source>
                 <target>Withdraw the resume or stop command that waits on a worker run, before its bridge reads it.</target>
             </trans-unit>
+            <trans-unit id="project.connect.tool.run_wait">
+                <source>project.connect.tool.run_wait</source>
+                <target>Wait for conditions of your card, such as the checks of a pull request, with a time limit. Loupe then resumes your session when a condition turns true or the limit passes.</target>
+            </trans-unit>
             <trans-unit id="project.connect.tool.inbox_ask">
                 <source>project.connect.tool.inbox_ask</source>
                 <target>Hand questions and to-dos to the project owner. The items go to the session's open ask, or to a new one, and each item gets a number.</target>
@@ -3325,6 +3329,14 @@
             <trans-unit id="project.connect.tool.inbox_action_run">
                 <source>project.connect.tool.inbox_action_run</source>
                 <target>Record the owner's answer, completion or dismissal of an inbox item, or run another built-in action such as resume-run, retry-card or run-command, after the owner decided in chat. A run-command shows a preview first.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.decision_list">
+                <source>project.connect.tool.decision_list</source>
+                <target>List the decisions of a card that the owner changed and that nobody has acted on yet.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.decision_mark_addressed">
+                <source>project.connect.tool.decision_mark_addressed</source>
+                <target>Mark changed decisions of a card as acted on, after you redid the work they affect.</target>
             </trans-unit>
 
             <!-- First-run wizard -->
@@ -5290,6 +5302,10 @@
                 <source>landing.shot.book_now</source>
                 <target>Book now</target>
             </trans-unit>
+            <trans-unit id="landing.shot.both_formats_work_the_accounting_import_reads_iso_dates">
+                <source>landing.shot.both_formats_work_the_accounting_import_reads_iso_dates</source>
+                <target>Both formats work. The accounting import reads ISO dates.</target>
+            </trans-unit>
             <trans-unit id="landing.shot.bug">
                 <source>landing.shot.bug</source>
                 <target>Bug</target>
@@ -5338,9 +5354,17 @@
                 <source>landing.shot.email_guests_a_check_in_guide</source>
                 <target>Email guests a check-in guide</target>
             </trans-unit>
+            <trans-unit id="landing.shot.export_format">
+                <source>landing.shot.export_format</source>
+                <target>Format</target>
+            </trans-unit>
             <trans-unit id="landing.shot.feature">
                 <source>landing.shot.feature</source>
                 <target>Feature</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.fifty_rows">
+                <source>landing.shot.fifty_rows</source>
+                <target>50 rows</target>
             </trans-unit>
             <trans-unit id="landing.shot.fix_the_broken_map_pin">
                 <source>landing.shot.fix_the_broken_map_pin</source>
@@ -5386,6 +5410,14 @@
                 <source>landing.shot.in_review</source>
                 <target>In review</target>
             </trans-unit>
+            <trans-unit id="landing.shot.iso_dates">
+                <source>landing.shot.iso_dates</source>
+                <target>ISO dates</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.iso_dates_2026_11_24">
+                <source>landing.shot.iso_dates_2026_11_24</source>
+                <target>ISO dates, 2026-11-24</target>
+            </trans-unit>
             <trans-unit id="landing.shot.june_to_august">
                 <source>landing.shot.june_to_august</source>
                 <target>June to August</target>
@@ -5405,6 +5437,14 @@
             <trans-unit id="landing.shot.let_owners_override_a_rate">
                 <source>landing.shot.let_owners_override_a_rate</source>
                 <target>Let owners override a rate</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.local_dates">
+                <source>landing.shot.local_dates</source>
+                <target>Local dates</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.local_dates_24_nov_2026">
+                <source>landing.shot.local_dates_24_nov_2026</source>
+                <target>Local dates, 24 Nov 2026</target>
             </trans-unit>
             <trans-unit id="landing.shot.make_cabin_search_faster">
                 <source>landing.shot.make_cabin_search_faster</source>
@@ -5438,9 +5478,21 @@
                 <source>landing.shot.model_b</source>
                 <target>Model B</target>
             </trans-unit>
+            <trans-unit id="landing.shot.no_change_to_the_accounting_import">
+                <source>landing.shot.no_change_to_the_accounting_import</source>
+                <target>no change to the accounting import</target>
+            </trans-unit>
             <trans-unit id="landing.shot.now">
                 <source>landing.shot.now</source>
                 <target>now</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.one_hundred_rows">
+                <source>landing.shot.one_hundred_rows</source>
+                <target>100</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.one_retry_five_retries">
+                <source>landing.shot.one_retry_five_retries</source>
+                <target>1, 5</target>
             </trans-unit>
             <trans-unit id="landing.shot.open">
                 <source>landing.shot.open</source>
@@ -5461,6 +5513,10 @@
             <trans-unit id="landing.shot.owners_set_a_nightly_rate_for">
                 <source>landing.shot.owners_set_a_nightly_rate_for</source>
                 <target>Owners set a nightly rate for each season. A guest sees the rate for the nights they picked, and the total before they pay.</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.page_size">
+                <source>landing.shot.page_size</source>
+                <target>Page size</target>
             </trans-unit>
             <trans-unit id="landing.shot.peak_rates_apply_from">
                 <source>landing.shot.peak_rates_apply_from</source>
@@ -5502,6 +5558,10 @@
                 <source>landing.shot.product_design_written_review_it_in</source>
                 <target>Product design written. Review it in Loupe when you are ready.</target>
             </trans-unit>
+            <trans-unit id="landing.shot.retry_limit">
+                <source>landing.shot.retry_limit</source>
+                <target>Retries</target>
+            </trans-unit>
             <trans-unit id="landing.shot.round_prices_to_whole_dollars">
                 <source>landing.shot.round_prices_to_whole_dollars</source>
                 <target>Round prices to whole dollars</target>
@@ -5534,6 +5594,10 @@
                 <source>landing.shot.sleeps_6_fire_pit</source>
                 <target>Sleeps 6, fire pit</target>
             </trans-unit>
+            <trans-unit id="landing.shot.the_accounting_import_needs_a_new_parser">
+                <source>landing.shot.the_accounting_import_needs_a_new_parser</source>
+                <target>the accounting import needs a new parser</target>
+            </trans-unit>
             <trans-unit id="landing.shot.the_current_rate">
                 <source>landing.shot.the_current_rate</source>
                 <target>the current rate</target>
@@ -5550,6 +5614,10 @@
                 <source>landing.shot.the_rate_it_was_sold_at</source>
                 <target>the rate it was sold at</target>
             </trans-unit>
+            <trans-unit id="landing.shot.three_retries">
+                <source>landing.shot.three_retries</source>
+                <target>3 retries</target>
+            </trans-unit>
             <trans-unit id="landing.shot.two_tests_cover_the_same_payment">
                 <source>landing.shot.two_tests_cover_the_same_payment</source>
                 <target>Two tests cover the same payment error. The old one expects a retry. The new one expects a message.</target>
@@ -5557,6 +5625,10 @@
             <trans-unit id="landing.shot.what_should_a_guest_see_when">
                 <source>landing.shot.what_should_a_guest_see_when</source>
                 <target>What should a guest see when a cabin has no price for the dates they picked?</target>
+            </trans-unit>
+            <trans-unit id="landing.shot.which_date_format_should_the_booking_export_use">
+                <source>landing.shot.which_date_format_should_the_booking_export_use</source>
+                <target>Which date format should the booking export use?</target>
             </trans-unit>
             <trans-unit id="landing.shot.which_test_should_the_checkout_fix">
                 <source>landing.shot.which_test_should_the_checkout_fix</source>
@@ -6480,6 +6552,10 @@
                 <source>inbox.outcome.loupe.resolved</source>
                 <target>Resolved by Loupe</target>
             </trans-unit>
+            <trans-unit id="inbox.outcome.loupe.defaulted">
+                <source>inbox.outcome.loupe.defaulted</source>
+                <target>Answered by Loupe with the recommended option, after the deadline</target>
+            </trans-unit>
             <trans-unit id="inbox.outcome.loupe.card_deleted">
                 <source>inbox.outcome.loupe.card_deleted</source>
                 <target>Cancelled by Loupe: the card was deleted</target>
@@ -6698,6 +6774,30 @@ workflow:
                 <source>inbox.answer.pick_one</source>
                 <target>Pick one</target>
             </trans-unit>
+            <trans-unit id="inbox.answer.cost">
+                <source>inbox.answer.cost</source>
+                <target>Cost: %cost%</target>
+            </trans-unit>
+            <trans-unit id="inbox.answer.deadline">
+                <source>inbox.answer.deadline</source>
+                <target>No answer by %time%? Loupe answers "%option%", the option the agent recommends.</target>
+            </trans-unit>
+            <trans-unit id="inbox.answer.details">
+                <source>inbox.answer.details</source>
+                <target>Details (%count%)</target>
+            </trans-unit>
+            <trans-unit id="inbox.answer.recommended.high">
+                <source>inbox.answer.recommended.high</source>
+                <target>Recommended, high confidence</target>
+            </trans-unit>
+            <trans-unit id="inbox.answer.recommended.moderate">
+                <source>inbox.answer.recommended.moderate</source>
+                <target>Recommended, moderate confidence</target>
+            </trans-unit>
+            <trans-unit id="inbox.answer.recommended.low">
+                <source>inbox.answer.recommended.low</source>
+                <target>Recommended, low confidence</target>
+            </trans-unit>
             <trans-unit id="inbox.answer.pick_any">
                 <source>inbox.answer.pick_any</source>
                 <target>Pick any</target>
@@ -6725,6 +6825,42 @@ workflow:
             <trans-unit id="inbox.answer.error.empty">
                 <source>inbox.answer.error.empty</source>
                 <target>Pick an option or write an answer.</target>
+            </trans-unit>
+            <trans-unit id="inbox.decision.error.choice_blank">
+                <source>inbox.decision.error.choice_blank</source>
+                <target>Pick an option or write your own choice.</target>
+            </trans-unit>
+            <trans-unit id="inbox.decision.error.choice_too_long">
+                <source>inbox.decision.error.choice_too_long</source>
+                <target>The choice is too long.</target>
+            </trans-unit>
+            <trans-unit id="inbox.decision.error.choice_unchanged">
+                <source>inbox.decision.error.choice_unchanged</source>
+                <target>This is the choice that stands. Pick another one.</target>
+            </trans-unit>
+            <trans-unit id="inbox.decision.error.not_found">
+                <source>inbox.decision.error.not_found</source>
+                <target>This decision does not exist.</target>
+            </trans-unit>
+            <trans-unit id="inbox.decision.error.no_change">
+                <source>inbox.decision.error.no_change</source>
+                <target>Nobody changed this decision.</target>
+            </trans-unit>
+            <trans-unit id="inbox.decision.error.stale">
+                <source>inbox.decision.error.stale</source>
+                <target>The owner changed this decision again. Read it again.</target>
+            </trans-unit>
+            <trans-unit id="inbox.decision.error.other_card">
+                <source>inbox.decision.error.other_card</source>
+                <target>This decision belongs to another card.</target>
+            </trans-unit>
+            <trans-unit id="inbox.decision.error.note_too_long">
+                <source>inbox.decision.error.note_too_long</source>
+                <target>The note is too long.</target>
+            </trans-unit>
+            <trans-unit id="inbox.decision.error.follow_up_not_changed">
+                <source>inbox.decision.error.follow_up_not_changed</source>
+                <target>Change the decision before you create a follow-up card.</target>
             </trans-unit>
             <trans-unit id="inbox.done.submit">
                 <source>inbox.done.submit</source>
@@ -6799,6 +6935,7 @@ workflow:
             <trans-unit id="inbox.thread.you_verb.dismiss"><source>inbox.thread.you_verb.dismiss</source><target>dismissed it at %time%</target></trans-unit>
             <trans-unit id="inbox.thread.agent"><source>inbox.thread.agent</source><target>Agent</target></trans-unit>
             <trans-unit id="inbox.thread.api_key"><source>inbox.thread.api_key</source><target>API key '%name%'</target></trans-unit>
+            <trans-unit id="inbox.thread.defaults"><source>inbox.thread.defaults</source><target>defaults %time%</target></trans-unit>
             <trans-unit id="inbox.thread.asked"><source>inbox.thread.asked</source><target>asked %time%</target></trans-unit>
             <trans-unit id="inbox.thread.note_label"><source>inbox.thread.note_label</source><target>Your note for the agent</target></trans-unit>
             <trans-unit id="inbox.thread.closing.hint"><source>inbox.thread.closing.hint</source><target>closed this %time%</target></trans-unit>
@@ -8239,9 +8376,9 @@ workflow:
                 <source>bridge.worker_runs.state.network</source>
                 <target>Stopped by a network outage</target>
             </trans-unit>
-            <trans-unit id="bridge.worker_runs.state.waiting_on_forge">
-                <source>bridge.worker_runs.state.waiting_on_forge</source>
-                <target>Waiting on the forge</target>
+            <trans-unit id="bridge.worker_runs.state.waiting">
+                <source>bridge.worker_runs.state.waiting</source>
+                <target>Waiting</target>
             </trans-unit>
             <trans-unit id="bridge.worker_runs.state.gave_up">
                 <source>bridge.worker_runs.state.gave_up</source>
@@ -8426,6 +8563,11 @@ workflow:
             <trans-unit id="board.card.history.auto_approved"><source>board.card.history.auto_approved</source><target>Approved automatically: Loupe passed the approval check on #%pr% at %sha%.</target></trans-unit>
             <trans-unit id="board.card.history.approval_dismissed"><source>board.card.history.approval_dismissed</source><target>Loupe withdrew its approval of #%pr%, because a person must review it.</target></trans-unit>
             <trans-unit id="board.card.history.resume_skipped"><source>board.card.history.resume_skipped</source><target>Did not resume a session: another session of this card resumes for question #%number%.</target></trans-unit>
+            <trans-unit id="board.card.history.wait_ended.resumed_by_person"><source>board.card.history.wait_ended.resumed_by_person</source><target>The owner ended the wait early, and the worker resumes.</target></trans-unit>
+            <trans-unit id="board.card.history.wait_ended.cancelled_by_person"><source>board.card.history.wait_ended.cancelled_by_person</source><target>The owner cancelled the wait, and the worker stopped.</target></trans-unit>
+            <trans-unit id="board.card.history.wait_ended.card_moved"><source>board.card.history.wait_ended.card_moved</source><target>The card moved, so the wait ended and the worker stopped.</target></trans-unit>
+            <trans-unit id="board.card.history.wait_ended.card_finished"><source>board.card.history.wait_ended.card_finished</source><target>The card finished, so the wait ended and the worker stopped.</target></trans-unit>
+            <trans-unit id="board.card.history.wait_ended.card_held"><source>board.card.history.wait_ended.card_held</source><target>The card was put on hold, so the wait ended and the worker stopped.</target></trans-unit>
             <trans-unit id="board.card.history.verdict_kind.approve"><source>board.card.history.verdict_kind.approve</source><target>approve</target></trans-unit>
             <trans-unit id="board.card.history.verdict_kind.request_changes"><source>board.card.history.verdict_kind.request_changes</source><target>request changes</target></trans-unit>
             <trans-unit id="board.card.history.verdict_kind.comment"><source>board.card.history.verdict_kind.comment</source><target>comment</target></trans-unit>
@@ -8563,6 +8705,7 @@ workflow:
             <trans-unit id="board.card.history.reason.conflict"><source>board.card.history.reason.conflict</source><target>the pull request has a merge conflict</target></trans-unit>
             <trans-unit id="board.card.history.reason.checks_failed"><source>board.card.history.reason.checks_failed</source><target>the checks fail</target></trans-unit>
             <trans-unit id="board.card.history.reason.agent_review"><source>board.card.history.reason.agent_review</source><target>the agent review found problems</target></trans-unit>
+            <trans-unit id="board.card.history.reason.decision_changed"><source>board.card.history.reason.decision_changed</source><target>the owner changed a decision</target></trans-unit>
             <trans-unit id="board.card.history.reason.changes_requested"><source>board.card.history.reason.changes_requested</source><target>a reviewer requested changes</target></trans-unit>
             <trans-unit id="board.card.linked_work.title"><source>board.card.linked_work.title</source><target>Linked work</target></trans-unit>
             <trans-unit id="board.card.linked_work.empty"><source>board.card.linked_work.empty</source><target>No documents or pull requests are linked to this card.</target></trans-unit>
@@ -8668,6 +8811,11 @@ workflow:
             <trans-unit id="inbox.filter.kind.wait"><source>inbox.filter.kind.wait</source><target>Card waits</target></trans-unit>
             <trans-unit id="inbox.filter.kind.workflow"><source>inbox.filter.kind.workflow</source><target>Workflow</target></trans-unit>
             <trans-unit id="inbox.filter.empty"><source>inbox.filter.empty</source><target>No ask of this type.</target></trans-unit>
+            <trans-unit id="inbox.group.open"><source>inbox.group.open</source><target>%count% open</target></trans-unit>
+            <trans-unit id="inbox.digest.new"><source>inbox.digest.new</source><target>{0}No new decisions|{1}1 new decision|]1,Inf[%count% new decisions</target></trans-unit>
+            <trans-unit id="inbox.digest.pane.title"><source>inbox.digest.pane.title</source><target>No ask is open</target></trans-unit>
+            <trans-unit id="inbox.digest.pane.body"><source>inbox.digest.pane.body</source><target>Open a line with new decisions to read them on the card.</target></trans-unit>
+            <trans-unit id="inbox.group.none"><source>inbox.group.none</source><target>No card</target></trans-unit>
             <trans-unit id="inbox.row.more_cards"><source>inbox.row.more_cards</source><target>+%count%</target></trans-unit>
             <trans-unit id="inbox.row.closed"><source>inbox.row.closed</source><target>Closed</target></trans-unit>
             <trans-unit id="inbox.row.source.agent"><source>inbox.row.source.agent</source><target>Agent</target></trans-unit>
@@ -8986,6 +9134,10 @@ workflow:
             <trans-unit id="board.fix_run_comment.reason.agent-review">
                 <source>board.fix_run_comment.reason.agent-review</source>
                 <target>the agent review found problems</target>
+            </trans-unit>
+            <trans-unit id="board.fix_run_comment.reason.decision-changed">
+                <source>board.fix_run_comment.reason.decision-changed</source>
+                <target>the owner changed a decision</target>
             </trans-unit>
             <trans-unit id="board.fix_run_comment.reason.other">
                 <source>board.fix_run_comment.reason.other</source>
@@ -10484,6 +10636,8 @@ workflow:
             <trans-unit id="workflow.waiting.not.card_inbox_open_question_blocking"><source>workflow.waiting.not.card_inbox_open_question_blocking</source><target>Waiting: an open blocking inbox question names the card.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_inbox_open_question_non_blocking"><source>workflow.waiting.card_inbox_open_question_non_blocking</source><target>Waiting: no open non-blocking inbox question names the card.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_inbox_open_question_non_blocking"><source>workflow.waiting.not.card_inbox_open_question_non_blocking</source><target>Waiting: an open non-blocking inbox question names the card.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_inbox_decision_changed"><source>workflow.waiting.card_inbox_decision_changed</source><target>Waiting: no changed decision of the card waits for a worker.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_inbox_decision_changed"><source>workflow.waiting.not.card_inbox_decision_changed</source><target>Waiting: a changed decision of the card waits for a worker.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_linked"><source>workflow.waiting.pr_linked</source><target>Waiting: no pull request is linked to the card.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_linked"><source>workflow.waiting.not.pr_linked</source><target>Waiting: a pull request is linked to the card.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_draft_open"><source>workflow.waiting.pr_draft_open</source><target>Waiting: no open pull request of the card is a draft.</target></trans-unit>
@@ -10512,6 +10666,10 @@ workflow:
             <trans-unit id="workflow.waiting.not.run_work_taker_paused"><source>workflow.waiting.not.run_work_taker_paused</source><target>Waiting: the only bridges that could take the open work are paused.</target></trans-unit>
             <trans-unit id="workflow.waiting.run_worker_active"><source>workflow.waiting.run_worker_active</source><target>Waiting: no matching worker run is open.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.run_worker_active"><source>workflow.waiting.not.run_worker_active</source><target>Waiting: a matching worker run is still open.</target></trans-unit>
+            <trans-unit id="workflow.waiting.run_worker_waiting"><source>workflow.waiting.run_worker_waiting</source><target>Waiting: no worker waits for a condition.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.run_worker_waiting"><source>workflow.waiting.not.run_worker_waiting</source><target>Waiting: a worker waits for a condition.</target></trans-unit>
+            <trans-unit id="workflow.waiting.run_wait_resume_stranded"><source>workflow.waiting.run_wait_resume_stranded</source><target>Waiting: no ended wait is stranded by an offline bridge.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.run_wait_resume_stranded"><source>workflow.waiting.not.run_wait_resume_stranded</source><target>Waiting: a wait ended while its bridge is offline.</target></trans-unit>
             <trans-unit id="workflow.waiting.bridge_account_usage"><source>workflow.waiting.bridge_account_usage</source><target>Waiting: the %window% window of %account% is not above %above% percent.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.bridge_account_usage"><source>workflow.waiting.not.bridge_account_usage</source><target>Waiting: the %window% window of %account% is above %above% percent.</target></trans-unit>
             <trans-unit id="workflow.waiting.parent_document_approved"><source>workflow.waiting.parent_document_approved</source><target>Waiting: not every %tag% document of the parent card is approved.</target></trans-unit>
@@ -10962,6 +11120,9 @@ workflow:
             <trans-unit id="ds.relative_time.last_month"><source>ds.relative_time.last_month</source><target>last month</target></trans-unit>
             <trans-unit id="ds.relative_time.months"><source>ds.relative_time.months</source><target>%count%mo ago</target></trans-unit>
             <trans-unit id="ds.relative_time.years"><source>ds.relative_time.years</source><target>%count%y ago</target></trans-unit>
+            <trans-unit id="ds.relative_time.in_minutes"><source>ds.relative_time.in_minutes</source><target>in %count%m</target></trans-unit>
+            <trans-unit id="ds.relative_time.in_hours"><source>ds.relative_time.in_hours</source><target>in %count%h</target></trans-unit>
+            <trans-unit id="ds.relative_time.in_days"><source>ds.relative_time.in_days</source><target>in %count%d</target></trans-unit>
             <trans-unit id="marker.paused"><source>marker.paused</source><target>Paused: %reason%.</target></trans-unit>
             <trans-unit id="marker.paused.code"><source>marker.paused.code</source><target>Paused with the code %code%.</target></trans-unit>
             <trans-unit id="marker.paused.reason"><source>marker.paused.reason</source><target>Card %card% is paused. %reason%.</target></trans-unit>
@@ -11034,10 +11195,28 @@ workflow:
             <trans-unit id="marker.design_review_running.remedy"><source>marker.design_review_running.remedy</source><target>Nothing. The app publishes the document for your review when the agent review ends.</target></trans-unit>
             <trans-unit id="marker.run_open"><source>marker.run_open</source><target>A worker runs on this card.</target></trans-unit>
             <trans-unit id="marker.run_open.remedy"><source>marker.run_open.remedy</source><target>Nothing. The card moves on when the worker ends.</target></trans-unit>
+            <trans-unit id="marker.worker_waiting"><source>marker.worker_waiting</source><target>The worker waits for %conditions%.</target></trans-unit>
+            <trans-unit id="bridge.wait.field.time_limit"><source>bridge.wait.field.time_limit</source><target>Time limit</target></trans-unit>
+            <trans-unit id="bridge.wait.field.time_limit_value"><source>bridge.wait.field.time_limit_value</source><target>%minutes% min, until %clock%</target></trans-unit>
+            <trans-unit id="bridge.wait.field.at_the_limit"><source>bridge.wait.field.at_the_limit</source><target>At the limit</target></trans-unit>
+            <trans-unit id="bridge.wait.field.at_the_limit_value"><source>bridge.wait.field.at_the_limit_value</source><target>The worker resumes in the same session and learns that the wait timed out. It then decides what to do.</target></trans-unit>
+            <trans-unit id="bridge.wait.resume_now"><source>bridge.wait.resume_now</source><target>Resume now</target></trans-unit>
+            <trans-unit id="bridge.wait.change_limit"><source>bridge.wait.change_limit</source><target>Change the time limit</target></trans-unit>
+            <trans-unit id="bridge.wait.change_limit.submit"><source>bridge.wait.change_limit.submit</source><target>Save the time limit</target></trans-unit>
+            <trans-unit id="bridge.wait.cancel"><source>bridge.wait.cancel</source><target>Cancel the wait</target></trans-unit>
+            <trans-unit id="bridge.wait.cancel.confirm"><source>bridge.wait.cancel.confirm</source><target>Cancel the wait? The worker stops and does not resume.</target></trans-unit>
+            <trans-unit id="bridge.wait.error.no_open_wait"><source>bridge.wait.error.no_open_wait</source><target>The card has no open wait. It ended before your request arrived.</target></trans-unit>
+            <trans-unit id="bridge.wait.error.limit_over_maximum"><source>bridge.wait.error.limit_over_maximum</source><target>The time limit is longer than the longest wait that the workflow allows.</target></trans-unit>
+            <trans-unit id="bridge.wait.error.limit_passed"><source>bridge.wait.error.limit_passed</source><target>The new time limit has passed already. Resume the worker now, or choose a longer limit.</target></trans-unit>
+            <trans-unit id="bridge.form.change_wait_limit_form.minutes.label"><source>bridge.form.change_wait_limit_form.minutes.label</source><target>Time limit in minutes</target></trans-unit>
+            <trans-unit id="bridge.form.change_wait_limit_form.minutes.help"><source>bridge.form.change_wait_limit_form.minutes.help</source><target>Counted from the start of the wait. The longest limit is %max% minutes.</target></trans-unit>
+            <trans-unit id="marker.worker_waiting.remedy"><source>marker.worker_waiting.remedy</source><target>Nothing. The worker resumes in the same session when a condition is true or the time limit passes.</target></trans-unit>
+            <trans-unit id="marker.wait_bridge_offline"><source>marker.wait_bridge_offline</source><target>Bridge offline: the wait of the worker ended, and its bridge cannot resume the session.</target></trans-unit>
+            <trans-unit id="marker.wait_bridge_offline.remedy"><source>marker.wait_bridge_offline.remedy</source><target>Start the bridge, or cancel the wait.</target></trans-unit>
             <trans-unit id="marker.no_bridge_online"><source>marker.no_bridge_online</source><target>No bridge is online to take this work.</target></trans-unit>
             <trans-unit id="marker.no_bridge_online.remedy"><source>marker.no_bridge_online.remedy</source><target>Start a bridge, or run `loupe login`.</target></trans-unit>
             <trans-unit id="marker.no_capable_bridge"><source>marker.no_capable_bridge</source><target>A bridge is online, but none can run this work.</target></trans-unit>
-            <trans-unit id="marker.no_capable_bridge.remedy"><source>marker.no_capable_bridge.remedy</source><target>Map this kind of work in the bridge rule file, or set `appPrompts: true`. Run `loupe init` again if the bridge is old. If every account that runs it fails the check for this project, open Agents and fix that account, then run `loupe bridge reload`.</target></trans-unit>
+            <trans-unit id="marker.no_capable_bridge.remedy"><source>marker.no_capable_bridge.remedy</source><target>Map this kind of work in the bridge rule file, or set `appPrompts: true`. Run `loupe update` if the bridge is old, because a bridge without the `waits` capability takes no work. If every account that runs it fails the check for this project, open Agents and fix that account, then run `loupe bridge reload`.</target></trans-unit>
             <trans-unit id="marker.bridge_paused"><source>marker.bridge_paused</source><target>Work waits: the bridge is paused.</target></trans-unit>
             <trans-unit id="marker.bridge_paused.remedy"><source>marker.bridge_paused.remedy</source><target>Resume the bridge on the Agents page.</target></trans-unit>
             <trans-unit id="marker.usage_limit"><source>marker.usage_limit</source><target>Work waits for the usage of an account to reset.</target></trans-unit>
@@ -11235,6 +11414,42 @@ workflow:
             <trans-unit id="readiness.live.form_open"><source>readiness.live.form_open</source><target>Open the current settings in a new tab</target></trans-unit>
             <trans-unit id="project.list.live.newer"><source>project.list.live.newer</source><target>{0}No newer projects.|{1}One newer project is on the first page.|]1,Inf[%count% newer projects are on the first page.</target></trans-unit>
             <trans-unit id="project.list.live.first_page"><source>project.list.live.first_page</source><target>Go to the first page</target></trans-unit>
+            <trans-unit id="board.card.tab.decisions"><source>board.card.tab.decisions</source><target>{0}Decisions|]0,Inf[Decisions %count%</target></trans-unit>
+            <trans-unit id="inbox.decisions.title"><source>inbox.decisions.title</source><target>Decisions made without you</target></trans-unit>
+            <trans-unit id="inbox.decisions.decision"><source>inbox.decisions.decision</source><target>Decision</target></trans-unit>
+            <trans-unit id="inbox.decisions.how"><source>inbox.decisions.how</source><target>How</target></trans-unit>
+            <trans-unit id="inbox.decisions.change"><source>inbox.decisions.change</source><target>Change</target></trans-unit>
+            <trans-unit id="inbox.decisions.empty"><source>inbox.decisions.empty</source><target>No agent has made a decision on this card yet.</target></trans-unit>
+            <trans-unit id="inbox.decisions.how_logged"><source>inbox.decisions.how_logged</source><target>Logged</target></trans-unit>
+            <trans-unit id="inbox.decisions.how_defaulted"><source>inbox.decisions.how_defaulted</source><target>Default at the deadline</target></trans-unit>
+            <trans-unit id="inbox.decisions.how_changed"><source>inbox.decisions.how_changed</source><target>Changed by you</target></trans-unit>
+            <trans-unit id="inbox.decisions.other_options"><source>inbox.decisions.other_options</source><target>{0}No other options.|{1}Other option: %options%.|]1,Inf[Other options: %options%.</target></trans-unit>
+            <trans-unit id="inbox.decisions.changed.open"><source>inbox.decisions.changed.open</source><target>Changed by you to %choice%, not acted on yet.</target></trans-unit>
+            <trans-unit id="inbox.decisions.changed.addressed"><source>inbox.decisions.changed.addressed</source><target>Changed by you to %choice%. The worker acted on it.</target></trans-unit>
+            <trans-unit id="inbox.decisions.changed.note"><source>inbox.decisions.changed.note</source><target>Your note: %note%</target></trans-unit>
+            <trans-unit id="inbox.decisions.change_form.title"><source>inbox.decisions.change_form.title</source><target>Change this decision</target></trans-unit>
+            <trans-unit id="inbox.decisions.change_form.description"><source>inbox.decisions.change_form.description</source><target>The agent chose: %choice%. Pick another option or write your own.</target></trans-unit>
+            <trans-unit id="inbox.decisions.change_form.legend"><source>inbox.decisions.change_form.legend</source><target>Other options</target></trans-unit>
+            <trans-unit id="inbox.decisions.change_form.cancel"><source>inbox.decisions.change_form.cancel</source><target>Cancel</target></trans-unit>
+            <trans-unit id="inbox.decisions.change_form.submit"><source>inbox.decisions.change_form.submit</source><target>Change decision</target></trans-unit>
+            <trans-unit id="inbox.form.change_inbox_decision_form.option.label"><source>inbox.form.change_inbox_decision_form.option.label</source><target>Other options</target></trans-unit>
+            <trans-unit id="inbox.form.change_inbox_decision_form.custom.label"><source>inbox.form.change_inbox_decision_form.custom.label</source><target>Something else</target></trans-unit>
+            <trans-unit id="inbox.form.change_inbox_decision_form.note.label"><source>inbox.form.change_inbox_decision_form.note.label</source><target>Note (optional)</target></trans-unit>
+            <trans-unit id="inbox.decisions.follow_up.title"><source>inbox.decisions.follow_up.title</source><target>This card is finished</target></trans-unit>
+            <trans-unit id="inbox.decisions.follow_up.body"><source>inbox.decisions.follow_up.body</source><target>A worker does not pick up a finished card. Create a follow-up card to act on your change.</target></trans-unit>
+            <trans-unit id="inbox.decisions.follow_up.create"><source>inbox.decisions.follow_up.create</source><target>Create follow-up card</target></trans-unit>
+            <trans-unit id="inbox.decisions.follow_up.created"><source>inbox.decisions.follow_up.created</source><target>The follow-up card is in the backlog.</target></trans-unit>
+            <trans-unit id="inbox.decisions.follow_up.open"><source>inbox.decisions.follow_up.open</source><target>Open card #%number%</target></trans-unit>
+            <trans-unit id="inbox.decisions.follow_up.card_title"><source>inbox.decisions.follow_up.card_title</source><target>Follow-up: the %label% decision of card #%number%</target></trans-unit>
+            <trans-unit id="inbox.decisions.follow_up.card_body"><source>inbox.decisions.follow_up.card_body</source><target>The owner changed the %label% decision of card:%number% after the card was finished.
+
+The agent chose: %choice%
+
+The owner chose: %changed%
+
+Note of the owner: %note%</target></trans-unit>
+            <trans-unit id="inbox.decisions.flash.changed"><source>inbox.decisions.flash.changed</source><target>Decision changed.</target></trans-unit>
+            <trans-unit id="inbox.decisions.flash.not_changed"><source>inbox.decisions.flash.not_changed</source><target>Loupe did not change the decision. Check the choice and try again.</target></trans-unit>
         </body>
     </file>
 </xliff>

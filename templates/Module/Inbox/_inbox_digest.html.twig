@@ -1,0 +1,11 @@
+{#- One line for a card with decisions the viewer has not seen. It links to the Decisions tab and holds no action.
+    Props: digest (InboxDigest), withCard (true in the flat list, where no group heading names the card). -#}
+<a class="lp-inbox-digest" href="{{ path('app_board_card', {projectId: digest.card.project.id, cardId: digest.card.id, tab: 'decisions'}) }}" data-turbo-frame="_top" data-inbox-digest="{{ digest.card.id }}">
+    <twig:ux:icon name="lucide:list-checks" class="lp-icon lp-icon--sm" aria-hidden="true" />
+    {% if withCard|default(false) %}
+        <span class="lp-inbox-group__number">#{{ digest.card.number }}</span>
+        <span class="lp-inbox-group__title">{{ digest.card.title|reference_plain }}</span>
+    {% endif %}
+    <span>{{ 'inbox.digest.new'|trans({'%count%': digest.count}) }}</span>
+    <span class="lp-inbox-digest__time"><twig:Ds:RelativeTime :datetime="digest.newest" /></span>
+</a>

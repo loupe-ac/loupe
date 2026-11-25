@@ -49,6 +49,7 @@ metrics:
       duration: { from: { earliest: [{ arrived: implementation }, pr-opened] }, to: ready-to-merge }
 agentReviewFailingSeverities: [important]
 approvalCoversConflictResolution: true
+waits: { maxMinutes: 120, maxPerRound: 10 }
 repositorySettings:
     - { key: approval-gate, mark: warning }
     - { key: ci-checks, mark: warning }
@@ -598,6 +599,28 @@ rules:
                       - not: { pr.conflicting: {} }
                       - not: { pr.changes_requested: {} }
 
+    - id: fix-decision-changed
+      slot: implementation
+      when:
+          all:
+              - not: { card.run.waits_on_answer: {} }
+              - not: { card.run.work_active: { kind: fix } }
+              - pr.open: {}
+              - card.inbox.decision_changed: {}
+      then:
+          request:
+              kind: fix
+              role: fix
+              reason: decision-changed
+              limit: 10
+              checks:
+                  - The worktree of the card is still available, or the agent can make it again
+                  - The push gate of the instruction files
+              refill:
+                  all:
+                      - pr.open: {}
+                      - not: { card.inbox.decision_changed: {} }
+
     - id: agent-review
       slot: implementation
       when:
@@ -703,6 +726,28 @@ rules:
     - id: comment-stale-approval
       when: { card.pr.approval_stale: {} }
       then: { forge-write: { write: comment, comment: stale-approval } }
+
+    - id: fix-decision-changed-in-review
+      slot: in-review
+      when:
+          all:
+              - not: { card.run.waits_on_answer: {} }
+              - not: { card.run.work_active: { kind: fix } }
+              - pr.open: {}
+              - card.inbox.decision_changed: {}
+      then:
+          request:
+              kind: fix
+              role: fix
+              reason: decision-changed
+              limit: 10
+              checks:
+                  - The worktree of the card is still available, or the agent can make it again
+                  - The push gate of the instruction files
+              refill:
+                  all:
+                      - pr.open: {}
+                      - not: { card.inbox.decision_changed: {} }
 
     - id: agent-review-in-review
       slot: in-review
@@ -1052,6 +1097,23 @@ rules:
       when: { card.follows.finished: {} }
       then: { move: { to: next, from: '@backlog' } }
 
+asks:
+    defaultHours: 24
+    defaults: true
+    log: true
+    groupByCard: true
+    fields: [undo]
+    labels:
+        - { key: naming, mode: log }
+        - { key: wording, mode: log }
+        - { key: code-style, mode: log }
+        - { key: test-choice, mode: default }
+        - { key: ordering, mode: default }
+        - { key: data, mode: ask }
+        - { key: security, mode: ask }
+        - { key: cost, mode: ask }
+        - { key: public-api, mode: ask }
+        - { key: destructive, mode: ask }
 inbox: [waits-for-approval, document-in-review, epic-design-changes-requested, run-needs-you, paused, repository-misfit]
 markers:
     - key: paused
@@ -1077,6 +1139,12 @@ markers:
                         - card.run.worker_active: {}
                         - card.inbox.open_question: { blocking: true }
                         - card.rule.retry_scheduled: {}
+    - key: wait-bridge-offline
+      kind: stuck
+      label: marker.wait_bridge_offline
+      remedy: marker.wait_bridge_offline.remedy
+      link: agents
+      when: { card.run.wait_resume_stranded: {} }
     - key: run-needs-you
       kind: stuck
       label: marker.run_needs_you
@@ -1250,7 +1318,15 @@ markers:
       kind: working
       label: marker.run_open
       remedy: marker.run_open.remedy
-      when: { card.run.worker_active: {} }
+      when:
+          all:
+              - card.run.worker_active: {}
+              - not: { card.run.worker_waiting: {} }
+    - key: worker-waiting
+      kind: waiting
+      label: marker.worker_waiting
+      remedy: marker.worker_waiting.remedy
+      when: { card.run.worker_waiting: {} }
     - key: no-capable-bridge
       kind: needs-you
       label: marker.no_capable_bridge

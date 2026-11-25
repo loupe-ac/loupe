@@ -1256,7 +1256,7 @@ At the end of a run, the bridge posts the result of the request:
 
 | The run | State | Reason |
 |---|---|---|
-| ends with the status `finished` or `waiting` | `done` | none |
+| ends with the status `finished` | `done` | none |
 | ends with the status `blocked` | `refused` | the `reason` of the result, else `blocked` |
 | ends with the status `unfinished` | `refused` | the `reason` of the result, else `unfinished` |
 | fails, or ends with no structured result | `refused` | the `reason` of the result, else `failed` |
@@ -1626,7 +1626,7 @@ schema requires two fields, and has one optional field:
 
 | Field | Value |
 |---|---|
-| `status` | `finished` when the work is done, `blocked` when it cannot go on without a person, `unfinished` when work still runs or remains, and `waiting` when the work waits on the forge, such as checks on a pushed pull request |
+| `status` | `finished` when the work is done, `blocked` when it cannot go on without a person, `unfinished` when work still runs or remains, such as after a `run_wait` call |
 | `summary` | one short sentence on what the worker did |
 | `reason` | optional: the reason code of the result, such as the code on the worker's `STAGE RESULT` line |
 
@@ -1644,10 +1644,11 @@ report otherwise. Any other fields go as `resultFields`. When they take more
 than 4000 bytes as JSON, the bridge sends none of them and logs
 `result_fields_dropped`, because Loupe refuses the whole report otherwise.
 
-The bridge reports a run with the status `waiting` as `waiting-on-forge`. The
-workflow reads the pull request after the next push, and asks for the next
-work. A server older than
-this state refuses the report with 422, so update the server first.
+A worker that needs a slow result calls the `run_wait` tool and ends its turn
+with the status `unfinished`. Loupe reports that run as `waiting` and resumes
+the same session when the wait ends. The result status `waiting` no longer
+exists. A server older than the `waits` capability does not know the wait tool,
+so update the server first.
 
 The stage skills still print a `STAGE RESULT:` line. The bridge does not read
 it.
@@ -1803,7 +1804,7 @@ or another server holds no pause for this bridge. The first reply that carries
 missing cache heals. When the bridge cannot find its config directory, it runs
 with no cache. An update hands the pause to the new version directly. Each
 heartbeat sends `paused` with the state the bridge applies, and
-`capabilities: ["commands", "rerun-command", "session-usage", "run-command", "git-identities"]`,
+`capabilities: ["commands", "rerun-command", "session-usage", "run-command", "git-identities", "waits"]`,
 with `add-entry` when `acceptEntries` is on, and with the capabilities of the
 work map.
 

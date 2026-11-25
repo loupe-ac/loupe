@@ -713,7 +713,7 @@ final class WorkRequestRepositoryTest extends KernelTestCase
         $this->workerRun($project, $card, $resumed, WorkerRunState::Succeeded);
         $waiting = $this->fix($project, $card, '2026-10-21 01:30:00', $url, WorkRequestState::Refused);
         $em->flush();
-        $this->workerRun($project, $card, $waiting, WorkerRunState::WaitingOnForge);
+        $this->workerRun($project, $card, $waiting, WorkerRunState::Waiting);
         $this->workerRun($project, $card, $blocked, WorkerRunState::Blocked);
         $this->workerRun($project, $card, $stopped, WorkerRunState::Failed);
         $this->workerRun($project, $card, $review, WorkerRunState::Succeeded);
@@ -759,7 +759,7 @@ final class WorkRequestRepositoryTest extends KernelTestCase
     /** @return iterable<string, array{WorkerRunState}> */
     public static function finishedRunStates(): iterable
     {
-        yield 'waiting on the forge' => [WorkerRunState::WaitingOnForge];
+        yield 'waiting on a wait' => [WorkerRunState::Waiting];
         yield 'succeeded' => [WorkerRunState::Succeeded];
     }
 

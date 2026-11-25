@@ -368,6 +368,53 @@
         gap: calc(var(--spacing) * 0.5);
     }
 
+    /* One card of the grouped open list, with its rows below the heading. */
+    .lp-core-inbox .lp-inbox-group {
+        display: flex;
+        flex-direction: column;
+        gap: calc(var(--spacing) * 0.5);
+        @apply pb-2;
+    }
+
+    .lp-core-inbox .lp-inbox-group__heading {
+        display: flex;
+        gap: calc(var(--spacing) * 1.5);
+        color: var(--text-mute);
+        @apply px-3 pt-2 text-xs font-semibold;
+    }
+
+    .lp-core-inbox .lp-inbox-group__heading {
+        align-items: center;
+    }
+
+    .lp-core-inbox .lp-inbox-group__title {
+        @apply truncate;
+    }
+
+    .lp-core-inbox .lp-inbox-group__count {
+        margin-left: auto;
+        color: var(--text-dim);
+        @apply shrink-0 font-normal;
+    }
+
+    .lp-core-inbox .lp-inbox-digest {
+        display: flex;
+        align-items: center;
+        gap: calc(var(--spacing) * 1.5);
+        color: var(--text-mute);
+        @apply px-3 py-1.5 text-xs;
+    }
+
+    .lp-core-inbox .lp-inbox-digest:hover {
+        color: var(--text);
+    }
+
+    .lp-core-inbox .lp-inbox-digest__time {
+        margin-left: auto;
+        color: var(--text-dim);
+        @apply shrink-0;
+    }
+
     /* The frame wraps the whole view, and the page flex column sees its children. */
     .lp-core-inbox .lp-inbox-frame {
         display: contents;
@@ -2897,6 +2944,10 @@
     .lp-inbox-linked-table__type {
         @apply inline-flex items-center gap-1.5 text-xs font-medium text-fg-dim;
     }
+    /* The tag of a decision and its choice sit on one line in the first cell. */
+    .lp-inbox-linked-table__title {
+        @apply flex flex-wrap items-center gap-2;
+    }
     .lp-inbox-linked-table strong {
         @apply font-semibold text-ink break-words;
     }
@@ -3029,6 +3080,19 @@
     }
     .lp-card-overview__state > .lp-status-box {
         @apply w-full;
+    }
+    /* The controls of an open wait under the status box. The limit form opens on its own row. */
+    .lp-card-wait-controls {
+        @apply flex flex-wrap items-start gap-2;
+    }
+    .lp-card-wait-controls__limit[open] {
+        @apply order-last w-full;
+    }
+    .lp-card-wait-controls__limit > .lp-disclosure__summary {
+        @apply list-none cursor-pointer;
+    }
+    .lp-card-wait-controls__limit > .lp-disclosure__body {
+        @apply pt-2;
     }
     /* The heading row of an epic's children: the title, the done count, and the lane button. */
     .lp-card-epic__head {

@@ -209,6 +209,8 @@ final readonly class PullRequestListFactProvider extends BoardFactProvider
             mergeApprovalUnanswered: true === $mergeApproval?->unanswered($installed),
             mergeApprovalNeedsPerson: true === $mergeApproval?->needsPerson($installed),
             missingChecks: $pullRequest->missingChecks,
+            forge: $pullRequest->forge,
+            repository: $pullRequest->repository,
         );
     }
 

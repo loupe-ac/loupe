@@ -18,7 +18,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 /** The Markdown a fix run comment posts on the pull request. */
 final readonly class FixRunCommentBody
 {
-    private const array REASONS = ['checks-failed', 'conflict', 'changes-requested', 'agent-review'];
+    private const array REASONS = ['checks-failed', 'conflict', 'changes-requested', 'agent-review', 'decision-changed'];
 
     public function __construct(
         private WorkerRunRepository $workerRuns,

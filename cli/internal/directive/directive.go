@@ -13,7 +13,7 @@ import (
 const resultRequest = "End with the structured result. Set status to finished when the stage is done. " +
 	"Set it to blocked when the stage cannot go on without a person. " +
 	"Set it to unfinished when work still runs or remains. " +
-	"Set it to waiting when the work waits on the forge, such as checks on a pushed pull request. " +
+	"To wait for checks, a review or another card event, call run_wait, then end the turn with the status unfinished. " +
 	"Put one short sentence on what you did in summary. " +
 	"Set reason to the reason code of your result, such as the code on your STAGE RESULT line, when you have one. " +
 	"Never end your turn while a command, a monitor or a subagent still runs. Wait for it in the foreground. " +
@@ -56,6 +56,52 @@ func RenderResumeAskClosed() string {
 		"Continue your task with the answers, then finish the stage. " +
 		"Wait for each command in the foreground, and report your status." +
 		"\n\n" + ResumeFooter
+}
+
+// WaitCondition is one condition that was true when a wait ended: its key and
+// the pull request it reads, or "" when it reads none.
+type WaitCondition struct {
+	Key         string
+	PullRequest string
+}
+
+// WaitResult is why a wait of the worker ended. It carries keys and pull
+// request tokens only, never text that a person wrote.
+type WaitResult struct {
+	Reason     string
+	Conditions []WaitCondition
+}
+
+// RenderResumeWaitEnded is the whole prompt of the resume that Loupe asks for
+// once the wait of the session ends. No rule edits it.
+func RenderResumeWaitEnded(r WaitResult) string {
+	var ended string
+	switch r.Reason {
+	case "condition":
+		parts := make([]string, 0, len(r.Conditions))
+		for _, c := range r.Conditions {
+			part := c.Key
+			if c.PullRequest != "" {
+				part += " on " + c.PullRequest
+			}
+			parts = append(parts, part)
+		}
+		ended = "Your wait ended because this condition is true: " + strings.Join(parts, ", ") + ". "
+	case "timed-out":
+		ended = "Your wait timed out. "
+	case "subject-gone":
+		ended = "Your wait ended because the pull request left the card. "
+	case "resumed-by-person":
+		ended = "A person ended your wait before its time limit. "
+	default:
+		ended = "Your wait ended. "
+	}
+
+	return ended +
+		"Check the state of the work first, because it can have changed while you waited. " +
+		"Continue your task from where it stopped, then finish the stage. " +
+		"Wait for each command in the foreground, and report your status." +
+		"\n\n" + Footer
 }
 
 // InboxAction names the inbox action that sent an agent: the item that the

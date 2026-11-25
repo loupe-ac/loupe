@@ -126,6 +126,15 @@ final class CardHistoryEntryTest extends TestCase
         ]), $entry->cause);
     }
 
+    public function test_a_fix_for_a_changed_decision_gives_its_own_reason(): void
+    {
+        $entry = CardHistoryEntry::of($this->event(CardEventKind::FixRequested, Actor::System, null, ['reason' => 'decision-changed', 'pullRequest' => 42]));
+
+        self::assertEquals(new TranslatableMessage('board.card.history.reason', [
+            '%reason%' => new TranslatableMessage('board.card.history.reason.decision_changed'),
+        ]), $entry->cause);
+    }
+
     public function test_a_stop_gives_the_pull_request_and_the_reason(): void
     {
         $entry = CardHistoryEntry::of($this->event(CardEventKind::Stopped, Actor::System, null, ['reason' => 'conflict', 'pullRequest' => 42]));
@@ -436,6 +445,15 @@ final class CardHistoryEntryTest extends TestCase
 
         self::assertSame('lucide:circle-slash', $entry->icon);
         self::assertEquals(new TranslatableMessage('board.card.history.resume_skipped', ['%number%' => 963]), $entry->sentence);
+    }
+
+    public function test_a_wait_end_names_its_reason(): void
+    {
+        $entry = CardHistoryEntry::of($this->event(CardEventKind::WaitEnded, Actor::System, null, ['reason' => 'cancelled-by-person']));
+
+        self::assertSame('lucide:hourglass', $entry->icon);
+        self::assertSame('board.card.history.wait_ended.cancelled_by_person', $entry->sentence->getMessage());
+        self::assertSame('board.card.history.changed', CardHistoryEntry::of($this->event(CardEventKind::WaitEnded, Actor::System, null, []))->sentence->getMessage());
     }
 
     public function test_a_skipped_resume_with_no_question_number_reads_as_changed(): void

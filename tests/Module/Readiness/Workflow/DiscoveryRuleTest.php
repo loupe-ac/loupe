@@ -34,7 +34,7 @@ final class DiscoveryRuleTest extends KernelTestCase
         self::bootKernel();
         $card = $this->discoveryCard($this->boundProject($template));
         $this->discoveryRun($card);
-        $this->bridge($card, [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_APP_PROMPTS]);
+        $this->bridge($card, [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_APP_PROMPTS]);
 
         $this->evaluate($card, '2026-10-02 12:00:00');
         $this->evaluate($card, '2026-10-02 12:05:00');
@@ -67,7 +67,7 @@ final class DiscoveryRuleTest extends KernelTestCase
         self::bootKernel();
         $card = $this->discoveryCard($this->boundProject('lifecycle'));
         $run = $this->discoveryRun($card);
-        $this->bridge($card, [Bridge::CAPABILITY_WORK_REQUESTS]);
+        $this->bridge($card, [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS]);
 
         $this->evaluate($card, '2026-10-02 12:00:00');
         $this->evaluate($card, '2026-10-02 12:00:30');

@@ -14,11 +14,14 @@ use App\Module\Inbox\Command\AskInboxItem;
 use App\Module\Inbox\Command\AskInboxRunCommand;
 use App\Module\Inbox\Command\AskInboxSuggestion;
 use App\Module\Inbox\Entity\InboxActionKind;
+use App\Module\Inbox\Entity\InboxConfidence;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\InboxLimits;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
+use App\Module\Workflow\Contract\AskLabelRule;
+use App\Module\Workflow\Contract\InboxAskSettings;
 
 /**
  * Checks one item before it reaches the inbox: trims it, refuses what breaks a
@@ -29,11 +32,15 @@ final readonly class InboxItemDrafter
     public function __construct(
         private InboxLinkResolver $links,
         private SessionPromptLimit $promptLimit,
+        private InboxAskSettings $askSettings,
     ) {
     }
 
-    /** @param string $prefix what each refused field name starts with, such as `items[0].` */
-    public function draft(Project $project, AskInboxItem $input, string $prefix, ?Bridge $bridge): AskInboxDraft
+    /**
+     * @param string $prefix what each refused field name starts with, such as `items[0].`
+     * @param bool   $waits  whether a session waits for the item, which an item from the public API never does
+     */
+    public function draft(Project $project, AskInboxItem $input, string $prefix, ?Bridge $bridge, bool $waits = true): AskInboxDraft
     {
         $field = static fn (string $name): string => $prefix.$name;
 
@@ -104,6 +111,11 @@ final readonly class InboxItemDrafter
             throw new DomainErrors([$field('kind') => AskInboxHandler::REVIEW_TARGET_WRONG_KIND]);
         }
 
+        $recommendedOption = $this->recommendation($input, $options, $field);
+        $optionCosts = $this->costs($input, $options, $field);
+        $details = $this->details($input, $field);
+        $label = $this->label($project, $input, $options, $recommendedOption, $details, $field, $waits);
+
         $cardIds = $input->cardIds;
         $documentIds = $input->documentIds;
         if ($reviewTarget instanceof Document) {
@@ -132,7 +144,142 @@ final readonly class InboxItemDrafter
             reviewTarget: $reviewTarget,
             suggestedActions: $this->suggestions($input->suggestedActions, $input->kind, $linkedCardIds, $field('suggestedActions'), $bridge),
             dismissible: $input->dismissible,
+            recommendedOption: $recommendedOption,
+            confidence: null === $recommendedOption ? null : InboxConfidence::from($input->confidence ?? ''),
+            optionCosts: $optionCosts,
+            details: $details,
+            label: $input->label,
+            mode: $waits ? $label?->mode : null,
+            defaultHours: $waits ? $label?->defaultHours : null,
         );
+    }
+
+    /**
+     * The rule of the template for the label of the item, after the checks that a labelled ask meets, or null for an
+     * item with no label.
+     *
+     * @param list<string>               $options
+     * @param array<string, string>|null $details
+     * @param \Closure(string): string   $field
+     */
+    private function label(Project $project, AskInboxItem $input, array $options, ?int $recommendedOption, ?array $details, \Closure $field, bool $waits): ?AskLabelRule
+    {
+        if (null === $input->label) {
+            return null;
+        }
+        if (mb_strlen($input->label) > AskLabelRule::MAX_NAME_LENGTH || 1 !== preg_match(AskLabelRule::NAME_PATTERN, $input->label)) {
+            throw new DomainErrors([$field('label') => AskInboxHandler::LABEL_INVALID]);
+        }
+        if (InboxItemKind::Question !== $input->kind || [] === $options) {
+            throw new DomainErrors([$field('label') => AskInboxHandler::LABEL_NEEDS_QUESTION]);
+        }
+        if ($waits && false === $input->blocking) {
+            throw new DomainErrors([$field('label') => AskInboxHandler::LABEL_NEEDS_BLOCKING]);
+        }
+        if ($input->multiple) {
+            throw new DomainErrors([$field('multiple') => AskInboxHandler::LABEL_NO_MULTIPLE]);
+        }
+        if (null === $recommendedOption) {
+            throw new DomainErrors([$field('recommendedOption') => AskInboxHandler::LABEL_NEEDS_RECOMMENDED]);
+        }
+        $rule = $this->askSettings->labelRule($project->id ?? throw new \LogicException('A stored project has an id.'), $input->label);
+        foreach ($rule->requiredFields as $name) {
+            if (!isset($details[$name])) {
+                throw new DomainErrors([$field('details.'.$name) => AskInboxHandler::LABEL_FIELD_MISSING]);
+            }
+        }
+
+        return $rule;
+    }
+
+    /**
+     * The recommended index, after the checks that bind it to the options and to a confidence.
+     *
+     * @param list<string>             $options
+     * @param \Closure(string): string $field
+     */
+    private function recommendation(AskInboxItem $input, array $options, \Closure $field): ?int
+    {
+        if (null !== $input->confidence && null === InboxConfidence::tryFrom($input->confidence)) {
+            throw new DomainErrors([$field('confidence') => AskInboxHandler::CONFIDENCE_INVALID]);
+        }
+        if (null === $input->recommendedOption) {
+            if (null !== $input->confidence) {
+                throw new DomainErrors([$field('confidence') => AskInboxHandler::CONFIDENCE_WITHOUT_RECOMMENDED]);
+            }
+
+            return null;
+        }
+        if ([] === $options) {
+            throw new DomainErrors([$field('recommendedOption') => AskInboxHandler::RECOMMENDED_NEEDS_OPTIONS]);
+        }
+        if ($input->recommendedOption < 0 || $input->recommendedOption >= \count($options)) {
+            throw new DomainErrors([$field('recommendedOption') => AskInboxHandler::RECOMMENDED_OUT_OF_RANGE]);
+        }
+        if (null === $input->confidence) {
+            throw new DomainErrors([$field('confidence') => AskInboxHandler::RECOMMENDED_WITHOUT_CONFIDENCE]);
+        }
+
+        return $input->recommendedOption;
+    }
+
+    /**
+     * @param list<string>             $options
+     * @param \Closure(string): string $field
+     *
+     * @return list<string>|null
+     */
+    private function costs(AskInboxItem $input, array $options, \Closure $field): ?array
+    {
+        if ([] === $input->optionCosts) {
+            return null;
+        }
+        if ([] === $options) {
+            throw new DomainErrors([$field('optionCosts') => AskInboxHandler::COSTS_NEED_OPTIONS]);
+        }
+        if (\count($input->optionCosts) !== \count($options)) {
+            throw new DomainErrors([$field('optionCosts') => AskInboxHandler::COSTS_COUNT]);
+        }
+        if (array_any($input->optionCosts, static fn (string $cost): bool => mb_strlen($cost) > InboxLimits::MAX_OPTION_COST_LENGTH)) {
+            throw new DomainErrors([$field('optionCosts') => AskInboxHandler::COST_TOO_LONG]);
+        }
+
+        return array_map(static fn (string $cost): string => trim((string) preg_replace('/\s+/u', ' ', $cost)), $input->optionCosts);
+    }
+
+    /**
+     * @param \Closure(string): string $field
+     *
+     * @return array<string, string>|null
+     */
+    private function details(AskInboxItem $input, \Closure $field): ?array
+    {
+        if ([] === $input->details) {
+            return null;
+        }
+        if (\count($input->details) > InboxLimits::MAX_DETAILS) {
+            throw new DomainErrors([$field('details') => AskInboxHandler::TOO_MANY_DETAILS]);
+        }
+        $checked = [];
+        foreach ($input->details as $name => $text) {
+            $name = (string) $name;
+            if (mb_strlen($name) > InboxLimits::MAX_DETAIL_NAME_LENGTH) {
+                throw new DomainErrors([$field('details') => AskInboxHandler::DETAIL_NAME_TOO_LONG]);
+            }
+            $key = trim($name);
+            if ('' === $key || 1 === preg_match('/[\r\n]/', $key) || isset($checked[$key])) {
+                throw new DomainErrors([$field('details') => AskInboxHandler::DETAIL_NAME_INVALID]);
+            }
+            if (mb_strlen($text) > InboxLimits::MAX_DETAIL_LENGTH) {
+                throw new DomainErrors([$field('details') => AskInboxHandler::DETAIL_TOO_LONG]);
+            }
+            if ('' === trim($text)) {
+                throw new DomainErrors([$field('details') => AskInboxHandler::DETAIL_BLANK]);
+            }
+            $checked[$key] = $text;
+        }
+
+        return $checked;
     }
 
     /**

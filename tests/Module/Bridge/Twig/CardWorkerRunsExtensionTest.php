@@ -117,9 +117,9 @@ final class CardWorkerRunsExtensionTest extends KernelTestCase
         $this->seedRun($em, $project, receivedAt: $at('10:00'), cardId: $stillRunning, state: WorkerRunState::Blocked, hasResult: true);
         $this->seedRun($em, $project, receivedAt: $at('10:05'), cardId: $stillRunning, state: WorkerRunState::Running);
         $this->seedRun($em, $project, receivedAt: $at('10:00'), exitCode: 1, cardId: $failed);
-        $this->seedRun($em, $project, receivedAt: $at('10:00'), cardId: $onForge, state: WorkerRunState::WaitingOnForge, hasResult: true);
+        $this->seedRun($em, $project, receivedAt: $at('10:00'), cardId: $onForge, state: WorkerRunState::Waiting, hasResult: true);
         $this->seedRun($em, $project, receivedAt: $at('10:00'), cardId: $forgeAfterGaveUp, state: WorkerRunState::GaveUp, hasResult: true);
-        $this->seedRun($em, $project, receivedAt: $at('10:05'), cardId: $forgeAfterGaveUp, state: WorkerRunState::WaitingOnForge, hasResult: true);
+        $this->seedRun($em, $project, receivedAt: $at('10:05'), cardId: $forgeAfterGaveUp, state: WorkerRunState::Waiting, hasResult: true);
         $this->seedRun($em, $other, receivedAt: $at('10:00'), cardId: $elsewhere, state: WorkerRunState::GaveUp, hasResult: true);
         $em->flush();
 

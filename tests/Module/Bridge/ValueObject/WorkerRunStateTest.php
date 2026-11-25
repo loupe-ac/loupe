@@ -21,7 +21,7 @@ final class WorkerRunStateTest extends TestCase
     public function test_every_state_has_its_backing_value(): void
     {
         self::assertSame(
-            ['queued', 'replaced', 'resumed', 'skipped', 'preparing', 'running', 'stopping', 'stopped', 'waiting-for-person', 'dropped', 'usage-limit', 'network', 'succeeded', 'failed', 'not-started', 'no-result', 'unfinished', 'blocked', 'waiting-on-forge', 'gave-up', 'timed-out', 'lost', 'closed'],
+            ['queued', 'replaced', 'resumed', 'skipped', 'preparing', 'running', 'stopping', 'stopped', 'waiting-for-person', 'dropped', 'usage-limit', 'network', 'succeeded', 'failed', 'not-started', 'no-result', 'unfinished', 'blocked', 'waiting', 'gave-up', 'timed-out', 'lost', 'closed'],
             array_map(static fn (WorkerRunState $state): string => $state->value, WorkerRunState::cases()),
         );
     }
@@ -40,7 +40,7 @@ final class WorkerRunStateTest extends TestCase
         yield 'a finished worker' => [0, true, 'finished', WorkerRunState::Succeeded];
         yield 'a blocked worker' => [0, true, 'blocked', WorkerRunState::Blocked];
         yield 'an unfinished worker' => [0, true, 'unfinished', WorkerRunState::Unfinished];
-        yield 'a worker that waits on the forge' => [0, true, 'waiting', WorkerRunState::WaitingOnForge];
+        yield 'a worker from before the wait tool that waits on the forge' => [0, true, 'waiting', WorkerRunState::Unfinished];
         yield 'a failed exit wins over the status' => [1, true, 'finished', WorkerRunState::Failed];
     }
 
@@ -62,10 +62,10 @@ final class WorkerRunStateTest extends TestCase
         self::assertSame('failed', WorkerRunState::GaveUp->chipModifier());
     }
 
-    public function test_a_run_that_waits_on_the_forge_reads_as_pending(): void
+    public function test_a_run_that_waits_reads_as_pending(): void
     {
-        self::assertSame('bridge.worker_runs.state.waiting_on_forge', WorkerRunState::WaitingOnForge->translationKey());
-        self::assertSame('pending', WorkerRunState::WaitingOnForge->chipModifier());
+        self::assertSame('bridge.worker_runs.state.waiting', WorkerRunState::Waiting->translationKey());
+        self::assertSame('pending', WorkerRunState::Waiting->chipModifier());
     }
 
     public function test_a_run_that_a_usage_limit_stopped_is_waiting_and_no_failure(): void
@@ -100,6 +100,27 @@ final class WorkerRunStateTest extends TestCase
         self::assertContains('network', ReportWorkerRunStateRequest::bridgeStates());
     }
 
+    public function test_a_waiting_run_is_parked_so_it_is_no_failure_no_stop_and_no_warning(): void
+    {
+        $state = WorkerRunState::Waiting;
+
+        self::assertSame('bridge.worker_runs.state.waiting', $state->translationKey());
+        self::assertSame('pending', $state->chipModifier());
+        self::assertTrue($state->isOutcome());
+        self::assertTrue($state->isResumable());
+        self::assertTrue($state->isInferred());
+        self::assertFalse($state->isOpen());
+        self::assertFalse($state->isFailure());
+        self::assertFalse($state->isStop());
+        self::assertFalse($state->isWarning());
+        self::assertFalse($state->isStoppable());
+    }
+
+    public function test_a_bridge_never_reports_waiting(): void
+    {
+        self::assertNotContains('waiting', ReportWorkerRunStateRequest::bridgeStates());
+    }
+
     public function test_no_result_reads_as_a_failure_on_the_page(): void
     {
         self::assertSame('no-result', WorkerRunState::NoResult->value);
@@ -110,7 +131,7 @@ final class WorkerRunStateTest extends TestCase
     public function test_only_the_exit_code_states_are_outcomes(): void
     {
         self::assertSame(
-            ['usage-limit', 'network', 'succeeded', 'failed', 'not-started', 'no-result', 'unfinished', 'blocked', 'waiting-on-forge', 'gave-up'],
+            ['usage-limit', 'network', 'succeeded', 'failed', 'not-started', 'no-result', 'unfinished', 'blocked', 'waiting', 'gave-up'],
             array_values(array_map(
                 static fn (WorkerRunState $state): string => $state->value,
                 array_filter(WorkerRunState::cases(), static fn (WorkerRunState $state): bool => $state->isOutcome()),
@@ -129,10 +150,10 @@ final class WorkerRunStateTest extends TestCase
         );
     }
 
-    public function test_only_timed_out_and_lost_are_inferred(): void
+    public function test_only_waiting_timed_out_and_lost_are_inferred(): void
     {
         self::assertSame(
-            ['timed-out', 'lost'],
+            ['waiting', 'timed-out', 'lost'],
             array_values(array_map(
                 static fn (WorkerRunState $state): string => $state->value,
                 array_filter(WorkerRunState::cases(), static fn (WorkerRunState $state): bool => $state->isInferred()),
@@ -239,6 +260,7 @@ final class WorkerRunStateTest extends TestCase
             WorkerRunState::Lost,
             WorkerRunState::Stopped,
             WorkerRunState::WaitingForPerson,
+            WorkerRunState::Waiting,
         ], WorkerRunState::resumableStates());
         foreach (WorkerRunState::cases() as $state) {
             self::assertSame(\in_array($state, WorkerRunState::resumableStates(), true), $state->isResumable(), $state->value);

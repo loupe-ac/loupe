@@ -349,6 +349,8 @@ Roughly in the order an agent uses them:
 | `inbox_get` | Read one inbox item, with its answer and its links |
 | `inbox_withdraw` | Withdraw an open item that is no longer needed, with a reason. Pass your `sessionId`: only the session that asked first can withdraw the item |
 | `inbox_action_run` | Record the owner's `answer`, `complete` or `dismiss` of an inbox item after the owner decided in chat, or run another built-in action of it for the owner. A bridge worker session is refused for every action. A `run-command` shows a preview first, and runs only with the `runDigest` of that preview. A `start-session` takes `sessionPrompt`, the prompt the owner confirmed |
+| `decision_list` | List the decisions of a card that the owner changed and that no worker has acted on yet. Each row gives `id`, `label`, `originalChoice`, `changedChoice`, `note` and `changedAt`. Off with the inbox |
+| `decision_mark_addressed` | Mark changed decisions as acted on, by the `decisions` that `decision_list` gave. Pass each one as an object with its `id` and its `changedAt`, and pass your `sessionId`. A decision that the owner changed again after the list is refused, and nothing is marked then. An id of another project, an id with no change, and an id of another card than the card of your run are refused, and nothing is marked then. Off with the inbox |
 | `worker_run_list` | Read a page of the worker runs, newest first, filtered by state, card, work kind, bridge, harness, account, model, words or the time a run ended. Each row gives the reason the run ended, its harness and account, its usage per model, its model, its experiment and variant, and its metrics. The metrics hold the sums of the run and its timing: the tool time, the model time, the idle gaps, the subagent time, and the count, failures and longest duration of its tool calls. They also hold the host of the run: the mean CPU use, the peak memory and swap, the count of runs that overlapped it on its bridge, and whether its machine ran on battery |
 | `worker_run_get` | Read one worker run in full, with every run of its series, its state changes, its output, its metrics and the commands sent to its bridge |
 | `worker_run_tool_calls` | Read a page of the tool calls of one worker run, in the order the worker made them. Each call gives its tool, its start, its duration, its error flag, whether a subagent made it, and its signatures. `perPage` defaults to 20, with a maximum of 100 |
@@ -379,6 +381,63 @@ Roughly in the order an agent uses them:
 | `card_release` | Make an unmanaged card managed again. The queued runs on the card then start, and the workflow asks again for the work that the card still needs |
 | `card_pause_release` | End the workflow pause of a card, by `cardId` or `number`, so the paused rule runs again with a fresh budget. It ends a pause of kind `retries`, `work-limit` or `work-stopped`. It does not end a hold, which `card_release` ends |
 | `bridge_command_cancel` | Withdraw the resume or stop command that waits on a worker run, before its bridge reads it |
+| `run_wait` | Let a bridge worker wait for conditions of its card, with a time limit, and then end its turn. A refusal opens no wait. See [Waiting for a condition](#waiting-for-a-condition) |
+
+### Waiting for a condition
+
+A worker that a bridge runs calls `run_wait` when it needs a slow result.
+An example is the checks of a pull request that the worker just pushed.
+The worker names the conditions and a time limit, and then it ends its turn.
+The run then shows the state `waiting`, and it uses no model.
+Only a worker that a bridge runs can call the tool.
+The token of the run carries the right to call it.
+
+| Argument | Meaning |
+|---|---|
+| `sessionId` | The session id of the worker. A run credential accepts only the session of its own run |
+| `conditions` | One to ten conditions. Each is an object with a `key`, optional `params`, and an optional `pullRequestUrl` |
+| `limitMinutes` | How long to wait at most, in whole minutes, from 1 up to the longest wait of the workflow |
+
+A `key` is a condition of the workflow or a marker key of its template.
+`params` holds the parameters of the condition, as in a workflow rule.
+A condition that reads a pull request needs a pull request that the card links and that is open.
+Name it in `pullRequestUrl`.
+Leave `pullRequestUrl` out when the card links exactly one open pull request.
+Loupe then binds that one.
+A condition that reads no pull request ignores `pullRequestUrl`.
+
+The workflow template sets the longest wait and the number of waits in one chain.
+The `waits:` section of the template holds both values.
+A chain is a run and all the runs that resume it.
+The defaults are 120 minutes and 10 waits.
+
+When Loupe accepts the wait, the answer holds these fields:
+
+| Field | Meaning |
+|---|---|
+| `waiting` | Always `true` |
+| `waitId` | The id of the wait |
+| `limitAt` | The time the wait ends at the latest, in ISO 8601 |
+| `conditions` | Each condition with its `key` and `pullRequest`, which is the token of the bound pull request, such as `pr:owner/repo#12`, or null |
+| `message` | The instruction to end the turn now |
+
+The tool refuses the wait, with a plain reason, in these cases:
+
+- The call does not use the credential of the run, or its `sessionId` is not the session of that run. Only the worker of a session opens its wait.
+- The session has no open bridge worker run. An interactive session has none, and a run that ended has none.
+- The run is not about a card.
+- `limitMinutes` is under 1, or over the longest wait. The reason names the maximum.
+- The chain already holds the most waits that the template allows. The reason says that the chain cap was reached.
+- The run already opened a wait, also one that ended. A run opens one wait, and Loupe resumes it in a new run.
+- The card already has an open wait. A card holds one wait at a time.
+- A condition is unknown, or its parameters are invalid.
+- A condition reads a pull request, and the call names none while the card links no open pull request, or several.
+- The pull request in `pullRequestUrl` is not linked to the card, or it is not open.
+- The same condition is named twice for the same pull request.
+- A condition is true already. The reason lists the true conditions, so the worker reads their result and does not wait.
+
+Each refusal names the condition key it is about.
+A refusal opens no wait, so the worker can fix the call and try again.
 
 ### Changing the project settings
 
@@ -807,6 +866,30 @@ Set it to false when the owner may only answer the item.
 With `readerSessionId`, each `inbox_list` row also carries the response:
 `options`, `selectedOptions`, `note`, and `review`. Without it, a row is
 the short summary, and `inbox_get` reads the answer.
+
+A question can recommend an answer. Set `recommendedOption` to the index of the
+option, counting from 0, and `confidence` to `high`, `moderate` or `low`. Both
+are required together, and they need `options`. The owner sees the recommended
+option first and picked, with one to three stars. `optionCosts` names what each
+option costs: one line for each option, in the order of `options`, at most 300
+characters each. Use an empty string for an option with no cost to name.
+`details` holds the facts behind the question as an object of Markdown strings
+by field name, such as `Evidence` or `Risk`. It takes at most 10 fields, with a
+name of at most 60 characters and a text of at most 5,000 characters. The owner
+opens them under **Details**. `inbox_get` returns the four fields.
+
+Give a question a `label` when the project template names its kind of choice,
+such as `naming` or `security`. The label has the lowercase form of the
+template, at most 40 characters. A labelled question needs `options`, a
+`recommendedOption` with its `confidence`, and every detail field that the
+template lists under `asks: fields`. The reply of `inbox_ask` says what Loupe
+did. A `log` label opens no item. The reply holds `logged`, a list of the label,
+the title and the option for each logged question, and a `message` such as
+"Logged \"Which name?\" as naming. Go on with \"beta\"." An `ask` or `default`
+label opens an item, and the `message` says "Asked, stop your turn." Loupe
+answers a `default` item with your recommended option when its deadline passes,
+and resumes your session. See
+[Labels, defaults and the log](inbox.md#labels-defaults-and-the-log).
 
 Create a Review item with `kind: "review"` and exactly one `reviewDocumentId` or `reviewPullRequestId`.
 Read `pullRequestId` from `card_get`; it identifies a stored card link, not a code-host number.

@@ -77,7 +77,7 @@ final class WorkflowGetToolTest extends KernelTestCase
             self::assertCount(1, $matching, $start);
             self::assertStringContainsString('the actor is', $matching[0], $start);
         }
-        self::assertSame(['kind' => 'fix', 'origin' => 'template', 'rules' => ['fix-in-implementation', 'fix-agent-review', 'fix-in-review', 'fix-agent-review-in-review'], 'checks' => self::CODE_CHECKS], $kinds['fix']);
+        self::assertSame(['kind' => 'fix', 'origin' => 'template', 'rules' => ['fix-in-implementation', 'fix-decision-changed', 'fix-agent-review', 'fix-in-review', 'fix-decision-changed-in-review', 'fix-agent-review-in-review'], 'checks' => self::CODE_CHECKS], $kinds['fix']);
         self::assertSame(['kind' => 'review', 'origin' => 'template', 'rules' => ['agent-review', 'agent-review-in-review'], 'checks' => ['A bridge work entry for the review kind', 'The loupe and loupe-lifecycle skill packages are installed for the agent', 'Conflict check: other review bots. No other reviewer or bot works against the agent review, the fix rounds or the merge rules']], $kinds['review']);
         self::assertSame(['kind' => 'sync', 'origin' => 'template', 'rules' => ['update-behind'], 'checks' => []], $kinds['sync']);
         self::assertSame(['merge-ready', 'merge-ready-epic-child'], $kinds['merge']['rules']);

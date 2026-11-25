@@ -8,7 +8,7 @@ namespace App\Module\Landing\ValueObject;
 final readonly class FeaturePage
 {
     /**
-     * @param list<string>       $mockups template names of the hero picture, then the three block pictures
+     * @param list<string>       $mockups template names of the hero picture, then one picture for each block
      * @param list<FeatureBlock> $blocks
      */
     public function __construct(

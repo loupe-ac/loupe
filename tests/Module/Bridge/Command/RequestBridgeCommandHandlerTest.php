@@ -95,6 +95,7 @@ final class RequestBridgeCommandHandlerTest extends KernelTestCase
             'inboxActionId' => null,
             'inboxItemNumber' => null,
             'inboxItemId' => null,
+            'wait' => null,
         ]], $this->outboxPayloads());
 
         $record = $audit->record('bridge.command_requested');
@@ -347,7 +348,6 @@ final class RequestBridgeCommandHandlerTest extends KernelTestCase
         yield 'running' => [WorkerRunState::Running];
         yield 'stopping' => [WorkerRunState::Stopping];
         yield 'succeeded' => [WorkerRunState::Succeeded];
-        yield 'waiting on the forge' => [WorkerRunState::WaitingOnForge];
     }
 
     #[DataProvider('notResumable')]

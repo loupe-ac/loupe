@@ -117,6 +117,7 @@ final class AdvertisedTools
         'card_release',
         'card_pause_release',
         'bridge_command_cancel',
+        'run_wait',
         'inbox_ask',
         'inbox_actions',
         'inbox_search',
@@ -125,6 +126,8 @@ final class AdvertisedTools
         'inbox_get',
         'inbox_withdraw',
         'inbox_action_run',
+        'decision_list',
+        'decision_mark_addressed',
     ];
 
     /** @var list<array{name: string, descriptionKey: string}>|null */

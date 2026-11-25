@@ -1,19 +1,34 @@
-<div class="lp-shot" aria-hidden="true">
-    <div class="lp-shot__canvas lp-shot__canvas--panel">
-        <div class="lp-shot__phone">
-            <div class="lp-shot__notification">
-                <img class="lp-shot__push-icon" src="/icons/push-192.png" alt="" width="192" height="192">
-                <span class="lp-shot__grow">
-                    <span class="lp-shot__row lp-shot__row--between"><span class="lp-shot__strong">{{ 'landing.shot.driftwood'|trans }}</span><span class="lp-shot__dim">{{ 'landing.shot.now'|trans }}</span></span>
-                    <span class="lp-shot__text">{{ 'landing.shot.which_test_should_the_checkout_fix'|trans }}</span>
-                </span>
-            </div>
-            <div class="lp-shot__notification">
-                <img class="lp-shot__push-icon" src="/icons/push-192.png" alt="" width="192" height="192">
-                <span class="lp-shot__grow">
-                    <span class="lp-shot__row lp-shot__row--between"><span class="lp-shot__strong">{{ 'landing.shot.driftwood'|trans }}</span><span class="lp-shot__dim">{{ 'landing.shot.1h_ago'|trans }}</span></span>
-                    <span class="lp-shot__text">{{ 'landing.shot.product_design_seasonal_rates'|trans }}</span>
-                </span>
+<div class="lp-shot" aria-hidden="true" inert>
+    <div class="lp-shot__canvas">
+        <div class="lp-shot__page lp-shot__inbox-pane lp-core-prototype-page">
+            <div class="lp-inbox-linked-table-wrap">
+                <table class="lp-inbox-linked-table">
+                    <caption>{{ 'inbox.decisions.title'|trans }}</caption>
+                    <thead><tr><th>{{ 'inbox.decisions.decision'|trans }}</th><th>{{ 'inbox.decisions.how'|trans }}</th><th></th></tr></thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <span class="lp-inbox-linked-table__title"><twig:Ds:Tag tone="neutral">{{ 'landing.shot.export_format'|trans }}</twig:Ds:Tag><strong>{{ 'landing.shot.iso_dates'|trans }}</strong></span>
+                                <span class="lp-inbox-linked-table__note">{{ 'inbox.decisions.other_options'|trans({'%count%': 1, '%options%': 'landing.shot.local_dates'|trans}) }}</span>
+                            </td>
+                            <td><twig:Ds:StatusChip modifier="neutral" :label="'inbox.decisions.how_defaulted'|trans" /></td><td></td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <span class="lp-inbox-linked-table__title"><twig:Ds:Tag tone="neutral">{{ 'landing.shot.retry_limit'|trans }}</twig:Ds:Tag><strong>{{ 'landing.shot.three_retries'|trans }}</strong></span>
+                                <span class="lp-inbox-linked-table__note">{{ 'inbox.decisions.other_options'|trans({'%count%': 2, '%options%': 'landing.shot.one_retry_five_retries'|trans}) }}</span>
+                            </td>
+                            <td><twig:Ds:StatusChip modifier="neutral" :label="'inbox.decisions.how_logged'|trans" /></td><td></td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <span class="lp-inbox-linked-table__title"><twig:Ds:Tag tone="neutral">{{ 'landing.shot.page_size'|trans }}</twig:Ds:Tag><strong>{{ 'landing.shot.fifty_rows'|trans }}</strong></span>
+                                <span class="lp-inbox-linked-table__note">{{ 'inbox.decisions.changed.open'|trans({'%choice%': 'landing.shot.one_hundred_rows'|trans}) }}</span>
+                            </td>
+                            <td><twig:Ds:StatusChip modifier="ok" :label="'inbox.decisions.how_changed'|trans" /></td><td></td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>

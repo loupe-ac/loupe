@@ -12,13 +12,14 @@ use App\Module\Bridge\Repository\BridgeHostSampleRepository;
 use App\Module\Bridge\Repository\ExperimentArchiveRepository;
 use App\Module\Bridge\Repository\ExperimentPinRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
+use App\Module\Bridge\Repository\WorkerWaitRepository;
 use App\Module\Bridge\Service\WorkerRunRetentionPolicy;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 
 /**
- * Deletes the run rows, the experiment pins, the host samples, the Try now
+ * Deletes the run rows, the waits of those runs, the experiment pins, the host samples, the Try now
  * overrides and the account readings the retention window no longer covers,
  * and answers how many runs went.
  * The newest reading of each account window stays. It also deletes the
@@ -28,6 +29,7 @@ final readonly class PurgeExpiredWorkerRunsHandler
 {
     public function __construct(
         private WorkerRunRepository $workerRuns,
+        private WorkerWaitRepository $workerWaits,
         private ExperimentPinRepository $experimentPins,
         private ExperimentArchiveRepository $experimentArchives,
         private BridgeHostSampleRepository $bridgeHostSamples,
@@ -51,6 +53,7 @@ final readonly class PurgeExpiredWorkerRunsHandler
         $this->bridgeAccountTryNows->deletePressedBefore($cutoff);
 
         $deleted = $this->workerRuns->deleteReceivedBefore($cutoff);
+        $this->workerWaits->deleteOpenedBefore($cutoff);
 
         $this->experimentArchives->deleteWithoutExperiment();
 

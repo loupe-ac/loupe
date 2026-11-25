@@ -15,7 +15,11 @@
 
 {% block body %}
 {% set inDrawer = app.request.headers.get('Turbo-Frame') == 'card-drawer-frame' %}
-{% set tabs = ['overview', 'details', 'conversation', 'feedback', 'history'] %}
+{% set decisions = inbox_card_decisions(card) %}
+{% set decisionCount = decisions is null ? null : decisions.decisions|length %}
+{% set tabs = ['overview', 'details', 'conversation'] %}
+{% if decisionCount is not null %}{% set tabs = tabs|merge(['decisions']) %}{% endif %}
+{% set tabs = tabs|merge(['feedback', 'history']) %}
 {% set activeTab = app.request.query.get('tab') in tabs ? app.request.query.get('tab') : 'overview' %}
 {# In the board drawer the host page subscribes, and a frame response would replace its cookie. #}
 {% if not inDrawer %}
@@ -54,7 +58,7 @@
         <h1 class="lp-card-drawer__title">{{ card.title|reference_plain }}</h1>
         <twig:Ds:Tabs tag="div" role="tablist" aria-label="{{ 'board.card.drawer.sections'|trans }}">
             {% for tab in tabs %}
-            <button type="button" class="lp-tabs__tab" role="tab" id="card-tab-{{ tab }}" aria-controls="card-panel-{{ tab }}" aria-selected="{{ tab == activeTab ? 'true' : 'false' }}" tabindex="{{ tab == activeTab ? '0' : '-1' }}" data-panel-tabs-target="tab" data-panel-tab="{{ tab }}" data-action="click->panel-tabs#select keydown->panel-tabs#keydown">{{ ('board.card.tab.' ~ tab)|trans }}</button>
+            <button type="button" class="lp-tabs__tab" role="tab" id="card-tab-{{ tab }}" aria-controls="card-panel-{{ tab }}" aria-selected="{{ tab == activeTab ? 'true' : 'false' }}" tabindex="{{ tab == activeTab ? '0' : '-1' }}" data-panel-tabs-target="tab" data-panel-tab="{{ tab }}" data-action="click->panel-tabs#select keydown->panel-tabs#keydown">{{ ('board.card.tab.' ~ tab)|trans({'%count%': decisionCount ?? 0}) }}</button>
             {% endfor %}
         </twig:Ds:Tabs>
 
@@ -64,8 +68,15 @@
                 {% set primary = markers.primary %}
                 {% set stateName = primary.kind.translationKey|trans %}
                 {% set stateFields = [{label: primary.kind.sinceLabelKey|trans, value: card_state_text('board.card_state.since_value', primary.since)}] %}
-                {% if primary.remedy is not null %}
+                {% set openWait = primary.label in ['marker.worker_waiting', 'marker.wait_bridge_offline'] ? card_worker_wait(card.project, card.id ~ '') : null %}
+                {% if primary.remedy is not null and (openWait is null or openWait.stranded) %}
                 {% set stateFields = stateFields|merge([{label: primary.kind.remedyLabelKey|trans, value: primary.remedy|trans(primary.params)|inline_code, wide: true, link: primary.link is null ? null : {href: marker_link_href(primary.link, card.project), label: marker_link_target(primary.link).translationKey|trans}}]) %}
+                {% endif %}
+                {% if openWait is not null and not openWait.stranded %}
+                {% set stateFields = stateFields|merge([
+                    {label: 'bridge.wait.field.time_limit'|trans, value: 'bridge.wait.field.time_limit_value'|trans({'%minutes%': openWait.limitMinutes, '%clock%': openWait.limitAt|date('H:i')})},
+                    {label: 'bridge.wait.field.at_the_limit'|trans, value: 'bridge.wait.field.at_the_limit_value'|trans, wide: true}
+                ]) %}
                 {% endif %}
                 <div class="lp-card-overview__state">
                 <twig:Ds:StatusBox
@@ -85,6 +96,9 @@
                         {{ 'board.card_state.try_now'|trans }}
                     </twig:Ds:Button>
                 </twig:Ds:ActionForm>
+                {% endif %}
+                {% if openWait is not null and is_granted('project.manage', card.project) %}
+                {% include '@Bridge/_card_worker_wait_controls.html.twig' with {project: card.project, cardId: card.id ~ '', wait: openWait} only %}
                 {% endif %}
                 </div>
                 {% endif %}
@@ -214,6 +228,13 @@
             <div class="lp-card-conversation-intro"><twig:Ds:Avatar icon="lucide:messages-square" size="sm" shape="square" tone="tint" /><twig:Ds:SectionHeading :description="'board.card.conversation.description'|trans">{{ 'board.card.conversation.title'|trans }}</twig:Ds:SectionHeading></div>
             {{ inbox_card_section(card) }}
         </section>
+
+        {% if decisionCount is not null %}
+        <section class="lp-card-panel" id="card-panel-decisions" role="tabpanel" aria-labelledby="card-tab-decisions" data-panel-tabs-target="panel" data-panel-panel="decisions"{% if activeTab != 'decisions' %} hidden{% endif %} data-controller="decisions-seen">
+            {% if decisionCount > 0 %}{{ inbox_card_decisions_seen_form(decisions) }}{% endif %}
+            {{ inbox_card_decisions_panel(decisions) }}
+        </section>
+        {% endif %}
 
         <section class="lp-card-panel" id="card-panel-feedback" role="tabpanel" aria-labelledby="card-tab-feedback" data-panel-tabs-target="panel" data-panel-panel="feedback"{% if activeTab != 'feedback' %} hidden{% endif %}>
             <div class="lp-card-conversation-intro"><twig:Ds:Avatar icon="lucide:globe-2" size="sm" shape="square" tone="tint" /><twig:Ds:SectionHeading :description="'board.card.feedback.description'|trans">{{ 'board.card.site_review.title'|trans }}</twig:Ds:SectionHeading></div>

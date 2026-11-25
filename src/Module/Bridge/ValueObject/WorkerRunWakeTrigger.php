@@ -10,6 +10,9 @@ enum WorkerRunWakeTrigger: string
     /** The owner closed an ask of the session. */
     case AskClosed = 'ask-closed';
 
+    /** A wait of the worker ended. */
+    case WaitEnded = 'wait-ended';
+
     /** A person clicked an action on an inbox item. */
     case InboxAction = 'inbox-action';
 

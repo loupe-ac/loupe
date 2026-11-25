@@ -12,6 +12,7 @@ use App\Module\Workflow\Contract\TemplateMetric;
 use App\Module\Workflow\Contract\TemplateOutcome;
 use App\Module\Workflow\Contract\TemplateSetting;
 use App\Module\Workflow\Contract\TemplateValueKey;
+use App\Module\Workflow\Contract\WaitSettings;
 use App\Module\Workflow\Expression\Expression;
 
 final readonly class Template
@@ -63,6 +64,8 @@ final readonly class Template
      * @param list<TemplateSetting>           $settings                         the settings the template declares, in template order
      * @param list<string>                    $requirements                     the written requirements of the workflow, in template order
      * @param array<string, bool|string>      $settingValues                    the values this project states for its settings of the project scope
+     * @param TemplateAsks                    $asks                             how the inbox shapes the asks of the project
+     * @param WaitSettings                    $waits                            what a worker may wait for: the longest wait, and the most waits in one chain of resumed runs
      */
     public function __construct(
         public string $key,
@@ -88,6 +91,8 @@ final readonly class Template
         public array $settings = [],
         public array $requirements = [],
         public array $settingValues = [],
+        public TemplateAsks $asks = new TemplateAsks(),
+        public WaitSettings $waits = new WaitSettings(),
     ) {
     }
 

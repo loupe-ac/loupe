@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Inbox\Api;
 
 use App\Module\Account\Entity\User;
+use App\Module\Board\Entity\BoardColumn;
 use App\Module\Board\Entity\Card;
 use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxAskItem;
@@ -18,9 +19,9 @@ use App\Module\Inbox\Repository\InboxItemRepository;
 use App\Module\OAuth\Entity\ApiKey;
 use App\Module\OAuth\Repository\ApiKeyRepository;
 use App\Module\Project\Entity\Project;
-use App\Tests\Module\Board\BoardColumnFixtures;
 use App\Tests\Module\Inbox\InboxScenario;
 use App\Tests\Module\Inbox\QueuedPushes;
+use App\Tests\Module\Workflow\WorkflowProjects;
 use App\Tests\Support\AgentCredential;
 use App\Tests\Support\ApiKeyCredential;
 use App\Tests\Support\PublicSpec;
@@ -33,7 +34,7 @@ use Symfony\Component\Uid\Uuid;
 /** The inbox routes of the public API under /api/v1/projects/{project}/inbox/items. */
 final class InboxItemApiTest extends WebTestCase
 {
-    use BoardColumnFixtures;
+    use WorkflowProjects;
     use InboxScenario;
     use QueuedPushes;
 
@@ -113,6 +114,34 @@ final class InboxItemApiTest extends WebTestCase
         $rows = $items->findOpenAsksOfCards($this->project, [(string) $card->id]);
         self::assertCount(1, $rows);
         self::assertFalse($rows[0]['blocking'], 'a card waits only on a blocking question');
+    }
+
+    public function test_a_label_is_kept_and_no_mode_applies_to_an_item_from_the_api(): void
+    {
+        foreach (['product-design', 'tech-design', 'in-review'] as $position => $slug) {
+            $this->em->persist(new BoardColumn(project: $this->project, label: $slug, slug: $slug, position: 10 + $position));
+        }
+        $this->em->flush();
+        $this->bindLifecycle($this->project);
+        $details = ['undo' => 'Change one setting.'];
+
+        foreach (['naming' => 'log', 'ordering' => 'default'] as $label => $mode) {
+            $this->send(Request::METHOD_POST, $this->base(), ['kind' => 'question', 'title' => 'Which '.$label.'?', 'options' => ['a', 'b'], 'recommendedOption' => 1, 'confidence' => 'high', 'details' => $details, 'label' => $label]);
+
+            self::assertResponseStatusCodeSame(201, $mode);
+            $item = $this->item($this->json()['itemId']);
+            self::assertSame($label, $item->label, $mode);
+            self::assertNull($item->defaultsAt, 'nothing waits on an item from the API, so it has no deadline');
+        }
+    }
+
+    public function test_a_label_without_a_recommended_option_is_refused(): void
+    {
+        $this->send(Request::METHOD_POST, $this->base(), ['kind' => 'question', 'title' => 'Which?', 'options' => ['a', 'b'], 'label' => 'naming']);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame(['recommendedOption'], array_column($this->json()['errors'], 'field'));
+        self::assertSame(0, $this->countItems());
     }
 
     public function test_blocking_true_and_another_kind_are_refused(): void

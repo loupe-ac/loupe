@@ -6,6 +6,7 @@ namespace App\Tests\Module\Inbox\Controller;
 
 use App\Module\Inbox\Entity\InboxCloseCause;
 use App\Module\Inbox\Entity\InboxCloser;
+use App\Module\Inbox\Entity\InboxConfidence;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Inbox\InboxScenario;
@@ -56,6 +57,114 @@ final class InboxThreadPageTest extends WebTestCase
         self::assertCount(1, $crawler->filter('#inbox-item-1 .lp-inbox-item__head .lp-inbox-item__blocking'));
         self::assertCount(0, $crawler->filter('#inbox-item-2 .lp-inbox-item__blocking'));
         self::assertCount(2, $crawler->filter('.lp-inbox-item__head .lp-inbox-item__kind svg'));
+    }
+
+    public function test_a_recommended_option_comes_first_picked_with_stars_cost_and_details(): void
+    {
+        $question = $this->question($this->em, $this->project, 1);
+        $question->options = ['alpha', 'beta', 'gamma'];
+        $question->recommendedOption = 2;
+        $question->confidence = InboxConfidence::Moderate;
+        $question->optionCosts = ['', 'slower', 'a rename later'];
+        $question->details = ['Evidence' => 'Two **callers** use it.', 'Risk' => 'Low'];
+        $this->em->flush();
+        $this->askHolding($this->em, $this->project, [$question]);
+
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$this->project->id.'/inbox');
+
+        self::assertResponseIsSuccessful();
+        $options = $crawler->filter('#inbox-item-1 .lp-decision__option');
+        self::assertSame(['2', '0', '1'], $options->each(static fn (Crawler $node): string => (string) $node->filter('input')->attr('value')));
+        self::assertNotNull($options->eq(0)->filter('input')->attr('checked'));
+        self::assertNull($options->eq(1)->filter('input')->attr('checked'));
+        $badge = $options->eq(0)->filter('[data-inbox-recommended]');
+        self::assertSame('moderate', $badge->attr('data-decision-recommended'));
+        self::assertCount(2, $badge->filter('.lp-decision__star--filled'));
+        self::assertCount(3, $badge->filter('.lp-decision__star'));
+        self::assertCount(0, $options->eq(1)->filter('[data-inbox-recommended]'));
+        self::assertSame('Cost: a rename later', $options->eq(0)->filter('[data-inbox-option-cost]')->text());
+        self::assertSame('Cost: slower', $options->eq(2)->filter('[data-inbox-option-cost]')->text());
+        self::assertCount(0, $options->eq(1)->filter('[data-inbox-option-cost]'));
+        $details = $crawler->filter('#inbox-item-1 details[data-inbox-details]');
+        self::assertStringContainsString('Details (2)', $details->filter('summary')->text());
+        self::assertNull($details->attr('open'));
+        self::assertSame(['Evidence', 'Risk'], $details->filter('dt')->each(static fn (Crawler $node): string => $node->text()));
+        self::assertSame('callers', $details->filter('dd strong')->first()->text());
+    }
+
+    public function test_a_question_with_a_deadline_says_when_loupe_answers_for_the_owner(): void
+    {
+        $question = $this->question($this->em, $this->project, 1);
+        $question->options = ['alpha', 'beta'];
+        $question->recommendedOption = 1;
+        $question->confidence = InboxConfidence::High;
+        $question->defaultsAt = new \DateTimeImmutable('2031-03-04 15:30:00');
+        $this->em->flush();
+        $this->askHolding($this->em, $this->project, [$question]);
+
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$this->project->id.'/inbox');
+
+        self::assertSame('No answer by 4 Mar 2031 15:30? Loupe answers "beta", the option the agent recommends.', $crawler->filter('#inbox-item-1 [data-inbox-deadline]')->text());
+    }
+
+    public function test_a_question_with_a_deadline_shows_it_as_a_relative_time_in_its_row(): void
+    {
+        $question = $this->question($this->em, $this->project, 1);
+        $question->options = ['alpha', 'beta'];
+        $question->recommendedOption = 0;
+        $question->confidence = InboxConfidence::High;
+        $question->body = 'Pick one.';
+        $question->defaultsAt = new \DateTimeImmutable('+20 hours 30 minutes');
+        $this->em->flush();
+        $this->askHolding($this->em, $this->project, [$question]);
+
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$this->project->id.'/inbox');
+
+        self::assertSame('defaults in 20h', $crawler->filter('#inbox-item-1 [data-inbox-deadline-row]')->text());
+    }
+
+    public function test_a_labelled_question_shows_its_label_in_the_detail_byline(): void
+    {
+        $question = $this->question($this->em, $this->project, 1);
+        $question->label = 'naming';
+        $this->em->flush();
+        $this->askHolding($this->em, $this->project, [$question]);
+
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$this->project->id.'/inbox');
+
+        self::assertSame('naming', $crawler->filter('.lp-inbox-ask__byline [data-inbox-label]')->text());
+    }
+
+    public function test_an_ask_with_mixed_labels_shows_each_distinct_label_in_the_byline(): void
+    {
+        $first = $this->question($this->em, $this->project, 1);
+        $second = $this->question($this->em, $this->project, 2);
+        $third = $this->question($this->em, $this->project, 3);
+        $second->label = 'naming';
+        $third->label = 'naming';
+        $fourth = $this->todo($this->em, $this->project, 4);
+        $fourth->label = 'release';
+        $this->em->flush();
+        $this->askHolding($this->em, $this->project, [$first, $second, $third, $fourth]);
+
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$this->project->id.'/inbox');
+
+        self::assertSame(['naming', 'release'], $crawler->filter('.lp-inbox-ask__byline [data-inbox-label]')->each(static fn ($node): string => $node->text()));
+    }
+
+    public function test_a_question_with_no_recommendation_keeps_its_order_and_shows_no_details(): void
+    {
+        $question = $this->question($this->em, $this->project, 1);
+        $question->options = ['alpha', 'beta'];
+        $this->em->flush();
+        $this->askHolding($this->em, $this->project, [$question]);
+
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$this->project->id.'/inbox');
+
+        $options = $crawler->filter('#inbox-item-1 .lp-decision__option');
+        self::assertSame(['0', '1'], $options->each(static fn (Crawler $node): string => (string) $node->filter('input')->attr('value')));
+        self::assertCount(0, $crawler->filter('#inbox-item-1 [data-inbox-recommended], #inbox-item-1 [data-inbox-details], #inbox-item-1 [data-inbox-option-cost]'));
+        self::assertCount(0, $crawler->filter('#inbox-item-1 .lp-decision__option input[checked]'));
     }
 
     public function test_an_ask_with_one_item_shows_no_item_head(): void

@@ -176,7 +176,7 @@ the request. Each log line below goes with the state the bridge reports:
 |---|---|
 | `worker_queued` | `queued` |
 | `worker_started` | `running` |
-| `worker_finished` | `succeeded`, `blocked`, `unfinished` or `waiting-on-forge` from the status for exit code 0, and `failed` for any other code |
+| `worker_finished` | `succeeded`, `blocked` or `unfinished` from the status for exit code 0, and `failed` for any other code |
 | `worker_no_result` | `no-result` for exit code 0, and `failed` for any other code |
 | `worker_failed` | `not-started` |
 | `queue_dropped` | `dropped`, with the reason `shutdown`, `rule_dead` or `reload` |
@@ -196,7 +196,7 @@ step, and the bridge reads the first line of type `result`. A later `result`
 line comes from a turn that a background task notification starts, and the
 bridge ignores it. The bridge also reads the single JSON document of
 `--output-format json`, so a run that an older bridge started still reports. The core schema requires `status`, which is
-`finished`, `blocked`, `unfinished` or `waiting`, and a one-sentence `summary`. A worker with
+`finished`, `blocked` or `unfinished`, and a one-sentence `summary`. A worker with
 no valid structured result logs `worker_no_result` at `ERROR`, and its record
 carries `hasResult: false`. The stage skills still print a `STAGE RESULT:`
 line, and the bridge does not read it. `cli/README.md` covers the schema in
@@ -225,15 +225,16 @@ The app also reads a map of names to values. The `proposedEntry` is the YAML of 
 without its name, at most 4,000 characters. The app drops a `run-command` suggestion with a
 malformed `command`.
 
-A worker reports `waiting` when its work waits on the forge, such as checks on
-a pushed pull request. The bridge reports that run as `waiting-on-forge`. The
-bridge resumes no run on its own. A run that ends `unfinished` posts `refused`
+A worker that waits for a slow result, such as the checks of a pushed pull
+request, calls the `run_wait` tool and ends with the status `unfinished`. Loupe
+stores that run as `waiting` and resumes the same session when the wait ends.
+The bridge resumes no run on its own. A run that ends `unfinished` posts `refused`
 with its reason. A template whose `retryOn` lists `unfinished` retries the
 request. The retry names the session to resume, and the bridge resumes it when this machine holds its
 transcript.
 
 A server older than the `unfinished` and `blocked` states refuses them with a
-422, and so does a server older than `waiting-on-forge`. The bridge logs `report_failed` for that report and does not
+422. The bridge logs `report_failed` for that report and does not
 retry it.
 
 The bridge sets `CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0` for each worker. Without
@@ -1139,7 +1140,7 @@ the session, in these keys:
 
 | Key | Meaning |
 |---|---|
-| `trigger` | The cause of the resume: `ask-closed`, `inbox-action`, `person`, `agent` or `work-request`. A work request that names the session of an unfinished run gives `work-request` |
+| `trigger` | The cause of the resume: `ask-closed`, `wait-ended`, `inbox-action`, `person`, `agent` or `work-request`. A work request that names the session of an unfinished run gives `work-request` |
 | `lastTurnAt` | The time of the last assistant message of the session before the resume. The bridge reads it from the transcript before it starts the process |
 | `firstTurn` | The `inputTokens`, `cacheReadTokens` and `cacheWriteTokens` of the first assistant message of the resume |
 
@@ -2151,7 +2152,7 @@ its fields, the failure events included.
 The server can pause a bridge, stop or resume one of its runs, run a failed
 command run again, and ask for the usage of an interactive run. Each heartbeat
 tells the server that the bridge takes these commands, with
-`capabilities: ["commands", "rerun-command", "session-usage"]`. It also names `git-identities`, because it reports its git identity.
+`capabilities: ["commands", "rerun-command", "session-usage"]`. It also names `git-identities`, because it reports its git identity, and `waits`, because it resumes a session when a wait ends.
 [Pause and commands](../reference/bridge-heartbeat.md#pause-and-commands)
 describes the protocol.
 
@@ -2177,7 +2178,12 @@ transcript of the session, or when the work map no longer runs workers of the
 kind of the run. [Resume](#resume) says which account a resume uses. Loupe
 also sends a resume on its own when an
 [inbox](../using/inbox.md) ask of the session closes. That resume names the
-cause `ask-closed`, and its prompt tells the agent to read the answers. A resume
+cause `ask-closed`, and its prompt tells the agent to read the answers. Loupe
+resumes the session of a worker on its own when the [wait](../reference/worker-runs.md#waits)
+of the worker ends. That resume names the cause `wait-ended`. The command
+carries a `wait` object with the reason the wait ended and the conditions that were
+true, and the prompt tells the agent why it resumed. The bridge needs the CLI
+release that knows this cause, and an older bridge refuses the command. A resume
 that the owner starts from an inbox item names the cause `inbox-action`. It uses
 the prompt of a person's resume, plus a line that names the inbox item and the
 action. The command carries the keys `inboxActionId`, `inboxItemId` and
@@ -2781,8 +2787,11 @@ worker can choose the agent review path. See
 [Agent review of a design](../using/workflows.md#agent-review-of-a-design).
 
 The file needs `work:`, or `appPrompts: true`. The bridge reports the
-`work-requests` capability when the map has an entry or `appPrompts` is on,
-and `interactive` too when an entry opens an interactive session. An entry for
+`work-requests` capability when the map has an entry or `appPrompts` is on.
+A bridge without the `waits` capability claims no work request. A CLI of this
+release always reports `waits`, so run `loupe update` on a bridge that lacks it.
+The bridge reports
+`interactive` too when an entry opens an interactive session. An entry for
 the kind `session` makes it report `session` as well. It also
 reports `subject-<type>` for each subject type other than `card` that an entry
 names, such as `subject-analysis`. With `appPrompts: true`, it reports

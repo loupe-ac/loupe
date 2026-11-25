@@ -28,7 +28,11 @@ final class RelativeTimeExtension extends AbstractExtension
     public function relativeTime(\DateTimeInterface $when, ?\DateTimeInterface $now = null): string
     {
         $now ??= new \DateTimeImmutable();
-        $seconds = max(0, $now->getTimestamp() - $when->getTimestamp());
+        $delta = $now->getTimestamp() - $when->getTimestamp();
+        if ($delta < 0) {
+            return $this->untilTime(-$delta);
+        }
+        $seconds = $delta;
 
         [$key, $count] = match (true) {
             $seconds < 60 => ['just_now', 0],
@@ -40,6 +44,17 @@ final class RelativeTimeExtension extends AbstractExtension
             $seconds < 5259600 => ['last_month', 0],
             $seconds < 31557600 => ['months', intdiv($seconds, 2592000)],
             default => ['years', intdiv($seconds, 31557600)],
+        };
+
+        return $this->translator->trans('ds.relative_time.'.$key, ['%count%' => $count]);
+    }
+
+    private function untilTime(int $seconds): string
+    {
+        [$key, $count] = match (true) {
+            $seconds < 3600 => ['in_minutes', max(1, intdiv($seconds, 60))],
+            $seconds < 86400 => ['in_hours', intdiv($seconds, 3600)],
+            default => ['in_days', intdiv($seconds, 86400)],
         };
 
         return $this->translator->trans('ds.relative_time.'.$key, ['%count%' => $count]);

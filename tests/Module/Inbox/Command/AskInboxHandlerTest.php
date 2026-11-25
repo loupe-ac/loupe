@@ -14,6 +14,8 @@ use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Inbox\Command\AskInboxCommand;
 use App\Module\Inbox\Command\AskInboxHandler;
 use App\Module\Inbox\Command\AskInboxItem;
+use App\Module\Inbox\Command\AskInboxView;
+use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Messenger\NotifyInboxOwner;
 use App\Module\Inbox\Messenger\NotifyInboxOwnerKind;
@@ -22,6 +24,7 @@ use App\Module\Inbox\Service\AskingBridge;
 use App\Module\Inbox\Service\CardWaitTrigger;
 use App\Module\Inbox\Service\InboxCardTileRefresher;
 use App\Module\Inbox\Service\InboxChangedPublisher;
+use App\Module\Inbox\Service\InboxDecisionLog;
 use App\Module\Inbox\Service\InboxItemDrafter;
 use App\Module\Inbox\Service\InboxSearchIndexer;
 use App\Module\Inbox\Service\InboxSessionAsks;
@@ -76,7 +79,7 @@ final class AskInboxHandlerTest extends KernelTestCase
         $view = $handler(new AskInboxCommand($project, $sessionId, [new AskInboxItem(InboxItemKind::Question, 'Which column?', freeText: true)]));
 
         self::assertTrue($view->extended);
-        self::assertSame((string) $rivalAskId, (string) $view->ask->id);
+        self::assertSame((string) $rivalAskId, (string) self::askOf($view)->id);
     }
 
     /** The project lock serialises one project. A session that asks in two at once meets the index instead. */
@@ -108,7 +111,7 @@ final class AskInboxHandlerTest extends KernelTestCase
 
         $view = $this->handler($this->em)(new AskInboxCommand($project, Uuid::v4(), [new AskInboxItem(InboxItemKind::Question, 'Which column?', freeText: true)]));
 
-        self::assertEquals([new NotifyInboxOwner((string) $view->ask->id, NotifyInboxOwnerKind::Ask)], $this->queuedPushes());
+        self::assertEquals([new NotifyInboxOwner((string) self::askOf($view)->id, NotifyInboxOwnerKind::Ask)], $this->queuedPushes());
     }
 
     public function test_an_item_added_to_the_open_ask_of_the_session_queues_no_push(): void
@@ -132,7 +135,7 @@ final class AskInboxHandlerTest extends KernelTestCase
 
         $view = $this->handler($this->em)(new AskInboxCommand($project, Uuid::v4(), [new AskInboxItem(InboxItemKind::Todo, 'Rotate the key')]));
 
-        self::assertNotNull($view->ask->closedAt);
+        self::assertNotNull(self::askOf($view)->closedAt);
         self::assertSame([], $this->queuedPushes());
     }
 
@@ -147,7 +150,7 @@ final class AskInboxHandlerTest extends KernelTestCase
 
         $event = $this->audit->record('inbox.items_asked');
         self::assertSame(AuditOutcome::Success, $event->outcome);
-        self::assertSame((string) $view->ask->id, $event->context['askId']);
+        self::assertSame((string) self::askOf($view)->id, $event->context['askId']);
         self::assertSame((string) $sessionId, $event->context['sessionId']);
         self::assertSame('1', $event->context['itemNumbers']);
         self::assertStringNotContainsString('secret', (string) json_encode($event->context));
@@ -162,7 +165,7 @@ final class AskInboxHandlerTest extends KernelTestCase
         ], $bridgeId));
 
         $this->em->clear();
-        self::assertEquals($view->ask->id, $this->em->find(WorkerRun::class, $run->id)?->waitsOnAskId);
+        self::assertEquals(self::askOf($view)->id, $this->em->find(WorkerRun::class, $run->id)?->waitsOnAskId);
     }
 
     /** @return iterable<string, array{AskInboxItem, bool}> */
@@ -272,6 +275,16 @@ final class AskInboxHandlerTest extends KernelTestCase
         $workerRuns = $container->get(WorkerRunRepository::class);
         self::assertInstanceOf(WorkerRunRepository::class, $workerRuns);
 
-        return new AskInboxHandler($items, $sessionAsks, $askingBridge, $drafter, $indexer, $em, $this->audit->auditor, $inboxChanged, $cardWaits, new InboxCardTileRefresher(new EventDispatcher()), $workerRuns, new RecordRunAskHandler(), $container->get(MessageBusInterface::class));
+        $decisionLog = $container->get(InboxDecisionLog::class);
+        self::assertInstanceOf(InboxDecisionLog::class, $decisionLog);
+
+        return new AskInboxHandler($items, $sessionAsks, $askingBridge, $drafter, $indexer, $em, $this->audit->auditor, $inboxChanged, $cardWaits, new InboxCardTileRefresher(new EventDispatcher()), $workerRuns, new RecordRunAskHandler(), $decisionLog, $container->get(MessageBusInterface::class), new \Psr\Log\NullLogger());
+    }
+
+    private static function askOf(AskInboxView $view): InboxAsk
+    {
+        self::assertNotNull($view->ask);
+
+        return $view->ask;
     }
 }

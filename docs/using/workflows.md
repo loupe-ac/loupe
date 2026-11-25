@@ -153,6 +153,7 @@ The shipped markers are:
 |---|---|---|
 | `paused` | Stuck | The card has an active pause |
 | `run-stopped` | Stuck | The last worker run failed or had no result, no work is under way, and no retry is due |
+| `wait-bridge-offline` | Stuck | A wait of a worker ended while the bridge that holds its session is offline, so nothing can resume the session. Lifecycle only. The card page links to the Agents page |
 | `run-needs-you` | Stuck | The last worker run blocked, gave up or waits for a person, and no question of its own is open |
 | `checks-failed` | Stuck | A pull request has failed checks, no fix is under way, and no retry is due |
 | `conflicting` | Stuck | A pull request has a conflict and no fix is under way |
@@ -314,6 +315,10 @@ A marker reads the same conditions as a rule. These conditions suit markers:
   match only a non-blocking one, such as a to-do. With no `blocking`, any open
   ask matches. Lifecycle and Simple set `blocking: true`, so a non-blocking
   to-do does not show "Needs you".
+- `card.inbox.decision_changed`: the owner changed a decision of the card in
+  the decision log, and no worker has marked the change addressed. The inbox
+  being off makes it false. Lifecycle uses it in the rules
+  `fix-decision-changed` and `fix-decision-changed-in-review`.
 - `card.children.marked` with a `kind`: an open child of the card shows a
   marker of that kind. The `kind` is `stuck`, `needs-you`, `working` or
   `waiting`. A chip does not count.
@@ -339,6 +344,21 @@ The `delay` of `card.quiet_for` and of `pr.ready_for` is optional. With no
 Markers also read conditions that rules already use: `pr.open`,
 `pr.checks_failed`, `pr.conflicting`, `card.run.work_active` and
 `card.run.worker_active`.
+
+The condition `card.run.worker_waiting` is true while the card has an open
+[wait](../reference/worker-runs.md#waits) of a worker. It takes no parameters.
+A run that waits also counts for `card.run.worker_active`, so the Lifecycle and
+Simple templates add `not card.run.worker_waiting` to the `run-open` marker. The
+`worker-waiting` marker, of the kind waiting, shows the card as "The worker waits
+for ...". The label names the conditions of the wait, joined with "or", and the
+pull request that each one reads. The marker turns on when the worker opens the
+wait, and it turns off when the wait ends.
+
+The condition `card.run.wait_resume_stranded` is true when a wait ended in a way
+that resumes its session, the run of the worker is parked, and the bridge that
+holds the session sends no heartbeat. It takes no parameters. The Lifecycle
+template uses it for the `wait-bridge-offline` marker. See
+[Waits](../reference/worker-runs.md#a-wait-that-ends-while-its-bridge-is-offline).
 
 Both run conditions take an optional `kind`. They also take an optional `origin`,
 whose only value is `rule`. With `origin: rule`, work that a person started, such
@@ -371,6 +391,69 @@ The template is refused when `inbox:` names an unknown marker or names a marker
 twice. A marker with no pull request, document, run or pause, called a
 card-level marker, can be listed. It opens one inbox item for each spell of the
 marker on the card, and the item ends when the marker turns off.
+
+### The `asks:` section
+
+The top-level `asks:` section shapes the asks that agents put in the
+[inbox](inbox.md). It is optional. A template with no section, and a template
+copy stored before the section existed, use the default of each key.
+
+```yaml
+asks:
+    groupByCard: true
+```
+
+`groupByCard` says whether the open side of the inbox page groups its rows by
+card. It defaults to `true`. Set it to `false` for one flat list, oldest first.
+
+The same section says what Loupe does with the questions that an agent labels.
+
+```yaml
+asks:
+    defaultHours: 24
+    defaults: true
+    log: true
+    fields: [undo]
+    labels:
+        - { key: naming, mode: log }
+        - { key: ordering, mode: default }
+        - { key: security, mode: ask }
+```
+
+| Key | Meaning | Default |
+|---|---|---|
+| `labels` | The labels an agent may use, each with a `key` and a `mode`: `log`, `default` or `ask`. | none |
+| `defaultHours` | How many hours a `default` question waits for you. A whole number from 1 to 720. | `24` |
+| `defaults` | Switches the `default` mode. When `false`, a `default` label asks. | `true` |
+| `log` | Switches the `log` mode. When `false`, a `log` label asks. | `true` |
+| `fields` | Detail fields that every labelled question must carry, such as `undo`. | none |
+
+A label key and a field name are lowercase words joined by hyphens, at most 40
+characters. A label that the list does not name asks. Each mode is described
+under [Labels, defaults and the log](inbox.md#labels-defaults-and-the-log).
+
+The template is refused when a value has the wrong type, when a key or a label
+is listed twice, when a mode is not `log`, `default` or `ask`, or when the
+section holds a key that Loupe does not know. A stored copy with a bad value
+reads as the default.
+
+## Waits
+
+The top-level `waits:` section is optional. It limits how long a worker may wait
+for a card condition, and how often.
+
+```yaml
+waits:
+    maxMinutes: 120
+    maxPerRound: 10
+```
+
+- `maxMinutes` is the most minutes that a worker may wait in one wait. It takes a whole number from 1 to 1440. The default is 120.
+- `maxPerRound` is the most waits in one chain of resumed runs. It takes a whole number from 1 to 100. The default is 10.
+
+The Lifecycle template sets both values. A template with no `waits:` section
+uses the defaults. The template is refused when the section holds an unknown key
+or a value that is out of range.
 
 ## Slots and columns
 
@@ -1053,7 +1136,7 @@ Six conditions of the **Agent review** group read the reviews of pull requests:
 
 | Condition | True when |
 |---|---|
-| `agent_review.due` | the head commit of the pull request that the rule acts on has no review, own or carried. It is also true when the newest review failed and a fix round for the agent review finished after that review began: it ended done, or a resumed run of it ended with success or waiting on the forge, so the same commit gets a new review. It is false while an approval overrides the review |
+| `agent_review.due` | the head commit of the pull request that the rule acts on has no review, own or carried. It is also true when the newest review failed and a fix round for the agent review finished after that review began: it ended done, or a resumed run of it ended with success or waiting, so the same commit gets a new review. It is false while an approval overrides the review |
 | `agent_review.failed` | the newest review of the head commit of the pull request that the rule acts on failed, own or carried. It is false once a fix round for the agent review has finished after that review began, until the next review lands. It is also false while an approval overrides the review |
 | `agent_review.passed` | every open pull request has a head commit and a review of it that passed. It is false when no open pull request has a head commit |
 | `agent_review.overridden` | every open pull request has a head commit and a review of it that passed or that an approval overrides, and an approval overrides at least one |
@@ -1077,6 +1160,7 @@ Lifecycle uses the conditions in these rules:
 |---|---|---|
 | `agent-review` and `agent-review-in-review` | Implementation and In review | When `agent_review.due` holds, asks for work of kind `review`. The rule waits while work of kind `implement`, `fix`, `sync` or `rebase-stacked` is active on the card, because that worker can still push a new head |
 | `fix-agent-review` and `fix-agent-review-in-review` | Implementation and In review | When `agent_review.failed` holds, asks for a fix with the reason `agent-review`. The limit is 10 rounds. The count starts again when `agent_review.passed` holds |
+| `fix-decision-changed` and `fix-decision-changed-in-review` | Implementation and In review | When the owner changed a decision of the card and no worker acted on it, and the card has an open pull request, asks for a fix with the reason `decision-changed`. The rule waits while a fix runs and while a session of the card waits for an answer. The limit is 10 rounds. The count starts again when no change is open |
 | `review-ready` | Implementation | Marks a draft pull request ready, when its review passed, its checks passed, it has no conflict and no request for changes. It uses the `review-ready` write |
 
 The limit of 10 is fixed in the template. The rules `reviewable`, `merge-ready` and `merge-ready-epic-child`

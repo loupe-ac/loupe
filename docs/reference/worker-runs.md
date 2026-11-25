@@ -41,7 +41,7 @@ each refusal.
 | `no-result` | the bridge | the worker exited with code 0, with no structured result |
 | `unfinished` | the bridge | the worker exited with code 0 and the status `unfinished`: its work still runs or remains |
 | `blocked` | the bridge | the worker exited with code 0 and the status `blocked`: it cannot go on without a person |
-| `waiting-on-forge` | the bridge | the worker exited with code 0 and the status `waiting`: its work waits on the forge, such as the checks of a pushed pull request. The bridge does not resume the run |
+| `waiting` | the server | the run has a wait, and it ended with the result `unfinished` or no result. The session can resume. See [Waits](#waits) |
 | `gave-up` | the bridge | the run did not finish, and the bridge already ran every resume its rule allows |
 | `usage-limit` | the bridge | a usage limit stopped the run, and the bridge gave its work request back. The work starts again when an account has room |
 | `network` | the bridge | a network outage stopped the run, and the bridge gave its work request back. The work waits five minutes, then starts again |
@@ -58,7 +58,7 @@ run from before the workflow engine keeps its history.
 
 `queued`, `resumed`, `preparing`, `running` and `stopping` are open states. Every other state
 closes the run. `succeeded`, `no-result`, `unfinished`, `blocked`,
-`waiting-on-forge`, `gave-up`, `usage-limit`, `network`, `failed` and `not-started` are the outcomes. Only
+`waiting`, `gave-up`, `usage-limit`, `network`, `failed` and `not-started` are the outcomes. Only
 an outcome carries an exit code, a result flag, a result status, result fields
 and a failure reason.
 
@@ -119,9 +119,9 @@ order.
 | `sessionId` | the uuid of the session the worker runs as. Required for `running`, except on a command run. A harness that names its session with its own id sends that id in `harnessSessionId` |
 | `startedAt` | when the worker started, on the bridge clock. Required for `running` |
 | `endedAt` | when the worker ended, on the bridge clock. Required for an outcome. A `stopped` report may leave it out, and the server then uses `at`. The end, or `at` in its place, cannot be before the `startedAt` of the same report |
-| `exitCode` | the process exit code, between -255 and 255. `succeeded`, `no-result`, `unfinished`, `blocked` and `waiting-on-forge` need 0, `failed` needs any other code, and `not-started` needs `null` |
-| `hasResult` | whether the worker gave a structured result. `no-result` needs `false`, and `succeeded`, `unfinished`, `blocked` and `waiting-on-forge` refuse `false`. Send `null` for `not-started`, because a value is refused when `exitCode` is `null`. The server ignores it on a command run |
-| `resultStatus` | the `status` of the structured result: `finished`, `blocked`, `unfinished` or `waiting`. It needs `hasResult: true`, so a command run cannot send it. `blocked` and `unfinished` need the state of the same name, `waiting` needs `waiting-on-forge`, and `succeeded` takes `finished` or `null` |
+| `exitCode` | the process exit code, between -255 and 255. `succeeded`, `no-result`, `unfinished` and `blocked` need 0, `failed` needs any other code, and `not-started` needs `null` |
+| `hasResult` | whether the worker gave a structured result. `no-result` needs `false`, and `succeeded`, `unfinished` and `blocked` refuse `false`. Send `null` for `not-started`, because a value is refused when `exitCode` is `null`. The server ignores it on a command run |
+| `resultStatus` | the `status` of the structured result: `finished`, `blocked` or `unfinished`. It needs `hasResult: true`, so a command run cannot send it. `blocked` and `unfinished` need the state of the same name, and `succeeded` takes `finished` or `null`. A bridge from before the `waits` capability can still send `waiting`, and the server stores that run as `unfinished` |
 | `resultReason` | why the run ended the way it did, such as `stacked` or `approval-stale`. It has at most 40 characters of lower-case letters, digits and hyphens, and starts with a letter. It needs `hasResult: true`, as `resultStatus` does. The server stores a code it does not know as `other` |
 | `failureReason` | why the process never started, at most 1000 characters. Required for `not-started`, and refused with an exit code |
 | `output` | what the worker printed, at most 4000 characters. Required for an outcome, and it may be empty. A `stopped` report may carry it, and a run keeps its output when the report has none |
@@ -800,7 +800,7 @@ error:
 | This run already has a command that waits for its bridge | a request waits on the run |
 | You cannot control an interactive session from here | the run is interactive |
 | This run has no session to resume | a resume of a run with no `sessionId` |
-| Only an ended run can resume | a resume of an open run, or of a run that ended as `succeeded`, `waiting-on-forge`, `dropped`, `replaced`, `skipped`, `not-started` or `closed` |
+| Only an ended run can resume | a resume of an open run, or of a run that ended as `succeeded`, `dropped`, `replaced`, `skipped`, `not-started` or `closed` |
 | Only a queued or running run can stop | a stop of a run that is not `queued`, `resumed` or `running` |
 | Only a command run can run again | a rerun of a run that is not a command run |
 | Only a failed, timed-out or lost command run can run again | a rerun of a command run in any other state |
@@ -810,6 +810,105 @@ error:
 
 A queued run of a bridge that reports a pause shows **Waiting: bridge paused**
 in the web UI. The run keeps the state `queued`.
+
+## Waits
+
+A bridge worker opens a wait with the MCP tool `run_wait`.
+See [Waiting for a condition](../using/mcp.md#waiting-for-a-condition).
+A wait stores the card, the conditions, the time limit and the run that opened it.
+A card has at most one open wait.
+Loupe keeps the waits in an internal table, and no API shows them.
+
+A chain is a run and all the runs that resume it.
+The workflow template caps the number of waits in one chain.
+The tool refuses a wait when the chain reached that cap.
+
+Only the server sets the state `waiting`, and a bridge never reports it.
+It applies when a run has a wait and the bridge reports `unfinished` or `no-result`.
+The wait must be open.
+It also applies when the wait ended in a way that resumes the session and no run resumed it yet.
+The run keeps the exit code, the output and the result fields that the bridge reported.
+A retried report of the same end changes nothing and writes no second state change.
+
+A run that ends `finished` (`succeeded`) or `blocked` closes its open wait with the reason `run-finished`.
+A wait that ended before the run keeps its own reason.
+Any other end keeps its own state, such as `stopped`, `failed`, `usage-limit` or `network`.
+That end leaves an open wait as it is.
+
+The state `waiting` can resume, as `unfinished` can.
+It is no failure, no stop and no warning on the card.
+
+### The owner controls of a wait
+
+The status box of a card with an open wait offers three controls to a person who may manage the project.
+Each control posts with a CSRF token.
+A control on a card with no open wait changes nothing and shows an error.
+See [A worker that waits](../using/board.md#a-worker-that-waits).
+
+| Control | Route | End reason | Effect on the run |
+|---|---|---|---|
+| Resume now | `POST /projects/{id}/cards/{cardId}/wait/resume` | `resumed-by-person` | Loupe resumes the session. A run that still ends its turn resumes when it ends |
+| Change the time limit | `POST /projects/{id}/cards/{cardId}/wait/limit` | none, the wait stays open | None. The new limit counts from the start of the wait, and the template maximum bounds it |
+| Cancel the wait | `POST /projects/{id}/cards/{cardId}/wait/cancel` | `cancelled-by-person` | A parked run becomes `stopped` and nothing resumes it |
+
+A move of the card to another column ends an open wait with `card-moved`.
+A move into a terminal column ends it with `card-finished`.
+A hold of the card ends it with `card-held`.
+Each of these three ends stops a parked run, as a cancel does, and asks for no confirmation.
+Any later closing report of that run, a failure or an interruption too, closes it as `stopped`.
+A cancel, a move, a finish or a hold that ends a wait while its run still ends its turn forces the state `stopped` when the run closes.
+The other end reasons leave the state of the run as the bridge reports it.
+
+### A wait that ends while its bridge is offline
+
+A wait is stranded when it ended in a way that resumes the session, its run is in the state `waiting`, and no run resumed it yet.
+A run that still runs is not stranded, because its end sends the resume.
+Only the bridge that holds the session can resume it.
+When that bridge sends no heartbeat, the condition `card.run.wait_resume_stranded` is true.
+The Lifecycle template then shows the card as **Stuck**, with the marker `wait-bridge-offline` and the label **Bridge offline**.
+The remedy line says: "Start the bridge, or cancel the wait."
+
+The wait keeps its end reason.
+A task runs every minute and requests the resume again for each stranded wait whose bridge sends its heartbeat.
+It skips a wait whose resume still waits for the bridge, so the bridge gets one resume at a time.
+`app.bridge.stranded_wait_resume_schedule` in `config/services.yaml` is the cron expression of the task.
+
+The status box of the stuck card offers two controls to a person who may manage the project.
+**Change the time limit** does not show, because the wait has ended.
+Each control posts with a CSRF token.
+
+| Control | Route | Effect |
+|---|---|---|
+| Resume now | `POST /projects/{id}/cards/{cardId}/wait/resume` | Requests the `wait-ended` resume at once. The bridge runs it when it is back and the request has not expired. After that, the task requests it again |
+| Cancel the wait | `POST /projects/{id}/cards/{cardId}/wait/cancel` | Stops the parked run, withdraws a resume that still waits for the bridge, and writes a `wait-ended` row with the reason `cancelled-by-person` to the card history. The run shows as `stopped`, so the wait is no longer stranded and the marker turns off |
+
+A move, a finish or a hold of the card also stops the parked run of a stranded wait.
+These changes ask for no confirmation, and each one writes a `wait-ended` history row.
+
+### How a wait ends
+
+Loupe tests the open wait of a card in each evaluation of the card.
+The test runs when the automation of the project is on and when it is off.
+A wait ends in one of these ways:
+
+- A condition of the wait turns true. The end reason is `condition`, and Loupe keeps the conditions that were true.
+- The time limit passes. The end reason is `timed-out`.
+- The pull request of a condition leaves the card, or is no longer open. The end reason is `subject-gone`.
+
+A condition about a pull request reads the pull request that the wait is bound to.
+It does not read another pull request of the card.
+Loupe ends the wait at once, also while the worker still finishes its turn.
+
+When a wait ends, Loupe resumes the same session on the same bridge.
+The resume has the cause `wait-ended`, and the prompt of the worker says why the wait ended.
+The prompt names the conditions that were true, or says that the wait timed out, or that the pull request left the card.
+When the run still runs, Loupe resumes the session as soon as the run ends.
+A wait resumes once, because the run that continues the session is recorded on the wait.
+A bridge that is too old to know the cause `wait-ended` refuses the resume.
+
+While a wait is open, the card counts as having an active worker.
+A run in the state `waiting` counts too, until a run resumes its ended wait.
+The rules of the card that skip a card with an active worker stay quiet.
 
 ## Closing an interactive session
 
@@ -928,7 +1027,9 @@ takes only the pins of idle cards.
 The same sweep also deletes each [host sample](bridge-heartbeat.md#host-samples)
 whose `sampledAt` is older than the window.
 
-Deleting a project deletes its run records, its tool calls, its usage, its run facts, its experiment pins,
+The same sweep deletes each [wait](#waits) that opened before the window starts.
+
+Deleting a project deletes its run records, its waits, its tool calls, its usage, its run facts, its experiment pins,
 its experiment weights and its card holds with it. Deleting an account deletes
 the same data of every project it owned, and removes the account's name from a hold it placed in
 another project. The account's data export holds each run in

@@ -22,7 +22,7 @@ enum WorkLimitRoundOutcome: string
     {
         return match ($last) {
             null => self::NoRunYet,
-            WorkerRunState::WaitingOnForge, WorkerRunState::Succeeded => self::HandedBack,
+            WorkerRunState::Waiting, WorkerRunState::Succeeded => self::HandedBack,
             WorkerRunState::Blocked, WorkerRunState::WaitingForPerson => self::WaitingForYou,
             WorkerRunState::Unfinished, WorkerRunState::GaveUp, WorkerRunState::NoResult => self::DidNotFinish,
             WorkerRunState::Failed, WorkerRunState::NotStarted, WorkerRunState::TimedOut, WorkerRunState::Lost => self::Failed,

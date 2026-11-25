@@ -1,0 +1,25 @@
+{#- One row of the decision table. Props: decision (InboxDecision). -#}
+{% set changed = decision.madeBy.value == 'changed' %}
+<tr data-inbox-decision="{{ decision.id }}" data-inbox-decision-how="{{ decision.madeBy.value }}">
+    <td>
+        <span class="lp-inbox-linked-table__title"><twig:Ds:Tag tone="neutral">{{ decision.label }}</twig:Ds:Tag><strong>{{ decision.choice }}</strong></span>
+        {% if changed %}
+            <span class="lp-inbox-linked-table__note" data-inbox-decision-changed>{{ (decision.addressedAt ? 'inbox.decisions.changed.addressed' : 'inbox.decisions.changed.open')|trans({'%choice%': decision.changedChoice}) }}</span>
+            {% if decision.changedNote %}<span class="lp-inbox-linked-table__note">{{ 'inbox.decisions.changed.note'|trans({'%note%': decision.changedNote}) }}</span>{% endif %}
+        {% elseif decision.otherOptions|length > 0 %}
+            <span class="lp-inbox-linked-table__note">{{ 'inbox.decisions.other_options'|trans({'%count%': decision.otherOptions|length, '%options%': decision.otherOptions|join(', ')}) }}</span>
+        {% endif %}
+    </td>
+    <td>
+        {% if changed %}
+            <twig:Ds:StatusChip modifier="ok" :label="'inbox.decisions.how_changed'|trans" />
+        {% else %}
+            <twig:Ds:StatusChip modifier="neutral" :label="(decision.madeBy.value == 'defaulted' ? 'inbox.decisions.how_defaulted' : 'inbox.decisions.how_logged')|trans" />
+        {% endif %}
+    </td>
+    <td>
+        {% if not changed and is_granted('inbox_decision.change', decision) %}
+            {% include '@Inbox/_card_decision_change.html.twig' with {decision: decision, form: inbox_decision_change_form(decision)} only %}
+        {% endif %}
+    </td>
+</tr>

@@ -315,7 +315,7 @@ final class InboxActionStatusesTest extends KernelTestCase
 
     public function test_an_open_session_request_is_online_while_a_live_bridge_reports_session(): void
     {
-        $this->bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION];
+        $this->bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_SESSION];
         $this->bridge->projects = [(string) $this->project->id];
         $this->session(WorkRequestState::Open);
 
@@ -380,7 +380,7 @@ final class InboxActionStatusesTest extends KernelTestCase
 
     public function test_an_item_session_reads_offline_while_the_live_bridge_lacks_the_item_work_kind(): void
     {
-        $this->bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION];
+        $this->bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_SESSION];
         $this->bridge->projects = [(string) $this->project->id];
         $this->session(WorkRequestState::Open, aboutItem: true);
 
@@ -389,7 +389,7 @@ final class InboxActionStatusesTest extends KernelTestCase
 
     public function test_an_item_session_reads_online_while_a_live_bridge_reports_the_item_work_kind(): void
     {
-        $this->bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION];
+        $this->bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_SESSION];
         $this->bridge->workKinds = [Bridge::workKindOf(InboxItem::SUBJECT_TYPE, WorkRequest::SESSION_KIND)];
         $this->bridge->projects = [(string) $this->project->id];
         $this->session(WorkRequestState::Open, aboutItem: true);
@@ -548,7 +548,7 @@ final class InboxActionStatusesTest extends KernelTestCase
     }
 
     /** @param list<string> $capabilities */
-    private function followingBridge(array $capabilities = [Bridge::CAPABILITY_WORK_REQUESTS]): Bridge
+    private function followingBridge(array $capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS]): Bridge
     {
         $bridge = new Bridge($this->owner, Uuid::v4(), [(string) $this->project->id], 'b4e39aa7', new \DateTimeImmutable());
         $bridge->capabilities = $capabilities;

@@ -69,7 +69,7 @@ final class AccountLimitReconcilerTest extends KernelTestCase
 
         $this->bridge = new Bridge($this->project->owner, Uuid::v4(), [(string) $this->project->id], 'b4e39aa7', new \DateTimeImmutable(self::NOW)->modify('-10 seconds'));
         $this->bridge->name = 'laptop';
-        $this->bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_TRY_NOW];
+        $this->bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_TRY_NOW];
         $this->bridge->workKinds = ['implement'];
         $this->bridge->accounts = [
             ['name' => 'claude', 'harness' => 'claude', 'state' => 'ready', 'reason' => null, 'kinds' => ['implement']],

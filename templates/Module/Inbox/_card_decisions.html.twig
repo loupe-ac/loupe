@@ -1,0 +1,36 @@
+{#- The Decisions tab of a card. Props: view (ShowCardDecisionsView), offer (InboxDecision or null, the change that offers a follow-up card), followUp (Card or null, the card made from that offer). -#}
+<div id="inbox-decisions" data-inbox-decisions>
+    {% if offer and followUp %}
+        <twig:Ds:Flash severity="info" :title="'inbox.decisions.follow_up.title'|trans" data-inbox-decision-follow-up-offer>
+            {{ 'inbox.decisions.follow_up.created'|trans }}
+            <twig:block name="actions">
+                <twig:Ds:Button variant="ghost" size="sm" href="{{ path('app_board_card', {projectId: followUp.project.id, cardId: followUp.id}) }}" data-turbo-frame="_top" data-inbox-decision-follow-up-link>{{ 'inbox.decisions.follow_up.open'|trans({'%number%': followUp.number}) }}</twig:Ds:Button>
+            </twig:block>
+        </twig:Ds:Flash>
+    {% elseif offer %}
+        <twig:Ds:Flash severity="info" :title="'inbox.decisions.follow_up.title'|trans" data-inbox-decision-follow-up-offer>
+            {{ 'inbox.decisions.follow_up.body'|trans }}
+            <twig:block name="actions">
+                <twig:Ds:ActionForm :action="path('app_inbox_decision_follow_up', {projectId: offer.project.id, decisionId: offer.id})" token="inbox-decision-follow-up" frame="_top">
+                    <twig:Ds:Button variant="primary" size="sm" type="submit">{{ 'inbox.decisions.follow_up.create'|trans }}</twig:Ds:Button>
+                </twig:Ds:ActionForm>
+            </twig:block>
+        </twig:Ds:Flash>
+    {% endif %}
+
+    {% if view.decisions|length > 0 %}
+    <div class="lp-inbox-linked-table-wrap">
+        <table class="lp-inbox-linked-table">
+            <caption>{{ 'inbox.decisions.title'|trans }}</caption>
+            <thead><tr><th>{{ 'inbox.decisions.decision'|trans }}</th><th>{{ 'inbox.decisions.how'|trans }}</th><th><span class="sr-only">{{ 'inbox.decisions.change'|trans }}</span></th></tr></thead>
+            <tbody>
+                {% for decision in view.decisions %}
+                    {% include '@Inbox/_card_decision_row.html.twig' with {decision: decision} only %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+        <p class="lp-card-detail__empty" data-inbox-decisions-empty>{{ 'inbox.decisions.empty'|trans }}</p>
+    {% endif %}
+</div>

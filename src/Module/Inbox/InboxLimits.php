@@ -18,6 +18,16 @@ final class InboxLimits
     public const int MAX_OPTION_LENGTH = 500;
 
     /** Per item, and per kind of link: cards and documents each. */
+    /** Per cost line of an option. */
+    public const int MAX_OPTION_COST_LENGTH = 300;
+
+    public const int MAX_DETAILS = 10;
+
+    public const int MAX_DETAIL_NAME_LENGTH = 60;
+
+    /** Per detail field, as Markdown. */
+    public const int MAX_DETAIL_LENGTH = 5000;
+
     public const int MAX_LINKS = 20;
 
     public const int MAX_BODY_LENGTH = 20000;
@@ -26,4 +36,7 @@ final class InboxLimits
     public const int MAX_CONTEXT_LENGTH = 10000;
 
     public const int MAX_WITHDRAW_REASON_LENGTH = 2000;
+
+    /** The longest note an owner gives with a changed decision. */
+    public const int MAX_DECISION_NOTE_LENGTH = 2000;
 }

@@ -32,6 +32,7 @@ use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxAskItem;
 use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxCloser;
+use App\Module\Inbox\Entity\InboxConfidence;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemDocument;
@@ -186,6 +187,16 @@ final readonly class DevInboxSeeder implements DevSeederInterface
             'options' => ['Retry once, then let the customer decide', 'Always let the customer retry'],
             'freeText' => true,
         ]);
+        $retries->label = 'ordering';
+        $retries->defaultsAt = $context->at(0)->modify('+20 hours');
+        $retries->recommendedOption = 1;
+        $retries->confidence = InboxConfidence::Moderate;
+        $retries->optionCosts = ['An unexpected second charge attempt can confuse customers', 'A customer who leaves the page never pays'];
+        $retries->details = [
+            'Evidence' => 'Support logged **31 abandoned payments** last month, 9 of them after a card decline.',
+            'Risk' => 'A silent retry can charge twice when the first attempt only looks failed.',
+        ];
+        $this->em->flush();
         $this->linkCard($retries, $checkout);
         $this->ask($context, 'retries', $project, [$retries], 360, 'Working on the **checkout** card. I need one decision before I write the recovery flow.', DevSeedId::of('bridge/bridge/ask-retries'));
 
@@ -301,7 +312,7 @@ final readonly class DevInboxSeeder implements DevSeederInterface
         $bridgeId = DevSeedId::of('bridge/bridge/session');
         if (!$this->bridges->findOneBy(['id' => $bridgeId]) instanceof Bridge) {
             $bridge = new Bridge($owner, $bridgeId, [(string) $project->id], self::CLI_VERSION, $context->now->modify('+10 years'));
-            $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION];
+            $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_SESSION];
             $this->em->persist($bridge);
         }
 
@@ -335,7 +346,7 @@ final readonly class DevInboxSeeder implements DevSeederInterface
         $bridge = $this->bridges->findOneBy(['id' => $bridgeId]);
         if (!$bridge instanceof Bridge) {
             $bridge = new Bridge($owner, $bridgeId, [(string) $project->id], self::CLI_VERSION, $context->now);
-            $bridge->capabilities = [Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_RUN_COMMAND];
+            $bridge->capabilities = [Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_RUN_COMMAND];
             $bridge->lastSeenAt = $context->now;
             $bridge->commandEntries = [['name' => 'design-export', 'description' => null, 'params' => [['name' => 'out', 'pattern' => '[a-z/-]+', 'description' => null]], 'run' => ['bin/console', 'app:design-system:export', '{out}'], 'timeout' => '10m']];
             $bridge->worktrees = [['projectId' => (string) $project->id, 'branch' => 'main', 'path' => '/work/loupe']];

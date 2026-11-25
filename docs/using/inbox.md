@@ -115,6 +115,44 @@ group is oldest first. The **Open** side shows every row.
 
 The **Closed** side lists the closed asks, newest close first, ten to a page.
 
+### Grouping by card
+
+The **Open** side groups its rows by card. Each group has a heading with the
+card number and title. A row sits in the group of each card it links, so an ask
+with two cards shows in both groups. A row with no card sits in the **No card**
+group, which comes last. The group with the newest ask comes first. Inside a
+group, an ask that holds an open blocking item comes first, then the others,
+each oldest first.
+
+The grouping applies to the **Open** side only. The **Closed** side and the
+search results stay flat lists. The type filter still applies, so a group
+holds only the rows that match it. An ask that has no row left after the filter
+shows no group.
+
+A workflow template can turn the grouping off. See
+[The `asks:` section](workflows.md#the-asks-section).
+
+### The digest of new decisions
+
+A card can hold decisions that you have not seen. The inbox shows a digest line
+for such a card, also when the card has no open item. The line reads "3 new
+decisions", with the age of the newest one. It links to the **Decisions** tab of
+the card, and it has no action of its own.
+
+With grouping on, the digest line sits in the group of its card, and the group
+heading shows the count. A card with new decisions and no open item gets a group
+that holds only the digest line. With grouping off, each such card gets one
+digest row at the end of the list, newest decision first.
+
+A decision is new when it is newer than the last time you opened the
+**Decisions** tab of that card. Opening the tab clears the line. A card whose tab
+you never opened counts all its decisions as new. Each person has their own
+mark, so another person who opens the tab does not clear your line.
+
+The digest shows on the **Open** side with no type filter. The **Closed** side,
+the search results and a type filter show none. The digest does not change the
+open count, because no decision waits for an answer.
+
 A row is one ask. It shows the icon of the first open item of the ask, and the
 icon of the first item of a closed ask. The title of the first item follows.
 A grey line below the title shows the first linked card and the age, such as
@@ -243,6 +281,15 @@ Every item that takes a response shows its forms under its text.
   the right of the block heading to remove your pick. The page needs JavaScript
   to send the options you pick. A question with no options shows the same
   block with one field, where you write your answer.
+  An agent can recommend one option. That option sits first, already picked,
+  with three stars that show how sure the agent is: one star for low, two for
+  moderate and three for high confidence. Change the pick when you disagree.
+  An agent can also name the cost of each option, which shows as a short line
+  under the option. A **Details** section under the options holds the facts
+  behind the question, one field for each name. It starts closed. Select it to
+  read the fields.
+  A question can carry a deadline. Under the options, the block then says when
+  Loupe answers for you. See [A default after a deadline](#a-default-after-a-deadline).
 - **Mark a to-do done.** Write an optional note for the agent in the note
   field, then select **Mark complete**. The closed to-do shows your note.
 - **Dismiss an item.** Write an optional note for the agent in the note field,
@@ -981,6 +1028,55 @@ Loupe resumes one of them: the session that took the item first, which is the
 session that asked the question. The other sessions stay blocked, and the card
 history says why. You can still resume one of them by hand from the worker runs
 page. Sessions that work on different cards all resume.
+
+## Labels, defaults and the log
+
+An agent can give a question a label, such as `naming` or `security`. The label
+names the kind of choice. The `asks:` section of the
+[workflow template](workflows.md#the-asks-section) says what Loupe does with
+each label. A label has one of three modes.
+
+| Mode | What happens |
+|---|---|
+| `ask` | The question opens an item and the agent waits for your answer, as for a question with no label. |
+| `default` | The question opens an item with a deadline. When you do not answer before the deadline, Loupe answers with the option that the agent recommended. |
+| `log` | Loupe opens no item. The agent goes on with the option it recommended, and you are not asked. |
+
+A label that the template does not list asks. A mode whose switch is off in the
+template asks too.
+
+A question with a label always carries a recommended option with its
+confidence, and every detail field that the template lists. Loupe refuses it
+otherwise, because it may answer with that option in your place.
+
+### A default after a deadline
+
+The deadline of a `default` question is the number of hours in `defaultHours`
+of the template, 24 by default, counted from the moment the agent asks. The
+question shows the time under its options. Until then it is an ordinary open
+question, and your answer wins. When the deadline passes, Loupe closes the item
+as itself, with the recommended option as the answer, and the item reads
+"Answered by Loupe with the recommended option, after the deadline". The ask
+closes as it does after your answer, and the agent that asked resumes with that
+option in its answers. A check runs each minute, so the answer comes within a
+minute of the deadline. While the inbox is off, no default runs.
+
+When Loupe answers, it also writes a decision entry on each card that the item
+names. An item that names no card leaves no entry.
+
+You can reopen a defaulted answer. Open the **Decisions** tab of the card and
+press **Change** on the row. The dialog takes another option, or your own
+words. The change goes to a worker as a fix round. See
+[Change a decision](board.md#change-a-decision).
+
+### The log mode
+
+A `log` question never reaches the inbox. The agent reads the reply "Logged
+"title" as naming. Go on with "option"." and goes on in the same turn. Loupe
+writes a decision entry in the decision log of each card that the question
+names. When the question names no card, the entry goes to the card of the run
+that asks. When neither gives a card, Loupe refuses the question, so no choice goes unrecorded. An entry holds the
+label, the option the agent took, and the other options.
 
 ## All inboxes
 

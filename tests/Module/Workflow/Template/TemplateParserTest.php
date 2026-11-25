@@ -38,6 +38,7 @@ use App\Module\Workflow\Action\ReleasePause;
 use App\Module\Workflow\Condition\CardInSlot;
 use App\Module\Workflow\Condition\Conditions;
 use App\Module\Workflow\Contract\Action;
+use App\Module\Workflow\Contract\AskMode;
 use App\Module\Workflow\Contract\CardValueType;
 use App\Module\Workflow\Contract\CardValueVisibility;
 use App\Module\Workflow\Contract\LabelTone;
@@ -52,6 +53,7 @@ use App\Module\Workflow\Contract\TemplateSetting;
 use App\Module\Workflow\Contract\TemplateValueKey;
 use App\Module\Workflow\Contract\Unreadable;
 use App\Module\Workflow\Contract\UnreadableKind;
+use App\Module\Workflow\Contract\WaitSettings;
 use App\Module\Workflow\Expression\AllOf;
 use App\Module\Workflow\Expression\AnyOf;
 use App\Module\Workflow\Expression\ConditionLeaf;
@@ -833,6 +835,80 @@ final class TemplateParserTest extends TestCase
         yield 'an explicit null' => [null];
     }
 
+    public function test_a_template_groups_the_inbox_by_card_unless_it_says_otherwise(): void
+    {
+        self::assertTrue($this->parser->parse(self::valid())->asks->groupByCard);
+        self::assertTrue($this->parser->parse(self::valid() + ['asks' => ['groupByCard' => true]])->asks->groupByCard);
+        self::assertFalse($this->parser->parse(self::valid() + ['asks' => ['groupByCard' => false]])->asks->groupByCard);
+    }
+
+    public function test_an_asks_section_reads_the_labels_the_fields_and_the_switches(): void
+    {
+        $asks = $this->parser->parse(self::valid() + ['asks' => [
+            'defaultHours' => 6,
+            'defaults' => false,
+            'fields' => ['undo'],
+            'labels' => [['key' => 'naming', 'mode' => 'log'], ['key' => 'ordering', 'mode' => 'default'], ['key' => 'data', 'mode' => 'ask']],
+        ]])->asks;
+
+        self::assertSame(6, $asks->defaultHours);
+        self::assertSame(['undo'], $asks->fields);
+        self::assertSame(AskMode::Log, $asks->modeOf('naming'));
+        self::assertSame(AskMode::Ask, $asks->modeOf('ordering'), 'A default mode asks while the defaults switch is off.');
+        self::assertSame(AskMode::Ask, $asks->modeOf('data'));
+        self::assertSame(AskMode::Ask, $asks->modeOf('unlisted'));
+    }
+
+    public function test_a_log_label_asks_while_the_log_switch_is_off(): void
+    {
+        $asks = $this->parser->parse(self::valid() + ['asks' => ['log' => false, 'labels' => [['key' => 'naming', 'mode' => 'log']]]])->asks;
+
+        self::assertSame(AskMode::Ask, $asks->modeOf('naming'));
+    }
+
+    public function test_a_template_with_no_labels_has_the_defaults(): void
+    {
+        $asks = $this->parser->parse(self::valid())->asks;
+
+        self::assertSame(24, $asks->defaultHours);
+        self::assertTrue($asks->defaults);
+        self::assertTrue($asks->log);
+        self::assertSame([], $asks->fields);
+        self::assertSame([], $asks->labels);
+    }
+
+    #[DataProvider('invalidAsks')]
+    public function test_an_asks_section_that_does_not_parse_is_refused_and_a_stored_copy_groups(mixed $value, string $error): void
+    {
+        $source = self::valid() + ['asks' => $value];
+
+        try {
+            $this->parser->parse($source);
+            self::fail('The template should be refused.');
+        } catch (InvalidTemplate $e) {
+            self::assertContains($error, $e->errors);
+        }
+        self::assertTrue($this->parser->parseStored($source)->asks->groupByCard);
+    }
+
+    /** @return iterable<string, array{mixed, string}> */
+    public static function invalidAsks(): iterable
+    {
+        yield 'a string value' => [['groupByCard' => 'no'], 'asks.groupByCard: must be true or false'];
+        yield 'an unknown key' => [['group' => false], 'asks: unknown key "group"'];
+        yield 'a bad hours value' => [['defaultHours' => 0], 'asks.defaultHours: must be a whole number from 1 to 720'];
+        yield 'a string for hours' => [['defaultHours' => '6'], 'asks.defaultHours: must be a whole number from 1 to 720'];
+        yield 'a string switch' => [['defaults' => 'yes'], 'asks.defaults: must be true or false'];
+        yield 'fields as a map' => [['fields' => ['undo' => 'x']], 'asks.fields: must be a list of at most 50 names'];
+        yield 'a bad field name' => [['fields' => ['Undo it']], 'asks.fields[0]: must be lowercase words joined by hyphens'];
+        yield 'a repeated field' => [['fields' => ['undo', 'undo']], 'asks.fields[1]: the field "undo" is listed twice'];
+        yield 'a label with no mode' => [['labels' => [['key' => 'naming']]], 'asks.labels[0]: must be a map with a "key" in lowercase words joined by hyphens and a "mode" of log, default or ask'];
+        yield 'a label with an unknown mode' => [['labels' => [['key' => 'naming', 'mode' => 'skip']]], 'asks.labels[0]: must be a map with a "key" in lowercase words joined by hyphens and a "mode" of log, default or ask'];
+        yield 'a repeated label' => [['labels' => [['key' => 'naming', 'mode' => 'log'], ['key' => 'naming', 'mode' => 'ask']]], 'asks.labels[1]: the label "naming" is listed twice'];
+        yield 'a list' => [[true], 'asks: must be a map'];
+        yield 'a string' => ['no', 'asks: must be a map'];
+    }
+
     #[DataProvider('invalidEpicBranches')]
     public function test_an_epic_branch_pattern_that_is_not_a_branch_name_with_one_placeholder_is_refused(mixed $value): void
     {
@@ -893,6 +969,70 @@ final class TemplateParserTest extends TestCase
         yield 'an unknown severity' => [['important', 'blocker']];
         yield 'not a list' => ['important'];
         yield 'not a string' => [[7]];
+    }
+
+    public function test_a_template_with_no_waits_section_allows_the_default_waits(): void
+    {
+        foreach ([$this->parser->parse(self::valid()), $this->parser->parseStored(self::valid())] as $template) {
+            self::assertEquals(new WaitSettings(120, 10), $template->waits);
+        }
+    }
+
+    public function test_a_template_reads_its_waits_section_and_a_partial_section_keeps_the_other_default(): void
+    {
+        self::assertEquals(new WaitSettings(30, 4), $this->parser->parse(self::valid() + ['waits' => ['maxMinutes' => 30, 'maxPerRound' => 4]])->waits);
+        self::assertEquals(new WaitSettings(1440, 10), $this->parser->parse(self::valid() + ['waits' => ['maxMinutes' => 1440]])->waits);
+        self::assertEquals(new WaitSettings(120, 1), $this->parser->parse(self::valid() + ['waits' => ['maxPerRound' => 1]])->waits);
+    }
+
+    #[DataProvider('invalidWaits')]
+    public function test_waits_that_are_not_valid_are_refused_and_a_stored_copy_keeps_the_default_for_them(mixed $value, string $error, WaitSettings $kept): void
+    {
+        $source = self::valid() + ['waits' => $value];
+
+        try {
+            $this->parser->parse($source);
+            self::fail('The template should be refused.');
+        } catch (InvalidTemplate $e) {
+            self::assertSame([$error], $e->errors);
+        }
+        self::assertEquals($kept, $this->parser->parseStored($source)->waits);
+    }
+
+    /** @return iterable<string, array{mixed, string, WaitSettings}> */
+    public static function invalidWaits(): iterable
+    {
+        yield 'a list' => [[30], 'waits: must be a map', new WaitSettings()];
+        yield 'a string' => ['long', 'waits: must be a map', new WaitSettings()];
+        yield 'minutes of zero' => [['maxMinutes' => 0, 'maxPerRound' => 4], 'waits.maxMinutes: must be a whole number from 1 to 1440', new WaitSettings(120, 4)];
+        yield 'minutes over a day' => [['maxMinutes' => 1441], 'waits.maxMinutes: must be a whole number from 1 to 1440', new WaitSettings()];
+        yield 'minutes as text' => [['maxMinutes' => '30'], 'waits.maxMinutes: must be a whole number from 1 to 1440', new WaitSettings()];
+        yield 'a per round of zero' => [['maxMinutes' => 30, 'maxPerRound' => 0], 'waits.maxPerRound: must be a whole number from 1 to 100', new WaitSettings(30, 10)];
+        yield 'a per round over 100' => [['maxPerRound' => 101], 'waits.maxPerRound: must be a whole number from 1 to 100', new WaitSettings()];
+        yield 'a per round as a float' => [['maxPerRound' => 2.5], 'waits.maxPerRound: must be a whole number from 1 to 100', new WaitSettings()];
+        yield 'an unknown key' => [['maxMinutes' => 30, 'maxHours' => 2], 'waits: unknown key "maxHours"', new WaitSettings(30, 10)];
+    }
+
+    public function test_the_shipped_lifecycle_file_states_its_waits(): void
+    {
+        $source = Yaml::parseFile(\dirname(__DIR__, 4).'/config/workflows/lifecycle.yaml');
+        self::assertIsArray($source);
+
+        self::assertSame(['maxMinutes' => 120, 'maxPerRound' => 10], $source['waits'] ?? null);
+    }
+
+    public function test_one_condition_is_checked_against_the_template_as_a_rule_would_be(): void
+    {
+        $template = $this->parser->parse(self::valid());
+        $errors = [];
+
+        $leaf = $this->parser->conditionOf($template, 'card.type', ['types' => ['bug']], $errors);
+        self::assertInstanceOf(ConditionLeaf::class, $leaf);
+        self::assertSame(['types' => ['bug']], $leaf->params);
+        self::assertSame([], $errors);
+
+        self::assertNull($this->parser->conditionOf($template, 'card.type', ['types' => ['story']], $errors));
+        self::assertSame(['condition: card.type: unknown type "story"'], $errors);
     }
 
     public function test_a_template_reads_the_retry_policy_for_a_refused_request(): void

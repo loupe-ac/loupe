@@ -15,6 +15,7 @@ use App\Module\Bridge\EventListener\WorkerRunFactListener;
 use App\Module\Bridge\Repository\WorkerRunBilledCostRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkerRunStateChangeRepository;
+use App\Module\Bridge\Repository\WorkerWaitRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Bridge\Service\WorkerRunSearchIndexer;
@@ -22,6 +23,7 @@ use App\Module\Bridge\Service\WorkerRunUsageRecorder;
 use App\Module\Bridge\ValueObject\WorkerRunChangeKind;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Bridge\ValueObject\WorkerWaitEndReason;
 use App\Module\Bridge\WorkSubject\WorkSubjectHandlers;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
@@ -40,6 +42,11 @@ use Ubermuda\AuditBundle\AuditSubject;
  * data follows the state that owns it. The outcome or the stop that
  * closes the run also writes its usage, through WorkerRunUsageRecorder.
  * A state that is not open also revokes the run credentials of the launch.
+ *
+ * A run with a wait that reports unfinished or no-result ends
+ * as waiting. That holds while the wait is open and after it ended in a way that
+ * resumes, until a run resumes it. A finished or blocked end closes an open wait.
+ * Any other end keeps its own state and leaves the wait as it is.
  */
 final readonly class ReportWorkerRunStateHandler
 {
@@ -49,6 +56,7 @@ final readonly class ReportWorkerRunStateHandler
         private WorkerRunBilledCostRepository $workerRunBilledCosts,
         private WorkRequestRepository $workRequests,
         private WorkerRunStateChangeRepository $workerRunStateChanges,
+        private WorkerWaitRepository $workerWaits,
         private WorkerRunSearchIndexer $searchIndexer,
         private EntityManagerInterface $em,
         private Auditor $auditor,
@@ -79,6 +87,7 @@ final readonly class ReportWorkerRunStateHandler
             // that the sweep wrote while this report waited.
             $receivedAt = $this->clock->now();
             $role = null;
+            $resumedWait = null;
             if (null === $run) {
                 // A run takes its subject and request once, so only a new run needs the check.
                 $request = null === $command->workRequestId ? null : $this->workRequests->findOneOfSubject($command->workRequestId, $project, $command->subject);
@@ -106,11 +115,25 @@ final readonly class ReportWorkerRunStateHandler
                     role: $role,
                 );
                 $this->em->persist($run);
-                $moves = true;
+                $resumedWait = null === $run->continuesRun ? null : $this->workerWaits->findAwaitingResumeOfRun($run->continuesRun->id ?? throw new \LogicException('A stored run has an id.'));
                 $history = [];
+                $wait = null;
+                $state = $command->state;
+                $moves = true;
             } else {
                 $history = $this->workerRunStateChanges->statesOf($run);
-                $moves = self::moves($run->state, $command->state, $history);
+                $wait = $this->workerWaits->findAwaitingResumeOfRun($run->id ?? throw new \LogicException('A stored run has an id.'));
+                // Claim the open wait before anything reads it, as WorkerWaitEnder does, so a person's end and this report never both write the end reason.
+                if (null !== $wait && $wait->isOpen() && !$this->workerWaits->lockOpen($wait->id ?? throw new \LogicException('A stored wait has an id.'))) {
+                    $this->em->refresh($wait);
+                    $wait = $this->workerWaits->findAwaitingResumeOfRun($run->id);
+                }
+                $state = self::effectiveState($command->state, null !== $wait, $history);
+                // The owner ended the wait of a live run. Whatever closing report follows, a failure or an interruption too, records the stop that the owner asked for.
+                if (WorkerRunState::Waiting !== $state && !$command->state->isOpen() && $this->workerWaits->endedToStopRun($run->id ?? throw new \LogicException('A stored run has an id.'))) {
+                    $state = WorkerRunState::Stopped;
+                }
+                $moves = self::moves($run->state, $state, $history);
             }
 
             $this->fillStart($run, $command);
@@ -124,22 +147,29 @@ final readonly class ReportWorkerRunStateHandler
             $harnessChanged = $run->recordHarness($command->harness, $command->account, $command->model, $command->harnessSessionId, $command->harnessVersion, $command->cliVersion, $command->skillVersion);
             // A retry of the state a timed-out run last held is the bridge
             // speaking again, so it reopens the run and says so in the history.
-            $repeat = \in_array($command->state, $history, true);
+            $repeat = \in_array($state, $history, true);
             $reopens = WorkerRunState::TimedOut === $run->state && $moves && $repeat;
             $newState = $reopens || !$repeat;
             $closes = false;
             $billed = self::isBilled($run, $command);
             if ($newState) {
                 if ($moves) {
-                    $this->apply($run, $command, $billed);
-                    $closes = !$command->state->isOpen();
+                    $this->apply($run, $command, $state, $billed);
+                    $closes = !$state->isOpen();
+                    if (null !== $wait && (WorkerRunState::Succeeded === $state || WorkerRunState::Blocked === $state)) {
+                        $wait->end(WorkerWaitEndReason::RunFinished, $receivedAt);
+                    }
                 }
                 // A retry carries its first time, which precedes the timeout.
                 $at = $reopens ? $receivedAt : $command->at;
-                $this->em->persist(new WorkerRunStateChange($run, $command->state, $at, $receivedAt));
+                $this->em->persist(new WorkerRunStateChange($run, $state, $at, $receivedAt));
             }
 
             $this->em->flush();
+            $resumedWait?->recordResume($run->id ?? throw new \LogicException('A flushed run has an id.'), $receivedAt);
+            if (null !== $resumedWait) {
+                $this->em->flush();
+            }
             // Any closing report revokes, a repeat too, because a repeat can follow a failed first attempt.
             // The key names one launch, so the late close of an older launch revokes only its own tokens.
             if (!$command->state->isOpen()) {
@@ -174,6 +204,19 @@ final readonly class ReportWorkerRunStateHandler
         }
 
         return $result;
+    }
+
+    /**
+     * The state the run takes for the state the bridge reported. A run that has a wait, or that already held waiting,
+     * takes waiting for an end that leaves work undone, so a retried report finds its row and writes no second one.
+     *
+     * @param list<WorkerRunState> $history
+     */
+    private static function effectiveState(WorkerRunState $reported, bool $hasWait, array $history): WorkerRunState
+    {
+        $parked = \in_array($reported, [WorkerRunState::Unfinished, WorkerRunState::NoResult], true);
+
+        return $parked && ($hasWait || \in_array(WorkerRunState::Waiting, $history, true)) ? WorkerRunState::Waiting : $reported;
     }
 
     /** The error code of a subject or a work request that the project does not hold, else null. */
@@ -291,9 +334,9 @@ final readonly class ReportWorkerRunStateHandler
         $run->switchedFrom = $command->switchedFrom;
     }
 
-    private function apply(WorkerRun $run, ReportWorkerRunStateCommand $command, bool $billed): void
+    private function apply(WorkerRun $run, ReportWorkerRunStateCommand $command, WorkerRunState $state, bool $billed): void
     {
-        if (WorkerRunState::Stopped === $command->state) {
+        if (WorkerRunState::Stopped === $state) {
             $run->recordStop($command->endedAt ?? $command->at, $command->output);
             $this->fillPeakContext($run, $command);
             $this->fillWake($run, $command);
@@ -305,14 +348,14 @@ final readonly class ReportWorkerRunStateHandler
             return;
         }
 
-        if (!$command->state->isOutcome()) {
-            $run->moveTo($command->state);
+        if (!$state->isOutcome()) {
+            $run->moveTo($state);
 
             return;
         }
 
         $run->recordOutcome(
-            $command->state,
+            $state,
             $command->endedAt ?? throw new \LogicException('An outcome carries its end after validation.'),
             $command->exitCode,
             $command->hasResult,

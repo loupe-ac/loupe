@@ -14,7 +14,7 @@ func TestRenderResumeAppendsTheResumeFooter(t *testing.T) {
 		"End with the structured result. Set status to finished when the stage is done. " +
 		"Set it to blocked when the stage cannot go on without a person. " +
 		"Set it to unfinished when work still runs or remains. " +
-		"Set it to waiting when the work waits on the forge, such as checks on a pushed pull request. " +
+		"To wait for checks, a review or another card event, call run_wait, then end the turn with the status unfinished. " +
 		"Put one short sentence on what you did in summary. " +
 		"Set reason to the reason code of your result, such as the code on your STAGE RESULT line, when you have one. " +
 		"Never end your turn while a command, a monitor or a subagent still runs. Wait for it in the foreground. " +
@@ -89,6 +89,32 @@ func TestRenderResumeAskClosedSaysTheOwnerAnswered(t *testing.T) {
 	}
 	if !strings.HasSuffix(got, "\n\n"+ResumeFooter) {
 		t.Fatalf("RenderResumeAskClosed() = %q, want it to end with the resume footer", got)
+	}
+}
+
+// The resume after a wait names why the wait ended: the conditions that were
+// true, the time limit, or the pull request that left the card.
+func TestRenderResumeWaitEndedSaysWhyTheWaitEnded(t *testing.T) {
+	for name, tc := range map[string]struct {
+		result WaitResult
+		want   string
+	}{
+		"condition":         {WaitResult{Reason: "condition", Conditions: []WaitCondition{{Key: "pr.checks_passed", PullRequest: "pr:o/r#12"}, {Key: "card.paused"}}}, "this condition is true: pr.checks_passed on pr:o/r#12, card.paused. "},
+		"time limit":        {WaitResult{Reason: "timed-out"}, "Your wait timed out. "},
+		"pull request gone": {WaitResult{Reason: "subject-gone"}, "the pull request left the card"},
+		"a person":          {WaitResult{Reason: "resumed-by-person"}, "A person ended your wait"},
+		"no result":         {WaitResult{}, "Your wait ended. "},
+	} {
+		t.Run(name, func(t *testing.T) {
+			got := RenderResumeWaitEnded(tc.result)
+
+			if !strings.Contains(got, tc.want) || !strings.Contains(got, "Check the state of the work first") {
+				t.Fatalf("RenderResumeWaitEnded() = %q, want it to contain %q", got, tc.want)
+			}
+			if !strings.HasSuffix(got, "\n\n"+Footer) {
+				t.Fatalf("RenderResumeWaitEnded() = %q, want it to end with the footer", got)
+			}
+		})
 	}
 }
 

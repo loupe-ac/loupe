@@ -1,0 +1,4 @@
+{#- The Decisions tab of a card, redrawn after a change or a follow-up. Props: view, offer, followUp. -#}
+<turbo-stream action="replace" target="inbox-decisions">
+    <template>{% include '@Inbox/_card_decisions.html.twig' with {view: view, offer: offer, followUp: followUp} only %}</template>
+</turbo-stream>

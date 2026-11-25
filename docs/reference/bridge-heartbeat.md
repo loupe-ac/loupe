@@ -81,7 +81,7 @@ The path holds no project, because one bridge follows several projects.
 | `worktrees` | optional. A list of at most 200 rows, one for each worktree of each followed project folder. A missing or `null` value keeps the rows the server holds, and an empty list clears them |
 | `repositories` | optional. A list of at most 500 rows, one for each followed project whose folder the rule file names. A missing or `null` value keeps the rows the server holds, and an empty list clears them |
 | `paused` | optional. `true` when the bridge takes no new work now. A missing or `null` value keeps the state the server holds. See [Pause and commands](#pause-and-commands) |
-| `capabilities` | optional. A list of at most 20 names of features the bridge supports. Each name starts with a lower-case letter, and holds 1 to 40 lower-case letters, digits and hyphens. `commands` says that the bridge takes commands. `rerun-command` says that the bridge takes a command of the kind `rerun-command`. `session-usage` says that the bridge takes a command of the kind `collect-session-usage`. `try-now` says that the bridge takes a command of the kind `try-now`. `work-requests` says that the bridge claims [work requests](#work-requests), and `interactive` says that it runs an interactive session. `session` says that it opens an interactive session for a person, as the inbox action asks. `run-command` says that the bridge runs a command entry that the inbox names, and `add-entry` says that it adds a proposed command entry to `rules.yaml`. `git-identities` says that the bridge reports [its git identity](#the-git-identity). `app-prompts` says that the bridge runs the app prompt of a request. The server accepts it in place of a `subject-` capability when the request carries a prompt. A missing or `null` value keeps the list the server holds |
+| `capabilities` | optional. A list of at most 20 names of features the bridge supports. Each name starts with a lower-case letter, and holds 1 to 40 lower-case letters, digits and hyphens. `commands` says that the bridge takes commands. `rerun-command` says that the bridge takes a command of the kind `rerun-command`. `session-usage` says that the bridge takes a command of the kind `collect-session-usage`. `try-now` says that the bridge takes a command of the kind `try-now`. `work-requests` says that the bridge claims [work requests](#work-requests), `waits` says that it resumes a session when a wait ends, and a bridge without `waits` claims no work request, and `interactive` says that it runs an interactive session. `session` says that it opens an interactive session for a person, as the inbox action asks. `run-command` says that the bridge runs a command entry that the inbox names, and `add-entry` says that it adds a proposed command entry to `rules.yaml`. `git-identities` says that the bridge reports [its git identity](#the-git-identity). `app-prompts` says that the bridge runs the app prompt of a request. The server accepts it in place of a `subject-` capability when the request carries a prompt. A missing or `null` value keeps the list the server holds |
 | `workKinds` | optional. A list of at most 50 kinds of work the bridge can run, such as `fix` or `tech-design`. It holds the kinds of the rule file whose agent and account are on. A kind whose subject is `card` is its bare name. A kind of another subject is `<subject>:<kind>`, such as `analysis:cost-report`. A bridge with the `session` entry also reports `inbox-item:session`. Each kind and each subject starts with a lower-case letter, and holds 1 to 40 lower-case letters, digits and hyphens. An empty list says that the bridge can run no kind. A missing or `null` value stores an empty list, so a bridge from before work kinds counts as able to run no kind until its CLI is upgraded |
 | `workClaims` | optional. A list of at most 200 rows, one for each work request the bridge holds. Each row has an `id` and a `claimToken`, both uuids. The server renews the lease of each claim the bridge still holds, as [Work requests](#work-requests) says. A missing or `null` value renews nothing |
 | `skipped` | optional. A list of at most 200 rows, one for each offered request that the bridge skipped since its last heartbeat, because the account it matched to the request is blocked. See [Skipped requests](#skipped-requests). A missing or `null` value changes nothing |
@@ -478,7 +478,8 @@ holds, by `commandId`. Each command carries these fields:
 | `workRequestId`, `workKind`, `ruleId` | the work request of the run, or `null` for a run from before the work map. An interactive run opened with `card_run_open` carries its run name in `workKind`, such as `loupe:lifecycle-session`, up to 100 characters. A bridge takes that name in a `collect-session-usage` command from CLI 2.0.3. Any other command needs the work kind shape |
 | `startedAt`, `endedAt` | the start and the end of the run, as RFC 3339 dates to the second, or `null` when the run has none |
 | `expiresAt` | the time the command expires, as an RFC 3339 date |
-| `cause` | `person` when a person asked, `ask-closed` when Loupe resumes a session whose ask the owner closed, `inbox-action` when the owner clicked an action on an inbox item, or `agent` when an agent asked through the `worker_run_resume` tool. The bridge words the resume prompt from it. An `inbox-action` or `agent` resume uses the prompt of a person's resume |
+| `cause` | `person` when a person asked, `ask-closed` when Loupe resumes a session whose ask the owner closed, `wait-ended` when Loupe resumes a session whose wait ended, `inbox-action` when the owner clicked an action on an inbox item, or `agent` when an agent asked through the `worker_run_resume` tool. The bridge words the resume prompt from it. An `inbox-action` or `agent` resume uses the prompt of a person's resume |
+| `wait` | for a `wait-ended` resume, an object with `reason` (`condition`, `timed-out`, `subject-gone` or `resumed-by-person`) and `conditions`, the list of the conditions that were true, each with its `key` and its `pullRequest` token such as `pr:owner/repo#12`, or `null`. The bridge words the prompt from it. It is `null` for any other command |
 | `context` | the context of the work request of the run, taken when the command was stored, with the seven keys of the [work request context](#work-requests). Each key is `null` for a run with no work request. A server from before the context sends no `context` key |
 | `model`, `effort` | the [model and the effort](#work-requests) of the work request of the run, taken when the command was stored, or `null`. A resume runs with them, as the first run did. A server from before these keys sends none |
 | `harness`, `account`, `runModel` | what the run started on, as its reports recorded them, or `null` when a report named none. A resume runs on that account, with that model. A server from before these keys sends none of them. A `try-now` command sets `account` to the account to try, and `harness` and `runModel` to `null` |
@@ -641,13 +642,15 @@ request on a card when it asks for work. A module of the app can open a request
 on a subject of its own type, and the server refuses a subject type that no
 module handles.
 
-A bridge that claims work requests reports the `work-requests` capability. A
-request can also name a capability that the bridge must report, such as
-`interactive`. A request with no capability goes to each bridge that reports
-`work-requests`.
+A bridge that claims work requests reports the `work-requests` and `waits`
+capabilities. A bridge without `waits` claims no work request, because it cannot
+resume a session when a wait ends. The card then shows "A bridge is online, but
+none can run this work", and `loupe update` fixes it. A request can also name a
+capability that the bridge must report, such as `interactive`. A request with no
+capability goes to each bridge that reports `work-requests` and `waits`.
 
-The `loupe` CLI always reports `commands`, `rerun-command` and `session-usage`. It reports
-`work-requests` when the `work:` map of its rule file has an entry, and
+The `loupe` CLI always reports `commands`, `rerun-command`, `session-usage` and
+`waits`. It reports `work-requests` when the `work:` map of its rule file has an entry, and
 `interactive` when an entry has `action: interactive`. An entry for the kind
 `session` adds `session`, and the kind `inbox-item:session` in `workKinds`. That
 kind says that the bridge opens the session of an inbox item that has no single
@@ -744,7 +747,7 @@ record holds no claim token.
 | 409 | `account_blocked` | the named account is at its hard limit, or at or above its stop value |
 | 422 | `account_unknown` | the claim names no account, or an account that the last heartbeat does not list for the kind of the request |
 | 422 | `unknown_bridge` | the server has no heartbeat of this bridge from this account |
-| 422 | `capability_missing` | the bridge does not report `work-requests`, or the capability the request needs |
+| 422 | `capability_missing` | the bridge does not report `work-requests` and `waits`, or the capability the request needs |
 | 429 | `rate_limited` | more than 60 claims in one minute from one token |
 
 A refused claim leaves the request open and spends no retry. The bridge tries

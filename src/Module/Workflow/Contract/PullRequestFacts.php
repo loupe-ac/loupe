@@ -35,6 +35,8 @@ final readonly class PullRequestFacts
      * @param bool               $mergeApprovalNeedsPerson `merge-approval` resolves to person for the repository, or the unanswered case holds, read through EngineFact::PullRequestApprovalCheck
      * @param list<string>       $missingChecks            the names of the required checks that the head has not reported
      * @param bool               $reviewRequired           the forge says the rules of the base branch still need approving reviews, or that a review under those rules requested changes
+     * @param ?string            $forge                    the forge slug, such as `github`, never part of the shared fingerprint
+     * @param ?string            $repository               the lower-case `owner/repo` pair, never part of the shared fingerprint
      */
     public function __construct(
         public PullRequestState $state,
@@ -72,6 +74,8 @@ final readonly class PullRequestFacts
         public bool $mergeApprovalUnanswered = false,
         public bool $mergeApprovalNeedsPerson = false,
         public array $missingChecks = [],
+        public ?string $forge = null,
+        public ?string $repository = null,
     ) {
     }
 
