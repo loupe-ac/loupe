@@ -8,6 +8,7 @@ use App\Module\Bridge\Command\ExpireSubjectWorkRequestsCommand;
 use App\Module\Bridge\Command\ExpireSubjectWorkRequestsHandler;
 use App\Module\Bridge\Command\WithdrawWorkRequestCommand;
 use App\Module\Bridge\Command\WithdrawWorkRequestHandler;
+use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\UntakenSubjectWork;
@@ -118,6 +119,26 @@ final class ExpireSubjectWorkRequestsHandlerTest extends KernelTestCase
         foreach ([$unflagged, $card] as $request) {
             self::assertSame(WorkRequestState::Open, $em->find(WorkRequest::class, $request->id)?->state);
         }
+    }
+
+    /** The bridge could run the work, then went quiet with no event. */
+    public function test_a_request_expires_when_its_only_capable_bridge_is_quiet(): void
+    {
+        self::bootKernel();
+        self::getContainer()->set('clock', new MockClock(self::NOW));
+        $em = $this->em();
+        $project = $this->project($em, $this->user($em, 'expire-quiet@example.com'), 'Expire Quiet');
+        $bridge = $this->seedBridge($em, $project->owner, projects: [(string) $project->id], lastSeenAt: new \DateTimeImmutable('2026-10-01 11:00:00'));
+        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS];
+        $bridge->workKinds = ['analysis:implement'];
+        $em->flush();
+        $request = $this->seedWorkRequest($em, $project, createdAt: new \DateTimeImmutable('2026-10-01 11:59:00'), subject: $this->analysis(), failWhenNoTaker: true);
+
+        self::assertSame(1, $this->handler(new RecordingWorkSubjectHandler())(new ExpireSubjectWorkRequestsCommand()));
+
+        $em->clear();
+        $expired = $em->find(WorkRequest::class, $request->id);
+        self::assertSame([WorkRequestState::Expired, WorkRequest::REASON_NO_TAKER], [$expired?->state, $expired?->reason]);
     }
 
     /** The reason says why the work failed, so the check for a taker runs before the timeout. */
