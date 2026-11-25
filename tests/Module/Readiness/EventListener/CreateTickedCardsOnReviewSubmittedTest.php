@@ -10,6 +10,8 @@ use App\Module\Board\Entity\CardSourceKind;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Project\Entity\Project;
+use App\Module\Readiness\Command\CancelDiscoveryCommand;
+use App\Module\Readiness\Command\CancelDiscoveryHandler;
 use App\Module\Readiness\Command\ReportFinding;
 use App\Module\Readiness\Command\ReportProposal;
 use App\Module\Readiness\Command\SubmitReadinessReportCommand;
@@ -121,6 +123,23 @@ final class CreateTickedCardsOnReviewSubmittedTest extends KernelTestCase
         self::assertSame(['Add tests', 'Add a linter'], array_map(static fn (Card $card): string => $card->title, $this->createdCards()));
         self::assertSame(DiscoveryRunState::Done, $this->run->state);
         self::assertSame(WorkRequestState::Cancelled, $request->state);
+    }
+
+    public function test_an_approval_after_a_cancelled_revision_creates_no_card(): void
+    {
+        $this->tick(0, 2);
+        $requested = $this->submitVerdict('changes-requested', 'Not yet.');
+        $cancel = self::getContainer()->get(CancelDiscoveryHandler::class);
+        self::assertInstanceOf(CancelDiscoveryHandler::class, $cancel);
+        $cancel(new CancelDiscoveryCommand($this->project, $this->project->owner));
+        self::assertSame(DiscoveryRunState::Failed, $this->run->state);
+
+        $this->approve(previous: $requested);
+
+        // The verdict itself is accepted, so the empty list comes from the listener.
+        self::assertSame(DocumentStatus::Approved, $this->report->status);
+        self::assertSame([], $this->createdCards());
+        self::assertSame(DiscoveryRunState::Failed, $this->run->state);
     }
 
     public function test_a_revision_that_submits_after_the_approval_is_refused(): void

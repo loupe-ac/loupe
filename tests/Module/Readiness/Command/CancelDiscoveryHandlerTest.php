@@ -13,6 +13,7 @@ use App\Module\Bridge\ValueObject\BridgeCommandKind;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkRequestState;
+use App\Module\Project\Entity\Project;
 use App\Module\Readiness\Command\CancelDiscoveryCommand;
 use App\Module\Readiness\Command\CancelDiscoveryHandler;
 use App\Module\Readiness\Command\ReportFinding;
@@ -23,6 +24,8 @@ use App\Module\Readiness\Entity\DiscoveryRunState;
 use App\Module\Readiness\Service\ReadinessReportWriter;
 use App\Tests\Module\Readiness\DiscoveryScenario;
 use App\Tests\Support\RecordingAuditor;
+use Doctrine\ORM\Event\PostLoadEventArgs;
+use Doctrine\ORM\Events;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
@@ -139,6 +142,38 @@ final class CancelDiscoveryHandlerTest extends KernelTestCase
 
         self::assertSame(DiscoveryRunState::Failed, $this->storedRun($run)->state);
         self::assertSame([(string) $reachable->id], array_map(static fn (BridgeCommand $command): string => (string) $command->workerRun?->id, $this->commands()));
+    }
+
+    public function test_a_cancel_that_loses_the_race_stops_no_worker(): void
+    {
+        $project = $this->workflowProject('discovery-cancel-race');
+        $run = $this->discoveryRun($project);
+        $this->workerRun($run, $this->commandBridge($run), WorkerRunState::Running);
+        $race = new class {
+            public int $loads = 0;
+
+            public function postLoad(PostLoadEventArgs $event): void
+            {
+                $run = $event->getObject();
+                if ($run instanceof DiscoveryRun && 0 === $this->loads++) {
+                    // A report commits after the cancel found the live run, and before the locked read.
+                    $event->getObjectManager()->getConnection()->executeStatement("UPDATE discovery_runs SET state = 'reported' WHERE id = ?", [(string) $run->id]);
+                }
+            }
+        };
+        $projectId = $project->id;
+        $this->em()->clear();
+        $project = $this->em()->find(Project::class, $projectId) ?? throw new \LogicException('The project is stored.');
+        $this->em()->getEventManager()->addEventListener(Events::postLoad, $race);
+        $handler = self::getContainer()->get(CancelDiscoveryHandler::class);
+        self::assertInstanceOf(CancelDiscoveryHandler::class, $handler);
+
+        $handler(new CancelDiscoveryCommand($project, $project->owner));
+
+        self::assertSame(1, $race->loads);
+        $stored = $this->storedRun($run);
+        self::assertSame([DiscoveryRunState::Reported, null, null], [$stored->state, $stored->failureReason, $stored->cancelledBy]);
+        self::assertSame([], $this->commands());
     }
 
     public function test_a_report_after_a_cancel_is_refused(): void

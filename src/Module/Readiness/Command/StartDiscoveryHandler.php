@@ -8,10 +8,11 @@ use App\Exception\DomainErrors;
 use App\Module\Bridge\Command\OpenWorkRequestCommand;
 use App\Module\Bridge\Command\OpenWorkRequestHandler;
 use App\Module\Bridge\Command\WorkRequestAlreadyLive;
+use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\ValueObject\WorkRequestContext;
-use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Project\Entity\Project;
+use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Readiness\Entity\DiscoveryRun;
 use App\Module\Readiness\Entity\DiscoveryRunState;
 use App\Module\Readiness\Event\DiscoveryReportWithdrawn;
@@ -22,8 +23,8 @@ use App\Module\Review\Command\ArchiveDocumentCommand;
 use App\Module\Review\Command\ArchiveDocumentHandler;
 use App\Module\Workflow\Template\AppRules;
 use Doctrine\DBAL\LockMode;
-use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\Persistence\ManagerRegistry;
 use Psr\Clock\ClockInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Uid\Uuid;
@@ -57,6 +58,10 @@ final readonly class StartDiscoveryHandler
         private DiscoveryRunRepository $discoveryRuns,
         private OpenWorkRequestHandler $openWorkRequest,
         private DiscoveryWorkRequestStore $storeWorkRequest,
+        private FailDiscoveryRunHandler $failDiscoveryRun,
+        private WorkRequestRepository $workRequests,
+        private ProjectRepository $projects,
+        private ManagerRegistry $registry,
         private ArchiveDocumentHandler $archiveDocument,
         private AppRules $appRules,
         private EntityManagerInterface $em,
@@ -120,16 +125,19 @@ final readonly class StartDiscoveryHandler
                 failWhenNoTaker: true,
             ));
         } catch (DomainErrors|WorkRequestAlreadyLive $e) {
-            $run->fail(self::REQUEST_REFUSED, $this->clock->now());
-            $this->em->flush();
-            $this->retire($project, $superseded);
+            // The unique index behind the open closes the entity manager when it fires.
+            $this->resetClosedManager();
+            $stored = $this->discoveryRuns->find($runId);
+            if (null !== $stored) {
+                $this->fail($stored, self::REQUEST_REFUSED);
+            }
+            $this->retireStored($project, $superseded);
 
             throw $e;
         } catch (\Throwable $e) {
-            $this->failUnflushed($runId);
-            if ($this->em->isOpen()) {
-                $this->retire($project, $superseded);
-            }
+            $this->resetClosedManager();
+            $this->settleAfterThrow($runId);
+            $this->retireStored($project, $superseded);
 
             throw $e;
         }
@@ -170,35 +178,54 @@ final readonly class StartDiscoveryHandler
     }
 
     /**
-     * A failed transaction closes the entity manager, so the writes go through the connection.
-     * A run with an open or claimed request stays live, because a worker can still report. A request in any other state takes no report.
+     * A reset detaches every loaded entity, so this reads the project and the runs again.
+     *
+     * @param list<DiscoveryRun> $superseded
      */
-    private function failUnflushed(Uuid $runId): void
+    private function retireStored(Project $project, array $superseded): void
     {
-        $connection = $this->em->getConnection();
-        $committed = $connection->fetchOne(
-            'SELECT id FROM work_requests WHERE subject_type = :type AND subject_id = :id AND state IN (:open, :claimed) ORDER BY created_at DESC LIMIT 1',
-            ['type' => DiscoveryRun::SUBJECT_TYPE, 'id' => $runId->toRfc4122(), 'open' => WorkRequestState::Open->value, 'claimed' => WorkRequestState::Claimed->value],
-        );
-        if (\is_string($committed)) {
-            $connection->executeStatement(
-                'UPDATE discovery_runs SET work_request_id = :request WHERE id = :id',
-                ['request' => $committed, 'id' => $runId->toRfc4122()],
-            );
+        $stored = $this->projects->find($project->requireId());
+        if (null === $stored) {
+            return;
+        }
+        $runs = [];
+        foreach ($superseded as $old) {
+            $run = $this->discoveryRuns->find($old->id);
+            if (null !== $run) {
+                $runs[] = $run;
+            }
+        }
+        $this->retire($stored, $runs);
+    }
+
+    /** A failed transaction closes the entity manager, and the failed start still has to write. */
+    private function resetClosedManager(): void
+    {
+        if (!$this->em->isOpen()) {
+            $this->registry->resetManager();
+        }
+    }
+
+    /** A run with an open or claimed request stays live, because a worker can still report. A request in any other state takes no report. */
+    private function settleAfterThrow(Uuid $runId): void
+    {
+        $run = $this->discoveryRuns->find($runId);
+        if (null === $run) {
+            return;
+        }
+        $request = array_last($this->workRequests->findLiveOfSubject(new WorkSubject(DiscoveryRun::SUBJECT_TYPE, $runId)));
+        if (null === $request) {
+            $this->fail($run, self::REQUEST_FAILED);
 
             return;
         }
+        // The store cancels the request of a run that a cancel ended in the meantime.
+        $this->storeWorkRequest->store($run, $request, DiscoveryRunState::Requested);
+    }
 
-        $connection->executeStatement(
-            'UPDATE discovery_runs SET state = :failed, failure_reason = :reason, ended_at = :now WHERE id = :id AND state = :requested',
-            [
-                'failed' => DiscoveryRunState::Failed->value,
-                'reason' => self::REQUEST_FAILED,
-                'now' => $this->clock->now(),
-                'id' => $runId->toRfc4122(),
-                'requested' => DiscoveryRunState::Requested->value,
-            ],
-            ['now' => Types::DATETIME_IMMUTABLE],
-        );
+    /** Fails only a run whose row still says Requested, so a cancel that committed first keeps its reason. */
+    private function fail(DiscoveryRun $run, string $reason): void
+    {
+        ($this->failDiscoveryRun)(new FailDiscoveryRunCommand($run, $reason, FailDiscoveryRunHandler::RULE_ID));
     }
 }

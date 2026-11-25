@@ -7,10 +7,14 @@ namespace App\Tests\Module\Readiness\Command;
 use App\Exception\DomainErrors;
 use App\Module\Board\Entity\BoardAutomationSettings;
 use App\Module\Board\Repository\CardRepository;
+use App\Module\Bridge\BridgeEventType;
+use App\Module\Bridge\Command\WorkRequestAlreadyLive;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Event\WorkRequestChanged;
+use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Project\Entity\Project;
+use App\Module\Readiness\Command\CancelDiscoveryHandler;
 use App\Module\Readiness\Command\DiscoveryRunning;
 use App\Module\Readiness\Command\StartDiscoveryCommand;
 use App\Module\Readiness\Command\StartDiscoveryHandler;
@@ -150,6 +154,112 @@ final class StartDiscoveryHandlerTest extends KernelTestCase
         self::assertSame(['state' => 'failed', 'failure_reason' => StartDiscoveryHandler::REQUEST_FAILED], $row);
     }
 
+    /** @return iterable<string, array{bool, string}> */
+    public static function refusedOpens(): iterable
+    {
+        yield 'the run still waits' => [false, StartDiscoveryHandler::REQUEST_REFUSED];
+        yield 'a cancel committed first' => [true, CancelDiscoveryHandler::REASON];
+    }
+
+    /** The stored run is stale in memory when the open refuses, so only a locked read sees the cancel. */
+    #[DataProvider('refusedOpens')]
+    public function test_a_refused_open_fails_only_a_run_that_still_waits(bool $cancelled, string $reason): void
+    {
+        // Installed before the fixtures, because the container refuses to replace a service in use.
+        $requests = $this->createStub(WorkRequestRepository::class);
+        $requests->method('lockLive')->willReturnCallback(function () use ($cancelled): void {
+            if ($cancelled) {
+                $this->em()->getConnection()->executeStatement("UPDATE discovery_runs SET state = 'failed', failure_reason = 'cancelled'");
+            }
+        });
+        $requests->method('liveRuleId')->willReturn('discovery');
+        self::getContainer()->set(WorkRequestRepository::class, $requests);
+        $project = $this->liveProject();
+
+        try {
+            $this->handler()(new StartDiscoveryCommand($project, Actor::Human));
+            self::fail('The start must throw.');
+        } catch (WorkRequestAlreadyLive) {
+        }
+
+        $row = $this->em()->getConnection()->fetchAssociative('SELECT state, failure_reason FROM discovery_runs WHERE project_id = ?', [(string) $project->id]);
+        self::assertSame(['state' => 'failed', 'failure_reason' => $reason], $row);
+    }
+
+    /** @return iterable<string, array{bool}> */
+    public static function entityManagers(): iterable
+    {
+        yield 'open entity manager' => [false];
+        yield 'closed entity manager' => [true];
+    }
+
+    /** The cancel read the live requests before this one committed, so only the failed start can cancel it. */
+    #[DataProvider('entityManagers')]
+    public function test_a_start_that_throws_after_a_cancel_keeps_no_live_request(bool $closes): void
+    {
+        $project = $this->liveProject();
+        $opened = 0;
+        $this->throwOnOpen($closes, function () use (&$opened): void {
+            ++$opened;
+            $this->em()->getConnection()->executeStatement("UPDATE discovery_runs SET state = 'failed', failure_reason = 'cancelled'");
+        });
+
+        $this->assertStartThrows($project);
+
+        self::assertSame(1, $opened);
+        $runs = $this->freshRuns($project);
+        self::assertCount(1, $runs);
+        self::assertSame([DiscoveryRunState::Failed, 'cancelled'], [$runs[0]->state, $runs[0]->failureReason]);
+        $requests = $this->discoveryRequests($runs[0]);
+        self::assertCount(1, $requests);
+        self::assertSame(WorkRequestState::Cancelled, $requests[0]->state);
+        self::assertTrue($runs[0]->workRequestId?->equals($requests[0]->id));
+        // The bridges hear of a withdrawal through the outbox only.
+        self::assertSame(2, $this->workRequestEvents($requests[0]));
+    }
+
+    /** A worker can still take the request and report, so the run keeps waiting for it. */
+    #[DataProvider('entityManagers')]
+    public function test_a_start_that_throws_while_its_request_is_live_keeps_the_run_requested(bool $closes): void
+    {
+        $project = $this->liveProject();
+        $this->throwOnOpen($closes);
+
+        $this->assertStartThrows($project);
+
+        $runs = $this->freshRuns($project);
+        self::assertCount(1, $runs);
+        self::assertSame(DiscoveryRunState::Requested, $runs[0]->state);
+        $requests = $this->discoveryRequests($runs[0]);
+        self::assertCount(1, $requests);
+        self::assertSame(WorkRequestState::Open, $requests[0]->state);
+        self::assertTrue($runs[0]->workRequestId?->equals($requests[0]->id));
+    }
+
+    #[DataProvider('entityManagers')]
+    public function test_a_start_that_throws_still_retires_the_report_it_superseded(bool $closes): void
+    {
+        $project = $this->liveProject();
+        $reported = $this->discoveryRun($project, DiscoveryRunState::Reported, '2026-10-02 10:00:00');
+        $report = new Document($project->owner, $project, 'Report');
+        $report->addVersion('x', '<p>x</p>');
+        $this->em()->persist($report);
+        $reported->reportDocument = $report;
+        $this->em()->flush();
+        $withdrawn = [];
+        $dispatcher = self::getContainer()->get('event_dispatcher');
+        self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
+        $dispatcher->addListener(DiscoveryReportWithdrawn::class, static function (DiscoveryReportWithdrawn $event) use (&$withdrawn): void {
+            $withdrawn[] = (string) $event->runId;
+        });
+        $this->throwOnOpen($closes);
+
+        $this->assertStartThrows($project);
+
+        self::assertSame([(string) $reported->id], $withdrawn);
+        self::assertNotNull($this->storedRun($reported)->reportDocument?->archivedAt);
+    }
+
     /** A bridge whose discovery entry runs cards only cannot take work about a discovery run. */
     public function test_a_bridge_that_runs_discovery_for_cards_only_is_refused(): void
     {
@@ -259,6 +369,52 @@ final class StartDiscoveryHandlerTest extends KernelTestCase
         self::assertNotNull($stored->reportDocument?->archivedAt);
         self::assertSame('Replaced by a newer discovery run', $stored->reportDocument->archiveReason);
         self::assertSame(DiscoveryRunState::Done, $this->storedRun($done)->state);
+    }
+
+    /** The announcement of the open request fails after the request committed, with or without the entity manager. */
+    private function throwOnOpen(bool $closes, ?\Closure $first = null): void
+    {
+        $dispatcher = self::getContainer()->get('event_dispatcher');
+        self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
+        $dispatcher->addListener(WorkRequestChanged::class, function (WorkRequestChanged $event) use ($closes, $first): void {
+            if (WorkRequestState::Open !== $event->state) {
+                return;
+            }
+            if (null !== $first) {
+                $first();
+            }
+            if ($closes) {
+                $this->em()->close();
+            }
+            throw new \RuntimeException('The announcement failed.');
+        }, 100);
+    }
+
+    private function assertStartThrows(Project $project): void
+    {
+        try {
+            $this->handler()(new StartDiscoveryCommand($project, Actor::Human));
+            self::fail('The start must throw.');
+        } catch (\RuntimeException $e) {
+            self::assertSame('The announcement failed.', $e->getMessage());
+        }
+    }
+
+    /** @return list<DiscoveryRun> */
+    private function freshRuns(Project $project): array
+    {
+        $projectId = $project->id;
+        $this->em()->clear();
+
+        return $this->runs($this->em()->find(Project::class, $projectId) ?? throw new \LogicException('The project is stored.'));
+    }
+
+    private function workRequestEvents(WorkRequest $request): int
+    {
+        return (int) $this->em()->getConnection()->fetchOne(
+            'SELECT COUNT(*) FROM outbox_events WHERE type = ? AND payload::text LIKE ?',
+            [BridgeEventType::WORK_REQUEST, '%'.$request->id.'%'],
+        );
     }
 
     private function boundProject(): Project
