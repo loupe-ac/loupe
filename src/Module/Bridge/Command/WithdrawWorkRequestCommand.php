@@ -17,8 +17,10 @@ final readonly class WithdrawWorkRequestCommand
         public bool $onlyIfOpen = false,
         /** A reason code the module of the work reads, such as no-taker. */
         public ?string $reason = null,
-        /** Expires only an open request that waited for a bridge since this time or longer, and that no work hold holds. */
+        /** Expires only an open request that waited for a bridge since this time or longer. It also applies $outsideWorkHoldOnly. */
         public ?\DateTimeImmutable $deadline = null,
+        /** Leaves a request of a project that holds its new work, and a request that still carries the mark of a hold. */
+        public bool $outsideWorkHoldOnly = false,
     ) {
     }
 }

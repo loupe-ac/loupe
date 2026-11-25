@@ -6,6 +6,7 @@ namespace App\Module\Readiness\Service;
 
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Service\WorkTakers;
+use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Bridge\ValueObject\WorkTakerReading;
 use App\Module\Bridge\ValueObject\WorkTakerState;
 use App\Module\Forge\Entity\ForgeRepositorySource;
@@ -71,7 +72,7 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
         $agent = null !== $project->agentFirstSeenAt;
         $binding = $this->workflowBindings->findOneByProjectId($projectId);
         $running = $this->runningConnections($project);
-        $takers = $this->workTakers->capableFor($project, self::DISCOVERY_KIND, true);
+        $takers = $this->workTakers->capableFor($project, WorkSubject::CARD, self::DISCOVERY_KIND, true);
         $github = $this->gitHubReady($project);
         $installUrl = $github || !$this->gitHubApp->isConfigured() ? null : $this->urls->generate('app_github_repositories_start', ['id' => (string) $projectId]);
         $discovery = $this->discoveryRuns->latestForProject($project);
@@ -111,7 +112,7 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
             $this->repositoryLinkedRow($project, $connect),
             $this->agentRow(null !== $project->agentFirstSeenAt, $connect),
             $this->bridgeRow(
-                $this->workTakers->capableFor($project, self::DISCOVERY_KIND, true),
+                $this->workTakers->capableFor($project, WorkSubject::CARD, self::DISCOVERY_KIND, true),
                 $connect,
                 $this->urls->generate('app_project_agents', ['id' => (string) $projectId]),
             ),
@@ -209,7 +210,7 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
     {
         $projectId = $project->id ?? throw new \LogicException('A stored project has an id.');
 
-        return $this->refusal($project, $this->workTakers->capableFor($project, self::DISCOVERY_KIND, true), $this->workflowBindings->findOneByProjectId($projectId));
+        return $this->refusal($project, $this->workTakers->capableFor($project, WorkSubject::CARD, self::DISCOVERY_KIND, true), $this->workflowBindings->findOneByProjectId($projectId));
     }
 
     /** The same gates as the engine, which skips a card of a project with no workflow or with its automation off. */

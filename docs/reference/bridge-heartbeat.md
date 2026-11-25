@@ -776,6 +776,20 @@ A second task runs each minute and expires each open request about a subject
 other than a card that no bridge claimed within 2 hours. A reopen starts the
 wait again. `app.bridge.subject_work_timeout_minutes` in the same file sets the
 wait, and `app:expire-subject-work-requests` runs the same sweep once by hand.
+
+A request about a subject other than a card can ask to fail when no bridge can
+take it. Such a request expires at once when no online bridge follows its
+project. It also expires when no online bridge can run the work. Loupe checks it
+when the request opens and when what a bridge can take changes. The same task
+checks it too, because a bridge that goes quiet sends no event.
+
+The request stays open while a bridge that can run the work is paused or at a
+usage limit. It also stays open while it waits after a network outage. After
+that wait, it stays open while its bound bridge is quiet, or while no bridge is
+online. A project that holds its new work keeps the request open. The 2 hour
+limit still applies after a pause, a usage limit or an outage. No feature of
+Loupe asks for this yet.
+
 An open request of a card has no time limit. It waits until a bridge claims it,
 its rule cancels it, or the person who asked for it cancels the action. The one
 exception is a `session` request of a person, which expires after 2 minutes,

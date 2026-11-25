@@ -180,16 +180,18 @@ final readonly class WorkTakers
     }
 
     /**
-     * The reading for work of $kind that the project would request now, with a prompt or without. The readiness
-     * guide and the start of a discovery use it, so they agree with the engine that holds the real request.
+     * The reading for work of $kind about a subject of $subjectType that the project would request now, with a prompt
+     * or without. The readiness guide and the start of a discovery use it, so they agree with the engine that holds
+     * the real request.
      */
-    public function capableFor(Project $project, string $kind, bool $hasPrompt): WorkTakerReading
+    public function capableFor(Project $project, string $subjectType, string $kind, bool $hasPrompt): WorkTakerReading
     {
+        $workKind = Bridge::workKindOf($subjectType, $kind);
         [$followers, $narrowedAt, $quietBefore, $window, $expiredIds] = $this->followersOf($project);
         $projectId = (string) $project->id;
         $takers = array_values(array_filter($followers, static fn (Bridge $bridge): bool => $bridge->takesWorkRequests()
-            && !$bridge->failsProjectFor($projectId, $kind)
-            && (\in_array($kind, $bridge->workKinds, true) || ($hasPrompt && \in_array(Bridge::CAPABILITY_APP_PROMPTS, $bridge->capabilities ?? [], true)))));
+            && !$bridge->failsProjectFor($projectId, $workKind)
+            && (\in_array($workKind, $bridge->workKinds, true) || ($hasPrompt && \in_array(Bridge::CAPABILITY_APP_PROMPTS, $bridge->capabilities ?? [], true)))));
 
         return $this->read($this->clock->now(), $followers, $takers, $narrowedAt, $quietBefore, $window, $hasPrompt, $expiredIds);
     }

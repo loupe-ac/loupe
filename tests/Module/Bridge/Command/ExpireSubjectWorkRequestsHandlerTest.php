@@ -10,12 +10,14 @@ use App\Module\Bridge\Command\WithdrawWorkRequestCommand;
 use App\Module\Bridge\Command\WithdrawWorkRequestHandler;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\WorkRequestRepository;
+use App\Module\Bridge\Service\UntakenSubjectWork;
 use App\Module\Bridge\Service\WorkRequestAnnouncer;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Bridge\WorkSubject\WorkSubjectHandlers;
 use App\Module\Workflow\Contract\PersonWork;
 use App\Module\Workflow\Contract\WorkHolds;
+use App\Module\Workflow\Contract\WorkLedger;
 use App\Outbox\OutboxWriter;
 use App\Tests\Module\Bridge\BlockingRepositories;
 use App\Tests\Module\Bridge\BridgeScenario;
@@ -95,6 +97,45 @@ final class ExpireSubjectWorkRequestsHandlerTest extends KernelTestCase
         self::assertSame([(string) $lapsed->id], array_column($this->outboxPayloads(), 'workRequestId'));
     }
 
+    /** A bridge that goes quiet sends no event, so the sweep finds the work that it can no longer take. */
+    public function test_a_request_that_fails_with_no_taker_expires_long_before_the_timeout(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $project = $this->project($em, $this->user($em, 'expire-untaken@example.com'), 'Expire Untaken');
+        $recent = new \DateTimeImmutable('2026-10-01 11:59:00');
+        $flagged = $this->seedWorkRequest($em, $project, createdAt: $recent, subject: $this->analysis(), failWhenNoTaker: true);
+        $unflagged = $this->seedWorkRequest($em, $project, createdAt: $recent, subject: $this->analysis());
+        $card = $this->seedWorkRequest($em, $project, createdAt: $recent, failWhenNoTaker: true);
+        $subjects = new RecordingWorkSubjectHandler();
+
+        self::assertSame(1, $this->handler($subjects)(new ExpireSubjectWorkRequestsCommand()));
+
+        self::assertSame([(string) $flagged->id], array_map(static fn (WorkRequest $request): string => (string) $request->id, $subjects->expired));
+        $em->clear();
+        $expired = $em->find(WorkRequest::class, $flagged->id);
+        self::assertSame([WorkRequestState::Expired, WorkRequest::REASON_NO_TAKER], [$expired?->state, $expired?->reason]);
+        foreach ([$unflagged, $card] as $request) {
+            self::assertSame(WorkRequestState::Open, $em->find(WorkRequest::class, $request->id)?->state);
+        }
+    }
+
+    /** The reason says why the work failed, so the check for a taker runs before the timeout. */
+    public function test_a_request_past_the_timeout_that_fails_with_no_taker_keeps_the_reason_and_counts_once(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $project = $this->project($em, $this->user($em, 'expire-untaken-old@example.com'), 'Expire Untaken Old');
+        $flagged = $this->seedWorkRequest($em, $project, createdAt: new \DateTimeImmutable('2026-10-01 08:00:00'), subject: $this->analysis(), failWhenNoTaker: true);
+        $subjects = new RecordingWorkSubjectHandler();
+
+        self::assertSame(1, $this->handler($subjects)(new ExpireSubjectWorkRequestsCommand()));
+
+        self::assertCount(1, $subjects->expired);
+        $em->clear();
+        self::assertSame(WorkRequest::REASON_NO_TAKER, $em->find(WorkRequest::class, $flagged->id)?->reason);
+    }
+
     public function test_a_tick_with_nothing_to_expire_answers_zero(): void
     {
         self::bootKernel();
@@ -169,9 +210,12 @@ final class ExpireSubjectWorkRequestsHandlerTest extends KernelTestCase
 
     private function handler(RecordingWorkSubjectHandler $subjects): ExpireSubjectWorkRequestsHandler
     {
+        $withdraw = $this->withdraw($subjects);
+
         return new ExpireSubjectWorkRequestsHandler(
             $this->service(WorkRequestRepository::class),
-            $this->withdraw($subjects),
+            $withdraw,
+            new UntakenSubjectWork($this->service(WorkLedger::class), $withdraw),
             new MockClock(self::NOW),
             120,
         );

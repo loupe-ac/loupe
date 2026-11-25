@@ -14,12 +14,12 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 
 /**
  * Expires the open requests about a subject other than a card that no bridge
- * took in time, once. The scheduler runs the same work every minute through
- * the worker. This is the manual backstop.
+ * took in time, and those that fail because no bridge can take them, once. The
+ * scheduler runs the same work every minute. This is the manual backstop.
  */
 #[AsCommand(
     name: 'app:expire-subject-work-requests',
-    description: 'Expire the open work requests about a subject other than a card that no bridge took in time.',
+    description: 'Expire the open work requests about a subject other than a card that no bridge took in time, or that fail with no taker.',
 )]
 final class ExpireSubjectWorkRequestsConsoleCommand extends Command
 {

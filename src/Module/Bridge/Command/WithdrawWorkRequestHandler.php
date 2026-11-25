@@ -44,14 +44,18 @@ final readonly class WithdrawWorkRequestHandler
             throw new \LogicException('A work request withdraws to cancelled or expired.');
         }
 
-        $withdrawn = $this->em->wrapInTransaction(function () use ($command): ?WorkRequest {
-            if (null !== $command->deadline && !$this->outsideWorkHold($command->workRequestId)) {
+        $outsideWorkHoldOnly = $command->outsideWorkHoldOnly || null !== $command->deadline;
+
+        $withdrawn = $this->em->wrapInTransaction(function () use ($command, $outsideWorkHoldOnly): ?WorkRequest {
+            if ($outsideWorkHoldOnly && !$this->outsideWorkHold($command->workRequestId)) {
                 return null;
             }
             // Locked, so a claim or a settle that races this one waits and then finds the final state.
             $request = $this->workRequests->findOneLocked($command->workRequestId);
             if (null === $request
                 || ($command->onlyIfOpen && WorkRequestState::Open !== $request->state)
+                // The hold mark stays until the end of the hold restarts the timeout of the request.
+                || ($outsideWorkHoldOnly && null !== $request->workHoldSince)
                 || (null !== $command->deadline && !self::waitedSince($request, $command->deadline))
                 || !$request->withdraw($command->state, $this->clock->now(), $command->reason)) {
                 return null;
@@ -97,11 +101,9 @@ final readonly class WithdrawWorkRequestHandler
         return null !== $projectId && null === $this->workHolds->heldProject($projectId);
     }
 
-    /** The hold mark stays until the end of the hold restarts the timeout, so a marked request has not waited yet. */
     private static function waitedSince(WorkRequest $request, \DateTimeImmutable $deadline): bool
     {
         return WorkRequestState::Open === $request->state
-            && null === $request->workHoldSince
             && ($request->reopenedAt ?? $request->createdAt) <= $deadline;
     }
 }

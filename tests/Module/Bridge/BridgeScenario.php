@@ -387,6 +387,7 @@ trait BridgeScenario
         ?string $branch = null,
         ?array $params = null,
         ?string $role = null,
+        bool $failWhenNoTaker = false,
     ): WorkRequest {
         $subject ??= WorkSubject::card($cardId ?? Uuid::v7());
         $request = new WorkRequest(
@@ -409,6 +410,7 @@ trait BridgeScenario
         $request->branch = $branch;
         $request->params = $params;
         $request->role = $role;
+        $request->failWhenNoTaker = $failWhenNoTaker;
         $em->persist($request);
         $em->flush();
 
