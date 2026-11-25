@@ -31,6 +31,7 @@ use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Support\RecordedEvents;
 use App\Tests\Support\RecordingAuditor;
+use Doctrine\DBAL\DriverManager;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
@@ -329,6 +330,24 @@ final class RecordBridgeHeartbeatHandlerTest extends KernelTestCase
         $handler($beat());
         $handler($beat());
         self::assertCount(1, self::announcedProjects($announced), 'A routine beat announces nothing.');
+    }
+
+    /** The test transaction holds the locks of the heartbeat, so a second session sees what a no-taker expiry waits for. */
+    public function test_a_heartbeat_locks_out_the_no_taker_expiry_and_no_other_heartbeat(): void
+    {
+        self::bootKernel();
+        $owner = $this->user($this->em(), 'heartbeat-availability-lock@example.com');
+
+        $this->handler()(new RecordBridgeHeartbeatCommand($owner, Uuid::v4(), [], 'b4e39aa7'));
+
+        $other = DriverManager::getConnection($this->em()->getConnection()->getParams());
+        try {
+            $availability = ['bridge-availability:'.$owner->id?->toRfc4122()];
+            self::assertFalse((bool) $other->fetchOne('SELECT pg_try_advisory_xact_lock(hashtext(?))', $availability));
+            self::assertTrue((bool) $other->fetchOne('SELECT pg_try_advisory_xact_lock_shared(hashtext(?))', $availability));
+        } finally {
+            $other->close();
+        }
     }
 
     /** The reply lists the offers before the availability change expires the work that this bridge cannot run. */

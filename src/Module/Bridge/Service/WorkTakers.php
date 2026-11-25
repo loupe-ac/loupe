@@ -100,6 +100,23 @@ final readonly class WorkTakers
         return $readings;
     }
 
+    /** The reason to fail an open request now because no bridge can take it, or null when it can wait. */
+    public function noTakerReason(WorkRequest $request): ?string
+    {
+        if (WorkRequestState::Open !== $request->state) {
+            return null;
+        }
+
+        $id = $request->id ?? throw new \LogicException('A stored request has an id.');
+        $reading = $this->forRequests($request->project, [$request])[$id->toRfc4122()] ?? null;
+
+        return match ($reading?->state) {
+            WorkTakerState::None => WorkRequest::REASON_NO_TAKER,
+            WorkTakerState::NotCapable => $reading->appPromptsMissing ? WorkRequest::REASON_NO_CAPABLE_TAKER_APP_PROMPTS : WorkRequest::REASON_NO_CAPABLE_TAKER,
+            default => null,
+        };
+    }
+
     /**
      * Disconnected when the bridge of the claim sent no heartbeat within the liveness window, or when the request
      * waits after a network outage. The reading changes at the end of the claim or of the wait.

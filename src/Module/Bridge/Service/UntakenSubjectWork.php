@@ -34,14 +34,14 @@ final readonly class UntakenSubjectWork
         }
 
         $id = $request->id ?? throw new \LogicException('A stored request has an id.');
-        $reason = $this->ledger->noTakerReason($id);
 
-        return null !== $reason && ($this->withdraw)(new WithdrawWorkRequestCommand(
+        // The first read takes no lock, so only a request that looks untaken blocks the bridges. The withdrawal reads again.
+        return null !== $this->ledger->noTakerReason($id) && ($this->withdraw)(new WithdrawWorkRequestCommand(
             $id,
             WorkRequestState::Expired,
             onlyIfOpen: true,
-            reason: $reason,
             outsideWorkHoldOnly: true,
+            onlyWhileUntaken: true,
         ));
     }
 }

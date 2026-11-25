@@ -106,6 +106,10 @@ final class ClaimWorkRequestHandlerTest extends KernelTestCase
                 'SELECT pg_try_advisory_xact_lock(hashtext(?))',
                 ['bridge:'.$owner->id?->toRfc4122().':'.$bridge->id->toRfc4122()],
             ));
+            // Shared, so another writer of the owner gets it and a no-taker expiry does not.
+            $availability = ['bridge-availability:'.$owner->id?->toRfc4122()];
+            self::assertFalse((bool) $other->fetchOne('SELECT pg_try_advisory_xact_lock(hashtext(?))', $availability));
+            self::assertTrue((bool) $other->fetchOne('SELECT pg_try_advisory_xact_lock_shared(hashtext(?))', $availability));
         } finally {
             $other->close();
         }

@@ -10,9 +10,11 @@ use App\Module\Bridge\Command\WithdrawWorkRequestCommand;
 use App\Module\Bridge\Command\WithdrawWorkRequestHandler;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\WorkRequest;
+use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\UntakenSubjectWork;
 use App\Module\Bridge\Service\WorkRequestAnnouncer;
+use App\Module\Bridge\Service\WorkTakers;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Bridge\WorkSubject\WorkSubjectHandlers;
@@ -253,6 +255,8 @@ final class ExpireSubjectWorkRequestsHandlerTest extends KernelTestCase
             $this->service(WorkRequestAnnouncer::class),
             new WorkSubjectHandlers([$subjects], new NoCardTitles()),
             $this->service(WorkHolds::class),
+            $this->service(BridgeRepository::class),
+            $this->service(WorkTakers::class),
         );
     }
 

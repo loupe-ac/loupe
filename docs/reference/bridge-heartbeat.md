@@ -782,7 +782,9 @@ take it. Such a request expires at once when no online bridge follows its
 project. It also expires when no online bridge can run the work. Loupe checks it
 when the request opens, and when a bridge comes back, pauses, resumes or reports
 other work kinds or projects. The same task checks it each minute too, because
-other changes send no event. One example is a bridge that goes quiet.
+other changes send no event. One example is a bridge that goes quiet. Before it
+expires the request, Loupe reads the bridges again. A heartbeat or a claim of the
+same owner cannot change that answer until the expiry ends.
 
 This check leaves the request open while a bridge that can run the work is paused
 or at a usage limit. It also leaves it open during the wait after a network

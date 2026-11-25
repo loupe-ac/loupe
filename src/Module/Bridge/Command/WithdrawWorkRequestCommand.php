@@ -21,6 +21,8 @@ final readonly class WithdrawWorkRequestCommand
         public ?\DateTimeImmutable $deadline = null,
         /** Leaves a request of a project that holds its new work, and a request that still carries the mark of a hold. */
         public bool $outsideWorkHoldOnly = false,
+        /** Withdraws only while no bridge can take the request, read under the lock. That reading gives the reason. */
+        public bool $onlyWhileUntaken = false,
     ) {
     }
 }

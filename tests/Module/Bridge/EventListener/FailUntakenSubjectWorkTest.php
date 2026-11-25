@@ -23,6 +23,8 @@ use App\Tests\Module\Bridge\WorkSubject\RecordingWorkSubjectHandler;
 use App\Tests\Support\DispatchedEvents;
 use App\Tests\Support\NoCardTitles;
 use App\Tests\Support\RecordingAuditor;
+use Doctrine\DBAL\DriverManager;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
@@ -154,6 +156,61 @@ final class FailUntakenSubjectWorkTest extends KernelTestCase
         self::assertSame(WorkRequestState::Open, $this->stored($request)->state);
     }
 
+    /** A heartbeat can commit between the first read of a caller and the lock, so the withdrawal reads the bridges again. */
+    #[DataProvider('bridgeChangesThatGiveATaker')]
+    public function test_a_withdrawal_while_untaken_reads_the_bridges_again(string $change): void
+    {
+        $project = $this->scenario('untaken-bridge-race');
+        $request = $this->seedFlagged($project);
+        // The managed bridge keeps its old values, as the copy of a caller that read before the change does.
+        $bridge = $this->bridge($project, workKinds: ['analysis']);
+        if (str_contains($change, 'last_seen_at')) {
+            $bridge->workKinds = ['analysis:analysis'];
+            $bridge->lastSeenAt = new \DateTimeImmutable('2026-10-01 11:00:00');
+            $this->em()->flush();
+        }
+        $this->em()->getConnection()->executeStatement('UPDATE bridges SET '.$change.' WHERE id = :id', ['id' => $bridge->id->toRfc4122()]);
+
+        self::assertFalse($this->withdrawWhileUntaken($request));
+
+        self::assertSame(WorkRequestState::Open, $this->stored($request)->state);
+        self::assertSame([], $this->subjects->expired);
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function bridgeChangesThatGiveATaker(): iterable
+    {
+        yield 'a new work kind' => ["work_kinds = '[\"analysis:analysis\"]'"];
+        yield 'back from quiet' => ["last_seen_at = '".self::NOW."'"];
+    }
+
+    /** The reason can change between the first read and the lock. */
+    public function test_a_withdrawal_while_untaken_takes_the_reason_of_its_own_read(): void
+    {
+        $project = $this->scenario('untaken-reason');
+        $request = $this->seedFlagged($project);
+        $this->bridge($project, workKinds: ['analysis']);
+
+        self::assertTrue($this->withdrawWhileUntaken($request));
+
+        self::assertSame(WorkRequest::REASON_NO_CAPABLE_TAKER, $this->stored($request)->reason);
+    }
+
+    /** The test transaction holds the lock of the expiry, so a second session cannot take the lock of a heartbeat. */
+    public function test_an_expiry_locks_out_the_writers_of_bridge_availability(): void
+    {
+        $project = $this->scenario('untaken-lock');
+
+        $this->open($project);
+
+        $other = DriverManager::getConnection($this->em()->getConnection()->getParams());
+        try {
+            self::assertFalse((bool) $other->fetchOne('SELECT pg_try_advisory_xact_lock_shared(hashtext(?))', ['bridge-availability:'.$project->owner->id?->toRfc4122()]));
+        } finally {
+            $other->close();
+        }
+    }
+
     public function test_a_change_of_bridge_availability_reads_only_the_named_projects(): void
     {
         $named = $this->scenario('untaken-named');
@@ -192,6 +249,14 @@ final class FailUntakenSubjectWorkTest extends KernelTestCase
         $this->open($project);
 
         self::assertSame(WorkRequestState::Expired->value, $audit->record('bridge.work_request_withdrawn')->context['state']);
+    }
+
+    private function withdrawWhileUntaken(WorkRequest $request): bool
+    {
+        $withdraw = self::getContainer()->get(WithdrawWorkRequestHandler::class);
+        self::assertInstanceOf(WithdrawWorkRequestHandler::class, $withdraw);
+
+        return $withdraw(new WithdrawWorkRequestCommand($request->id ?? throw new \LogicException('A flushed request has an id.'), WorkRequestState::Expired, onlyIfOpen: true, onlyWhileUntaken: true));
     }
 
     private function scenario(string $name): Project

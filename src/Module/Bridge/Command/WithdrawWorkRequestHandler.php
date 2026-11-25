@@ -6,9 +6,11 @@ namespace App\Module\Bridge\Command;
 
 use App\Module\Bridge\BridgeEventType;
 use App\Module\Bridge\Entity\WorkRequest;
+use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\WorkRequestAnnouncer;
 use App\Module\Bridge\Service\WorkRequestPayload;
+use App\Module\Bridge\Service\WorkTakers;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\WorkSubject\WorkSubjectHandlers;
 use App\Module\Workflow\Contract\WorkHolds;
@@ -35,6 +37,8 @@ final readonly class WithdrawWorkRequestHandler
         private WorkRequestAnnouncer $announcer,
         private WorkSubjectHandlers $subjects,
         private WorkHolds $workHolds,
+        private BridgeRepository $bridges,
+        private WorkTakers $workTakers,
     ) {
     }
 
@@ -47,6 +51,10 @@ final readonly class WithdrawWorkRequestHandler
         $outsideWorkHoldOnly = $command->outsideWorkHoldOnly || null !== $command->deadline;
 
         $withdrawn = $this->em->wrapInTransaction(function () use ($command, $outsideWorkHoldOnly): ?WorkRequest {
+            // First, so no lock of this transaction can block a writer that holds the availability lock.
+            if ($command->onlyWhileUntaken) {
+                $this->lockAvailability($command->workRequestId);
+            }
             if ($outsideWorkHoldOnly && !$this->outsideWorkHold($command->workRequestId)) {
                 return null;
             }
@@ -56,8 +64,18 @@ final readonly class WithdrawWorkRequestHandler
                 || ($command->onlyIfOpen && WorkRequestState::Open !== $request->state)
                 // The hold mark stays until the end of the hold restarts the timeout of the request.
                 || ($outsideWorkHoldOnly && null !== $request->workHoldSince)
-                || (null !== $command->deadline && !self::waitedSince($request, $command->deadline))
-                || !$request->withdraw($command->state, $this->clock->now(), $command->reason)) {
+                || (null !== $command->deadline && !self::waitedSince($request, $command->deadline))) {
+                return null;
+            }
+            $reason = $command->reason;
+            if ($command->onlyWhileUntaken) {
+                $this->bridges->refreshOfOwner($request->project->owner);
+                $reason = $this->workTakers->noTakerReason($request);
+                if (null === $reason) {
+                    return null;
+                }
+            }
+            if (!$request->withdraw($command->state, $this->clock->now(), $reason)) {
                 return null;
             }
             $this->outbox->write($request->project, BridgeEventType::WORK_REQUEST, WorkRequestPayload::of($request));
@@ -88,6 +106,14 @@ final readonly class WithdrawWorkRequestHandler
         }
 
         return true;
+    }
+
+    private function lockAvailability(Uuid $workRequestId): void
+    {
+        $ownerId = $this->workRequests->find($workRequestId)?->project->owner->id;
+        if (null !== $ownerId) {
+            $this->bridges->lockAvailabilityForExpiry((string) $ownerId);
+        }
     }
 
     /**

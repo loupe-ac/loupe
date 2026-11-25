@@ -104,6 +104,8 @@ final readonly class RecordBridgeHeartbeatHandler
         // and one would trip the primary key.
         [$bridge, $created, $commands, $pauseChanged, $workRequests, $lostClaims, $blocked, $renamedIn, $poolsChanged, $followedBefore, $wasQuiet, $availabilityChanged, $usageChanged, $readingsStored] = $this->em->wrapInTransaction(function () use ($command, $ownerId, $projects, $samples): array {
             $this->bridges->lockForWrite($ownerId, $command->bridgeId);
+            // Before any row lock, so a no-taker expiry reads the bridges before this heartbeat or after its commit.
+            $this->bridges->lockAvailabilityForWrite($ownerId);
 
             $now = $this->clock->now();
             $bridge = $this->bridges->findOneByOwnerAndId($command->owner, $command->bridgeId);
