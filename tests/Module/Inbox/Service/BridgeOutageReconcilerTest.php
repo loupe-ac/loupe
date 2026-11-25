@@ -23,7 +23,6 @@ use App\Module\Inbox\Messenger\NotifyInboxOwnerKind;
 use App\Module\Inbox\Repository\InboxBridgeOutageRepository;
 use App\Module\Inbox\Service\BridgeOutageReconciler;
 use App\Module\Project\Entity\Project;
-use App\Module\Review\Service\MarkdownRenderer;
 use App\Security\LoginLivenessInterface;
 use App\Tests\Module\Inbox\InboxFixtures;
 use App\Tests\Module\Inbox\QueuedPushes;
@@ -33,6 +32,7 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\Uid\Uuid;
+use Twig\Environment;
 
 final class BridgeOutageReconcilerTest extends KernelTestCase
 {
@@ -579,13 +579,117 @@ final class BridgeOutageReconcilerTest extends KernelTestCase
 
         $this->reconciler->reconcile($this->project);
 
-        $renderer = self::getContainer()->get(MarkdownRenderer::class);
-        self::assertInstanceOf(MarkdownRenderer::class, $renderer);
-        $html = new Crawler($renderer->renderWithoutHeadingIds($this->bodyOf($this->onlyOutage()->item)));
+        $html = $this->renderedBody();
         self::assertCount(2, $html->filter('ul'), 'the cards and the causes are two lists');
         self::assertCount(2, $html->filter('li'));
         self::assertCount(0, $html->filter('h1, pre'));
         self::assertStringContainsString('no <path> ``` # heading - item. Fix the account', $html->filter('li')->last()->text());
+    }
+
+    public function test_a_card_title_that_looks_like_a_tag_stays_text_and_keeps_the_rest_of_the_notice(): void
+    {
+        $this->card->title = '<script>';
+        $other = $this->card($this->em, $this->project, 13);
+        $other->title = 'Render <details> blocks';
+        $this->waitingRequest($this->card, '2026-10-16 11:00:00');
+        $this->waitingRequest($other, '2026-10-16 11:00:00');
+
+        $this->reconciler->reconcile($this->project);
+
+        $html = $this->renderedBody();
+        self::assertSame(['Card 12: <script>', 'Card 13: Render <details> blocks'], $html->filter('li')->each(static fn (Crawler $line): string => $line->text()));
+        self::assertStringContainsString('Start a bridge, or run loupe login.', $html->text());
+    }
+
+    public function test_a_card_title_with_a_line_break_stays_on_the_line_of_its_card(): void
+    {
+        $this->card->title = "Ship it\n\n# Now\n```";
+        $this->waitingRequest($this->card, '2026-10-16 11:00:00');
+
+        $this->reconciler->reconcile($this->project);
+
+        $html = $this->renderedBody();
+        self::assertCount(0, $html->filter('h1, pre'));
+        self::assertSame(['Card 12: Ship it # Now ```'], $html->filter('li')->each(static fn (Crawler $line): string => $line->text()));
+        self::assertStringContainsString('Start a bridge, or run loupe login.', $html->text());
+    }
+
+    public function test_a_bridge_label_stays_text_in_the_line_of_a_failed_account(): void
+    {
+        $this->waitingRequest($this->card, '2026-10-16 11:00:00');
+        $bridge = $this->bridge(seenSecondsAgo: 10);
+        $bridge->name = '<b>mac*book*';
+        $this->accounts($bridge, ['work' => 'not logged in']);
+
+        $this->reconciler->reconcile($this->project);
+
+        $html = $this->renderedBody();
+        self::assertCount(0, $html->filter('b, em'));
+        self::assertSame('The account work on <b>mac*book* fails its check for this project: not logged in. Fix the account, then run loupe bridge reload on that machine.', $html->filter('li')->last()->text());
+    }
+
+    public function test_a_bridge_label_stays_text_in_the_line_of_a_refused_bridge(): void
+    {
+        $request = $this->waitingRequest($this->card, '2026-10-16 11:00:00');
+        $bridge = $this->bridge(seenSecondsAgo: 10);
+        $bridge->name = '<script>';
+        $this->refuse($bridge, $request, 'work');
+
+        $this->reconciler->reconcile($this->project);
+
+        self::assertStringStartsWith('The server refused <script> for the account work. Check', $this->renderedBody()->filter('li')->last()->text());
+    }
+
+    public function test_a_bridge_label_stays_text_in_the_line_of_an_expired_login(): void
+    {
+        $login = Uuid::v7();
+        $this->waitingRequest($this->card, '2026-10-16 11:00:00');
+        $bridge = $this->bridge(seenSecondsAgo: 3600);
+        $bridge->loginId = $login;
+        $bridge->name = '<script>';
+        $this->em->flush();
+        $this->logins->expired = [$login->toRfc4122()];
+
+        $this->reconciler->reconcile($this->project);
+
+        self::assertStringContainsString('The login of <script> expired. Run loupe login on that machine.', $this->renderedBody()->text());
+    }
+
+    public function test_the_markdown_in_a_reason_stays_text(): void
+    {
+        $reason = 'run `codex login` [here](https://example.com) *now* **or** _later_ &amp; ![x](https://example.com/x.png) \\<br> https://example.com';
+        $this->waitingRequest($this->card, '2026-10-16 11:00:00');
+        $bridge = $this->bridge(seenSecondsAgo: 10);
+        $bridge->name = 'macbookpro';
+        $this->accounts($bridge, ['work' => $reason]);
+
+        $this->reconciler->reconcile($this->project);
+
+        $line = $this->renderedBody()->filter('li')->last();
+        self::assertCount(0, $line->filter('a, img, em, strong, br'));
+        self::assertSame(['loupe bridge reload'], $line->filter('code')->each(static fn (Crawler $code): string => $code->text()), 'only the code span of the notice itself');
+        self::assertSame('The account work on macbookpro fails its check for this project: '.$reason.'. Fix the account, then run loupe bridge reload on that machine.', $line->text());
+    }
+
+    public function test_the_search_finds_a_bridge_by_a_name_with_punctuation(): void
+    {
+        $this->waitingRequest($this->card, '2026-10-16 11:00:00');
+        $bridge = $this->bridge(seenSecondsAgo: 10);
+        $bridge->name = 'studio-mac.local';
+        $this->accounts($bridge, ['work' => 'not logged in']);
+
+        $this->reconciler->reconcile($this->project);
+
+        self::assertSame(1, $this->searchHits('studio-mac.local'));
+    }
+
+    /** The body as the page shows it, through the filter of the template. */
+    private function renderedBody(): Crawler
+    {
+        $twig = self::getContainer()->get('twig');
+        self::assertInstanceOf(Environment::class, $twig);
+
+        return new Crawler('<div>'.$twig->createTemplate('{{ body|inbox_markdown }}')->render(['body' => $this->bodyOf($this->onlyOutage()->item)]).'</div>');
     }
 
     /** @param array<string, ?string> $accounts the reason each account fails the project, or null when it passes, by account name */

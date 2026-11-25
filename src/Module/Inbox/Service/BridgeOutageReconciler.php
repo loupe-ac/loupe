@@ -225,8 +225,8 @@ final readonly class BridgeOutageReconciler
     }
 
     /**
-     * Each failed account once for each of its reasons, whatever the number of requests it holds back. A reason is
-     * text from a bridge, so it becomes one line: a line break could end its list item in the Markdown body.
+     * Each failed account once for each of its reasons as the notice shows them, whatever the number of requests it
+     * holds back.
      *
      * @param array<string, array{request: WorkRequest, reading: WorkTakerReading}> $rows
      *
@@ -237,8 +237,8 @@ final readonly class BridgeOutageReconciler
         $failing = [];
         foreach ($rows as $row) {
             foreach ($row['reading']->failingAccounts as $account) {
-                $reason = preg_replace('/\s+/u', ' ', $account->reason) ?? throw new \LogicException('A stored reason is valid UTF-8.');
-                $failing[$account->label."\0".$account->account."\0".$reason] = new FailingAccount($account->label, $account->account, $reason);
+                // The escaped form is equal exactly when the shown lines are equal.
+                $failing[$account->label."\0".$account->account."\0".MarkdownLiteral::line($account->reason)] = $account;
             }
         }
         ksort($failing);
@@ -322,7 +322,7 @@ final readonly class BridgeOutageReconciler
         usort($cards, static fn (Card $a, Card $b): int => $a->number <=> $b->number);
 
         $lines = array_map(
-            fn (Card $card): string => '- '.$this->translator->trans('inbox.bridge_outage.body.card', ['%number%' => $card->number, '%title%' => $card->title], null, $this->locale),
+            fn (Card $card): string => '- '.$this->translator->trans('inbox.bridge_outage.body.card', ['%number%' => $card->number, '%title%' => MarkdownLiteral::line($card->title)], null, $this->locale),
             $cards,
         );
 
@@ -330,7 +330,7 @@ final readonly class BridgeOutageReconciler
             ."\n\n".implode("\n", $lines);
         // While a bridge is online, the advice to start one is wrong, so only an expired login keeps this line.
         if (!$online || [] !== $expired) {
-            $body .= "\n\n".$this->translator->trans('inbox.bridge_outage.body.remedy', ['%bridges%' => implode(', ', $expired), '%count%' => \count($expired)], null, $this->locale);
+            $body .= "\n\n".$this->translator->trans('inbox.bridge_outage.body.remedy', ['%bridges%' => implode(', ', array_map(MarkdownLiteral::line(...), $expired)), '%count%' => \count($expired)], null, $this->locale);
         }
         // The `*` marker starts a new Markdown list. With `-`, the causes would join the list of cards.
         $causes = [...array_map($this->failingLine(...), $failing), ...array_map($this->refusedLine(...), $refused)];
@@ -346,10 +346,7 @@ final readonly class BridgeOutageReconciler
 
     private function failingLine(FailingAccount $failing): string
     {
-        // Unescaped, the Markdown renderer reads `<path>` as an HTML tag and drops it from the text.
-        $reason = str_replace(['\\', '<'], ['\\\\', '\\<'], $failing->reason);
-
-        return '* '.$this->translator->trans('inbox.bridge_outage.body.failing_account', ['%account%' => $failing->account, '%bridge%' => $failing->label, '%reason%' => $reason], null, $this->locale);
+        return '* '.$this->translator->trans('inbox.bridge_outage.body.failing_account', ['%account%' => $failing->account, '%bridge%' => MarkdownLiteral::line($failing->label), '%reason%' => MarkdownLiteral::line($failing->reason)], null, $this->locale);
     }
 
     private function refusedLine(RefusedTaker $taker): string
@@ -360,7 +357,7 @@ final readonly class BridgeOutageReconciler
             default => 'inbox.bridge_outage.body.refused.no_account',
         };
 
-        return '* '.$this->translator->trans($key, ['%bridge%' => $taker->label, '%account%' => $taker->account ?? ''], null, $this->locale);
+        return '* '.$this->translator->trans($key, ['%bridge%' => MarkdownLiteral::line($taker->label), '%account%' => $taker->account ?? ''], null, $this->locale);
     }
 
     /**
