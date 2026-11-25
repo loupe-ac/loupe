@@ -61,6 +61,7 @@ final readonly class FailDiscoveryRunHandler
             if (!\in_array($run->state, $waitsFor, true) || !$run->fail($command->reason, $this->clock->now())) {
                 return false;
             }
+            $run->cancelledBy = $command->cancelledBy;
             $this->em->flush();
 
             return true;

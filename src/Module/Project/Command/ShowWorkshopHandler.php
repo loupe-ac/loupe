@@ -48,6 +48,7 @@ final readonly class ShowWorkshopHandler
             $inMotion,
             $this->connections->forProject($command->project),
             $readiness,
+            $this->readiness->discoveryRunning($command->project),
             [] === $attention && [] === $inMotion->cards && 0 === $inMotion->more,
         );
     }

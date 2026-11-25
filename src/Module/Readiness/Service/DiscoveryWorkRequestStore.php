@@ -14,7 +14,7 @@ use App\Module\Readiness\Entity\DiscoveryRunState;
 use App\Module\Readiness\Repository\DiscoveryRunRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
-/** Stores the id of a request that opened after its run changed, and cancels the request that the run no longer waits for. */
+/** Stores the id of a new request on its run, and cancels the request when the run no longer waits for it. */
 final readonly class DiscoveryWorkRequestStore
 {
     private const array ENDED = [DiscoveryRunState::Done, DiscoveryRunState::Failed, DiscoveryRunState::Superseded];

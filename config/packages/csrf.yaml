@@ -51,6 +51,7 @@ framework:
             - project-setup-skip
             - readiness-guide-hide
             - readiness-discovery-start
+            - readiness-discovery-cancel
             - request-data-export
             - request-account-deletion
             - confirm-account-deletion

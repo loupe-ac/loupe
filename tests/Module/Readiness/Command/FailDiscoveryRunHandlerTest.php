@@ -31,6 +31,26 @@ final class FailDiscoveryRunHandlerTest extends KernelTestCase
         self::assertSame(DiscoveryRunState::Done->value, $this->em()->getConnection()->fetchOne('SELECT state FROM discovery_runs WHERE id = ?', [$run->id?->toRfc4122()]));
     }
 
+    public function test_a_cancel_that_loses_to_another_failure_does_not_label_it(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('discovery-fail-cancel-late');
+        $run = $this->discoveryRun($project);
+        // Another request failed the run, so the row is Failed while this request still holds a Requested run.
+        $this->em()->getConnection()->executeStatement('UPDATE discovery_runs SET state = ?, failure_reason = ? WHERE id = ?', [DiscoveryRunState::Failed->value, 'worker-ended', $run->id?->toRfc4122()]);
+
+        $handler = self::getContainer()->get(FailDiscoveryRunHandler::class);
+        self::assertInstanceOf(FailDiscoveryRunHandler::class, $handler);
+
+        self::assertFalse($handler(new FailDiscoveryRunCommand($run, 'cancelled', cancelledBy: $project->owner)));
+        self::assertNull($run->cancelledBy);
+        $this->em()->flush();
+        self::assertSame(
+            ['failure_reason' => 'worker-ended', 'cancelled_by_id' => null],
+            $this->em()->getConnection()->fetchAssociative('SELECT failure_reason, cancelled_by_id FROM discovery_runs WHERE id = ?', [$run->id?->toRfc4122()]),
+        );
+    }
+
     public function test_a_revising_run_fails_when_its_worker_ends(): void
     {
         self::bootKernel();
