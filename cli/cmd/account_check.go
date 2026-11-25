@@ -75,14 +75,14 @@ func (a accountResult) projectReasons() map[string]string {
 // checkAccounts checks the accounts of the set before the bridge knows the
 // project list, so a project needs every package the store holds.
 func checkAccounts(ctx context.Context, set *rules.Set) []accountResult {
-	return checkAccountsWith(ctx, set, nil)
+	return checkAccountsWith(ctx, set, nil, nil)
 }
 
 // checkAccountsWith checks each account that the set declares with its harness,
 // in every project of the set, with the environment a worker of the account gets.
 // sites is the project list that tells a Codex check which plugins a project
-// needs.
-func checkAccountsWith(ctx context.Context, set *rules.Set, sites []api.Site) []accountResult {
+// needs. A nil only checks every declared account.
+func checkAccountsWith(ctx context.Context, set *rules.Set, sites []api.Site, only []string) []accountResult {
 	ctx, cancel := context.WithTimeout(ctx, accountCheckTimeout)
 	defer cancel()
 	projects := map[string]string{}
@@ -90,6 +90,9 @@ func checkAccountsWith(ctx context.Context, set *rules.Set, sites []api.Site) []
 		projects[slug] = set.Dir(slug)
 	}
 	names := set.DeclaredAccounts()
+	if only != nil {
+		names = slices.DeleteFunc(names, func(name string) bool { return !slices.Contains(only, name) })
+	}
 	used := set.UsedAccounts()
 	usedIn := map[string][]string{}
 	for _, slug := range set.Projects() {
@@ -164,6 +167,40 @@ func projectsOff(results []accountResult) map[string]map[string]string {
 	}
 
 	return off
+}
+
+// healOnly applies a recheck to the state of the failing accounts. It heals and
+// updates failing parts, and never turns off a ready one. A check stops at a
+// problem of the whole account, so such a result says nothing about a project. An
+// account with no result keeps its state.
+func healOnly(off map[string]string, projectsOff map[string]map[string]string, results []accountResult) (map[string]string, map[string]map[string]string) {
+	nextOff := map[string]string{}
+	maps.Copy(nextOff, off)
+	nextProjects := map[string]map[string]string{}
+	for account, projects := range projectsOff {
+		nextProjects[account] = maps.Clone(projects)
+	}
+	for _, a := range results {
+		reason, found := a.reason(), a.projectReasons()
+		switch {
+		case off[a.name] != "" && reason != "":
+			nextOff[a.name] = reason
+
+			continue
+		case off[a.name] != "":
+			delete(nextOff, a.name)
+		case reason != "":
+			continue
+		default:
+			maps.DeleteFunc(found, func(slug, _ string) bool { return projectsOff[a.name][slug] == "" })
+		}
+		delete(nextProjects, a.name)
+		if len(found) > 0 {
+			nextProjects[a.name] = found
+		}
+	}
+
+	return nextOff, nextProjects
 }
 
 // warnAccountsOff logs each failing account.

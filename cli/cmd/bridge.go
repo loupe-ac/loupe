@@ -315,6 +315,7 @@ func runBridgeOn(cmd *cobra.Command, o bridgeRunOptions, defaults rules.Defaults
 		logPath:      bl.path,
 		lastError:    bl.last,
 		onRules:      ident.update,
+		recheckSoon:  anyTemporary(accounts),
 	}
 	pushLogin := checkAgentAccount(cmd.Context(), cfg.AgentAccount, bl.log)
 	if control != nil {
@@ -675,6 +676,8 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 		r.heartbeat.start()
 		r.syncHostSampler()
 	}
+	// It starts after the heartbeat is set, so a heal reaches the server.
+	go r.recheckLoop(ctx)
 	if r.update != nil && r.update.resumed != nil {
 		watched = r.update.watchHealth(ctx, r, updates)
 	} else if updates != nil {

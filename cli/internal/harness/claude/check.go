@@ -77,7 +77,7 @@ func firstKey(binaries map[string]string, slugs []string) string {
 // account, because a person fixes the two in different ways.
 func loginProblem(err error, configDir string) harness.Problem {
 	if errors.Is(err, context.DeadlineExceeded) {
-		return harness.Problem{Reason: "login check timed out", Detail: "claude auth status did not answer in " + checkTimeout.String()}
+		return harness.Problem{Reason: "login check timed out", Detail: "claude auth status did not answer in " + checkTimeout.String(), Temporary: true}
 	}
 
 	return harness.Problem{Reason: "not logged in", Detail: loginDetail(configDir)}

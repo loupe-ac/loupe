@@ -187,6 +187,14 @@ type router struct {
 	// skills is the state of the read of the skill packages of each project.
 	skills skillState
 
+	// recheckSoon is on when the start check ran out of time. It is fixed
+	// before subscribe. recheck and recheckAfter stand in for the check of
+	// the failing accounts and for time.After in a test. A nil one uses the
+	// real one.
+	recheckSoon  bool
+	recheck      func(ctx context.Context, set *rules.Set, only []string) []accountResult
+	recheckAfter func(time.Duration) <-chan time.Time
+
 	mu sync.Mutex
 	// reloading is on while a reload builds its set. reloadKills holds each
 	// slug change seen meanwhile, and reloadGone each project found gone, so

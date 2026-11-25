@@ -78,7 +78,7 @@ func reportAccounts(ctx context.Context, out io.Writer, path string, site api.Si
 
 	var rows [][]string
 	var details []string
-	for _, a := range initCheckAccounts(ctx, set, sites) {
+	for _, a := range initCheckAccounts(ctx, set, sites, nil) {
 		row, extra := accountRow(a, slug)
 		rows = append(rows, row)
 		details = append(details, extra...)

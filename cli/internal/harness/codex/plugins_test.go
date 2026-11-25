@@ -2,6 +2,7 @@ package codex
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
@@ -275,6 +276,36 @@ func TestCheckRequiresTheInstalledPluginsOfTheProject(t *testing.T) {
 		f := fakeCodexPlugins(t, `not json`, marketsJSON(""))
 		if got := check(f, need, false); len(got) != 1 || !strings.HasPrefix(got[0], "codex plugins could not be read") {
 			t.Fatalf("problems = %q", got)
+		}
+		got := h.Check(context.Background(), harness.CheckSpec{
+			ConfigDir: home, Env: f.env, Projects: map[string]string{"loupe": f.project}, Packages: need,
+		})
+		if len(got) != 1 || got[0].Temporary {
+			t.Fatalf("problems = %+v", got)
+		}
+	})
+	t.Run("a list that times out is temporary", func(t *testing.T) {
+		f := fakeCodexPlugins(t, installedJSON(), marketsJSON(""))
+		body, err := os.ReadFile(findCodex(f))
+		if err != nil {
+			t.Fatal(err)
+		}
+		slow := strings.Replace(string(body), `"plugin list --json") `, `"plugin list --json") exec sleep 10; `, 1)
+		if err := os.WriteFile(findCodex(f), []byte(slow), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		old := checkTimeout
+		checkTimeout = 2 * time.Second
+		defer func() { checkTimeout = old }()
+
+		if _, err := ListPlugins(context.Background(), findCodex(f), HomeEnv(f.env, home)); !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("err = %v, want a deadline", err)
+		}
+		got := h.Check(context.Background(), harness.CheckSpec{
+			ConfigDir: home, Env: f.env, Projects: map[string]string{"loupe": f.project}, Packages: need,
+		})
+		if len(got) != 1 || got[0].Reason != "codex plugins could not be read" || !got[0].Temporary {
+			t.Fatalf("problems = %+v", got)
 		}
 	})
 	t.Run("the old skill folders stand in for the plugins", func(t *testing.T) {

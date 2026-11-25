@@ -130,7 +130,7 @@ func newInitWorld(t *testing.T, sites string) *initWorld {
 		initLookPath, initGOOS, initExec, initStartBridge, initBridgeRuns, initReloadBridge = oldLook, oldGOOS, oldExec, oldStart, oldRuns, oldReload
 		initCheckAccounts, initGit = oldCheck, oldGit
 	})
-	initCheckAccounts = func(context.Context, *rules.Set, []api.Site) []accountResult { return w.accounts }
+	initCheckAccounts = func(context.Context, *rules.Set, []api.Site, []string) []accountResult { return w.accounts }
 	initGit = func(_ string, args ...string) (string, error) {
 		if !w.gitClean {
 			return "?? file", nil
@@ -2267,7 +2267,7 @@ func TestReportAccountsKeepsAProjectTheListLacks(t *testing.T) {
 	old := initCheckAccounts
 	t.Cleanup(func() { initCheckAccounts = old })
 	var got []api.Site
-	initCheckAccounts = func(_ context.Context, _ *rules.Set, sites []api.Site) []accountResult {
+	initCheckAccounts = func(_ context.Context, _ *rules.Set, sites []api.Site, _ []string) []accountResult {
 		got = sites
 
 		return nil
@@ -2553,7 +2553,7 @@ func TestReportAccountsShortensHomePaths(t *testing.T) {
 	home = os.Getenv("HOME")
 	old := initCheckAccounts
 	t.Cleanup(func() { initCheckAccounts = old })
-	initCheckAccounts = func(context.Context, *rules.Set, []api.Site) []accountResult {
+	initCheckAccounts = func(context.Context, *rules.Set, []api.Site, []string) []accountResult {
 		return []accountResult{{name: "main", harness: "claude", used: true, usedIn: []string{"simple"}, problems: []harn.Problem{
 			{Reason: "no folder " + home + "/a", Detail: "clone into " + home + "/a", Project: "simple"},
 		}}}
