@@ -7602,6 +7602,10 @@
     .lp-data-table--events .lp-data-table__row time {
         @apply relative z-10;
     }
+    /* The link of a run with no card sits above the row target too, so a click on it follows the link. */
+    .lp-data-table--runs .lp-data-table__row a.lp-data-table__number {
+        @apply relative z-10 underline underline-offset-2;
+    }
     /* What an event did to its work, after the bold event label. */
     .lp-data-table__subject {
         @apply min-w-0 truncate text-fg-mute;
