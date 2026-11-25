@@ -129,6 +129,23 @@ final class DiscoveryReviewReconcilerTest extends KernelTestCase
         self::assertCount(1, $this->items());
     }
 
+    public function test_a_withdrawn_report_queues_the_cancel_and_the_worker_closes_the_item(): void
+    {
+        $this->report();
+        $dispatcher = self::getContainer()->get('event_dispatcher');
+        self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
+
+        $dispatcher->dispatch(new DiscoveryReportWithdrawn(
+            $this->project->id ?? throw new \LogicException('Stored.'),
+            $this->run->id ?? throw new \LogicException('Stored.'),
+        ));
+
+        self::assertSame(InboxItemState::Open, $this->items()[0]->state);
+        self::assertCount(1, array_filter($this->queuedReviewMessages(), static fn (Envelope $envelope): bool => $envelope->getMessage() instanceof CancelDiscoveryReview));
+        $this->work();
+        self::assertSame(InboxItemState::Cancelled, $this->items()[0]->state);
+    }
+
     public function test_a_report_whose_announcement_fails_is_not_stored(): void
     {
         $dispatcher = self::getContainer()->get('event_dispatcher');
