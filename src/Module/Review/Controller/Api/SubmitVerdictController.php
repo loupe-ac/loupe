@@ -44,7 +44,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
         new ProblemResponse(400, ['invalid_json']),
         new ProblemResponse(403, ['credential_not_allowed']),
         new ProblemResponse(404, ['project_not_found', 'document_not_found', 'route_not_found']),
-        new ProblemResponse(409, ['verdict_stale', 'verdict_changed', 'decisions_unanswered', 'idempotency_key_reused', 'idempotency_in_progress']),
+        new ProblemResponse(409, ['verdict_stale', 'verdict_changed', 'decisions_unanswered', 'verdict_refused', 'idempotency_key_reused', 'idempotency_in_progress']),
         new ProblemResponse(415, ['unsupported_media_type']),
         new ProblemResponse(422, ['validation_failed'], 'ValidationProblem'),
     ],

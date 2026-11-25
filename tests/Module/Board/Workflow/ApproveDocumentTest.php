@@ -26,6 +26,7 @@ use App\Module\Review\Repository\ReviewRepository;
 use App\Module\Workflow\Contract\ActionOutcome;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\DocumentFacts;
+use App\Tests\Module\Review\Support\StubVerdictGuard;
 use App\Tests\Module\Workflow\Action\ActionScenario;
 use App\Tests\Module\Workflow\Fact\FactsMother;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -124,6 +125,20 @@ final class ApproveDocumentTest extends KernelTestCase
         self::assertCount(1, $rows);
         self::assertSame('verdict_changed', $rows[0]->detail['refusal']);
         self::assertSame(1, $this->rowCount('reviews'));
+    }
+
+    public function test_the_refusal_of_a_guard_never_reads_as_a_cause_of_the_app(): void
+    {
+        self::bootKernel();
+        $card = $this->card($this->workflowProject('approve-guarded'), 'tech-design');
+        $document = $this->document($card, ['tech-design']);
+        $this->service(StubVerdictGuard::class)->key = 'elsewhere.error.verdict_stale';
+
+        $this->approve($card, [$this->facts($document, cleanCheckVersion: 1)], 'tech-design');
+
+        $rows = $this->rows($card, CardEventKind::VerdictFailed);
+        self::assertCount(1, $rows);
+        self::assertSame('verdict_refused', $rows[0]->detail['refusal']);
     }
 
     /** @param list<string> $tags */

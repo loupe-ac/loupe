@@ -8,6 +8,7 @@ use App\Exception\DomainErrors;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Repository\DocumentVersionRepository;
 use Mcp\Exception\ToolCallException;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
  * Turns a refusal of a decision or verdict tool into the message an agent reads.
@@ -23,6 +24,7 @@ final readonly class DocumentToolErrors
     public function __construct(
         private ToolCallErrorMessages $messages,
         private DocumentVersionRepository $documentVersions,
+        private TranslatorInterface $translator,
     ) {
     }
 
@@ -42,6 +44,14 @@ final readonly class DocumentToolErrors
                     '' === $description ? '' : ': '.$description,
                     $latest->versionNumber,
                 ),
+                previous: $errors,
+            );
+        }
+
+        // Before the rename below, which builds a new DomainErrors without the guard mark.
+        if ($errors->fromGuard) {
+            return new ToolCallException(
+                \sprintf('%s: %s', array_key_first($errors->errors), ToolCallErrorMessages::guardSentence($this->translator, array_first($errors->errors))),
                 previous: $errors,
             );
         }
