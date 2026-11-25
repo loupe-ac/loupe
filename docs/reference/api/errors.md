@@ -328,6 +328,10 @@ The review changed since you read it. Read the review again, and pass its newest
 
 The document has no verdict to withdraw.
 
+### verdict_refused
+
+A rule of another part of the app refused the verdict. The `detail` says why. The server records no verdict.
+
 ### verdict_stale
 
 The document has a newer version. Show it to the owner, then call again with its versionNumber.

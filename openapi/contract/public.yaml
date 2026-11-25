@@ -1742,7 +1742,7 @@ paths:
         '405':
           $ref: '#/components/responses/E405MethodNotAllowed'
         '409':
-          $ref: '#/components/responses/E409VerdictStaleVerdictChangedDecisionsUnansweredAnd2More'
+          $ref: '#/components/responses/E409VerdictStaleVerdictChangedDecisionsUnansweredAnd3More'
         '415':
           $ref: '#/components/responses/E415UnsupportedMediaType'
         '422':
@@ -12156,6 +12156,14 @@ components:
         status: 409
         code: decisions_unanswered
         detail: One or more decisions have no answer yet. Answer them first, or request changes.
+    VerdictRefused:
+      summary: verdict_refused
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#verdict_refused
+        title: Verdict refused
+        status: 409
+        code: verdict_refused
+        detail: A sentence that says why the rule refused the verdict.
     VerdictNone:
       summary: verdict_none
       value:
@@ -13219,8 +13227,8 @@ components:
               $ref: '#/components/examples/VerdictChanged'
             decisions_unanswered:
               $ref: '#/components/examples/DecisionsUnanswered'
-    E409VerdictStaleVerdictChangedDecisionsUnansweredAnd2More:
-      description: 'Refused: `verdict_stale`, `verdict_changed`, `decisions_unanswered`, `idempotency_key_reused`, `idempotency_in_progress`.'
+    E409VerdictStaleVerdictChangedDecisionsUnansweredAnd3More:
+      description: 'Refused: `verdict_stale`, `verdict_changed`, `decisions_unanswered`, `verdict_refused`, `idempotency_key_reused`, `idempotency_in_progress`.'
       headers:
         RateLimit-Limit:
           $ref: '#/components/headers/RateLimit-Limit'
@@ -13239,6 +13247,8 @@ components:
               $ref: '#/components/examples/VerdictChanged'
             decisions_unanswered:
               $ref: '#/components/examples/DecisionsUnanswered'
+            verdict_refused:
+              $ref: '#/components/examples/VerdictRefused'
             idempotency_key_reused:
               $ref: '#/components/examples/IdempotencyKeyReused'
             idempotency_in_progress:

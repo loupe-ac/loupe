@@ -22648,7 +22648,7 @@
                         }
                     },
                     "409": {
-                        "description": "Refused: `verdict_stale`, `verdict_changed`, `decisions_unanswered`, `idempotency_key_reused`, `idempotency_in_progress`.",
+                        "description": "Refused: `verdict_stale`, `verdict_changed`, `decisions_unanswered`, `verdict_refused`, `idempotency_key_reused`, `idempotency_in_progress`.",
                         "headers": {
                             "RateLimit-Limit": {
                                 "$ref": "#/components/headers/RateLimit-Limit"
