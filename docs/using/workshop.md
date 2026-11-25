@@ -145,7 +145,7 @@ The Run discovery row shows the state of the latest run:
 | Discovery waits for board automation | Discovery never ran, and the workflow of the board is off | None. Switch on **Run the workflow of the board** |
 | Discovery runs | Loupe asked for a worker, or a worker runs. The work is a new report, or the revision of a report after you asked for changes. A second start is refused until the run ends | [Cancel](#cancel-a-run). While a worker revises the report, also Open report |
 | Discovery failed: reason | The run failed. "Cancelled by" and a name means that this person selected **Cancel**. "Cancelled by a deleted account." means that the account of that person no longer exists. "No bridge took the work." means that no online bridge serves the project, so the request failed at once. It also shows when no bridge claimed the request for 2 hours. "A bridge is online, but none can run discovery." means that the request failed at once, because no online bridge could take it. "The worker ended without a report." means that the worker stopped before it reported | Run again, when discovery can start |
-| The report waits for your review | The worker reported. The run is in the Reported state | Open report |
+| The report waits for your review | The worker reported. The run is in the Reported state | Open report, and Run discovery again when discovery can start. With an archived report, only Run discovery again |
 | Reviewed | The owner approved the report. The run is in the Done state, and the row is done | None |
 
 ## Cancel a run
@@ -171,11 +171,16 @@ The discovery run then fails too.
 ## Replace a waiting report
 
 You can start a new run while a report waits for your review.
-The row offers no start in that state, so use `loupe discovery start`, the `discovery_start` MCP tool or the public API.
+Select **Run discovery again** in the Run discovery row. The row offers it when discovery can start.
+You can also use `loupe discovery start`, the `discovery_start` MCP tool or the public API.
 The new run replaces the waiting report, and the old run is Superseded.
 Loupe archives the old report document with the reason "Replaced by a newer discovery run". The document stays readable among the archived documents.
 Loupe also cancels the open inbox review of the old report.
 Loupe refuses each verdict on that report with "This report was replaced by a newer discovery run.", so its proposals create no card.
+
+When you archive a report that waits for your review, the run ends too. The run is then Superseded, and Loupe cancels the open inbox review of the report.
+The row then offers **Run discovery again**. A restore of the archived report does not bring the run back.
+A dismiss of the inbox review does not end the run. The report still waits.
 
 ## Review the report
 
