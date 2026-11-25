@@ -45,12 +45,13 @@ final class Version20261125024053 extends AbstractMigration
     #[\Override]
     public function getDescription(): string
     {
-        return 'Move the work of each live discovery run from its card to the run, and close the discovery cards of the ended runs';
+        return 'Move the claimed work of each live discovery run to the run, cancel its open card requests, and close the cards of ended runs';
     }
 
     public function up(Schema $schema): void
     {
-        $this->moveLiveWork();
+        $this->cancelOpenCardRequests();
+        $this->moveClaimedWork();
         $this->closeCardsOfEndedRuns();
     }
 
@@ -60,7 +61,24 @@ final class Version20261125024053 extends AbstractMigration
         // The cards keep their new column, and the previous image opens a new card request for a live run.
     }
 
-    private function moveLiveWork(): void
+    /**
+     * A bridge can hold a queued offer of an open request, and it refuses a claim whose answer names another subject.
+     * So the request does not move. The minute task opens a new one, with an id that no bridge knows.
+     */
+    private function cancelOpenCardRequests(): void
+    {
+        $this->addSql(<<<'SQL'
+            UPDATE work_requests w SET state = 'cancelled', settled_at = NOW() AT TIME ZONE 'UTC'
+            WHERE w.subject_type = 'card' AND w.state = 'open' AND w.rule_id IN ('discovery', 'discovery-revise')
+              AND EXISTS (
+                SELECT 1 FROM discovery_runs d
+                WHERE d.card_id = w.subject_id AND d.project_id = w.project_id AND d.state IN ('requested', 'revising')
+              )
+            SQL);
+    }
+
+    /** A bridge proves a claim with the request id and the claim token, so a claimed request can change its subject. */
+    private function moveClaimedWork(): void
     {
         // The latest live run of a card takes its requests. "wanted" marks the request that matches the state of that run.
         $this->addSql(<<<'SQL'
@@ -73,17 +91,16 @@ final class Version20261125024053 extends AbstractMigration
                 ORDER BY card_id, created_at DESC, id DESC
             ) run
             JOIN work_requests w ON w.subject_type = 'card' AND w.subject_id = run.card_id AND w.project_id = run.project_id
-            WHERE w.rule_id IN ('discovery', 'discovery-revise') AND w.state IN ('open', 'claimed')
+            WHERE w.rule_id IN ('discovery', 'discovery-revise') AND w.state = 'claimed'
             SQL);
 
-        // The rows a request about a run starts with. The open timeout counts from reopened_at, and a card request waited with no limit.
+        // The values a request about a run starts with.
         foreach (self::PROMPTS as $ruleId => $prompt) {
             $this->addSql(<<<'SQL'
                 UPDATE work_requests w
                 SET subject_type = 'discovery', subject_id = m.run_id, card_number = NULL, capability = 'subject-discovery',
                     prompt = :prompt, context = :context, fail_when_no_taker = TRUE, model = NULL, effort = NULL, role = NULL,
-                    round_number = NULL, resume_session_id = NULL, target_bridge_id = NULL,
-                    reopened_at = CASE WHEN w.state = 'open' THEN CAST(NOW() AT TIME ZONE 'UTC' AS TIMESTAMP(0)) ELSE w.reopened_at END
+                    round_number = NULL, resume_session_id = NULL, target_bridge_id = NULL
                 FROM discovery_moved_requests m
                 WHERE w.id = m.request_id AND w.rule_id = :rule
                 SQL, ['prompt' => $prompt, 'context' => self::EMPTY_CONTEXT, 'rule' => $ruleId]);

@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\Migrations;
 
 use App\Module\Board\Entity\Card;
+use App\Module\Bridge\Command\ClaimWorkRequestCommand;
+use App\Module\Bridge\Command\ClaimWorkRequestHandler;
+use App\Module\Bridge\ValueObject\WorkRequestRefusal;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Project\Entity\Project;
 use App\Module\Readiness\Entity\DiscoveryRunState;
@@ -29,28 +32,70 @@ final class DiscoveryRunsLeaveCardsMigrationTest extends KernelTestCase
         $this->project = $this->workflowProject('discovery-leave-cards');
     }
 
-    /** @return iterable<string, array{DiscoveryRunState, string, WorkRequestState}> */
+    /** @return iterable<string, array{DiscoveryRunState, string}> */
     public static function liveRuns(): iterable
     {
-        yield 'requested, open' => [DiscoveryRunState::Requested, 'discovery', WorkRequestState::Open];
-        yield 'requested, claimed' => [DiscoveryRunState::Requested, 'discovery', WorkRequestState::Claimed];
-        yield 'revising, open' => [DiscoveryRunState::Revising, 'discovery-revise', WorkRequestState::Open];
+        yield 'requested' => [DiscoveryRunState::Requested, 'discovery'];
+        yield 'revising' => [DiscoveryRunState::Revising, 'discovery-revise'];
     }
 
     #[DataProvider('liveRuns')]
-    public function test_the_live_request_of_a_live_run_and_its_workers_move_to_the_run(DiscoveryRunState $state, string $kind, WorkRequestState $requestState): void
+    public function test_the_claimed_request_of_a_live_run_and_its_workers_move_to_the_run(DiscoveryRunState $state, string $kind): void
     {
         $card = $this->card($this->project);
         $run = $this->discoveryRun($this->project, $state, card: $card);
-        $request = $this->legacyCardRequest($card, $kind, $requestState);
+        $request = $this->legacyCardRequest($card, $kind, WorkRequestState::Claimed);
         $worker = $this->legacyWorkerRun($card, $request);
 
         $this->migrate();
 
         $this->assertMovedToRun($run, $request, $worker);
-        self::assertSame($requestState->value, $this->requestRow($request)['state']);
+        self::assertSame('claimed', $this->requestRow($request)['state']);
         self::assertTrue($this->storedRun($run)->workRequestId?->equals($request->id));
         self::assertSame('backlog', $this->columnOf($card)['slug']);
+    }
+
+    /** A bridge can hold a queued offer of an open request, and it refuses a claim whose answer names another subject. */
+    #[DataProvider('liveRuns')]
+    public function test_the_open_request_of_a_live_run_is_cancelled_on_its_card(DiscoveryRunState $state, string $kind): void
+    {
+        $card = $this->card($this->project);
+        $run = $this->discoveryRun($this->project, $state, card: $card);
+        $request = $this->legacyCardRequest($card, $kind);
+        $worker = $this->legacyWorkerRun($card, $request);
+
+        $this->migrate();
+
+        $row = $this->em()->getConnection()->fetchAssociative('SELECT subject_type, subject_id, state, reason, settled_at FROM work_requests WHERE id = ?', [(string) $request->id]);
+        self::assertIsArray($row);
+        self::assertSame(['card', (string) $card->id, 'cancelled', null], [$row['subject_type'], $row['subject_id'], $row['state'], $row['reason']]);
+        self::assertIsString($row['settled_at']);
+        self::assertEqualsWithDelta(time(), new \DateTimeImmutable($row['settled_at'], new \DateTimeZone('UTC'))->getTimestamp(), 120);
+        self::assertSame('card', $this->em()->getConnection()->fetchOne('SELECT subject_type FROM bridge_worker_runs WHERE id = ?', [(string) $worker->id]));
+        $stored = $this->storedRun($run);
+        self::assertSame($state, $stored->state);
+        self::assertNull($stored->workRequestId);
+    }
+
+    /** The cancel sends no bridge event, so the bridge claims its queued offer. The refusal settles nothing. */
+    public function test_a_claim_of_the_cancelled_offer_is_refused_and_leaves_the_run_live(): void
+    {
+        $bridge = $this->discoveryBridge($this->project, ['discovery']);
+        $card = $this->card($this->project);
+        $run = $this->discoveryRun($this->project, card: $card);
+        $bridge->accounts = [['name' => 'work', 'harness' => 'claude', 'state' => 'ready', 'reason' => null, 'kinds' => ['discovery']]];
+        $request = $this->legacyCardRequest($card);
+        $request->targetBridgeId = null;
+        $this->migrate();
+        $this->em()->clear();
+        $claim = self::getContainer()->get(ClaimWorkRequestHandler::class);
+        self::assertInstanceOf(ClaimWorkRequestHandler::class, $claim);
+        $project = $this->em()->find(Project::class, $this->project->id) ?? throw new \LogicException('Stored.');
+
+        $result = $claim(new ClaimWorkRequestCommand($project->owner, $bridge->id, $request->id ?? throw new \LogicException('Stored.'), 'work'));
+
+        self::assertSame([null, WorkRequestRefusal::AlreadyClaimed], [$result->request, $result->refusal]);
+        self::assertSame(DiscoveryRunState::Requested, $this->storedRun($run)->state);
     }
 
     /** The worker that reported can still be at work, and the run waits for a revision that no request asks for yet. */

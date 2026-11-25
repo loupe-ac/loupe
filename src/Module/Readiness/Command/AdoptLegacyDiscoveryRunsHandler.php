@@ -19,16 +19,15 @@ use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Readiness\Entity\DiscoveryRun;
 use App\Module\Readiness\Entity\DiscoveryRunState;
 use App\Module\Readiness\Repository\DiscoveryRunRepository;
+use App\Module\Readiness\Service\DiscoveryWorkRequestStore;
 use App\Module\Workflow\Template\AppRules;
 use Doctrine\ORM\EntityManagerInterface;
-use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\Uid\Uuid;
 
 /**
- * Gives each live run that holds a card its work request about the run. While a deploy runs, the previous image can
- * start or change a run, and open a card request for it. The engine cancels that request, and no listener hears of
- * the cancel, so without this the run would wait for good. Temporary: it goes with the card of a run.
+ * Gives each live run that holds a card its work request about the run, where the upgrade or the previous image left
+ * a card request or none. No listener hears the engine cancel a card request, so without this the run would wait
+ * for good. A claimed card request moves, and an open one is replaced. Temporary: it goes with the card of a run.
  * Answers how many runs it changed.
  */
 final readonly class AdoptLegacyDiscoveryRunsHandler
@@ -43,9 +42,9 @@ final readonly class AdoptLegacyDiscoveryRunsHandler
         private WithdrawWorkRequestHandler $withdrawWorkRequest,
         private OpenDiscoveryRevisionHandler $openDiscoveryRevision,
         private FailDiscoveryRunHandler $failDiscoveryRun,
+        private DiscoveryWorkRequestStore $storeWorkRequest,
         private AppRules $appRules,
         private EntityManagerInterface $em,
-        private ClockInterface $clock,
         private LoggerInterface $logger,
     ) {
     }
@@ -71,6 +70,11 @@ final readonly class AdoptLegacyDiscoveryRunsHandler
     private function adopt(DiscoveryRun $run): bool
     {
         $runId = $run->id ?? throw new \LogicException('A stored run has an id.');
+        // First, so the step below reads what is left. A request that a bridge claimed in between stays, and moves.
+        $replaced = 0;
+        foreach ($this->cardRequests($run) as $request) {
+            $replaced += (int) ($this->withdrawWorkRequest)(new WithdrawWorkRequestCommand($request->id ?? throw new \LogicException('A persisted work request has an id.'), WorkRequestState::Cancelled, onlyIfOpen: true));
+        }
         $step = $this->em->wrapInTransaction(fn (): LegacyDiscoveryRunStep => $this->step($run));
 
         foreach ($step->copies as $copy) {
@@ -83,53 +87,65 @@ final readonly class AdoptLegacyDiscoveryRunsHandler
             $this->openFirstRequest($run);
         }
 
-        return $step->moved || [] !== $step->copies || null !== $step->openRuleId;
+        return $replaced > 0 || $step->moved || [] !== $step->copies || null !== $step->openRuleId;
     }
 
-    /** One step for the run. Call it inside a transaction. */
+    /** @return list<WorkRequest> the live requests of the two discovery rules on the card of the run */
+    private function cardRequests(DiscoveryRun $run): array
+    {
+        $cardId = $run->card?->id;
+        if (null === $cardId) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            $this->workRequests->findLiveOfSubject(WorkSubject::card($cardId)),
+            static fn (WorkRequest $request): bool => $request->project === $run->project && \in_array($request->ruleId, self::RULE_IDS, true),
+        ));
+    }
+
+    /** Moves the claimed requests of the card, and says what else the run needs. Call it inside a transaction. */
     private function step(DiscoveryRun $run): LegacyDiscoveryRunStep
     {
         $this->projects->lockForWrite($run->project);
-        $wanted = match ($this->discoveryRuns->freshStateOf($run)['state']) {
+        $fresh = $this->discoveryRuns->freshStateOf($run);
+        $wanted = match ($fresh['state']) {
             DiscoveryRunState::Requested => FailDiscoveryRunHandler::RULE_ID,
             DiscoveryRunState::Revising => FailDiscoveryRunHandler::REVISE_RULE_ID,
             default => null,
         };
-        $card = $run->card;
-        if (null === $wanted || null === $card) {
+        if (null === $wanted) {
             return new LegacyDiscoveryRunStep();
         }
 
         $subject = new WorkSubject(DiscoveryRun::SUBJECT_TYPE, $run->id ?? throw new \LogicException('A stored run has an id.'));
-        $onCard = array_values(array_filter(
-            $this->workRequests->findLiveOfSubject(WorkSubject::card($card->id ?? throw new \LogicException('A stored card has an id.'))),
-            static fn (WorkRequest $request): bool => $request->project === $run->project && \in_array($request->ruleId, self::RULE_IDS, true),
-        ));
-        $matches = static fn (WorkRequest $request): bool => $wanted === $request->ruleId;
-
-        // A request of the other rule does not count: a first discovery request can outlive the report, and asks for no revision.
-        if (array_any($this->workRequests->findLiveOfSubject($subject), $matches)) {
-            return new LegacyDiscoveryRunStep(copies: array_map(
-                static fn (WorkRequest $request): Uuid => $request->id ?? throw new \LogicException('A persisted work request has an id.'),
-                $onCard,
-            ));
-        }
-        if (!array_any($onCard, $matches)) {
-            return new LegacyDiscoveryRunStep(openRuleId: $wanted);
-        }
-
         $moved = false;
-        foreach ($onCard as $request) {
-            if ($this->workRequests->moveCardRequestToSubject($request, $subject, StartDiscoveryHandler::CAPABILITY, $this->appRules->prompt($request->ruleId), $this->clock->now())) {
+        $copies = [];
+        $waiting = false;
+        foreach ($this->cardRequests($run) as $request) {
+            $requestId = $request->id ?? throw new \LogicException('A persisted work request has an id.');
+            if ($this->workRequests->moveCardRequestToSubject($request, $subject, StartDiscoveryHandler::CAPABILITY, $this->appRules->prompt($request->ruleId))) {
                 $moved = true;
-                if ($matches($request)) {
-                    $run->workRequestId = $request->id;
+                if ($wanted === $request->ruleId) {
+                    $run->workRequestId = $requestId;
                 }
+            } elseif (null !== $this->workRequests->liveRuleId($subject, $request->kind)) {
+                // The run has this work already, so the previous image opened a copy.
+                $copies[] = $requestId;
+            } else {
+                // A lapsed claim opened it again after the cancel above, so the next pass replaces it.
+                $waiting = $waiting || $wanted === $request->ruleId;
             }
         }
         $this->em->flush();
 
-        return new LegacyDiscoveryRunStep(moved: $moved);
+        // A request of the other rule asks for other work, and a report answered the work of an answered one.
+        $served = array_any(
+            $this->workRequests->findLiveOfSubject($subject),
+            static fn (WorkRequest $request): bool => $wanted === $request->ruleId && !\in_array((string) $request->id, $fresh['answeredWorkRequestIds'], true),
+        );
+
+        return new LegacyDiscoveryRunStep(moved: $moved, copies: $copies, openRuleId: $served || $waiting ? null : $wanted);
     }
 
     /** Opens the request outside any transaction, as a start does, and stores its id. */
@@ -156,7 +172,7 @@ final readonly class AdoptLegacyDiscoveryRunsHandler
             return;
         }
 
-        $run->workRequestId = $request->id;
-        $this->em->flush();
+        // The run can change while the request opens.
+        $this->storeWorkRequest->store($run, $request, DiscoveryRunState::Requested);
     }
 }
