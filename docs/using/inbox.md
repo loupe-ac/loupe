@@ -370,6 +370,19 @@ If the request closes or its target becomes unavailable, the request keeps your 
 Discard clears only this tab's draft. It does not change the recorded review.
 A removed target shows an unavailable state, while completed results retain their original target label and answer.
 
+## Readiness report reviews
+
+When a [discovery](workshop.md#run-discovery) run reports, Loupe opens the review request **Review the readiness report**.
+It links the report document, and it does not block an agent.
+A revised report opens a new request. A report has at most one open request.
+
+You answer it as any [review request](#review-requests), and the verdict acts on the discovery run.
+A verdict on the report page or through the API also closes the request.
+You can dismiss it. The report still waits, and the Workshop still opens it.
+When a newer discovery run replaces the report, Loupe cancels the request.
+
+With the inbox off, Loupe opens no request. Switching the inbox on later opens none for a report that already waits.
+
 ## Automatic items
 
 Loupe opens an item by itself when a card waits for a person. The workflow

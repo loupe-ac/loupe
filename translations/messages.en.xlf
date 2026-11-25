@@ -6708,6 +6708,10 @@
                 <source>bridge.try_now.error.bridge_outdated</source>
                 <target>Update the bridge to use Try now.</target>
             </trans-unit>
+            <trans-unit id="inbox.discovery_report.title">
+                <source>inbox.discovery_report.title</source>
+                <target>Review the readiness report</target>
+            </trans-unit>
             <trans-unit id="inbox.openrouter_key.title">
                 <source>inbox.openrouter_key.title</source>
                 <target>OpenRouter refused the key</target>

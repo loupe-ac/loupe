@@ -40,6 +40,11 @@ class InboxItemRepository extends ServiceEntityRepository
         parent::__construct($registry, InboxItem::class);
     }
 
+    public function findOpenForDiscoveryRun(Project $project, Uuid $runId): ?InboxItem
+    {
+        return $this->findOneBy(['project' => $project, 'discoveryRunId' => $runId, 'state' => InboxItemState::Open]);
+    }
+
     /**
      * The open items that ask a person something and name one of the cards, in one query, oldest first.
      * A wait item is Loupe's own mark of a card that waits for a person, and a notice names no card.
