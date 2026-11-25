@@ -299,6 +299,18 @@ final class DiscoveryReviewReconcilerTest extends KernelTestCase
         self::assertSame([InboxItemState::Declined, InboxItemState::Open], $this->states());
     }
 
+    public function test_a_redelivered_message_of_a_revised_report_keeps_its_dismissed_item_closed(): void
+    {
+        $report = $this->report();
+        $this->verdictOnThePage($report, 'changes-requested');
+        $this->report();
+        $this->dismiss($this->items()[1]);
+
+        $this->redeliver($this->queuedReviewMessages()[1]);
+
+        self::assertSame([InboxItemState::Resolved, InboxItemState::Declined], $this->states());
+    }
+
     public function test_a_late_message_of_an_older_version_keeps_a_dismissed_item_closed(): void
     {
         $report = $this->submitReport();

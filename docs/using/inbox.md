@@ -381,7 +381,7 @@ When that job fails, the queue tries it up to three more times, and then keeps i
 You answer it as any [review request](#review-requests), and the verdict acts on the discovery run.
 A verdict on the report page or through the API also closes the request.
 You can dismiss it. The report still waits, and the Workshop still opens it.
-A retry of the background job does not open it again. A revised report opens a new request.
+A retry of the background job does not open it again.
 No agent and no API key can withdraw it.
 When a newer discovery run replaces the report, Loupe cancels the request.
 
