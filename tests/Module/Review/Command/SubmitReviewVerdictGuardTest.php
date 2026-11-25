@@ -54,6 +54,7 @@ final class SubmitReviewVerdictGuardTest extends KernelTestCase
         $refusal = $this->refusal($document, 'changes-requested', $guard);
 
         self::assertSame(['verdict' => self::KEY], $refusal->errors);
+        self::assertTrue($this->em->isOpen());
         self::assertSame([[(string) $document->id, Verdict::ChangesRequested]], $guard->calls);
         self::assertSame(0, $this->storedReviews($document));
         self::assertSame(DocumentStatus::InReview, $document->status);

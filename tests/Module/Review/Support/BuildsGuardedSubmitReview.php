@@ -17,7 +17,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\Auditor;
 
-/** The real verdict handler of the container, with the guards that a test names. */
+/** A verdict handler built from the services of the container, with the guards that a test names. */
 trait BuildsGuardedSubmitReview
 {
     private function guardedSubmitReview(VerdictGuardInterface ...$guards): SubmitReviewHandler

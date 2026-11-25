@@ -158,7 +158,7 @@ final readonly class RunInboxActionHandler
             }
         }
 
-        return new DomainErrors($errors, $parameters);
+        return new DomainErrors($errors, $parameters, $e->fromGuard);
     }
 
     private function answer(RunInboxActionCommand $command): null
