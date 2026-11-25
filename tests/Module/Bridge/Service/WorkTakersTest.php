@@ -232,6 +232,19 @@ final class WorkTakersTest extends KernelTestCase
         ], $reading->failingAccounts);
     }
 
+    public function test_a_working_bridge_beside_a_failing_one_leaves_an_available_reading_with_no_failed_account(): void
+    {
+        [$project, $request, $owner] = $this->scenario('failing-beside-working');
+        $failing = $this->bridge($owner, $project, seenSecondsAgo: 10);
+        $this->failedAccounts($failing, ['one'], ['one'], (string) $project->id);
+        $this->bridge($owner, $project, seenSecondsAgo: 20);
+
+        $reading = $this->read($project, $request);
+
+        self::assertSame(WorkTakerState::Available, $reading->state);
+        self::assertSame([], $reading->failingAccounts);
+    }
+
     public function test_the_not_capable_reading_names_the_failed_account_that_would_run_the_app_prompt(): void
     {
         [$project, $request, $owner] = $this->scenario('failing-app-prompt', prompt: 'Build {cardId}.');
