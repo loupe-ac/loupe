@@ -787,6 +787,12 @@ func TestCheck(t *testing.T) {
 			t.Fatalf("problems = %v", got)
 		}
 	})
+	t.Run("no project finds codex, so the whole account fails", func(t *testing.T) {
+		got := New("", "", "").Check(ctx, harness.CheckSpec{Env: []string{"PATH=" + t.TempDir()}, Projects: map[string]string{"a": t.TempDir(), "b": t.TempDir()}})
+		if len(got) != 1 || got[0].Reason != "codex is not on PATH" || got[0].Project != "" {
+			t.Fatalf("problems = %+v", got)
+		}
+	})
 	t.Run("no home folder", func(t *testing.T) {
 		got := New("", "", "").Check(ctx, harness.CheckSpec{ConfigDir: filepath.Join(t.TempDir(), "gone"), Env: fakeCodex(t, "0")})
 		if !reflect.DeepEqual(reasons(got), []string{"codex home not found"}) {

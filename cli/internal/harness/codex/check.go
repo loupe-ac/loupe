@@ -212,9 +212,11 @@ func (h Harness) Check(ctx context.Context, spec harness.CheckSpec) []harness.Pr
 
 	var problems []harness.Problem
 	var binary, loginDir string
+	var lookErr error
 	for _, slug := range slugs {
 		found, err := envfile.LookPath(h.Program(), env, spec.Projects[slug])
 		if err != nil {
+			lookErr = err
 			problems = append(problems, harness.Problem{Reason: "codex is not on PATH", Project: slug, Detail: err.Error()})
 
 			continue
@@ -223,8 +225,9 @@ func (h Harness) Check(ctx context.Context, spec harness.CheckSpec) []harness.Pr
 			binary, loginDir = found, spec.Projects[slug]
 		}
 	}
+	// With no binary at all, no account check runs, so the whole account fails.
 	if binary == "" {
-		return problems
+		return []harness.Problem{{Reason: "codex is not on PATH", Detail: lookErr.Error()}}
 	}
 
 	home := strings.TrimSpace(envValue(env, "CODEX_HOME"))
