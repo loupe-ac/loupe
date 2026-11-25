@@ -8,7 +8,9 @@ use App\DevSeed\DevSeederInterface;
 use App\DevSeed\DevSeedId;
 use App\DevSeed\SeedContext;
 use App\Module\Account\Entity\User;
+use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Project\Entity\Project;
@@ -28,11 +30,13 @@ use Symfony\Component\DependencyInjection\Attribute\When;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Seeds the discovery states of the preview pages, in five projects. @comment-budget-ignore
+ * Seeds the discovery states of the preview pages, in six projects. @comment-budget-ignore
  * Lifecycle: the latest run is requested, so its readiness row offers Cancel. An earlier done run has a
  * worker run, which the Agents page labels "Discovery". "Setup done": a requested run behind a hidden guide,
  * so the Workshop shows the notice. "Inbox, not grouped": a run that the dev user cancelled.
  * "Acme web": a revising run with a report. "Acme api": a cancelled run whose account is gone.
+ * "Dev Project (live board)": a reported run with a live report and a bridge that can run discovery, so its
+ * row offers a new run. Its twin, the empty live board project, has no run.
  * "Dev Project" has no run, so its pages show the empty state. A live run here has no work request and no
  * open worker run, so no timeout ends it.
  */
@@ -48,6 +52,7 @@ final readonly class DevDiscoveryRunSeeder implements DevSeederInterface
         private DiscoveryRunRepository $discoveryRuns,
         private WorkerRunRepository $workerRuns,
         private DocumentRepository $documents,
+        private BridgeRepository $bridges,
         private DocumentTagApplier $tagApplier,
         private MarkdownRenderer $renderer,
     ) {
@@ -93,6 +98,21 @@ final readonly class DevDiscoveryRunSeeder implements DevSeederInterface
         return DevSeedId::of('readiness/discovery-run/cancelled-by-deleted-account');
     }
 
+    public static function reportedRunId(): Uuid
+    {
+        return DevSeedId::of('readiness/discovery-run/reported');
+    }
+
+    public static function waitingReportId(): Uuid
+    {
+        return DevSeedId::of('readiness/discovery-report/reported');
+    }
+
+    public static function reportBridgeId(): Uuid
+    {
+        return DevSeedId::of('readiness/discovery-bridge/reported');
+    }
+
     #[\Override]
     public function key(): string
     {
@@ -124,12 +144,20 @@ final readonly class DevDiscoveryRunSeeder implements DevSeederInterface
         $revisingProject = $this->project(DevProjectSeeder::installerWebProjectId());
         $revising = $this->run($context, $revisingProject, self::revisingRunId(), 240, DiscoveryRunState::Revising);
         if (null === $revising->reportDocument) {
-            $revising->reportDocument = $this->report($context, $revisingProject);
+            $revising->reportDocument = $this->report($context, $revisingProject, self::revisingReportId(), 'Discovery report: in revision', 'The seeded report of a discovery run that a worker revises.');
             $this->em->flush();
         }
         // No canceller, as after the deletion of that account.
         $orphanedProject = $this->project(DevProjectSeeder::installerApiProjectId());
         $this->run($context, $orphanedProject, self::orphanedCancelRunId(), 300, DiscoveryRunState::Failed, cancelled: true);
+
+        $reportedProject = $this->project(DevProjectSeeder::liveBoardProjectId());
+        $reported = $this->run($context, $reportedProject, self::reportedRunId(), 220, DiscoveryRunState::Reported);
+        if (null === $reported->reportDocument) {
+            $reported->reportDocument = $this->report($context, $reportedProject, self::waitingReportId(), 'Discovery report: waits for review', 'The seeded report of a discovery run that waits for a verdict.');
+            $this->em->flush();
+        }
+        $this->discoveryBridge($context, $reportedProject);
 
         $this->run($context, $project, self::runId(), 120, DiscoveryRunState::Requested);
         $this->run($context, $project, self::endedRunId(), 270, DiscoveryRunState::Done);
@@ -186,18 +214,30 @@ final readonly class DevDiscoveryRunSeeder implements DevSeederInterface
         return $run;
     }
 
-    private function report(SeedContext $context, Project $project): Document
+    /** The row offers a new run only while a bridge is live, so this one stays live for years. */
+    private function discoveryBridge(SeedContext $context, Project $project): void
     {
-        $existing = $this->documents->find(self::revisingReportId());
+        if (null !== $this->bridges->findOneByOwnerAndId($project->owner, self::reportBridgeId())) {
+            return;
+        }
+
+        $bridge = new Bridge($project->owner, self::reportBridgeId(), [(string) $project->id], '1.4.0', $context->now->modify('+10 years'));
+        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_APP_PROMPTS];
+        $this->em->persist($bridge);
+        $this->em->flush();
+    }
+
+    private function report(SeedContext $context, Project $project, Uuid $id, string $title, string $markdown): Document
+    {
+        $existing = $this->documents->find($id);
         if ($existing instanceof Document) {
             return $existing;
         }
 
-        $markdown = 'The seeded report of a discovery run that a worker revises.';
-        $document = new Document($project->owner, $project, 'Discovery report: in revision', $context->at(200));
+        $document = new Document($project->owner, $project, $title, $context->at(200));
         $document->addVersion($markdown, $this->renderer->render($markdown));
         $this->tagApplier->apply($document, [SubmitReadinessReportHandler::TAG]);
-        $context->ids->assign($document, self::revisingReportId());
+        $context->ids->assign($document, $id);
         $this->em->persist($document);
         $this->em->flush();
 

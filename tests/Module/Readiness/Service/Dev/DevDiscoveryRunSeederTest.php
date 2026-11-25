@@ -6,12 +6,14 @@ namespace App\Tests\Module\Readiness\Service\Dev;
 
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Project\Service\Dev\DevProjectSeeder;
 use App\Module\Readiness\Command\CancelDiscoveryHandler;
 use App\Module\Readiness\Entity\DiscoveryRun;
 use App\Module\Readiness\Entity\DiscoveryRunState;
 use App\Module\Readiness\Repository\DiscoveryRunRepository;
 use App\Module\Readiness\Service\Dev\DevDiscoveryRunSeeder;
+use App\Module\Readiness\Service\ReadinessChecklist;
 use App\Tests\DevSeed\DevProjectFixture;
 use App\Tests\DevSeed\SeedContextFactory;
 use Doctrine\ORM\EntityManagerInterface;
@@ -68,7 +70,7 @@ final class DevDiscoveryRunSeederTest extends KernelTestCase
 
         self::assertNotNull($workers->find(DevDiscoveryRunSeeder::workerRunId()));
         self::assertSame(1, $workers->count(['subjectType' => DiscoveryRun::SUBJECT_TYPE]));
-        self::assertSame(6, $this->service(DiscoveryRunRepository::class)->count([]));
+        self::assertSame(7, $this->service(DiscoveryRunRepository::class)->count([]));
     }
 
     public function test_it_seeds_a_live_run_behind_a_hidden_guide_for_the_workshop_notice(): void
@@ -140,6 +142,28 @@ final class DevDiscoveryRunSeederTest extends KernelTestCase
         $orphaned = $runs->find(DevDiscoveryRunSeeder::orphanedCancelRunId()) ?? throw new \LogicException('The cancelled run is missing.');
         self::assertSame([DiscoveryRunState::Failed, CancelDiscoveryHandler::REASON], [$orphaned->state, $orphaned->failureReason]);
         self::assertNull($orphaned->cancelledBy);
+    }
+
+    public function test_it_seeds_a_waiting_report_whose_row_offers_a_new_run(): void
+    {
+        $context = SeedContextFactory::create(self::getContainer());
+        DevProjectFixture::create(self::getContainer(), $context);
+
+        $this->service(DevDiscoveryRunSeeder::class)->seed($context);
+        $this->service(EntityManagerInterface::class)->clear();
+
+        $runs = $this->service(DiscoveryRunRepository::class);
+        $run = $runs->find(DevDiscoveryRunSeeder::reportedRunId()) ?? throw new \LogicException('The reported run is missing.');
+        self::assertSame(DiscoveryRunState::Reported, $run->state);
+        self::assertSame((string) DevProjectSeeder::liveBoardProjectId(), (string) $run->project->id);
+        self::assertSame($run, $runs->latestForProject($run->project));
+        self::assertSame((string) DevDiscoveryRunSeeder::waitingReportId(), (string) $run->reportDocument?->id);
+        $checklist = $this->service(ReadinessChecklist::class);
+        self::assertNull($checklist->startRefusal($run->project));
+        $row = $checklist->rows($run->project)->row('repository');
+        self::assertSame('readiness.row.repository.run_again', $row?->secondaryActionLabel);
+        $twin = $this->service(ProjectRepository::class)->find(DevProjectSeeder::liveBoardEmptyProjectId()) ?? throw new \LogicException('The twin is missing.');
+        self::assertNull($runs->latestForProject($twin));
     }
 
     /** The twin of the preview states. */

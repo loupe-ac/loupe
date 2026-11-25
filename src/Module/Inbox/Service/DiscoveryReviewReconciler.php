@@ -99,7 +99,7 @@ final readonly class DiscoveryReviewReconciler
             }
             $this->inboxItems->reloadChangeableColumns([$item]);
 
-            return $this->closer->close($item, InboxItemState::Cancelled, InboxCloser::Loupe, InboxCloseCause::FactEnded, $this->translator->trans('inbox.discovery_report.replaced', [], null, $this->locale), $this->clock->now());
+            return $this->closer->close($item, InboxItemState::Cancelled, InboxCloser::Loupe, InboxCloseCause::FactEnded, $this->translator->trans('inbox.discovery_report.withdrawn', [], null, $this->locale), $this->clock->now());
         });
 
         if ($closed) {

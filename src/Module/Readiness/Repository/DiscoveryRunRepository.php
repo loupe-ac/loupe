@@ -133,6 +133,34 @@ class DiscoveryRunRepository extends ServiceEntityRepository
         return $this->findOneBy(['reportDocument' => $document]);
     }
 
+    /** The run whose row says Reported and whose report is the document, or null. */
+    public function findReportedByReportId(Uuid $documentId): ?DiscoveryRun
+    {
+        return $this->createQueryBuilder('run')
+            ->where('IDENTITY(run.reportDocument) = :document')
+            ->andWhere('run.state = :reported')
+            ->setParameter('document', $documentId, UuidType::NAME)
+            ->setParameter('reported', DiscoveryRunState::Reported)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    /** Whether the row of the run says Reported and the row of its report says archived. A loaded run or document can be stale, so this reads the rows. */
+    public function isReportedWithArchivedReport(DiscoveryRun $run): bool
+    {
+        return null !== $this->createQueryBuilder('run')
+            ->select('run.id AS id')
+            ->join('run.reportDocument', 'document')
+            ->where('run.id = :id')
+            ->andWhere('run.state = :reported')
+            ->andWhere('document.archivedAt IS NOT NULL')
+            ->setParameter('id', $run->id, UuidType::NAME)
+            ->setParameter('reported', DiscoveryRunState::Reported)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
     /** The state in the row of the run that wrote the document, or null when no run did. A loaded run keeps its old state, so this reads no entity. */
     public function findStateOfReport(Document $document): ?DiscoveryRunState
     {

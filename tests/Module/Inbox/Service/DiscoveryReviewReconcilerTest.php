@@ -187,7 +187,7 @@ final class DiscoveryReviewReconcilerTest extends KernelTestCase
 
         $item = $this->items()[0];
         self::assertSame([InboxItemState::Cancelled, InboxCloser::Loupe, InboxCloseCause::FactEnded], [$item->state, $item->closedBy, $item->closeCause]);
-        self::assertSame('A newer discovery run replaced this report.', $item->note);
+        self::assertSame('A newer discovery run replaced this report, or a person archived it.', $item->note);
     }
 
     public function test_the_owner_can_dismiss_the_item_and_the_report_still_waits(): void

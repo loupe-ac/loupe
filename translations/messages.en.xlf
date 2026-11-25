@@ -6712,9 +6712,9 @@
                 <source>inbox.discovery_report.title</source>
                 <target>Review the readiness report</target>
             </trans-unit>
-            <trans-unit id="inbox.discovery_report.replaced">
-                <source>inbox.discovery_report.replaced</source>
-                <target>A newer discovery run replaced this report.</target>
+            <trans-unit id="inbox.discovery_report.withdrawn">
+                <source>inbox.discovery_report.withdrawn</source>
+                <target>A newer discovery run replaced this report, or a person archived it.</target>
             </trans-unit>
             <trans-unit id="inbox.openrouter_key.title">
                 <source>inbox.openrouter_key.title</source>
@@ -10967,6 +10967,7 @@ workflow:
             <trans-unit id="readiness.row.repository.failed"><source>readiness.row.repository.failed</source><target>Discovery failed: %reason%</target></trans-unit>
             <trans-unit id="readiness.row.repository.retry"><source>readiness.row.repository.retry</source><target>Run again</target></trans-unit>
             <trans-unit id="readiness.row.repository.open_report"><source>readiness.row.repository.open_report</source><target>Open report</target></trans-unit>
+            <trans-unit id="readiness.row.repository.run_again"><source>readiness.row.repository.run_again</source><target>Run discovery again</target></trans-unit>
             <trans-unit id="readiness.row.repository.reported"><source>readiness.row.repository.reported</source><target>The report waits for your review</target></trans-unit>
             <trans-unit id="readiness.row.repository.done"><source>readiness.row.repository.done</source><target>Reviewed</target></trans-unit>
             <trans-unit id="readiness.discovery.error.no_bridge"><source>readiness.discovery.error.no_bridge</source><target>No bridge serves this project now. Start a bridge that serves this project, then run discovery again.</target></trans-unit>
