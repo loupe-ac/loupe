@@ -127,6 +127,30 @@ final class DiscoveryRunRepositoryTest extends KernelTestCase
         self::assertNull($this->repository()->findByReportDocument($unlinked));
     }
 
+    public function test_the_archived_report_check_reads_the_rows_and_not_the_loaded_run(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('discovery-archived-report');
+        $run = $this->discoveryRun($project, DiscoveryRunState::Reported);
+        $document = new Document($project->owner, $project, 'Report');
+        $this->em()->persist($document);
+        $run->reportDocument = $document;
+        $this->em()->flush();
+        $connection = $this->em()->getConnection();
+
+        self::assertFalse($this->repository()->isReportedWithArchivedReport($run));
+        self::assertSame($run, $this->repository()->findReportedByReportId($document->id ?? throw new \LogicException('A stored document has an id.')));
+
+        $connection->executeStatement('UPDATE documents SET archived_at = now() WHERE id = ?', [(string) $document->id]);
+        self::assertNull($document->archivedAt);
+        self::assertTrue($this->repository()->isReportedWithArchivedReport($run));
+
+        $connection->executeStatement("UPDATE discovery_runs SET state = 'done' WHERE id = ?", [(string) $run->id]);
+        self::assertSame(DiscoveryRunState::Reported, $run->state);
+        self::assertFalse($this->repository()->isReportedWithArchivedReport($run));
+        self::assertNull($this->repository()->findReportedByReportId($document->id));
+    }
+
     public function test_the_fresh_state_reads_the_row_and_not_the_loaded_run(): void
     {
         self::bootKernel();

@@ -25,6 +25,11 @@
                 {% elseif row.actionUrl %}
                 <a class="lp-workshop-text-link" href="{{ row.actionUrl }}">{{ row.actionLabel|trans }} <twig:ux:icon name="lucide:chevron-right" /></a>
                 {% endif %}
+                {% if row.secondaryActionUrl %}
+                <twig:Ds:ActionForm :action="row.secondaryActionUrl" :token="row.secondaryActionCsrfTokenId">
+                    <button type="submit" class="lp-workshop-text-link" data-readiness-secondary-action>{{ row.secondaryActionLabel|trans }} <twig:ux:icon name="lucide:chevron-right" /></button>
+                </twig:Ds:ActionForm>
+                {% endif %}
                 {% if row.cancelUrl %}
                 <twig:Ds:ActionForm :action="row.cancelUrl" :token="row.cancelCsrfTokenId">
                     <button type="submit" class="lp-workshop-text-link" data-discovery-cancel>{{ 'project.workshop.discovery.cancel'|trans }} <twig:ux:icon name="lucide:chevron-right" /></button>

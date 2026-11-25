@@ -390,6 +390,38 @@ final class ShowWorkshopControllerTest extends WebTestCase
         }
     }
 
+    public function test_a_reported_run_links_its_report_and_offers_a_new_run_as_a_post_form(): void
+    {
+        $client = self::createClient();
+        $em = self::getContainer()->get(EntityManagerInterface::class);
+        $owner = $this->user($em, 'workshop-guide-run-again@example.com');
+        [$project] = $this->projects($em, $owner, 'Guide run again');
+        $this->readyForDiscovery($em, $owner, $project);
+        $report = new Document($owner, $project, 'Readiness report');
+        $em->persist($report);
+        $run = new DiscoveryRun($project);
+        $run->state = DiscoveryRunState::Reported;
+        $run->reportDocument = $report;
+        $em->persist($run);
+        $em->flush();
+        $em->clear();
+        $client->loginUser($owner);
+
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id);
+
+        self::assertResponseIsSuccessful();
+        $row = $crawler->filter('[data-readiness-guide][data-readiness-layout="full"] [data-readiness-row="repository"][data-readiness-discovery-state="reported"]');
+        self::assertCount(1, $row);
+        self::assertSame('/projects/'.$project->id.'/documents/'.$report->id.'/review', $row->filter('a')->attr('href'));
+        $button = $row->filter('button[data-readiness-secondary-action]');
+        self::assertCount(1, $button);
+        self::assertStringContainsString('Run discovery again', $button->text());
+        $form = $button->closest('form');
+        self::assertSame('post', $form?->attr('method'));
+        self::assertSame('/projects/'.$project->id.'/readiness/discovery/start', $form->attr('action'));
+        self::assertCount(1, $form->filter('input[name="_csrf_token"]'));
+    }
+
     public function test_a_discovery_run_keeps_the_workshop_quiet_and_links_no_card(): void
     {
         $client = self::createClient();

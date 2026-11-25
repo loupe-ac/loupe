@@ -23,6 +23,10 @@ final readonly class WorkshopReadinessRow
         public array $statusParameters = [],
         /** A set token id makes the action a POST form that carries this CSRF token. */
         public ?string $actionCsrfTokenId = null,
+        /** A set URL adds a second action after the first, a POST form that carries its CSRF token. */
+        public ?string $secondaryActionLabel = null,
+        public ?string $secondaryActionUrl = null,
+        public ?string $secondaryActionCsrfTokenId = null,
         /** A set URL adds a Cancel button, a POST form, beside the action. It comes with its CSRF token id. */
         public ?string $cancelUrl = null,
         public ?string $cancelCsrfTokenId = null,
