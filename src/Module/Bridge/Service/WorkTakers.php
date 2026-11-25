@@ -10,6 +10,7 @@ use App\Module\Bridge\Repository\BridgeClaimRefusalRepository;
 use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\Repository\BridgeWorkMatchRepository;
 use App\Module\Bridge\ValueObject\AccountLimit;
+use App\Module\Bridge\ValueObject\FailingAccount;
 use App\Module\Bridge\ValueObject\RefusedTaker;
 use App\Module\Bridge\ValueObject\UsageLimitWait;
 use App\Module\Bridge\ValueObject\WorkRequestState;
@@ -70,11 +71,7 @@ final readonly class WorkTakers
             }
 
             $takers = array_values(array_filter($followers, static fn (Bridge $bridge): bool => self::takes($bridge, $request)));
-            // Offers go to the target bridge alone, so no other bridge counts, also when the target cannot take the work.
-            $targetId = $request->targetBridgeId;
-            if (null !== $targetId) {
-                $takers = array_values(array_filter($takers, static fn (Bridge $bridge): bool => $targetId->equals($bridge->id)));
-            }
+            $takers = self::offeredTo($takers, $request);
             // The server refused these bridges for this request, so they take nothing of it until the refusal ends.
             $refusedAccounts = $refusals[$requestId] ?? [];
             $refusedTakers = array_map(
@@ -93,7 +90,7 @@ final readonly class WorkTakers
                     $limited[$taker->id->toRfc4122()] = $accounts;
                 }
             }
-            $reading = $this->read($request->reopenedAt ?? $request->createdAt, $followers, $takers, $narrowedAt, $quietBefore, $window, null !== $request->prompt && '' !== trim($request->prompt), $expiredIds, $limited, $refusedTakers);
+            $reading = $this->read($request->reopenedAt ?? $request->createdAt, $followers, $takers, $narrowedAt, $quietBefore, $window, null !== $request->prompt && '' !== trim($request->prompt), $expiredIds, $limited, $refusedTakers, self::failingAccounts($followers, $request, $quietBefore));
             $readings[$requestId] = self::stillDisconnected($request, $followers, $quietBefore, $reading) ?? $reading;
         }
 
@@ -243,12 +240,56 @@ final readonly class WorkTakers
         return [$followers, $narrowedAt, $quietBefore, $window, $expiredIds];
     }
 
+    /**
+     * Offers go to the target bridge alone, so no other bridge counts, also when the target cannot take the work.
+     *
+     * @param list<Bridge> $bridges
+     *
+     * @return list<Bridge>
+     */
+    private static function offeredTo(array $bridges, WorkRequest $request): array
+    {
+        $targetId = $request->targetBridgeId;
+
+        return null === $targetId ? $bridges : array_values(array_filter($bridges, static fn (Bridge $bridge): bool => $targetId->equals($bridge->id)));
+    }
+
     private static function takes(Bridge $bridge, WorkRequest $request): bool
     {
+        return self::isSetUpFor($bridge, $request)
+            && !$bridge->failsProjectFor((string) $request->project->id, Bridge::workKindOf($request->subjectType, $request->kind));
+    }
+
+    /** Whether the setup of the bridge covers the request, with no regard to the account checks for the project. */
+    private static function isSetUpFor(Bridge $bridge, WorkRequest $request): bool
+    {
         return $bridge->canRun($request)
-            && !$bridge->failsProjectFor((string) $request->project->id, Bridge::workKindOf($request->subjectType, $request->kind))
             && (\in_array(Bridge::workKindOf($request->subjectType, $request->kind), $bridge->workKinds, true)
                 || self::runsAsAppPrompt($bridge, $request));
+    }
+
+    /**
+     * The failed accounts of the online bridges whose setup covers the request.
+     *
+     * @param list<Bridge> $followers
+     *
+     * @return list<FailingAccount>
+     */
+    private static function failingAccounts(array $followers, WorkRequest $request, \DateTimeImmutable $quietBefore): array
+    {
+        $projectId = (string) $request->project->id;
+        $workKind = Bridge::workKindOf($request->subjectType, $request->kind);
+        $accounts = [];
+        foreach (self::offeredTo($followers, $request) as $bridge) {
+            if ($bridge->lastSeenAt < $quietBefore || !self::isSetUpFor($bridge, $request)) {
+                continue;
+            }
+            foreach ($bridge->projectFailures($projectId, $workKind) as $failure) {
+                $accounts[] = new FailingAccount($bridge->label, $failure['account'], $failure['reason']);
+            }
+        }
+
+        return $accounts;
     }
 
     /** The bridge runs an unmapped kind only from the prompt of the request, so a request with no prompt needs its kind. */
@@ -265,8 +306,9 @@ final readonly class WorkTakers
      * @param list<string>                                $expiredIds the RFC 4122 ids of the quiet followers whose login expired
      * @param array<string, non-empty-list<AccountLimit>> $limited    the blocked accounts that keep a taker from the work, by RFC 4122 bridge id
      * @param list<RefusedTaker>                          $refused    the online bridges that the server refused for the request
+     * @param list<FailingAccount>                        $failing    the failed accounts of the online bridges whose setup covers the request
      */
-    private function read(\DateTimeImmutable $waitStart, array $followers, array $takers, ?\DateTimeImmutable $narrowedAt, \DateTimeImmutable $quietBefore, int $window, bool $hasPrompt, array $expiredIds, array $limited = [], array $refused = []): WorkTakerReading
+    private function read(\DateTimeImmutable $waitStart, array $followers, array $takers, ?\DateTimeImmutable $narrowedAt, \DateTimeImmutable $quietBefore, int $window, bool $hasPrompt, array $expiredIds, array $limited = [], array $refused = [], array $failing = []): WorkTakerReading
     {
         $expiredTakers = array_values(array_map(static fn (Bridge $bridge): string => $bridge->label, array_filter($takers, static fn (Bridge $bridge): bool => \in_array($bridge->id->toRfc4122(), $expiredIds, true))));
         $noTakerSince = self::later($narrowedAt, $waitStart);
@@ -301,7 +343,7 @@ final readonly class WorkTakers
             null !== $newestUnpaused => new WorkTakerReading(WorkTakerState::Available, $noTakerSince, $newestUnpaused->modify('+1 second'), bridgeLabel: $newestTaker?->label, bridgeSeenAt: $newestTaker?->lastSeenAt),
             null !== $newestLimited && [] !== $limits => self::limitedReading($noTakerSince, $newestLimited->modify('+1 second'), new UsageLimitWait($limits)),
             null !== $newestPaused => new WorkTakerReading(WorkTakerState::Paused, $noTakerSince, $newestPaused->modify('+1 second')),
-            default => self::withoutTaker($followers, $noTakerSince, $quietBefore, $hasPrompt, $expiredTakers, $refused),
+            default => self::withoutTaker($followers, $noTakerSince, $quietBefore, $hasPrompt, $expiredTakers, $refused, $failing),
         };
     }
 
@@ -314,11 +356,12 @@ final readonly class WorkTakers
     /**
      * Online followers that none of the takers matched are bridges that cannot run the work.
      *
-     * @param list<Bridge>       $followers
-     * @param list<string>       $expiredTakers
-     * @param list<RefusedTaker> $refused
+     * @param list<Bridge>         $followers
+     * @param list<string>         $expiredTakers
+     * @param list<RefusedTaker>   $refused
+     * @param list<FailingAccount> $failing
      */
-    private static function withoutTaker(array $followers, \DateTimeImmutable $noTakerSince, \DateTimeImmutable $quietBefore, bool $hasPrompt, array $expiredTakers, array $refused): WorkTakerReading
+    private static function withoutTaker(array $followers, \DateTimeImmutable $noTakerSince, \DateTimeImmutable $quietBefore, bool $hasPrompt, array $expiredTakers, array $refused, array $failing): WorkTakerReading
     {
         $online = array_values(array_filter($followers, static fn (Bridge $bridge): bool => $bridge->lastSeenAt >= $quietBefore));
         if ([] === $online) {
@@ -328,7 +371,7 @@ final readonly class WorkTakers
         $missing = $hasPrompt && array_any($online, static fn (Bridge $bridge): bool => !\in_array(Bridge::CAPABILITY_APP_PROMPTS, $bridge->capabilities ?? [], true));
         usort($online, static fn (Bridge $a, Bridge $b): int => $b->lastSeenAt <=> $a->lastSeenAt);
 
-        return new WorkTakerReading(WorkTakerState::NotCapable, $noTakerSince, null, $missing, $online[0]->label, $online[0]->lastSeenAt, $expiredTakers, refusedTakers: $refused);
+        return new WorkTakerReading(WorkTakerState::NotCapable, $noTakerSince, null, $missing, $online[0]->label, $online[0]->lastSeenAt, $expiredTakers, refusedTakers: $refused, failingAccounts: $failing);
     }
 
     private static function later(?\DateTimeImmutable $a, \DateTimeImmutable $b): \DateTimeImmutable

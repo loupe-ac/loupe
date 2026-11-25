@@ -138,6 +138,29 @@ final class BridgeTest extends TestCase
         self::assertFalse($bridge->failsProjectFor('p2', 'discovery'));
     }
 
+    public function test_the_project_failures_name_each_failed_account_that_runs_the_work_kind(): void
+    {
+        $bridge = $this->bridgeWithSession(['claude' => [WorkRequest::SESSION_KIND], 'other' => ['implement']]);
+
+        self::assertSame(
+            [['account' => 'claude', 'reason' => 'The login expired.']],
+            $bridge->projectFailures('p1', Bridge::workKindOf(InboxItem::SUBJECT_TYPE, WorkRequest::SESSION_KIND)),
+        );
+        self::assertSame([['account' => 'other', 'reason' => 'The login expired.']], $bridge->projectFailures('p1', 'implement'));
+        self::assertSame([], $bridge->projectFailures('p2', 'implement'));
+    }
+
+    public function test_the_project_failures_keep_the_reason_of_that_project_for_the_app_prompts_account(): void
+    {
+        $bridge = $this->bridgeWithAppPrompts(failedProjects: [
+            ['projectId' => 'p2', 'reason' => 'claude is not on PATH'],
+            ['projectId' => 'p1', 'reason' => 'The login expired.'],
+        ]);
+
+        self::assertSame([['account' => 'prompts', 'reason' => 'The login expired.']], $bridge->projectFailures('p1', 'discovery'));
+        self::assertSame([], $bridge->projectFailures('p1', 'implement'));
+    }
+
     public function test_an_account_that_lists_the_card_session_runs_the_session_of_an_inbox_item(): void
     {
         $bridge = $this->bridgeWithSession(['claude' => [WorkRequest::SESSION_KIND], 'other' => ['implement']]);
