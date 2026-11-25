@@ -19,10 +19,10 @@ use App\Module\Project\Workshop\WorkshopGitIdentity;
 use App\Module\Project\Workshop\WorkshopReadiness;
 use App\Module\Project\Workshop\WorkshopReadinessProviderInterface;
 use App\Module\Project\Workshop\WorkshopReadinessRow;
+use App\Module\Readiness\Command\CancelDiscoveryHandler;
 use App\Module\Readiness\Command\StartDiscoveryHandler;
 use App\Module\Readiness\Entity\DiscoveryRun;
 use App\Module\Readiness\Entity\DiscoveryRunState;
-use App\Module\Readiness\EventListener\FailDiscoveryOnRequestWithdrawn;
 use App\Module\Readiness\EventListener\FailDiscoveryOnRunEnded;
 use App\Module\Readiness\Repository\DiscoveryRunRepository;
 use App\Module\Workflow\Contract\CardEvaluations;
@@ -38,8 +38,10 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
 {
     public const string START_TOKEN = 'readiness-discovery-start';
 
-    /** The work the first run of a project asks a bridge for, with the prompt that the app ships. */
-    private const string DISCOVERY_KIND = 'discovery';
+    public const string CANCEL_TOKEN = 'readiness-discovery-cancel';
+
+    /** The reason of a run that failed when a run had a card, and the card left Backlog. */
+    public const string REASON_CARD_MOVED = 'card-moved';
 
     public function __construct(
         private WorkshopConnectionsProviderInterface $connections,
@@ -62,6 +64,12 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
         return null === $project->readinessGuideHiddenAt ? $this->rows($project) : null;
     }
 
+    #[\Override]
+    public function discoveryRunning(Project $project): bool
+    {
+        return null !== $this->discoveryRuns->findLiveIdForProject($project);
+    }
+
     /** Every check, whether the guide shows or not. */
     public function rows(Project $project): WorkshopReadiness
     {
@@ -71,7 +79,7 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
         $agent = null !== $project->agentFirstSeenAt;
         $binding = $this->workflowBindings->findOneByProjectId($projectId);
         $running = $this->runningConnections($project);
-        $takers = $this->workTakers->capableFor($project, self::DISCOVERY_KIND, true);
+        $takers = $this->discoveryTakers($project);
         $github = $this->gitHubReady($project);
         $installUrl = $github || !$this->gitHubApp->isConfigured() ? null : $this->urls->generate('app_github_repositories_start', ['id' => (string) $projectId]);
         $discovery = $this->discoveryRuns->latestForProject($project);
@@ -91,7 +99,7 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
             $this->agentAccountRow($project, $running),
             $this->repositoryRow($project, $discovery, $this->refusal($project, $takers, $binding)),
             $this->widgetRow($project, $connect.'#site-review-widget'),
-        ], $discovery?->card->number);
+        ]);
     }
 
     /**
@@ -111,7 +119,7 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
             $this->repositoryLinkedRow($project, $connect),
             $this->agentRow(null !== $project->agentFirstSeenAt, $connect),
             $this->bridgeRow(
-                $this->workTakers->capableFor($project, self::DISCOVERY_KIND, true),
+                $this->discoveryTakers($project),
                 $connect,
                 $this->urls->generate('app_project_agents', ['id' => (string) $projectId]),
             ),
@@ -209,10 +217,16 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
     {
         $projectId = $project->id ?? throw new \LogicException('A stored project has an id.');
 
-        return $this->refusal($project, $this->workTakers->capableFor($project, self::DISCOVERY_KIND, true), $this->workflowBindings->findOneByProjectId($projectId));
+        return $this->refusal($project, $this->discoveryTakers($project), $this->workflowBindings->findOneByProjectId($projectId));
     }
 
-    /** The same gates as the engine, which skips a card of a project with no workflow or with its automation off. */
+    /** Who could take the work of a discovery run now, with the prompt that the app ships. */
+    private function discoveryTakers(Project $project): WorkTakerReading
+    {
+        return $this->workTakers->capableFor($project, DiscoveryRun::SUBJECT_TYPE, StartDiscoveryHandler::WORK_KIND, true);
+    }
+
+    /** Discovery needs a project with a workflow and with board automation on. */
     private function refusal(Project $project, WorkTakerReading $takers, ?WorkflowBinding $binding): ?string
     {
         return match (true) {
@@ -229,7 +243,8 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
     {
         $canStart = null === $refusal;
         $start = $this->urls->generate('app_readiness_discovery_start', ['id' => (string) $project->id]);
-        $row = static fn (string $status, bool $done = false, ?string $actionLabel = null, ?string $actionUrl = null, array $parameters = [], ?string $csrf = null): WorkshopReadinessRow => new WorkshopReadinessRow(
+        $cancel = $this->urls->generate('app_readiness_discovery_cancel', ['id' => (string) $project->id]);
+        $row = static fn (string $status, bool $done = false, ?string $actionLabel = null, ?string $actionUrl = null, array $parameters = [], ?string $csrf = null, bool $cancellable = false): WorkshopReadinessRow => new WorkshopReadinessRow(
             'repository',
             'readiness.row.repository.label',
             $done,
@@ -238,11 +253,15 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
             actionUrl: $actionUrl,
             statusParameters: $parameters,
             actionCsrfTokenId: $csrf,
+            cancelUrl: $cancellable ? $cancel : null,
+            cancelCsrfTokenId: $cancellable ? self::CANCEL_TOKEN : null,
             discoveryState: $run?->state->value ?? 'none',
+            discoveryCancelled: DiscoveryRunState::Failed === $run?->state && CancelDiscoveryHandler::REASON === $run->failureReason,
         );
 
         return match ($run?->state) {
-            null => match ($refusal) {
+            // A start supersedes older runs, so the latest run is not superseded. It would read as no run.
+            null, DiscoveryRunState::Superseded => match ($refusal) {
                 null => $row('readiness.row.repository.open', actionLabel: 'readiness.row.repository.action', actionUrl: $start, csrf: self::START_TOKEN),
                 StartDiscoveryHandler::NO_WORKFLOW => $row('readiness.row.repository.no_workflow'),
                 StartDiscoveryHandler::AUTOMATION_OFF => $row('readiness.row.repository.automation_off'),
@@ -251,12 +270,7 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
                 StartDiscoveryHandler::BRIDGE_PAUSED => $row('readiness.row.repository.bridge_paused'),
                 default => throw new \LogicException('Unknown discovery refusal '.$refusal),
             },
-            DiscoveryRunState::Requested => $row(
-                'readiness.row.repository.running',
-                actionLabel: 'readiness.row.repository.card',
-                actionUrl: $this->urls->generate('app_board_card', ['projectId' => (string) $project->id, 'cardId' => (string) $run->card->id]),
-                parameters: ['%number%' => (string) $run->card->number],
-            ),
+            DiscoveryRunState::Requested => $row('readiness.row.repository.running', cancellable: true),
             DiscoveryRunState::Failed => $row(
                 'readiness.row.repository.failed',
                 actionLabel: $canStart ? 'readiness.row.repository.retry' : null,
@@ -265,10 +279,10 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
                 csrf: $canStart ? self::START_TOKEN : null,
             ),
             DiscoveryRunState::Revising => $row(
-                'readiness.row.repository.revising',
+                'readiness.row.repository.running',
                 actionLabel: null === $run->reportDocument ? null : 'readiness.row.repository.open_report',
                 actionUrl: null === $run->reportDocument ? null : $this->urls->generate('app_document_review', ['projectId' => (string) $project->id, 'documentId' => (string) $run->reportDocument->id]),
-                parameters: ['%number%' => (string) $run->card->number],
+                cancellable: true,
             ),
             DiscoveryRunState::Reported => $row(
                 'readiness.row.repository.reported',
@@ -284,11 +298,16 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
         $reason = $run->failureReason ?? $run->state->value;
 
         return match ($reason) {
-            FailDiscoveryOnRequestWithdrawn::NO_TAKER => $this->translator->trans('readiness.discovery.reason.no_taker'),
-            FailDiscoveryOnRequestWithdrawn::CARD_MOVED => $this->translator->trans('readiness.discovery.reason.card_moved'),
+            CancelDiscoveryHandler::REASON => null === $run->cancelledBy
+                ? $this->translator->trans('readiness.discovery.reason.cancelled_by_deleted_account')
+                : $this->translator->trans('readiness.discovery.reason.cancelled_by', ['%name%' => $run->cancelledBy->fullName]),
+            WorkRequest::REASON_NO_TAKER => $this->translator->trans('readiness.discovery.reason.no_taker'),
+            self::REASON_CARD_MOVED => $this->translator->trans('readiness.discovery.reason.card_moved'),
+            StartDiscoveryHandler::REQUEST_REFUSED => $this->translator->trans('readiness.discovery.reason.request_refused'),
+            StartDiscoveryHandler::REQUEST_FAILED => $this->translator->trans('readiness.discovery.reason.request_failed'),
             WorkRequest::REASON_NO_CAPABLE_TAKER => $this->translator->trans('readiness.discovery.reason.no_capable_taker'),
             WorkRequest::REASON_NO_CAPABLE_TAKER_APP_PROMPTS => $this->translator->trans('readiness.discovery.reason.no_capable_taker_app_prompts'),
-            FailDiscoveryOnRunEnded::WORKER_ENDED => $this->translator->trans('readiness.discovery.reason.worker_ended', ['%number%' => (string) $run->card->number]),
+            FailDiscoveryOnRunEnded::WORKER_ENDED => $this->translator->trans('readiness.discovery.reason.worker_ended'),
             default => $reason,
         };
     }

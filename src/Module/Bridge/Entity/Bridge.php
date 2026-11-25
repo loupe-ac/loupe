@@ -267,10 +267,10 @@ class Bridge
         #[ORM\ManyToOne(targetEntity: User::class)]
         public readonly User $owner,
 
-        /** The id the bridge generates on its first start, so the server never assigns it. */
+        /** The id the bridge generates on its first start, so the server never assigns it. Not readonly, because a refresh writes it again. */
         #[ORM\Column(type: UuidType::NAME)]
         #[ORM\Id]
-        public readonly Uuid $id,
+        public private(set) Uuid $id,
 
         /** The ids of the owner's projects the bridge follows. Plain values, so a deleted project leaves no dangling key. */
         #[ORM\Column(type: Types::JSON)]

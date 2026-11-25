@@ -41,8 +41,6 @@ final readonly class ReadinessResponse
             null === $run ? null : new ReadinessDiscoveryResponse(
                 (string) $run->id,
                 $run->state->value,
-                (string) $run->card->id,
-                $run->card->number,
                 $run->failureReason,
                 $run->createdAt->format(\DATE_ATOM),
             ),

@@ -8,20 +8,24 @@ use App\Module\Bridge\Command\WithdrawWorkRequestCommand;
 use App\Module\Bridge\Command\WithdrawWorkRequestHandler;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\ValueObject\WorkRequestState;
+use App\Module\Bridge\ValueObject\WorkSubject;
+use App\Module\Readiness\Entity\DiscoveryRun;
 use App\Module\Readiness\Entity\DiscoveryRunState;
 use App\Module\Readiness\Repository\DiscoveryRunRepository;
-use App\Module\Workflow\Contract\CardEvaluations;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
+use Symfony\Component\DependencyInjection\Attribute\Lazy;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
 
-/** Fails the latest discovery run of the card while it is requested or revising, and cancels the discovery request the run opened. */
+/** Fails a discovery run while it is requested or revising, and cancels the work requests the run still has open. */
+// Lazy, because the withdraw handler reaches every work subject handler, and the discovery one needs this class.
+#[Lazy]
 final readonly class FailDiscoveryRunHandler
 {
-    public const string RULE_ID = 'discovery';
+    public const string RULE_ID = StartDiscoveryHandler::WORK_KIND;
 
     public const string REVISE_RULE_ID = 'discovery-revise';
 
@@ -29,7 +33,6 @@ final readonly class FailDiscoveryRunHandler
         private DiscoveryRunRepository $discoveryRuns,
         private WorkRequestRepository $workRequests,
         private WithdrawWorkRequestHandler $withdrawWorkRequest,
-        private CardEvaluations $evaluations,
         private EntityManagerInterface $em,
         private ClockInterface $clock,
         private Auditor $auditor,
@@ -39,23 +42,26 @@ final readonly class FailDiscoveryRunHandler
     /** Answers whether the run failed now. */
     public function __invoke(FailDiscoveryRunCommand $command): bool
     {
-        $run = $this->discoveryRuns->latestForCard($command->cardId);
+        $run = $command->run;
         $waitsFor = match ($command->ruleId) {
             self::RULE_ID => [DiscoveryRunState::Requested],
             self::REVISE_RULE_ID => [DiscoveryRunState::Revising],
             default => [DiscoveryRunState::Requested, DiscoveryRunState::Revising],
         };
-        if (null === $run) {
-            return false;
-        }
 
-        // The report and the verdict take the same project lock, so an approval that commits first leaves a Done run here, never a Failed one.
+        // The report and the verdict take the same project row, so an approval that commits first leaves a Done run here, never a Failed one.
         $failed = $this->em->wrapInTransaction(function () use ($run, $waitsFor, $command): bool {
             $this->em->lock($run->project, LockMode::PESSIMISTIC_WRITE);
-            $run->state = $this->discoveryRuns->freshStateOf($run)['state'];
+            $fresh = $this->discoveryRuns->freshStateOf($run);
+            $run->state = $fresh['state'];
+            // Read under the lock, so a report that committed first counts.
+            if (null !== $command->workRequestId && \in_array($command->workRequestId->toRfc4122(), $fresh['answeredWorkRequestIds'], true)) {
+                return false;
+            }
             if (!\in_array($run->state, $waitsFor, true) || !$run->fail($command->reason, $this->clock->now())) {
                 return false;
             }
+            $run->cancelledBy = $command->cancelledBy;
             $this->em->flush();
 
             return true;
@@ -64,28 +70,22 @@ final readonly class FailDiscoveryRunHandler
             return false;
         }
 
-        // The engine cancels a live request only when its card leaves the slot. A bridge that drops its claim lets the request open again.
-        foreach ($this->workRequests->findLiveForCard($command->cardId) as $request) {
-            if (\in_array($request->ruleId, [self::RULE_ID, self::REVISE_RULE_ID], true)) {
-                ($this->withdrawWorkRequest)(new WithdrawWorkRequestCommand($request->id ?? throw new \LogicException('A persisted work request has an id.'), WorkRequestState::Cancelled));
-            }
+        // A bridge that drops its claim lets a request open again, so a failed run keeps no live request.
+        $runId = $run->id ?? throw new \LogicException('A stored run has an id.');
+        foreach ($this->workRequests->findLiveOfSubject(new WorkSubject(DiscoveryRun::SUBJECT_TYPE, $runId)) as $request) {
+            ($this->withdrawWorkRequest)(new WithdrawWorkRequestCommand($request->id ?? throw new \LogicException('A persisted work request has an id.'), WorkRequestState::Cancelled));
         }
 
         $this->auditor->record(
             'readiness.discovery_failed',
             AuditOutcome::Success,
             [
-                'discoveryRunId' => (string) $run->id,
+                'discoveryRunId' => (string) $runId,
                 'projectId' => (string) $run->project->id,
-                'cardId' => $command->cardId->toRfc4122(),
                 'reason' => $run->failureReason,
             ],
-            new AuditSubject('discovery_run', (string) $run->id),
+            new AuditSubject('discovery_run', (string) $runId),
         );
-        // The rule records its falling edge, so a later requested run fires it again.
-        if ($this->evaluations->isOn()) {
-            $this->evaluations->forCards([$command->cardId], self::class);
-        }
 
         return true;
     }

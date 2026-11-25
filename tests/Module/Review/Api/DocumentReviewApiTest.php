@@ -14,10 +14,13 @@ use App\Module\Review\Command\CreateDocumentCommand;
 use App\Module\Review\Command\CreateDocumentHandler;
 use App\Module\Review\Command\ReviseDocumentCommand;
 use App\Module\Review\Command\ReviseDocumentHandler;
+use App\Module\Review\Command\SubmitReviewHandler;
 use App\Module\Review\Entity\Comment;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Repository\DocumentVersionRepository;
 use App\Module\Review\ValueObject\Anchor;
+use App\Tests\Module\Review\Support\BuildsGuardedSubmitReview;
+use App\Tests\Module\Review\Support\StubVerdictGuard;
 use App\Tests\Support\RecordingAuditor;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
@@ -26,6 +29,7 @@ use Symfony\Component\Uid\Uuid;
 /** The review routes of the public document API: the review, comments, decisions and verdicts. */
 final class DocumentReviewApiTest extends WebTestCase
 {
+    use BuildsGuardedSubmitReview;
     use DocumentApiFixtures;
 
     private const string MARKDOWN = "# Plan\n\n<!-- decision: target -->\n\n- ( ) Staging\n- ( ) Production\n\n<!-- /decision -->";
@@ -296,6 +300,22 @@ final class DocumentReviewApiTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(409);
         self::assertSame('decision_stale', $this->json()['code']);
+    }
+
+    public function test_a_verdict_that_a_guard_refuses_answers_409_with_the_sentence_of_the_guard(): void
+    {
+        $document = $this->reviewable();
+        $url = $this->url($document, '/verdicts');
+        $guard = new StubVerdictGuard('inbox.review.error.not_a_review');
+        static::getContainer()->set(SubmitReviewHandler::class, $this->guardedSubmitReview($guard));
+
+        $this->sendJson(Request::METHOD_POST, $url, ['versionNumber' => 1, 'verdict' => 'changes-requested', 'expectedVerdictId' => null, 'note' => 'Rework it.']);
+
+        self::assertCount(1, $guard->calls);
+        self::assertResponseStatusCodeSame(409);
+        self::assertSame('verdict_refused', $this->json()['code']);
+        self::assertSame('Verdict refused', $this->json()['title']);
+        self::assertSame('This request does not accept a review verdict.', $this->json()['detail']);
     }
 
     public function test_a_verdict_needs_every_decision_answered_and_names_the_key(): void

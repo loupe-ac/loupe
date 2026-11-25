@@ -23,6 +23,8 @@ use App\Module\Inbox\Entity\InboxReview;
 use App\Module\Project\Entity\Project;
 use App\Module\Readiness\Command\StartDiscoveryCommand;
 use App\Module\Readiness\Command\StartDiscoveryHandler;
+use App\Module\Readiness\Entity\DiscoveryRun;
+use App\Module\Readiness\Entity\DiscoveryRunState;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\DocumentVersion;
 use App\Module\Workflow\Contract\Actor;
@@ -32,6 +34,7 @@ use App\Tests\Module\Board\BoardColumnFixtures;
 use App\Tests\Support\AcceptedTerms;
 use App\Tests\Support\AgentCredential;
 use Doctrine\ORM\EntityManagerInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Uid\Uuid;
@@ -328,11 +331,17 @@ final class ShowWorkshopControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorCount(1, '[data-workshop] [data-readiness-guide]');
         self::assertSelectorExists('[data-readiness-guide][data-readiness-layout="full"]');
-        $live = $crawler->filter('[data-readiness-guide][data-controller="worker-run-refresh"][data-worker-run-refresh-target="frame"]');
+        // The "New work" button opens the card drawer here too, so the controller holds the drawer as well as the guide.
+        $live = $crawler->filter('[data-workshop][data-controller~="worker-run-refresh"][data-worker-run-refresh-target="frame"]');
         self::assertCount(1, $live);
+        self::assertCount(1, $live->filter('[data-readiness-guide]'));
+        self::assertCount(1, $live->filter('#card-drawer-frame'));
         self::assertSame('true', $live->attr('data-worker-run-refresh-whole-value'));
         self::assertSame((string) $project->id, $live->attr('data-worker-run-refresh-project-value'));
-        self::assertSame(['worker_run.changed', 'board.card_changed', 'inbox.open_count_changed', 'bridge.readiness_changed'], json_decode((string) $live->attr('data-worker-run-refresh-events-value'), true));
+        self::assertSame(['worker_run.changed', 'board.card_changed', 'inbox.open_count_changed', 'bridge.readiness_changed', 'project.discovery_changed'], json_decode((string) $live->attr('data-worker-run-refresh-events-value'), true));
+        // One controller visits the page, so two never race.
+        self::assertSelectorCount(1, '[data-worker-run-refresh-whole-value="true"]');
+        self::assertSelectorNotExists('[data-discovery-notice]');
         self::assertSame('Get Guide project ready for agents', trim($crawler->filter('[data-workshop] h1')->text()));
         self::assertSelectorTextContains('[data-readiness-row="repository"]', 'Run discovery');
         self::assertSelectorTextContains('[data-readiness-row="repository"]', 'Discovery waits for a running bridge');
@@ -381,47 +390,117 @@ final class ShowWorkshopControllerTest extends WebTestCase
         }
     }
 
-    public function test_the_open_run_of_the_discovery_card_keeps_the_workshop_quiet(): void
+    public function test_a_discovery_run_keeps_the_workshop_quiet_and_links_no_card(): void
     {
         $client = self::createClient();
         $em = self::getContainer()->get(EntityManagerInterface::class);
         $owner = $this->user($em, 'workshop-guide-discovering@example.com');
         [$project] = $this->projects($em, $owner, 'Guide discovering');
         $this->readyForDiscovery($em, $owner, $project);
-        $run = self::getContainer()->get(StartDiscoveryHandler::class)(new StartDiscoveryCommand($project, Actor::Human));
-        $this->openRun($em, $project, $run->card, WorkerRunState::Running, 'discovery', '-5 minutes');
-        $em->clear();
-        $client->loginUser($owner);
-
-        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id);
-
-        self::assertResponseIsSuccessful();
-        self::assertSelectorExists('[data-readiness-guide][data-readiness-layout="full"]');
-        self::assertSelectorExists('[data-readiness-row="repository"][data-readiness-discovery-state="requested"]');
-        self::assertSelectorTextContains('[data-readiness-row="repository"]', 'Running on card #'.$run->card->number);
-        self::assertSame('/projects/'.$project->id.'/board/cards/'.$run->card->id, $crawler->filter('[data-readiness-row="repository"] a')->attr('href'));
-    }
-
-    public function test_the_discovery_card_still_shows_in_motion_when_another_card_moves(): void
-    {
-        $client = self::createClient();
-        $em = self::getContainer()->get(EntityManagerInterface::class);
-        $owner = $this->user($em, 'workshop-guide-discovering-busy@example.com');
-        [$project] = $this->projects($em, $owner, 'Guide discovering busy');
-        $this->readyForDiscovery($em, $owner, $project);
-        $run = self::getContainer()->get(StartDiscoveryHandler::class)(new StartDiscoveryCommand($project, Actor::Human));
-        $this->openRun($em, $project, $run->card, WorkerRunState::Running, 'discovery', '-5 minutes');
-        $card = self::getContainer()->get(CreateCardHandler::class)(new CreateCardCommand($project, 'Running work', '', 'feature'));
-        $this->openRun($em, $project, $card, WorkerRunState::Running, 'implement', '-5 minutes');
+        self::getContainer()->get(StartDiscoveryHandler::class)(new StartDiscoveryCommand($project, Actor::Human));
         $em->clear();
         $client->loginUser($owner);
 
         $client->request(Request::METHOD_GET, '/projects/'.$project->id);
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorExists('.lp-workshop-supporting > [data-readiness-guide][data-readiness-layout="sidebar"]');
-        self::assertSelectorExists('[data-workshop-card="'.$run->card->number.'"]');
-        self::assertSelectorExists('[data-workshop-card="'.$card->number.'"]');
+        self::assertSelectorExists('[data-readiness-guide][data-readiness-layout="full"]');
+        self::assertSelectorExists('[data-readiness-row="repository"][data-readiness-discovery-state="requested"]');
+        self::assertSelectorTextContains('[data-readiness-row="repository"]', 'Discovery runs');
+        self::assertSelectorNotExists('[data-readiness-row="repository"] a');
+        self::assertSelectorNotExists('[data-readiness-row="repository"] [data-readiness-action]');
+        self::assertSelectorTextContains('[data-readiness-row="repository"] form[action="/projects/'.$project->id.'/discovery/cancel"] button[data-discovery-cancel]', 'Cancel');
+        self::assertSelectorExists('[data-readiness-row="repository"] form input[name="_csrf_token"]');
+        self::assertSelectorNotExists('[data-discovery-notice]');
+    }
+
+    /** @return iterable<string, array{DiscoveryRunState}> */
+    public static function liveDiscoveryStates(): iterable
+    {
+        yield 'requested' => [DiscoveryRunState::Requested];
+        yield 'revising' => [DiscoveryRunState::Revising];
+    }
+
+    #[DataProvider('liveDiscoveryStates')]
+    public function test_a_live_run_with_a_hidden_guide_shows_a_notice_that_cancels_it(DiscoveryRunState $state): void
+    {
+        $client = self::createClient();
+        $em = self::getContainer()->get(EntityManagerInterface::class);
+        $owner = $this->user($em, 'workshop-discovery-notice@example.com');
+        [$project] = $this->projects($em, $owner, 'Discovery notice');
+        $project->readinessGuideHiddenAt = new \DateTimeImmutable();
+        $run = new DiscoveryRun($project);
+        $run->state = $state;
+        $em->persist($run);
+        $em->flush();
+        $runId = $run->id;
+        $em->clear();
+        $client->loginUser($owner);
+
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id);
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorNotExists('[data-readiness-guide]');
+        self::assertSelectorCount(1, '[data-discovery-notice]');
+        self::assertSelectorTextContains('[data-discovery-notice] .lp-status-box--working .lp-status-box__title', 'Discovery runs');
+        self::assertSelectorNotExists('[data-readiness-action]');
+        self::assertSelectorTextNotContains('[data-workshop]', 'Run discovery');
+        self::assertSelectorTextNotContains('[data-workshop]', 'Run again');
+        $form = $crawler->filter('[data-discovery-notice] form[action="/projects/'.$project->id.'/discovery/cancel"]');
+        self::assertCount(1, $form);
+
+        $client->submit($form->form());
+
+        self::assertResponseRedirects('/projects/'.$project->id);
+        $client->followRedirect();
+        self::assertSelectorNotExists('[data-discovery-notice]');
+        $stored = self::getContainer()->get(EntityManagerInterface::class)->find(DiscoveryRun::class, $runId);
+        self::assertSame(DiscoveryRunState::Failed, $stored?->state);
+    }
+
+    /** @return iterable<string, array{bool, ?DiscoveryRunState}> */
+    public static function normalLayouts(): iterable
+    {
+        yield 'hidden guide, no run' => [true, null];
+        yield 'hidden guide, reported run' => [true, DiscoveryRunState::Reported];
+        yield 'hidden guide, failed run' => [true, DiscoveryRunState::Failed];
+        yield 'sidebar guide, no run' => [false, null];
+        yield 'sidebar guide, requested run' => [false, DiscoveryRunState::Requested];
+    }
+
+    /** The page reloads when a run starts or ends, so neither the notice nor the Cancel of the sidebar goes stale. */
+    #[DataProvider('normalLayouts')]
+    public function test_the_normal_layout_reloads_on_a_discovery_change_and_holds_for_an_open_drawer(bool $hidden, ?DiscoveryRunState $state): void
+    {
+        $client = self::createClient();
+        $em = self::getContainer()->get(EntityManagerInterface::class);
+        $owner = $this->user($em, 'workshop-discovery-reload@example.com');
+        [$project] = $this->projects($em, $owner, 'Discovery reload');
+        $project->readinessGuideHiddenAt = $hidden ? new \DateTimeImmutable() : null;
+        if (null !== $state) {
+            $run = new DiscoveryRun($project);
+            $run->state = $state;
+            $em->persist($run);
+        }
+        // A card in motion gives the layout with the sidebar guide.
+        $card = self::getContainer()->get(CreateCardHandler::class)(new CreateCardCommand($project, 'Running work', '', 'feature'));
+        $this->openRun($em, $project, $card, WorkerRunState::Running, 'implement', '-5 minutes');
+        $em->flush();
+        $em->clear();
+        $client->loginUser($owner);
+
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id);
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorNotExists('[data-discovery-notice]');
+        self::assertSelectorCount(1, '[data-worker-run-refresh-whole-value="true"]');
+        // The card drawer sits inside the element, so the controller holds the visit while it is open.
+        $live = $crawler->filter('[data-workshop][data-controller~="worker-run-refresh"][data-worker-run-refresh-target="frame"]');
+        self::assertCount(1, $live);
+        self::assertCount(1, $live->filter('#card-drawer-frame'));
+        self::assertSame((string) $project->id, $live->attr('data-worker-run-refresh-project-value'));
+        self::assertSame(['project.discovery_changed'], json_decode((string) $live->attr('data-worker-run-refresh-events-value'), true));
+        self::assertSelectorCount(!$hidden && DiscoveryRunState::Requested === $state ? 1 : 0, '[data-readiness-layout="sidebar"] [data-discovery-cancel]');
     }
 
     public function test_an_open_inbox_item_puts_the_guide_in_the_support_rail(): void

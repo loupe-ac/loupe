@@ -47,14 +47,40 @@ final class WorkTakersTest extends KernelTestCase
     {
         [$project, , $owner] = $this->scenario('capable-for');
 
-        self::assertSame(WorkTakerState::None, $this->service()->capableFor($project, 'discovery', true)->state);
+        self::assertSame(WorkTakerState::None, $this->service()->capableFor($project, WorkSubject::CARD, 'discovery', true)->state);
 
         $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: ['fix']);
-        $reading = $this->service()->capableFor($project, 'discovery', true);
+        $reading = $this->service()->capableFor($project, WorkSubject::CARD, 'discovery', true);
         self::assertSame([WorkTakerState::NotCapable, true], [$reading->state, $reading->appPromptsMissing]);
 
         $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: ['discovery']);
-        self::assertSame(WorkTakerState::Available, $this->service()->capableFor($project, 'discovery', false)->state);
+        self::assertSame(WorkTakerState::Available, $this->service()->capableFor($project, WorkSubject::CARD, 'discovery', false)->state);
+    }
+
+    public function test_capable_for_reads_the_work_kind_of_the_subject_type(): void
+    {
+        [$project, , $owner] = $this->scenario('capable-for-subject');
+        $bridge = $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: ['analysis:review']);
+
+        self::assertSame(WorkTakerState::Available, $this->service()->capableFor($project, 'analysis', 'review', false)->state);
+        self::assertSame(WorkTakerState::NotCapable, $this->service()->capableFor($project, WorkSubject::CARD, 'review', false)->state);
+
+        $bridge->workKinds = ['review'];
+        $this->em()->flush();
+
+        self::assertSame(WorkTakerState::NotCapable, $this->service()->capableFor($project, 'analysis', 'review', false)->state);
+        self::assertSame(WorkTakerState::Available, $this->service()->capableFor($project, WorkSubject::CARD, 'review', false)->state);
+    }
+
+    public function test_capable_for_counts_a_failed_account_only_for_the_work_kind_of_the_subject_type(): void
+    {
+        [$project, , $owner] = $this->scenario('capable-for-subject-failed');
+        $bridge = $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: ['review', 'analysis:review']);
+        $bridge->accounts = [['name' => 'one', 'harness' => 'claude', 'state' => 'ready', 'reason' => null, 'kinds' => ['analysis:review'], 'failedProjects' => [['projectId' => (string) $project->id, 'reason' => 'claude is not on PATH']]]];
+        $this->em()->flush();
+
+        self::assertSame(WorkTakerState::NotCapable, $this->service()->capableFor($project, 'analysis', 'review', false)->state);
+        self::assertSame(WorkTakerState::Available, $this->service()->capableFor($project, WorkSubject::CARD, 'review', false)->state);
     }
 
     public function test_capable_for_takes_app_prompts_only_for_work_that_ships_a_prompt(): void
@@ -62,8 +88,8 @@ final class WorkTakersTest extends KernelTestCase
         [$project, , $owner] = $this->scenario('capable-for-prompts');
         $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: [], capabilities: [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_APP_PROMPTS]);
 
-        self::assertSame(WorkTakerState::Available, $this->service()->capableFor($project, 'discovery', true)->state);
-        self::assertSame(WorkTakerState::NotCapable, $this->service()->capableFor($project, 'discovery', false)->state);
+        self::assertSame(WorkTakerState::Available, $this->service()->capableFor($project, WorkSubject::CARD, 'discovery', true)->state);
+        self::assertSame(WorkTakerState::NotCapable, $this->service()->capableFor($project, WorkSubject::CARD, 'discovery', false)->state);
     }
 
     public function test_an_online_bridge_that_runs_the_kind_is_a_taker(): void
@@ -219,16 +245,16 @@ final class WorkTakersTest extends KernelTestCase
         $mapped->accounts = [['name' => 'one', 'harness' => 'claude', 'state' => 'ready', 'reason' => null, 'kinds' => ['discovery'], 'failedProjects' => [['projectId' => (string) $project->id, 'reason' => 'claude is not on PATH']]]];
         $this->em()->flush();
 
-        self::assertSame(WorkTakerState::NotCapable, $this->service()->capableFor($project, 'discovery', true)->state);
+        self::assertSame(WorkTakerState::NotCapable, $this->service()->capableFor($project, WorkSubject::CARD, 'discovery', true)->state);
 
         $prompts = $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: [], capabilities: [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_APP_PROMPTS]);
         $this->failedAppPromptAccount($prompts, (string) Uuid::v7());
 
-        self::assertSame(WorkTakerState::Available, $this->service()->capableFor($project, 'discovery', true)->state);
+        self::assertSame(WorkTakerState::Available, $this->service()->capableFor($project, WorkSubject::CARD, 'discovery', true)->state);
 
         $this->failedAppPromptAccount($prompts, (string) $project->id);
 
-        self::assertSame(WorkTakerState::NotCapable, $this->service()->capableFor($project, 'discovery', true)->state);
+        self::assertSame(WorkTakerState::NotCapable, $this->service()->capableFor($project, WorkSubject::CARD, 'discovery', true)->state);
     }
 
     public function test_a_failure_of_another_project_keeps_the_bridge_a_taker(): void

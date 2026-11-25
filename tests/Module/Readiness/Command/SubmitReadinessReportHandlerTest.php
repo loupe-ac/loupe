@@ -18,13 +18,11 @@ use App\Module\Readiness\Repository\DiscoveryProposalRepository;
 use App\Module\Readiness\Repository\DiscoveryRunRepository;
 use App\Module\Readiness\Service\ProposalTypes;
 use App\Module\Review\Entity\Document;
-use App\Module\Workflow\Messenger\EvaluateCard;
 use App\Module\Workflow\Service\TemplateCardTypeCatalog;
 use App\Tests\Module\Readiness\DiscoveryScenario;
 use App\Tests\Support\RecordingAuditor;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
-use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 final class SubmitReadinessReportHandlerTest extends KernelTestCase
 {
@@ -41,16 +39,12 @@ final class SubmitReadinessReportHandlerTest extends KernelTestCase
         self::bootKernel();
         $this->audit = RecordingAuditor::installedIn(self::getContainer());
         $this->project = $this->workflowProject('submit-report');
-        $this->run = $this->discoveryRun($this->discoveryCard($this->project));
-        $this->transport()->reset();
+        $this->run = $this->discoveryRun($this->project);
     }
 
-    public function test_a_report_becomes_a_tagged_document_linked_to_the_discovery_card_and_the_run_reports(): void
+    public function test_a_report_becomes_a_tagged_document_and_the_run_reports(): void
     {
-        $existing = $this->otherDocument();
         $covering = $this->openCard();
-        $this->run->card->syncDocuments($existing);
-        $this->em()->flush();
 
         $document = $this->submit(findings: [new ReportFinding('Tests run', 'suggested', 'None found.')], proposals: [
             $this->proposal('tests', 'Add tests'),
@@ -61,8 +55,6 @@ final class SubmitReadinessReportHandlerTest extends KernelTestCase
         self::assertSame(DiscoveryRunState::Reported, $this->run->state);
         self::assertSame($document, $this->run->reportDocument);
         self::assertSame(['readiness-report'], array_values(array_map(static fn ($tag): string => $tag->name, $document->tags->toArray())));
-        $linked = array_map(static fn ($link): string => (string) $link->document->id, $this->run->card->documents->toArray());
-        self::assertEqualsCanonicalizing([(string) $existing->id, (string) $document->id], $linked);
 
         $markdown = $document->currentVersion()->markdownSource;
         self::assertStringStartsWith('## Summary', $markdown);
@@ -77,7 +69,7 @@ final class SubmitReadinessReportHandlerTest extends KernelTestCase
         );
     }
 
-    public function test_the_report_is_audited_and_the_engine_evaluates_the_card_again(): void
+    public function test_the_report_is_audited(): void
     {
         $this->submit(proposals: [$this->proposal('tests', 'Add tests')]);
 
@@ -85,14 +77,6 @@ final class SubmitReadinessReportHandlerTest extends KernelTestCase
         self::assertCount(1, $recorded);
         self::assertSame((string) $this->run->id, $recorded[0]->context['discoveryRunId']);
         self::assertSame(1, $recorded[0]->context['tickableCount']);
-        $evaluated = [];
-        foreach ($this->transport()->getSent() as $envelope) {
-            $message = $envelope->getMessage();
-            if ($message instanceof EvaluateCard) {
-                $evaluated[] = (string) $message->cardId;
-            }
-        }
-        self::assertSame([(string) $this->run->card->id], $evaluated);
     }
 
     public function test_a_gap_finding_from_an_older_plugin_is_stored_as_suggested(): void
@@ -224,8 +208,8 @@ final class SubmitReadinessReportHandlerTest extends KernelTestCase
         $catalog->reset();
         $proposalTypes = self::getContainer()->get(ProposalTypes::class);
         self::assertInstanceOf(ProposalTypes::class, $proposalTypes);
-        $run = $this->discoveryRun($this->discoveryCard($project));
-        $refusedRun = (string) $this->discoveryRun($this->discoveryCard($project))->id;
+        $run = $this->discoveryRun($project);
+        $refusedRun = (string) $this->discoveryRun($project)->id;
 
         self::assertSame(['feature', 'chore'], $proposalTypes->acceptedFor($project));
         $this->submit(runId: (string) $run->id, project: $project, proposals: [$this->proposal('a', 'A', type: 'chore')]);
@@ -254,10 +238,12 @@ final class SubmitReadinessReportHandlerTest extends KernelTestCase
     {
         $finished = new Card($this->project, $this->column($this->project, 'done'), 'Finished', '', 90);
         $this->em()->persist($finished);
-        $elsewhere = $this->discoveryCard($this->workflowProject('submit-report-elsewhere'));
+        // A number that a card of another project has, and no card of this project.
+        $elsewhere = new Card($other = $this->workflowProject('submit-report-elsewhere'), $this->column($other, 'backlog'), 'Elsewhere', '', 998);
+        $this->em()->persist($elsewhere);
         $this->em()->flush();
 
-        foreach ([$finished->number, 999, $elsewhere->number === $this->run->card->number ? 998 : $elsewhere->number] as $number) {
+        foreach ([$finished->number, 999, $elsewhere->number] as $number) {
             $this->assertRefused(SubmitReadinessReportHandler::CARD_NOT_OPEN, fn () => $this->submit(proposals: [$this->proposal('a', 'A', openCardNumber: $number)]));
         }
         self::assertSame(DiscoveryRunState::Requested, $this->run->state);
@@ -291,7 +277,7 @@ final class SubmitReadinessReportHandlerTest extends KernelTestCase
 
     private function openCard(): Card
     {
-        return $this->discoveryCard($this->project, 'next');
+        return $this->card($this->project, 'next');
     }
 
     /**
@@ -323,29 +309,11 @@ final class SubmitReadinessReportHandlerTest extends KernelTestCase
         return new ReportProposal($key, $title, $type, $body, $openCardNumber);
     }
 
-    private function otherDocument(): Document
-    {
-        $document = new Document($this->project->owner, $this->project, 'Other');
-        $document->addVersion('x', '<p>x</p>', null);
-        $this->em()->persist($document);
-        $this->em()->flush();
-
-        return $document;
-    }
-
     private function proposals(): DiscoveryProposalRepository
     {
         $repository = self::getContainer()->get(DiscoveryProposalRepository::class);
         self::assertInstanceOf(DiscoveryProposalRepository::class, $repository);
 
         return $repository;
-    }
-
-    private function transport(): InMemoryTransport
-    {
-        $transport = self::getContainer()->get('messenger.transport.card_eval');
-        self::assertInstanceOf(InMemoryTransport::class, $transport);
-
-        return $transport;
     }
 }

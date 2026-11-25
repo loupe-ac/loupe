@@ -6,12 +6,16 @@ namespace App\Tests\Module\Bridge\Scheduler;
 
 use App\Module\Bridge\Command\ExpireSubjectWorkRequestsHandler;
 use App\Module\Bridge\Command\WithdrawWorkRequestHandler;
+use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Scheduler\ExpireSubjectWorkRequestsTask;
+use App\Module\Bridge\Service\UntakenSubjectWork;
 use App\Module\Bridge\Service\WorkRequestAnnouncer;
+use App\Module\Bridge\Service\WorkTakers;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Bridge\WorkSubject\WorkSubjectHandlers;
 use App\Module\Workflow\Contract\WorkHolds;
+use App\Module\Workflow\Contract\WorkLedger;
 use App\Outbox\OutboxWriter;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Module\Bridge\WorkSubject\RecordingWorkSubjectHandler;
@@ -85,10 +89,12 @@ final class ExpireSubjectWorkRequestsTaskTest extends KernelTestCase
             $this->service(WorkRequestAnnouncer::class),
             new WorkSubjectHandlers([new RecordingWorkSubjectHandler()], new NoCardTitles()),
             $this->service(WorkHolds::class),
+            $this->service(BridgeRepository::class),
+            $this->service(WorkTakers::class),
         );
 
         return new ExpireSubjectWorkRequestsTask(
-            new ExpireSubjectWorkRequestsHandler($this->service(WorkRequestRepository::class), $withdraw, $clock, 120),
+            new ExpireSubjectWorkRequestsHandler($this->service(WorkRequestRepository::class), $withdraw, new UntakenSubjectWork($this->service(WorkLedger::class), $withdraw), $clock, 120),
             $logger,
         );
     }

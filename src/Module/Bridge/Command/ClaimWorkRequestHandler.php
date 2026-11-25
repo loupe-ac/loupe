@@ -57,6 +57,8 @@ final readonly class ClaimWorkRequestHandler
         $claimed = $this->em->wrapInTransaction(function () use ($command, $ownerId): WorkRequest|WorkRequestRefusal {
             // The lock a heartbeat takes, so the projects and capabilities read here stay current until the claim commits.
             $this->bridges->lockForWrite($ownerId, $command->bridgeId);
+            // A claim can end a refusal, which gives the request a taker again.
+            $this->bridges->lockAvailabilityForWrite($ownerId);
             $bridge = $this->bridges->findOneByOwnerAndId($command->owner, $command->bridgeId);
             if (null === $bridge) {
                 return WorkRequestRefusal::UnknownBridge;

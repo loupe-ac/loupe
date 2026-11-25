@@ -49,6 +49,7 @@ use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Event\CardHoldsReleased;
 use App\Module\Bridge\EventListener\RearmCardsOnCardHoldsReleased;
+use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\Repository\CardHoldRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
@@ -5352,7 +5353,7 @@ final class EngineTest extends KernelTestCase
             new BridgeWorkLedger(
                 $workRequests,
                 $this->service(WorkerRunRepository::class),
-                new WithdrawWorkRequestHandler($workRequests, $this->service(OutboxWriter::class), $this->em(), $clock, $auditor, $this->service(WorkRequestAnnouncer::class), new WorkSubjectHandlers([], new NoCardTitles()), $this->service(WorkHolds::class)),
+                new WithdrawWorkRequestHandler($workRequests, $this->service(OutboxWriter::class), $this->em(), $clock, $auditor, $this->service(WorkRequestAnnouncer::class), new WorkSubjectHandlers([], new NoCardTitles()), $this->service(WorkHolds::class), $this->service(BridgeRepository::class), $this->service(WorkTakers::class)),
                 $this->service(CardHolds::class),
                 $this->service(ProjectRepository::class),
                 $this->service(WorkTakers::class),

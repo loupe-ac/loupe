@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Tests\Module\Readiness\Service;
 
 use App\Module\Board\Entity\BoardAutomationSettings;
-use App\Module\Board\Entity\Card;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Service\WorkTakers;
@@ -20,9 +19,10 @@ use App\Module\Project\Entity\Project;
 use App\Module\Project\Workshop\WorkshopConnectionsProviderInterface;
 use App\Module\Project\Workshop\WorkshopReadiness;
 use App\Module\Project\Workshop\WorkshopReadinessRow;
+use App\Module\Readiness\Command\CancelDiscoveryHandler;
+use App\Module\Readiness\Command\StartDiscoveryHandler;
 use App\Module\Readiness\Entity\DiscoveryRun;
 use App\Module\Readiness\Entity\DiscoveryRunState;
-use App\Module\Readiness\EventListener\FailDiscoveryOnRequestWithdrawn;
 use App\Module\Readiness\Repository\DiscoveryRunRepository;
 use App\Module\Readiness\Service\ReadinessChecklist;
 use App\Module\Review\Entity\Document;
@@ -69,7 +69,6 @@ final class ReadinessChecklistTest extends KernelTestCase
 
         self::assertSame(['readiness.row.repository.no_bridge', 'none', false], [$row->status, $row->discoveryState, $row->done]);
         self::assertNull($row->actionUrl);
-        self::assertNull($readiness->discoveryCardNumber);
     }
 
     public function test_discovery_with_no_run_and_a_live_bridge_offers_a_post_start(): void
@@ -125,20 +124,47 @@ final class ReadinessChecklistTest extends KernelTestCase
         self::assertNull($row->actionCsrfTokenId);
     }
 
-    public function test_a_requested_run_links_its_card(): void
+    public function test_a_requested_run_says_that_discovery_runs_and_offers_cancel_alone(): void
     {
         $project = $this->newProject('readiness-discovery-running@example.com');
         $this->seedCapableBridge($project);
-        $run = $this->discoveryRun($project, DiscoveryRunState::Requested);
+        $this->discoveryRun($project, DiscoveryRunState::Requested);
 
         $readiness = $this->readiness($this->checklist(), $project);
         $row = $this->row($readiness, 'repository');
 
         self::assertSame(['readiness.row.repository.running', 'requested', false], [$row->status, $row->discoveryState, $row->done]);
-        self::assertSame(['%number%' => (string) $run->card->number], $row->statusParameters);
-        self::assertSame('/projects/'.$project->id.'/board/cards/'.$run->card->id, $row->actionUrl);
+        self::assertSame([], $row->statusParameters);
+        self::assertNull($row->actionUrl);
         self::assertNull($row->actionCsrfTokenId);
-        self::assertSame($run->card->number, $readiness->discoveryCardNumber);
+        self::assertSame('/projects/'.$project->id.'/discovery/cancel', $row->cancelUrl);
+        self::assertSame(ReadinessChecklist::CANCEL_TOKEN, $row->cancelCsrfTokenId);
+    }
+
+    /** @return iterable<string, array{?DiscoveryRunState, bool}> */
+    public static function discoveryStates(): iterable
+    {
+        yield 'no run' => [null, false];
+        yield 'requested' => [DiscoveryRunState::Requested, true];
+        yield 'revising' => [DiscoveryRunState::Revising, true];
+        yield 'reported' => [DiscoveryRunState::Reported, false];
+        yield 'failed' => [DiscoveryRunState::Failed, false];
+        yield 'done' => [DiscoveryRunState::Done, false];
+        yield 'superseded' => [DiscoveryRunState::Superseded, false];
+    }
+
+    #[DataProvider('discoveryStates')]
+    public function test_discovery_is_running_and_cancellable_only_while_a_run_waits_for_a_worker(?DiscoveryRunState $state, bool $running): void
+    {
+        $project = $this->newProject('readiness-discovery-live@example.com');
+        if (null !== $state) {
+            $this->discoveryRun($project, $state);
+        }
+
+        $checklist = $this->checklist();
+
+        self::assertSame($running, $checklist->discoveryRunning($project));
+        self::assertSame($running, null !== $this->row($this->readiness($checklist, $project), 'repository')->cancelUrl);
     }
 
     #[DataProvider('knownReasons')]
@@ -153,6 +179,7 @@ final class ReadinessChecklistTest extends KernelTestCase
 
         self::assertSame(['readiness.row.repository.failed', 'failed', 'readiness.row.repository.retry'], [$row->status, $row->discoveryState, $row->actionLabel]);
         self::assertSame(['%reason%' => $text], $row->statusParameters);
+        self::assertFalse($row->discoveryCancelled);
         self::assertSame('/projects/'.$project->id.'/readiness/discovery/start', $row->actionUrl);
         self::assertSame(ReadinessChecklist::START_TOKEN, $row->actionCsrfTokenId);
     }
@@ -160,8 +187,31 @@ final class ReadinessChecklistTest extends KernelTestCase
     /** @return iterable<string, array{string, string}> */
     public static function knownReasons(): iterable
     {
-        yield 'no taker' => [FailDiscoveryOnRequestWithdrawn::NO_TAKER, 'No bridge took the work.'];
-        yield 'card moved' => [FailDiscoveryOnRequestWithdrawn::CARD_MOVED, 'The discovery card left Backlog before the work ended.'];
+        yield 'no taker' => [WorkRequest::REASON_NO_TAKER, 'No bridge took the work.'];
+        yield 'card moved' => [ReadinessChecklist::REASON_CARD_MOVED, 'The discovery card left Backlog before the work ended.'];
+        yield 'request refused' => [StartDiscoveryHandler::REQUEST_REFUSED, 'The app could not ask a bridge for the work.'];
+        yield 'request failed' => [StartDiscoveryHandler::REQUEST_FAILED, 'The request for the work failed. Run discovery again.'];
+    }
+
+    /** @return iterable<string, array{bool, string}> */
+    public static function cancellers(): iterable
+    {
+        yield 'a person' => [true, 'Cancelled by Riley Chen.'];
+        yield 'a deleted account' => [false, 'Cancelled by a deleted account.'];
+    }
+
+    #[DataProvider('cancellers')]
+    public function test_a_cancelled_run_names_who_cancelled_it(bool $accountStays, string $text): void
+    {
+        $project = $this->newProject('readiness-discovery-cancelled@example.com');
+        $run = $this->discoveryRun($project, DiscoveryRunState::Failed, CancelDiscoveryHandler::REASON);
+        $run->cancelledBy = $accountStays ? $project->owner : null;
+        $this->em()->flush();
+
+        $row = $this->row($this->readiness($this->checklist(), $project), 'repository');
+
+        self::assertSame(['%reason%' => str_replace('Riley Chen', $project->owner->fullName, $text)], $row->statusParameters);
+        self::assertTrue($row->discoveryCancelled);
     }
 
     public function test_a_failed_run_with_no_live_bridge_shows_the_raw_reason_and_no_action(): void
@@ -175,7 +225,7 @@ final class ReadinessChecklistTest extends KernelTestCase
         self::assertNull($row->actionUrl);
     }
 
-    public function test_a_revising_run_links_its_report(): void
+    public function test_a_revising_run_says_that_discovery_runs_links_its_report_and_offers_cancel(): void
     {
         $project = $this->newProject('readiness-discovery-revising@example.com');
         $run = $this->discoveryRun($project, DiscoveryRunState::Revising);
@@ -185,8 +235,9 @@ final class ReadinessChecklistTest extends KernelTestCase
 
         $row = $this->row($this->readiness($this->checklist(), $project), 'repository');
 
-        self::assertSame(['readiness.row.repository.revising', 'revising', false], [$row->status, $row->discoveryState, $row->done]);
-        self::assertSame(['%number%' => (string) $run->card->number], $row->statusParameters);
+        self::assertSame(['readiness.row.repository.running', 'revising', false], [$row->status, $row->discoveryState, $row->done]);
+        self::assertSame(['/projects/'.$project->id.'/discovery/cancel', ReadinessChecklist::CANCEL_TOKEN], [$row->cancelUrl, $row->cancelCsrfTokenId]);
+        self::assertSame([], $row->statusParameters);
         self::assertSame('readiness.row.repository.open_report', $row->actionLabel);
         self::assertSame('/projects/'.$project->id.'/documents/'.$run->reportDocument->id.'/review', $row->actionUrl);
     }
@@ -398,7 +449,7 @@ final class ReadinessChecklistTest extends KernelTestCase
         $project = $this->newProject('readiness-mapped@example.com');
         $this->bind($project);
         $bridge = $this->seedCapableBridge($project, appPrompts: false);
-        $bridge->workKinds = ['discovery'];
+        $bridge->workKinds = ['discovery:discovery'];
         $this->em()->flush();
 
         $row = $this->row($this->readiness($this->checklist(), $project), 'bridge');
@@ -407,6 +458,20 @@ final class ReadinessChecklistTest extends KernelTestCase
         self::assertSame(['%machine%' => $bridge->label], $row->statusParameters);
         self::assertEquals($bridge->lastSeenAt, $row->seenAt);
         self::assertNull($this->checklist()->startRefusal($project));
+    }
+
+    public function test_a_bridge_whose_discovery_entry_runs_cards_only_is_not_ready(): void
+    {
+        $project = $this->newProject('readiness-card-only@example.com');
+        $this->bind($project);
+        $bridge = $this->seedCapableBridge($project, appPrompts: false);
+        $bridge->workKinds = ['discovery'];
+        $this->em()->flush();
+
+        $row = $this->row($this->readiness($this->checklist(), $project), 'bridge');
+
+        self::assertFalse($row->done);
+        self::assertSame(StartDiscoveryHandler::NO_CAPABLE_BRIDGE_APP_PROMPTS, $this->checklist()->startRefusal($project));
     }
 
     public function test_a_paused_bridge_is_not_ready_and_refuses_the_start(): void
@@ -502,10 +567,7 @@ final class ReadinessChecklistTest extends KernelTestCase
         $em = $this->em();
         $this->seedColumns($project);
         $em->flush();
-        $card = new Card($project, $this->column($project, 'backlog'), 'Discovery', '', 1);
-        $card->type = 'tooling';
-        $em->persist($card);
-        $run = new DiscoveryRun($project, $card);
+        $run = new DiscoveryRun($project);
         $run->state = $state;
         $run->failureReason = $reason;
         $em->persist($run);

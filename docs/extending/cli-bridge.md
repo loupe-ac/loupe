@@ -2740,6 +2740,27 @@ also skips the [experiment](#experiments) draw of a covered entry, so
 the run joins no experiment. An analysis always names its model and its
 effort.
 
+A [discovery run](../using/workshop.md#run-discovery) is about a subject too, of
+the type `discovery`. `{subjectId}` is the id of the run. Loupe asks for the kind
+`discovery`, and for the kind `discovery-revise` after you ask for changes to the
+report. A bridge with `appPrompts: true` runs both with no entry. A bridge
+without it needs one entry for each kind, with `subject: discovery`. An entry
+without that line runs work about a card, so it takes no discovery request.
+
+```yaml
+work:
+  discovery:
+    subject: discovery
+    prompt: Run the loupe-discovery skill for discovery {subjectId} of project {project} (projectId {projectId}).
+  discovery-revise:
+    subject: discovery
+    prompt: Run the loupe-discovery skill to revise the report of discovery {subjectId} of project {project} (projectId {projectId}).
+```
+
+A request about a subject that is no card gets no card worktree. With no
+`before` command, its worker runs in the folder of the project. Uncommitted
+changes in that folder can then show in a discovery report.
+
 Both shipped workflow templates
 request `teardown` each time a card reaches a terminal column. A `teardown`
 request that no bridge takes waits until a bridge takes it, and the card does

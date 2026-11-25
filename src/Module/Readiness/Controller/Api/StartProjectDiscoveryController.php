@@ -33,13 +33,13 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     operationId: 'startDiscovery',
     summary: 'Start a discovery run',
     tags: ['Discovery'],
-    description: 'Loupe adds a tooling card to Backlog, and a bridge that serves the project runs a read-only worker on it. The worker checks the repository and the workflow, and writes a readiness report that lists what remains and who acts. The request takes no body. `url` is the Workshop page of the project, whose discovery row opens the report once the worker has written it. `Location` names the card. A live bridge must serve the project, the project must have a workflow with board automation on, and only one run can be open at a time.',
+    description: 'A bridge that serves the project runs a read-only worker. The worker checks the repository and the workflow, and writes a readiness report that lists what remains and who acts. The request takes no body. `url` is the Workshop page of the project, whose discovery row opens the report once the worker has written it. `Location` names the readiness checks of the project, whose `discovery` is the new run. A live bridge must serve the project, the project must have a workflow with board automation on, and only one run can be open at a time.',
     parameters: [
         new OA\Parameter(name: 'project', description: 'A project id or a project slug. A slug changes when the project is renamed, so quote the id when it must stay valid.', in: 'path', required: true, schema: new OA\Schema(type: 'string'), example: 'my-project'),
         new OA\Parameter(name: 'Idempotency-Key', description: 'A key of your choice. A retry with the same key and body answers as the first request did. The same key with another body gets 409 `idempotency_key_reused`.', in: 'header', schema: new OA\Schema(type: 'string', maxLength: 255)),
     ],
     responses: [
-        new SuccessResponse(201, 'The new discovery run and its card.', DiscoveryStartResponse::class, location: true),
+        new SuccessResponse(201, 'The new discovery run.', DiscoveryStartResponse::class, location: true),
         new ProblemResponse(404, ['project_not_found', 'route_not_found']),
         new ProblemResponse(409, ['no_bridge', 'no_capable_bridge', 'bridge_paused', 'no_workflow', 'automation_off', 'discovery_running', 'idempotency_key_reused', 'idempotency_in_progress']),
     ],
@@ -69,12 +69,10 @@ final class StartProjectDiscoveryController extends AppController
             throw $this->problems->from($e);
         }
 
-        $cardId = (string) $run->card->id;
-
         return new JsonResponse(
-            new DiscoveryStartResponse((string) $run->id, $cardId, $run->card->number, $run->state->value, $this->links->project((string) $project->id)),
+            new DiscoveryStartResponse((string) $run->id, $run->state->value, $this->links->project((string) $project->id)),
             JsonResponse::HTTP_CREATED,
-            ['Location' => $this->generateUrl('api_card_show', ['project' => (string) $project->id, 'number' => $run->card->number], UrlGeneratorInterface::ABSOLUTE_URL)],
+            ['Location' => $this->generateUrl('api_readiness_show', ['project' => (string) $project->id], UrlGeneratorInterface::ABSOLUTE_URL)],
         );
     }
 }

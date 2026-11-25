@@ -11,6 +11,9 @@ interface WorkshopReadinessProviderInterface
     /** Null once the owner hides the guide. */
     public function forProject(Project $project): ?WorkshopReadiness;
 
+    /** Whether a discovery run waits for a worker now, whether the guide shows or not. */
+    public function discoveryRunning(Project $project): bool;
+
     /**
      * The four rows of the setup wizard: cli, repository_linked, agent and bridge.
      *

@@ -10,8 +10,6 @@ final readonly class WorkshopReadiness
     public function __construct(
         /** @var list<WorkshopReadinessRow> */
         public array $rows,
-        /** The card of the latest discovery run. Its open run does not end the quiet Workshop. */
-        public ?int $discoveryCardNumber = null,
     ) {
     }
 

@@ -11,7 +11,6 @@ use App\Module\Project\Entity\Project;
 use App\Module\Readiness\Entity\DiscoveryRun;
 use App\Module\Readiness\Entity\DiscoveryRunState;
 use App\Module\Readiness\Repository\DiscoveryRunRepository;
-use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Entity\WorkflowBinding;
 use App\Module\Workflow\Template\ShippedTemplates;
 use App\Security\CredentialRateLimitKey;
@@ -38,55 +37,52 @@ final class StartDiscoveryApiTest extends WebTestCase
         $this->client = static::createClient();
     }
 
-    public function test_an_api_key_starts_discovery_and_the_answer_names_the_run_and_the_card(): void
+    public function test_an_api_key_starts_discovery_and_the_answer_names_the_run(): void
     {
         [$owner, $project] = $this->readyProject('discovery-api-start');
         $this->send($project, ApiKeyCredential::mint(static::getContainer(), $owner));
 
         self::assertResponseStatusCodeSame(201);
         $body = $this->json();
-        self::assertSame(['runId', 'cardId', 'cardNumber', 'state', 'url'], array_keys($body));
+        self::assertSame(['runId', 'state', 'url'], array_keys($body));
         PublicSpec::assertMatches('DiscoveryStartResult', $body);
         self::assertSame('requested', $body['state']);
 
         $runs = $this->runs($project);
         self::assertCount(1, $runs);
         self::assertSame($body['runId'], (string) $runs[0]->id);
-        self::assertSame($body['cardId'], (string) $runs[0]->card->id);
-        self::assertSame($body['cardNumber'], $runs[0]->card->number);
         self::assertSame(DiscoveryRunState::Requested, $runs[0]->state);
-        self::assertSame(Actor::ApiKey, $runs[0]->card->reporter);
+        self::assertNull($runs[0]->card);
 
         $match = PageLink::match(static::getContainer(), $body['url']);
         self::assertSame('app_project_workshop', $match['_route']);
         self::assertSame((string) $project->id, $match['id']);
-        $location = (string) $this->client->getResponse()->headers->get('Location');
-        self::assertStringEndsWith('/api/v1/projects/'.$project->id.'/cards/'.$body['cardNumber'], $location);
+        self::assertStringEndsWith('/api/v1/projects/'.$project->id.'/readiness', (string) $this->client->getResponse()->headers->get('Location'));
         self::assertTrue($this->client->getResponse()->headers->has('RateLimit-Limit'));
     }
 
-    public function test_a_cli_sign_in_starts_discovery_as_a_person(): void
+    public function test_a_cli_sign_in_starts_discovery(): void
     {
         [$owner, $project] = $this->readyProject('discovery-api-cli');
         $this->send($project, AgentCredential::tokenFor(static::getContainer(), $owner, 'public'));
 
         self::assertResponseStatusCodeSame(201);
-        self::assertSame(Actor::Human, $this->runs($project)[0]->card->reporter);
+        self::assertCount(1, $this->runs($project));
     }
 
-    public function test_a_second_start_while_a_run_is_open_conflicts_and_names_the_card(): void
+    public function test_a_second_start_while_a_run_is_open_conflicts_and_names_the_run(): void
     {
         [$owner, $project] = $this->readyProject('discovery-api-twice');
         $token = ApiKeyCredential::mint(static::getContainer(), $owner);
         $this->send($project, $token);
         self::assertResponseStatusCodeSame(201);
-        $number = $this->json()['cardNumber'];
+        $runId = $this->json()['runId'];
 
         $this->send($project, $token);
 
         self::assertResponseStatusCodeSame(409);
         self::assertSame('discovery_running', $this->json()['code']);
-        self::assertSame($number, $this->json()['cardNumber']);
+        self::assertSame($runId, $this->json()['runId']);
         self::assertCount(1, $this->runs($project));
     }
 

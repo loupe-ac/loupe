@@ -25,6 +25,8 @@ final readonly class ShowWorkshopView
         public array $connections,
         /** Null once the owner hides the guide. */
         public ?WorkshopReadiness $readiness,
+        /** A discovery run waits for a worker. It is set for every viewer, with or without the guide. */
+        public bool $discoveryRunning,
         /** Nobody waits on the owner and no card is in motion. */
         public bool $quiet,
     ) {

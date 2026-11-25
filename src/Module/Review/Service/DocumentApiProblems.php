@@ -9,6 +9,7 @@ use App\Api\Problem\ApiProblemException;
 use App\Exception\DomainErrors;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Mcp\ToolCallErrorMessages;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 /** Turns what a document handler refuses with into the coded problems of the public API. */
 final readonly class DocumentApiProblems
@@ -60,6 +61,11 @@ final readonly class DocumentApiProblems
         'comment.error.reply_to_reply' => ['body', 'reply_to_reply'],
     ];
 
+    public function __construct(
+        private TranslatorInterface $translator,
+    ) {
+    }
+
     public static function documentNotFound(): ApiProblemException
     {
         return new ApiProblemException(new ApiProblem(404, 'document_not_found', 'Document not found', 'This project has no document with this id.'));
@@ -106,10 +112,17 @@ final readonly class DocumentApiProblems
     /**
      * The first refusal that is a conflict or a missing thing decides the answer. Any other refusal is a field
      * the client can correct, and they leave together as one list. A refusal that no code
-     * covers stays a DomainErrors, so it is logged as a failure.
+     * covers stays a DomainErrors, so it is logged as a failure. A refusal of a guard has one code
+     * for every key, and the English text of its key is the detail.
      */
     public function from(DomainErrors $errors): ApiProblemException|DomainErrors
     {
+        if ($errors->fromGuard) {
+            $detail = ToolCallErrorMessages::guardSentence($this->translator, array_first($errors->errors));
+
+            return new ApiProblemException(new ApiProblem(409, 'verdict_refused', 'Verdict refused', $detail), $errors);
+        }
+
         $fields = [];
         foreach ($errors->errors as $field => $key) {
             $sentence = ToolCallErrorMessages::sentence($key, $errors->parameters[$field] ?? []);

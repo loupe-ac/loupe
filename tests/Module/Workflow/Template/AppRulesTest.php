@@ -16,6 +16,7 @@ use App\Module\Workflow\Contract\TemplateMetric;
 use App\Module\Workflow\Contract\TemplateOutcome;
 use App\Module\Workflow\Contract\TemplateSetting;
 use App\Module\Workflow\Contract\TemplateValueKey;
+use App\Module\Workflow\Template\AppRequest;
 use App\Module\Workflow\Template\AppRules;
 use App\Module\Workflow\Template\InvalidTemplate;
 use App\Module\Workflow\Template\Rule;
@@ -42,28 +43,37 @@ final class AppRulesTest extends KernelTestCase
         parent::tearDown();
     }
 
-    public function test_the_shipped_file_holds_the_discovery_site_review_and_agent_review_rules(): void
+    public function test_the_shipped_file_holds_the_site_review_and_agent_review_rules(): void
     {
         $rules = $this->shippedAppRules()->rules();
 
-        self::assertSame(['discovery', 'discovery-revise', 'discovery-approved', 'post-widget-review', 'sync-site-review-check', 'sync-agent-review-check', 'comment-agent-review'], array_map(static fn (Rule $rule): string => $rule->id, $rules));
+        self::assertSame(['post-widget-review', 'sync-site-review-check', 'sync-agent-review-check', 'comment-agent-review'], array_map(static fn (Rule $rule): string => $rule->id, $rules));
         self::assertSame(RuleOrigin::App, $rules[0]->origin);
-        self::assertSame('@backlog', $rules[0]->slot);
-        self::assertSame(['kind' => 'discovery', 'onNoTaker' => 'fail', 'prompt' => 'discovery'], $rules[0]->lead->params);
-        self::assertSame('@backlog', $rules[1]->slot);
-        self::assertSame(['kind' => 'discovery-revise', 'onNoTaker' => 'fail', 'prompt' => 'discovery-revise'], $rules[1]->lead->params);
-        self::assertSame('@backlog', $rules[2]->slot);
-        self::assertSame(['to' => '@terminal'], $rules[2]->lead->params);
+        self::assertNull($rules[0]->slot);
+        self::assertSame(['write' => 'post-review'], $rules[0]->lead->params);
+        self::assertNull($rules[1]->slot);
+        self::assertSame(['write' => 'site-review-check'], $rules[1]->lead->params);
+        self::assertNull($rules[2]->slot);
+        self::assertSame(['write' => 'agent-review-check'], $rules[2]->lead->params);
         self::assertNull($rules[3]->slot);
-        self::assertSame(['write' => 'post-review'], $rules[3]->lead->params);
-        self::assertNull($rules[4]->slot);
-        self::assertSame(['write' => 'site-review-check'], $rules[4]->lead->params);
-        self::assertNull($rules[5]->slot);
-        self::assertSame(['write' => 'agent-review-check'], $rules[5]->lead->params);
-        self::assertNull($rules[6]->slot);
-        self::assertSame(['write' => 'comment', 'comment' => 'agent-review'], $rules[6]->lead->params);
-        self::assertSame(file_get_contents(\dirname(__DIR__, 4).'/config/workflows/app/prompts/discovery.md'), $this->shippedAppRules()->prompt('discovery'));
-        self::assertSame(file_get_contents(\dirname(__DIR__, 4).'/config/workflows/app/prompts/discovery-revise.md'), $this->shippedAppRules()->prompt('discovery-revise'));
+        self::assertSame(['write' => 'comment', 'comment' => 'agent-review'], $rules[3]->lead->params);
+    }
+
+    /** A discovery run and its revision are work about a run, so both prompts name the subject and no card. */
+    public function test_the_shipped_file_holds_the_discovery_requests(): void
+    {
+        $requests = array_column(array_map(static fn (AppRequest $request): array => [$request->id, $request], $this->shippedAppRules()->requests()), 1, 0);
+
+        foreach (['discovery', 'discovery-revise'] as $name) {
+            self::assertArrayHasKey($name, $requests);
+            self::assertSame([$name, $name], [$requests[$name]->kind, $requests[$name]->prompt]);
+            self::assertCount(2, $requests[$name]->checks);
+            $prompt = $this->shippedAppRules()->prompt($name);
+            self::assertSame(file_get_contents(\dirname(__DIR__, 4).'/config/workflows/app/prompts/'.$name.'.md'), $prompt);
+            self::assertStringStartsWith('Run discovery {subjectId} of project {project} (projectId {projectId}).', $prompt);
+            // A bridge refuses a card placeholder in the prompt of work that names no card.
+            self::assertStringNotContainsString('{card', $prompt);
+        }
     }
 
     public function test_the_shipped_file_names_the_slot_of_the_proposal_cards(): void
@@ -80,7 +90,7 @@ final class AppRulesTest extends KernelTestCase
     {
         $requests = $this->shippedAppRules()->requests();
 
-        self::assertCount(1, $requests);
+        self::assertSame(['insights.analysis', 'discovery', 'discovery-revise'], array_map(static fn (AppRequest $request): string => $request->id, $requests));
         self::assertSame(['insights.analysis', 'analysis', 'analysis'], [$requests[0]->id, $requests[0]->kind, $requests[0]->prompt]);
         self::assertCount(2, $requests[0]->checks);
         self::assertSame(file_get_contents(\dirname(__DIR__, 4).'/config/workflows/app/prompts/analysis.md'), $this->shippedAppRules()->prompt('analysis'));

@@ -13,9 +13,7 @@ import (
 // parser is tolerant: a field the server omits stays at its zero value, and
 // the answer may sit under a top-level data key.
 type Discovery struct {
-	RunID      string
-	CardNumber int
-	CardID     string
+	RunID string
 	// URL is the Workshop page of the project, where the discovery row opens
 	// the report once the worker has written it.
 	URL string
@@ -75,11 +73,5 @@ func parseDiscovery(body []byte) Discovery {
 
 		return ""
 	}
-	d := Discovery{RunID: str("runId"), CardID: str("cardId"), URL: str("url")}
-	var n int
-	if json.Unmarshal(raw["cardNumber"], &n) == nil {
-		d.CardNumber = n
-	}
-
-	return d
+	return Discovery{RunID: str("runId"), URL: str("url")}
 }

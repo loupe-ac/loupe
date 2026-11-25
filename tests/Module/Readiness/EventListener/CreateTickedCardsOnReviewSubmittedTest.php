@@ -8,11 +8,10 @@ use App\Exception\DomainErrors;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardSourceKind;
 use App\Module\Board\Repository\CardRepository;
-use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\ValueObject\WorkRequestState;
-use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Project\Entity\Project;
-use App\Module\Readiness\Command\FailDiscoveryRunHandler;
+use App\Module\Readiness\Command\CancelDiscoveryCommand;
+use App\Module\Readiness\Command\CancelDiscoveryHandler;
 use App\Module\Readiness\Command\ReportFinding;
 use App\Module\Readiness\Command\ReportProposal;
 use App\Module\Readiness\Command\SubmitReadinessReportCommand;
@@ -33,12 +32,10 @@ use App\Module\Review\Entity\DocumentStatus;
 use App\Module\Review\Entity\Review;
 use App\Module\Review\Event\ReviewSubmitted;
 use App\Module\Workflow\Contract\Actor;
-use App\Module\Workflow\Messenger\EvaluateCard;
 use App\Module\Workflow\Repository\WorkflowSlotLinkRepository;
 use App\Tests\Module\Readiness\DiscoveryScenario;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
-use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 final class CreateTickedCardsOnReviewSubmittedTest extends KernelTestCase
 {
@@ -55,7 +52,7 @@ final class CreateTickedCardsOnReviewSubmittedTest extends KernelTestCase
         self::bootKernel();
         $this->project = $this->workflowProject('ticked-cards');
         $this->bindLifecycle($this->project);
-        $this->run = $this->discoveryRun($this->discoveryCard($this->project));
+        $this->run = $this->discoveryRun($this->project);
         $handler = self::getContainer()->get(SubmitReadinessReportHandler::class);
         self::assertInstanceOf(SubmitReadinessReportHandler::class, $handler);
         $this->report = $handler(new SubmitReadinessReportCommand(
@@ -66,7 +63,7 @@ final class CreateTickedCardsOnReviewSubmittedTest extends KernelTestCase
             proposals: [
                 new ReportProposal('tests', 'Add tests', 'feature', 'Write the first tests.'),
                 new ReportProposal('docs', 'Write docs', 'docs', 'Write a README.'),
-                new ReportProposal('ci', 'Add CI', 'tooling', 'Covered.', $this->discoveryCard($this->project, 'next')->number),
+                new ReportProposal('ci', 'Add CI', 'tooling', 'Covered.', $this->card($this->project, 'next')->number),
                 new ReportProposal('lint', 'Add a linter', 'tooling', 'Lint it.'),
             ],
         ));
@@ -102,19 +99,6 @@ final class CreateTickedCardsOnReviewSubmittedTest extends KernelTestCase
         self::assertSame(DiscoveryRunState::Done, $this->run->state);
     }
 
-    public function test_an_approval_leaves_the_discovery_card_in_place_and_queues_its_evaluation(): void
-    {
-        $this->answerWithNote();
-        $column = $this->run->card->column;
-        $this->transport()->reset();
-
-        $this->approve();
-
-        self::assertSame($column, $this->run->card->column);
-        self::assertFalse($this->run->card->column->terminal);
-        self::assertContains((string) $this->run->card->id, array_map(static fn ($envelope): ?string => ($message = $envelope->getMessage()) instanceof EvaluateCard ? $message->cardId : null, $this->transport()->getSent()));
-    }
-
     public function test_a_changes_requested_verdict_creates_no_card_and_sends_the_run_to_revising(): void
     {
         $this->tick(0);
@@ -123,15 +107,14 @@ final class CreateTickedCardsOnReviewSubmittedTest extends KernelTestCase
 
         self::assertSame([], $this->createdCards());
         self::assertSame(DiscoveryRunState::Revising, $this->run->state);
-        self::assertFalse($this->run->card->column->terminal);
     }
 
     public function test_an_approval_during_a_revision_wins_and_makes_the_cards_of_the_approved_version(): void
     {
         $this->tick(0, 2);
         $requested = $this->submitVerdict('changes-requested', 'Not yet.');
-        $request = new WorkRequest($this->project, WorkSubject::CARD, $this->run->card->id ?? throw new \LogicException('Stored.'), $this->run->card->number, 'discovery-revise', 'discovery-revise', FailDiscoveryRunHandler::REVISE_RULE_ID, new \DateTimeImmutable());
-        $this->em()->persist($request);
+        $request = $this->discoveryRequest($this->run, 'discovery-revise');
+        $this->run->workRequestId = $request->id;
         $this->em()->flush();
         self::assertSame(DiscoveryRunState::Revising, $this->run->state);
 
@@ -139,8 +122,24 @@ final class CreateTickedCardsOnReviewSubmittedTest extends KernelTestCase
 
         self::assertSame(['Add tests', 'Add a linter'], array_map(static fn (Card $card): string => $card->title, $this->createdCards()));
         self::assertSame(DiscoveryRunState::Done, $this->run->state);
-        self::assertFalse($this->run->card->column->terminal);
         self::assertSame(WorkRequestState::Cancelled, $request->state);
+    }
+
+    public function test_an_approval_after_a_cancelled_revision_creates_no_card(): void
+    {
+        $this->tick(0, 2);
+        $requested = $this->submitVerdict('changes-requested', 'Not yet.');
+        $cancel = self::getContainer()->get(CancelDiscoveryHandler::class);
+        self::assertInstanceOf(CancelDiscoveryHandler::class, $cancel);
+        $cancel(new CancelDiscoveryCommand($this->project, $this->project->owner));
+        self::assertSame(DiscoveryRunState::Failed, $this->run->state);
+
+        $this->approve(previous: $requested);
+
+        // The verdict itself is accepted, so the empty list comes from the listener.
+        self::assertSame(DocumentStatus::Approved, $this->report->status);
+        self::assertSame([], $this->createdCards());
+        self::assertSame(DiscoveryRunState::Failed, $this->run->state);
     }
 
     public function test_a_revision_that_submits_after_the_approval_is_refused(): void
@@ -231,7 +230,7 @@ final class CreateTickedCardsOnReviewSubmittedTest extends KernelTestCase
     public function test_a_project_with_no_next_slot_sends_the_cards_to_the_backlog(): void
     {
         $project = $this->workflowProject('ticked-cards-no-slot');
-        $run = $this->discoveryRun($this->discoveryCard($project));
+        $run = $this->discoveryRun($project);
         $handler = self::getContainer()->get(SubmitReadinessReportHandler::class);
         self::assertInstanceOf(SubmitReadinessReportHandler::class, $handler);
         $report = $handler(new SubmitReadinessReportCommand($project, (string) $run->id, 'none', [], [new ReportProposal('a', 'Add a thing', 'idea', 'Do it.')]));
@@ -263,14 +262,6 @@ final class CreateTickedCardsOnReviewSubmittedTest extends KernelTestCase
         $save = self::getContainer()->get(SaveDecisionAnswerHandler::class);
         self::assertInstanceOf(SaveDecisionAnswerHandler::class, $save);
         $save(new SaveDecisionAnswerCommand($this->report, 'proposals', 1, [], 'None of these yet.', false, $this->project->owner));
-    }
-
-    private function transport(): InMemoryTransport
-    {
-        $transport = self::getContainer()->get('messenger.transport.card_eval');
-        self::assertInstanceOf(InMemoryTransport::class, $transport);
-
-        return $transport;
     }
 
     private function tick(int ...$positions): void

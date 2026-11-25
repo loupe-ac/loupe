@@ -19,17 +19,14 @@ final class DiscoveryRunRepositoryTest extends KernelTestCase
 {
     use DiscoveryScenario;
 
-    public function test_the_latest_run_of_a_card_is_the_newest_one_of_that_card(): void
+    public function test_two_runs_of_the_same_second_order_by_id(): void
     {
         self::bootKernel();
-        $project = $this->workflowProject('discovery-latest-card');
-        $card = $this->discoveryCard($project);
-        $other = $this->discoveryCard($project);
-        $this->discoveryRun($card, DiscoveryRunState::Failed, '2026-10-02 10:00:00');
-        $latest = $this->discoveryRun($card, DiscoveryRunState::Requested, '2026-10-02 11:00:00');
-        $this->discoveryRun($other, DiscoveryRunState::Requested, '2026-10-02 12:00:00');
+        $project = $this->workflowProject('discovery-tie');
+        $this->discoveryRun($project, DiscoveryRunState::Failed);
+        $second = $this->discoveryRun($project);
 
-        self::assertSame($latest, $this->repository()->latestForCard($card->id ?? throw new \LogicException('A flushed card has an id.')));
+        self::assertSame($second, $this->repository()->latestForProject($project));
     }
 
     public function test_only_a_latest_run_that_did_not_fail_counts_as_started(): void
@@ -40,12 +37,12 @@ final class DiscoveryRunRepositoryTest extends KernelTestCase
         $retried = $this->workflowProject('discovery-started-retried');
         $failedAgain = $this->workflowProject('discovery-started-failed-again');
         $outside = $this->workflowProject('discovery-started-outside');
-        $this->discoveryRun($this->discoveryCard($failed), DiscoveryRunState::Failed);
-        $this->discoveryRun($this->discoveryCard($retried), DiscoveryRunState::Failed, '2026-10-02 10:00:00');
-        $this->discoveryRun($this->discoveryCard($retried), DiscoveryRunState::Reported, '2026-10-02 11:00:00');
-        $this->discoveryRun($this->discoveryCard($failedAgain), DiscoveryRunState::Done, '2026-10-02 10:00:00');
-        $this->discoveryRun($this->discoveryCard($failedAgain), DiscoveryRunState::Failed, '2026-10-02 11:00:00');
-        $this->discoveryRun($this->discoveryCard($outside), DiscoveryRunState::Done);
+        $this->discoveryRun($failed, DiscoveryRunState::Failed);
+        $this->discoveryRun($retried, DiscoveryRunState::Failed, '2026-10-02 10:00:00');
+        $this->discoveryRun($retried, DiscoveryRunState::Reported, '2026-10-02 11:00:00');
+        $this->discoveryRun($failedAgain, DiscoveryRunState::Done, '2026-10-02 10:00:00');
+        $this->discoveryRun($failedAgain, DiscoveryRunState::Failed, '2026-10-02 11:00:00');
+        $this->discoveryRun($outside, DiscoveryRunState::Done);
 
         $ids = array_map(static fn (Project $project): Uuid => $project->id ?? throw new \LogicException('A flushed project has an id.'), [$none, $failed, $retried, $failedAgain]);
 
@@ -53,31 +50,13 @@ final class DiscoveryRunRepositoryTest extends KernelTestCase
         self::assertSame([], $this->repository()->findProjectIdsWithDiscoveryStarted([]));
     }
 
-    public function test_a_card_with_no_run_has_no_latest_run(): void
-    {
-        self::bootKernel();
-        $card = $this->discoveryCard($this->workflowProject('discovery-none'));
-
-        self::assertNull($this->repository()->latestForCard($card->id ?? throw new \LogicException('A flushed card has an id.')));
-    }
-
-    public function test_two_runs_of_the_same_second_order_by_id(): void
-    {
-        self::bootKernel();
-        $card = $this->discoveryCard($this->workflowProject('discovery-tie'));
-        $this->discoveryRun($card, DiscoveryRunState::Failed);
-        $second = $this->discoveryRun($card);
-
-        self::assertSame($second, $this->repository()->latestForCard($card->id ?? throw new \LogicException('A flushed card has an id.')));
-    }
-
     public function test_the_latest_run_of_a_project_spans_its_cards_and_ignores_other_projects(): void
     {
         self::bootKernel();
         $project = $this->workflowProject('discovery-latest-project');
-        $this->discoveryRun($this->discoveryCard($project), DiscoveryRunState::Failed, '2026-10-02 10:00:00');
-        $latest = $this->discoveryRun($this->discoveryCard($project), DiscoveryRunState::Requested, '2026-10-02 11:00:00');
-        $this->discoveryRun($this->discoveryCard($this->workflowProject('discovery-elsewhere')), DiscoveryRunState::Requested, '2026-10-02 12:00:00');
+        $this->discoveryRun($project, DiscoveryRunState::Failed, '2026-10-02 10:00:00');
+        $latest = $this->discoveryRun($project, DiscoveryRunState::Requested, '2026-10-02 11:00:00');
+        $this->discoveryRun($this->workflowProject('discovery-elsewhere'), DiscoveryRunState::Requested, '2026-10-02 12:00:00');
 
         self::assertSame($latest, $this->repository()->latestForProject($project));
         self::assertNull($this->repository()->latestForProject($this->workflowProject('discovery-empty')));
@@ -87,20 +66,21 @@ final class DiscoveryRunRepositoryTest extends KernelTestCase
     {
         self::bootKernel();
         $project = $this->workflowProject('discovery-requested');
-        $first = $this->discoveryRun($this->discoveryCard($project), DiscoveryRunState::Requested, '2026-10-02 10:00:00');
-        $this->discoveryRun($this->discoveryCard($project), DiscoveryRunState::Failed, '2026-10-02 10:30:00');
-        $this->discoveryRun($this->discoveryCard($project), DiscoveryRunState::Reported, '2026-10-02 10:40:00');
-        $second = $this->discoveryRun($this->discoveryCard($project), DiscoveryRunState::Requested, '2026-10-02 11:00:00');
-        $this->discoveryRun($this->discoveryCard($this->workflowProject('discovery-other')));
+        $first = $this->discoveryRun($project, DiscoveryRunState::Requested, '2026-10-02 10:00:00');
+        $this->discoveryRun($project, DiscoveryRunState::Failed, '2026-10-02 10:30:00');
+        $this->discoveryRun($project, DiscoveryRunState::Reported, '2026-10-02 10:40:00');
+        $second = $this->discoveryRun($project, DiscoveryRunState::Requested, '2026-10-02 11:00:00');
+        $this->discoveryRun($this->workflowProject('discovery-other'));
 
         self::assertSame([$first, $second], $this->repository()->findRequestedForProject($project));
     }
 
-    public function test_a_deleted_card_takes_its_runs_with_it(): void
+    public function test_a_deleted_card_takes_the_runs_that_had_it(): void
     {
         self::bootKernel();
-        $card = $this->discoveryCard($this->workflowProject('discovery-card-deleted'));
-        $run = $this->discoveryRun($card);
+        $project = $this->workflowProject('discovery-card-deleted');
+        $card = $this->card($project);
+        $run = $this->discoveryRun($project, card: $card);
         $runId = $run->id;
 
         $this->em()->getConnection()->executeStatement('DELETE FROM board_cards WHERE id = :id', ['id' => (string) $card->id]);
@@ -113,7 +93,7 @@ final class DiscoveryRunRepositoryTest extends KernelTestCase
     {
         $at = new \DateTimeImmutable('2026-10-02 13:00:00');
         self::bootKernel();
-        $run = $this->discoveryRun($this->discoveryCard($this->workflowProject('discovery-fail')));
+        $run = $this->discoveryRun($this->workflowProject('discovery-fail'));
 
         self::assertTrue($run->fail('no-taker', $at));
         self::assertSame([DiscoveryRunState::Failed, 'no-taker', $at], [$run->state, $run->failureReason, $run->endedAt]);
@@ -121,7 +101,7 @@ final class DiscoveryRunRepositoryTest extends KernelTestCase
         self::assertFalse($run->fail('lost', new \DateTimeImmutable('2026-10-02 14:00:00')));
         self::assertSame(['no-taker', $at], [$run->failureReason, $run->endedAt]);
 
-        $reported = $this->discoveryRun($this->discoveryCard($run->project), DiscoveryRunState::Reported);
+        $reported = $this->discoveryRun($run->project, DiscoveryRunState::Reported);
         self::assertFalse($reported->fail('lost', $at));
         self::assertSame([DiscoveryRunState::Reported, null, null], [$reported->state, $reported->failureReason, $reported->endedAt]);
     }
@@ -130,8 +110,8 @@ final class DiscoveryRunRepositoryTest extends KernelTestCase
     {
         self::bootKernel();
         $project = $this->workflowProject('discovery-by-report');
-        $run = $this->discoveryRun($this->discoveryCard($project), DiscoveryRunState::Reported);
-        $other = $this->discoveryRun($this->discoveryCard($project), DiscoveryRunState::Reported);
+        $run = $this->discoveryRun($project, DiscoveryRunState::Reported);
+        $other = $this->discoveryRun($project, DiscoveryRunState::Reported);
         $document = new Document($project->owner, $project, 'Report');
         $document->addVersion('x', '<p>x</p>');
         $this->em()->persist($document);
@@ -151,20 +131,20 @@ final class DiscoveryRunRepositoryTest extends KernelTestCase
     {
         self::bootKernel();
         $project = $this->workflowProject('discovery-fresh');
-        $run = $this->discoveryRun($this->discoveryCard($project));
-        self::assertSame(['state' => DiscoveryRunState::Requested, 'hasReport' => false], $this->repository()->freshStateOf($run));
+        $run = $this->discoveryRun($project);
+        self::assertSame(['state' => DiscoveryRunState::Requested, 'hasReport' => false, 'workRequestId' => null, 'answeredWorkRequestIds' => []], $this->repository()->freshStateOf($run));
 
-        $this->em()->getConnection()->executeStatement("UPDATE discovery_runs SET state = 'failed' WHERE id = :id", ['id' => (string) $run->id]);
+        $this->em()->getConnection()->executeStatement("UPDATE discovery_runs SET state = 'failed', answered_work_request_ids = '[\"a\"]' WHERE id = :id", ['id' => (string) $run->id]);
 
         self::assertSame(DiscoveryRunState::Requested, $run->state);
-        self::assertSame(['state' => DiscoveryRunState::Failed, 'hasReport' => false], $this->repository()->freshStateOf($run));
+        self::assertSame(['state' => DiscoveryRunState::Failed, 'hasReport' => false, 'workRequestId' => null, 'answeredWorkRequestIds' => ['a']], $this->repository()->freshStateOf($run));
     }
 
     public function test_the_proposals_of_a_run_list_in_tick_box_order_with_the_covered_ones_last(): void
     {
         self::bootKernel();
-        $run = $this->discoveryRun($this->discoveryCard($this->workflowProject('discovery-proposals')));
-        $other = $this->discoveryRun($this->discoveryCard($run->project));
+        $run = $this->discoveryRun($this->workflowProject('discovery-proposals'));
+        $other = $this->discoveryRun($run->project);
         foreach ([['c', null], ['b', 1], ['a', 0]] as [$key, $position]) {
             $this->em()->persist(new DiscoveryProposal($run, $position, $key, $key, 'docs', ''));
         }

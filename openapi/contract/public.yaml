@@ -1742,7 +1742,7 @@ paths:
         '405':
           $ref: '#/components/responses/E405MethodNotAllowed'
         '409':
-          $ref: '#/components/responses/E409VerdictStaleVerdictChangedDecisionsUnansweredAnd2More'
+          $ref: '#/components/responses/E409VerdictStaleVerdictChangedDecisionsUnansweredAnd3More'
         '415':
           $ref: '#/components/responses/E415UnsupportedMediaType'
         '422':
@@ -2955,16 +2955,16 @@ paths:
       summary: Start a discovery run
       tags:
       - Discovery
-      description: Loupe adds a tooling card to Backlog, and a bridge that serves the project runs a read-only worker on it. The
-        worker checks the repository and the workflow, and writes a readiness report that lists what remains and who acts. The
-        request takes no body. `url` is the Workshop page of the project, whose discovery row opens the report once the worker
-        has written it. `Location` names the card.
+      description: A bridge that serves the project runs a read-only worker. The worker checks the repository and the workflow,
+        and writes a readiness report that lists what remains and who acts. The request takes no body. `url` is the Workshop
+        page of the project, whose discovery row opens the report once the worker has written it. `Location` names the
+        readiness checks of the project, whose `discovery` is the new run.
       parameters:
       - $ref: '#/components/parameters/Project'
       - $ref: '#/components/parameters/IdempotencyKey'
       responses:
         '201':
-          description: The new discovery run and its card.
+          description: The new discovery run.
           headers:
             RateLimit-Limit:
               $ref: '#/components/headers/RateLimit-Limit'
@@ -7420,8 +7420,6 @@ components:
       type: object
       required:
       - runId
-      - cardId
-      - cardNumber
       - state
       - url
       properties:
@@ -7429,14 +7427,6 @@ components:
           type: string
           description: The id of the discovery run.
           format: uuid
-        cardId:
-          type: string
-          description: The id of the discovery card.
-          format: uuid
-        cardNumber:
-          type: integer
-          description: The number of the discovery card.
-          minimum: 1
         state:
           type: string
           description: The state of the run. A new run is `requested`.
@@ -10613,19 +10603,13 @@ components:
           type: string
     ReadinessDiscovery:
       type: object
-      required: [runId, state, cardId, cardNumber, reason, createdAt]
+      required: [runId, state, reason, createdAt]
       properties:
         runId:
           type: string
           format: uuid
         state:
           type: string
-        cardId:
-          type: string
-          format: uuid
-        cardNumber:
-          type: integer
-          minimum: 1
         reason:
           type: string
           nullable: true
@@ -12010,7 +11994,7 @@ components:
         title: No capable bridge
         status: 409
         code: no_capable_bridge
-        detail: A bridge is online, but none can run discovery. Map the discovery kind in the bridge rule file, or set appPrompts to true, then run discovery again.
+        detail: 'A bridge is online, but none can run discovery. Map the discovery kind with subject: discovery in the bridge rule file, or set appPrompts to true, then run discovery again.'
     BridgePaused:
       summary: bridge_paused
       value:
@@ -12042,8 +12026,8 @@ components:
         title: Discovery running
         status: 409
         code: discovery_running
-        detail: Discovery already runs on card #12. Wait until that run ends.
-        cardNumber: 12
+        detail: Discovery already runs. Wait until that run ends.
+        runId: 0197a8e2-4c1b-7d3a-9f60-5b2e8c1a4d07
     AlreadyPaused:
       summary: already_paused
       value:
@@ -12156,6 +12140,14 @@ components:
         status: 409
         code: decisions_unanswered
         detail: One or more decisions have no answer yet. Answer them first, or request changes.
+    VerdictRefused:
+      summary: verdict_refused
+      value:
+        type: https://loupe.ac/docs/reference/api/errors#verdict_refused
+        title: Verdict refused
+        status: 409
+        code: verdict_refused
+        detail: A sentence that says why the rule refused the verdict.
     VerdictNone:
       summary: verdict_none
       value:
@@ -13219,8 +13211,8 @@ components:
               $ref: '#/components/examples/VerdictChanged'
             decisions_unanswered:
               $ref: '#/components/examples/DecisionsUnanswered'
-    E409VerdictStaleVerdictChangedDecisionsUnansweredAnd2More:
-      description: 'Refused: `verdict_stale`, `verdict_changed`, `decisions_unanswered`, `idempotency_key_reused`, `idempotency_in_progress`.'
+    E409VerdictStaleVerdictChangedDecisionsUnansweredAnd3More:
+      description: 'Refused: `verdict_stale`, `verdict_changed`, `decisions_unanswered`, `verdict_refused`, `idempotency_key_reused`, `idempotency_in_progress`.'
       headers:
         RateLimit-Limit:
           $ref: '#/components/headers/RateLimit-Limit'
@@ -13239,6 +13231,8 @@ components:
               $ref: '#/components/examples/VerdictChanged'
             decisions_unanswered:
               $ref: '#/components/examples/DecisionsUnanswered'
+            verdict_refused:
+              $ref: '#/components/examples/VerdictRefused'
             idempotency_key_reused:
               $ref: '#/components/examples/IdempotencyKeyReused'
             idempotency_in_progress:

@@ -13,22 +13,29 @@ use App\Module\Review\Entity\DocumentStatus;
 use App\Module\Review\Entity\Review;
 use App\Module\Review\Entity\Verdict;
 use App\Module\Review\Mcp\DocumentDecisionAnswerTool;
+use App\Module\Review\Mcp\DocumentToolErrors;
 use App\Module\Review\Mcp\DocumentVerdictSubmitTool;
 use App\Module\Review\Mcp\DocumentVerdictWithdrawTool;
+use App\Module\Review\Mcp\ReviewSubjectResolver;
 use App\Module\Review\Repository\ReviewRepository;
 use App\Module\Review\ReviewEventType;
+use App\Module\Review\Service\WorkerSession;
 use App\Outbox\Repository\OutboxEventRepository;
 use App\Tests\Module\Board\BoardColumnFixtures;
+use App\Tests\Module\Review\Support\BuildsGuardedSubmitReview;
+use App\Tests\Module\Review\Support\StubVerdictGuard;
 use App\Tests\Support\McpTokenScenario;
 use App\Tests\Support\RecordingAuditor;
 use Mcp\Exception\ToolCallException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Uid\Uuid;
 
 final class DocumentVerdictToolsTest extends KernelTestCase
 {
     use BoardColumnFixtures;
+    use BuildsGuardedSubmitReview;
     use DecisionDocumentScenario;
     use McpTokenScenario;
 
@@ -113,6 +120,25 @@ final class DocumentVerdictToolsTest extends KernelTestCase
         $this->expectException(ToolCallException::class);
         $this->expectExceptionMessage('verdict: 2 decisions have no answer yet. Answer them with document_decision_answer first, or request changes.');
         ($this->submit)((string) $document->id, 1, 'approved', null);
+    }
+
+    public function test_a_verdict_that_a_guard_refuses_gives_the_agent_the_sentence_of_the_guard(): void
+    {
+        $document = $this->decisionDocument();
+        $this->actAsMcpTokenBoundTo($document->project);
+        $workers = self::getContainer()->get(WorkerSession::class);
+        self::assertInstanceOf(WorkerSession::class, $workers);
+        $subjects = self::getContainer()->get(ReviewSubjectResolver::class);
+        self::assertInstanceOf(ReviewSubjectResolver::class, $subjects);
+        $errors = self::getContainer()->get(DocumentToolErrors::class);
+        self::assertInstanceOf(DocumentToolErrors::class, $errors);
+        $security = self::getContainer()->get(Security::class);
+        self::assertInstanceOf(Security::class, $security);
+        $submit = new DocumentVerdictSubmitTool($subjects, $workers, $this->guardedSubmitReview(new StubVerdictGuard('inbox.review.error.not_a_review')), $errors, $security);
+
+        $this->expectException(ToolCallException::class);
+        $this->expectExceptionMessage('verdict: This request does not accept a review verdict.');
+        $submit((string) $document->id, 1, 'changes-requested', null, 'Rework it.');
     }
 
     public function test_a_stale_version_names_the_newer_version_for_a_submit(): void

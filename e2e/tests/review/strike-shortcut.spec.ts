@@ -95,46 +95,49 @@ async function openReview(
  * the helper in review-loop.spec.ts.
  */
 async function selectKnownPhrase(page: Page): Promise<void> {
-    await page.evaluate((phrase: string) => {
-        const docEl = document.querySelector(
-            '[data-comment-anchor-target="doc"]',
-        );
-        if (!docEl) throw new Error('doc target not found');
+    // comment-anchor is a lazy controller, so a selection before it connects shows no toolbar.
+    await expect(async () => {
+        await page.evaluate((phrase: string) => {
+            const docEl = document.querySelector(
+                '[data-comment-anchor-target="doc"]',
+            );
+            if (!docEl) throw new Error('doc target not found');
 
-        const walker = document.createTreeWalker(
-            docEl,
-            NodeFilter.SHOW_TEXT,
-            null,
-        );
-        let textNode: Text | null = null;
-        let nodeOffset = 0;
-        let node = walker.nextNode() as Text | null;
-        while (node !== null) {
-            const index = node.textContent?.indexOf(phrase) ?? -1;
-            if (index !== -1) {
-                textNode = node;
-                nodeOffset = index;
-                break;
+            const walker = document.createTreeWalker(
+                docEl,
+                NodeFilter.SHOW_TEXT,
+                null,
+            );
+            let textNode: Text | null = null;
+            let nodeOffset = 0;
+            let node = walker.nextNode() as Text | null;
+            while (node !== null) {
+                const index = node.textContent?.indexOf(phrase) ?? -1;
+                if (index !== -1) {
+                    textNode = node;
+                    nodeOffset = index;
+                    break;
+                }
+                node = walker.nextNode() as Text | null;
             }
-            node = walker.nextNode() as Text | null;
-        }
-        if (!textNode) throw new Error(`Phrase "${phrase}" not found`);
+            if (!textNode) throw new Error(`Phrase "${phrase}" not found`);
 
-        const range = document.createRange();
-        range.setStart(textNode, nodeOffset);
-        range.setEnd(textNode, nodeOffset + phrase.length);
+            const range = document.createRange();
+            range.setStart(textNode, nodeOffset);
+            range.setEnd(textNode, nodeOffset + phrase.length);
 
-        const selection = window.getSelection();
-        if (!selection) throw new Error('No selection object');
-        selection.removeAllRanges();
-        selection.addRange(range);
+            const selection = window.getSelection();
+            if (!selection) throw new Error('No selection object');
+            selection.removeAllRanges();
+            selection.addRange(range);
 
-        docEl.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
-    }, KNOWN_PHRASE);
+            docEl.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+        }, KNOWN_PHRASE);
 
-    await expect(page.locator(TOOLBAR)).toBeVisible({
-        timeout: coverageScaled(5000),
-    });
+        await expect(page.locator(TOOLBAR)).toBeVisible({
+            timeout: coverageScaled(1000),
+        });
+    }).toPass({ timeout: coverageScaled(15000) });
 }
 
 async function strikes(page: Page, documentId: string): Promise<ReviewState> {

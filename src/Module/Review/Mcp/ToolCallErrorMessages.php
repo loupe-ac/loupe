@@ -11,6 +11,7 @@ use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\Series;
 use App\Module\Review\Entity\Tag;
 use Mcp\Exception\ToolCallException;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
  * Renders a handler's DomainErrors as the message an agent reads.
@@ -27,6 +28,16 @@ use Mcp\Exception\ToolCallException;
 final readonly class ToolCallErrorMessages
 {
     public const string UNMAPPED = 'The request was rejected. The error has been logged.';
+
+    public const string GUARD_REFUSED = 'A rule of another part of the app refused this.';
+
+    /** The English message of the key of a guard. A key with no message gives a fixed sentence. */
+    public static function guardSentence(TranslatorInterface $translator, string $key): string
+    {
+        $sentence = $translator->trans($key, locale: 'en');
+
+        return $sentence === $key ? self::GUARD_REFUSED : $sentence;
+    }
 
     public function forAgent(DomainErrors $errors): ToolCallException
     {

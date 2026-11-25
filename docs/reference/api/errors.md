@@ -206,7 +206,7 @@ One or more decisions have no answer yet. Answer them first, or request changes.
 
 ### discovery_running
 
-A discovery run is open on this project. The answer holds `cardNumber`, the card of that run.
+A discovery run is open on this project. The answer holds `runId`, the id of that run.
 
 ### document_archived
 
@@ -327,6 +327,10 @@ The review changed since you read it. Read the review again, and pass its newest
 ### verdict_none
 
 The document has no verdict to withdraw.
+
+### verdict_refused
+
+A rule of another part of the app refused the verdict. The `detail` says why. The server records no verdict.
 
 ### verdict_stale
 

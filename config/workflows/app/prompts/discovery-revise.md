@@ -1,4 +1,4 @@
-Revise the discovery report for project {project} (projectId {projectId}). Card {cardNumber} (cardId {cardId}) tracks the discovery.
+Run discovery {subjectId} of project {project} (projectId {projectId}).
 Use the loupe-discovery skill when it is installed.
 
 The owner asked for changes to the report. Read the comments on the report document, and address each one.

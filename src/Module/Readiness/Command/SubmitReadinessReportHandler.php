@@ -6,12 +6,14 @@ namespace App\Module\Readiness\Command;
 
 use App\Exception\DomainErrors;
 use App\Module\Board\Entity\Card;
-use App\Module\Board\Entity\CardDocument;
-use App\Module\Board\Event\CardDocumentsChanged;
 use App\Module\Board\Repository\CardRepository;
+use App\Module\Bridge\Entity\WorkRequest;
+use App\Module\Bridge\Repository\WorkRequestRepository;
+use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Readiness\Entity\DiscoveryProposal;
 use App\Module\Readiness\Entity\DiscoveryRun;
 use App\Module\Readiness\Entity\DiscoveryRunState;
+use App\Module\Readiness\Event\DiscoveryReportWaiting;
 use App\Module\Readiness\Repository\DiscoveryProposalRepository;
 use App\Module\Readiness\Repository\DiscoveryRunRepository;
 use App\Module\Readiness\Service\ProposalTypes;
@@ -31,7 +33,7 @@ use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
 
 /**
- * Writes the report of a discovery run as a document, stores the proposals, and links the document to the discovery card.
+ * Writes the report of a discovery run as a document and stores the proposals.
  * A run the owner sent back for changes takes a new version of the same document, and its proposals are replaced.
  */
 final readonly class SubmitReadinessReportHandler
@@ -62,6 +64,7 @@ final readonly class SubmitReadinessReportHandler
         private CardRepository $cards,
         private ProposalTypes $proposalTypes,
         private CreateDocumentHandler $createDocument,
+        private WorkRequestRepository $workRequests,
         private ReviseDocumentHandler $reviseDocument,
         private ReadinessReportWriter $writer,
         private EntityManagerInterface $em,
@@ -88,10 +91,12 @@ final readonly class SubmitReadinessReportHandler
             $fresh = $this->discoveryRuns->freshStateOf($run);
             // A verdict that committed after the load changed the row only, and a state the entity still holds is not written again.
             $run->state = $fresh['state'];
+            // Read under the lock: a later verdict waits for it, so none of these serves a later revision.
+            $answered = $this->answeredWith($run, $fresh['answeredWorkRequestIds']);
             if (DiscoveryRunState::Revising === $fresh['state']) {
                 $revised = true;
 
-                return $this->revise($command, $run, $types);
+                return $this->revise($command, $run, $types, $answered);
             }
             if ($fresh['hasReport']) {
                 return new DomainErrors(['runId' => self::ALREADY_REPORTED]);
@@ -109,22 +114,20 @@ final readonly class SubmitReadinessReportHandler
                 tagNames: [self::TAG],
             ));
 
-            $card = $run->card;
-            $card->syncDocuments(...[...array_map(static fn (CardDocument $link): Document => $link->document, $card->documents->toArray()), $document]);
             foreach ($proposals as $proposal) {
                 $this->em->persist($proposal);
             }
             $run->reportDocument = $document;
             $run->state = DiscoveryRunState::Reported;
+            $run->answeredWorkRequestIds = $answered;
             $this->em->flush();
+            $this->announceWaiting($run, $document);
 
             return $document;
         });
         if ($document instanceof DomainErrors) {
             throw $document;
         }
-
-        $cardId = $run->card->id ?? throw new \LogicException('A stored card has an id.');
         $action = $revised ? 'readiness.report_revised' : 'readiness.report_submitted';
         $suggested = \count(array_filter($command->findings, static fn (ReportFinding $finding): bool => ReadinessReportWriter::isSuggested($finding->status)));
         $this->auditor->record(
@@ -133,7 +136,6 @@ final readonly class SubmitReadinessReportHandler
             [
                 'discoveryRunId' => (string) $run->id,
                 'projectId' => (string) $project->id,
-                'cardId' => (string) $cardId,
                 'documentId' => (string) $document->id,
                 'findingCount' => \count($command->findings),
                 'suggestedCount' => $suggested,
@@ -142,8 +144,6 @@ final readonly class SubmitReadinessReportHandler
             ],
             new AuditSubject('discovery_run', (string) $run->id),
         );
-        // Also the signal that the run reported: the rule reads the run state, so the engine evaluates the card again.
-        $this->events->dispatch(new CardDocumentsChanged($project->id ?? throw new \LogicException('A stored project has an id.'), $cardId));
 
         return $document;
     }
@@ -152,8 +152,9 @@ final readonly class SubmitReadinessReportHandler
      * A new version of the report document replaces the proposals that made no card, and the run goes back to Reported.
      *
      * @param list<string> $types
+     * @param list<string> $answered
      */
-    private function revise(SubmitReadinessReportCommand $command, DiscoveryRun $run, array $types): Document|DomainErrors
+    private function revise(SubmitReadinessReportCommand $command, DiscoveryRun $run, array $types, array $answered): Document|DomainErrors
     {
         $document = $run->reportDocument;
         if (null === $document) {
@@ -184,9 +185,35 @@ final readonly class SubmitReadinessReportHandler
             $this->em->persist($proposal);
         }
         $run->state = DiscoveryRunState::Reported;
+        $run->answeredWorkRequestIds = $answered;
         $this->em->flush();
+        $this->announceWaiting($run, $document);
 
         return $document;
+    }
+
+    private function announceWaiting(DiscoveryRun $run, Document $document): void
+    {
+        $this->events->dispatch(new DiscoveryReportWaiting(
+            $run->project->id ?? throw new \LogicException('A stored project has an id.'),
+            $run->id ?? throw new \LogicException('A stored run has an id.'),
+            $document->id ?? throw new \LogicException('A stored document has an id.'),
+        ));
+    }
+
+    /**
+     * The requests that a report arriving now answers, with those of the reports before it. A report cancels none
+     * of them, because a cancel makes the bridge stop the worker that is still at work.
+     *
+     * @param list<string> $before
+     *
+     * @return list<string>
+     */
+    private function answeredWith(DiscoveryRun $run, array $before): array
+    {
+        $live = $this->workRequests->findLiveOfSubject(new WorkSubject(DiscoveryRun::SUBJECT_TYPE, $run->id ?? throw new \LogicException('A stored run has an id.')));
+
+        return array_values(array_unique([...$before, ...array_map(static fn (WorkRequest $request): string => (string) $request->id, $live)]));
     }
 
     /**

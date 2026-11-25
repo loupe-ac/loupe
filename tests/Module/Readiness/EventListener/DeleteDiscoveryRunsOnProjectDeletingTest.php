@@ -20,8 +20,8 @@ final class DeleteDiscoveryRunsOnProjectDeletingTest extends KernelTestCase
         self::bootKernel();
         $doomed = $this->workflowProject('discovery-delete');
         $spared = $this->workflowProject('discovery-spared');
-        $this->discoveryRun($this->discoveryCard($doomed));
-        $this->discoveryRun($this->discoveryCard($spared));
+        $this->discoveryRun($doomed);
+        $this->discoveryRun($spared);
 
         $listener = self::getContainer()->get(DeleteDiscoveryRunsOnProjectDeleting::class);
         self::assertInstanceOf(DeleteDiscoveryRunsOnProjectDeleting::class, $listener);
@@ -36,7 +36,7 @@ final class DeleteDiscoveryRunsOnProjectDeletingTest extends KernelTestCase
     {
         self::bootKernel();
         $project = $this->workflowProject('discovery-deleter');
-        $this->discoveryRun($this->discoveryCard($project));
+        $this->discoveryRun($project);
         $projectId = (string) $project->id;
         self::assertSame(1, $this->runCount($projectId));
 

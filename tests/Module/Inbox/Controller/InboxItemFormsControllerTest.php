@@ -31,6 +31,8 @@ use App\Module\Review\Command\UndoVerdictHandler;
 use App\Module\Review\Entity\Document;
 use App\Tests\Module\Board\BoardColumnFixtures;
 use App\Tests\Module\Inbox\InboxScenario;
+use App\Tests\Module\Review\Support\BuildsGuardedSubmitReview;
+use App\Tests\Module\Review\Support\StubVerdictGuard;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -42,6 +44,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
 {
     use InboxScenario;
     use BoardColumnFixtures;
+    use BuildsGuardedSubmitReview;
 
     private KernelBrowser $client;
     private EntityManagerInterface $em;
@@ -250,6 +253,37 @@ final class InboxItemFormsControllerTest extends WebTestCase
         self::assertSelectorTextContains('#inbox-item-1', '1 decision has no answer. Answer it, or request changes.');
         self::assertSelectorTextContains('textarea[name="'.$name.'[note]"]', 'Keep this note.');
         $em = static::getContainer()->get(EntityManagerInterface::class);
+        $em->clear();
+        self::assertNull($em->find(InboxReview::class, $review->id)?->documentReview);
+        self::assertSame(InboxItemState::Open, $em->find(InboxItem::class, $item->id)?->state);
+    }
+
+    public function test_an_inline_review_shows_the_refusal_of_a_verdict_guard_and_stays_open(): void
+    {
+        $create = static::getContainer()->get(CreateDocumentHandler::class);
+        self::assertInstanceOf(CreateDocumentHandler::class, $create);
+        $document = $create(new CreateDocumentCommand($this->project, 'Guarded design', '# Design'));
+        $item = new InboxItem($this->project, 1, InboxItemKind::Review, 'Review the design', true, origin: InboxAskOrigin::Agent);
+        $review = new InboxReview($item, $document);
+        foreach ([$item, $review] as $entity) {
+            $this->em->persist($entity);
+        }
+        $this->em->flush();
+        $this->askHolding($this->em, $this->project, [$item]);
+        $name = 'inbox_response_'.$item->id;
+        // One kernel for both requests, so the guarded handler that goes in first also serves the submit.
+        $this->client->disableReboot();
+        $guard = new StubVerdictGuard('inbox.review.error.target_unavailable');
+        static::getContainer()->set(SubmitReviewHandler::class, $this->guardedSubmitReview($guard));
+        $page = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+        $form = $page->filter('form[name="'.$name.'"]')->form([$name.'[verdict]' => 'approved']);
+        $this->client->submit($form);
+
+        self::assertCount(1, $guard->calls);
+        self::assertResponseStatusCodeSame(422);
+        self::assertSelectorTextContains('#inbox-item-1', 'The review target is no longer available, so it takes no verdict.');
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
         $em->clear();
         self::assertNull($em->find(InboxReview::class, $review->id)?->documentReview);
         self::assertSame(InboxItemState::Open, $em->find(InboxItem::class, $item->id)?->state);

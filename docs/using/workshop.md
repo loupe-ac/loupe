@@ -66,8 +66,10 @@ When Needs you is empty and nothing is in motion, the guide is the only content 
 Its heading names the project, for example "Get Acme ready for agents".
 The page has no Hide button. To hide the guide, use the [Agent readiness](projects.md#agent-readiness) tab of Project settings.
 Open cards with no worker run, such as cards in Backlog or Next, do not change this layout.
-The worker run of the discovery card does not change it either, so the guide stays in front while discovery runs.
+A discovery run has no card, so it does not change this layout either, and the guide stays in front while discovery runs.
 The page reloads when a bridge reports a change that alters the rows, so a bridge that comes online turns its row to done without a reload by hand.
+In both layouts, the page also reloads when a discovery run starts or changes its state.
+While a card drawer is open, the page waits until you close it.
 
 When an item needs you or a card is in motion, the Workshop shows its normal layout.
 The checklist then sits at the top of the right column. Its × control hides the guide.
@@ -82,9 +84,9 @@ Discovery reads the repository and the workflow of the project, and writes a rea
 The worker only reads, with one exception. After you agree in the inbox, it writes the `## Routing` table of `.loupe/lifecycle.md` on a new branch.
 
 To start it, select **Run discovery** in the Run discovery row.
-Loupe creates a new tooling card in the Backlog, named "Discover what Acme needs for agents".
-The card tracks the run, and Loupe moves it. Each run gets a new card.
-The [`discovery` rule](workflows.md#rules-the-app-adds) then asks a bridge for the work.
+A start creates a discovery run and no card, so nothing about the run shows on the board.
+Loupe then asks a bridge for the work, as work of kind `discovery`. No workflow rule takes part.
+The Agents page labels the worker run **Discovery**, with a link to the Workshop.
 An agent can start discovery with the `discovery_start` MCP tool, and read the checklist with `readiness_get`.
 
 You can also start discovery from the terminal.
@@ -126,7 +128,9 @@ A suggestion becomes a proposed card that leaves the method open.
 Discovery needs a running bridge that serves the project.
 The project must also have a workflow, and **Run the workflow of the board** must be on, on the [Automation](board.md#automation) tab.
 Otherwise the workflow cannot ask a bridge for the work, so Loupe refuses the start.
-The bridge must set `appPrompts: true` in its `rules.yaml`, and its CLI must support app prompts.
+The bridge takes the work in one of two ways.
+It sets `appPrompts: true` in its `rules.yaml`, and its CLI supports app prompts.
+Or its `work:` map has the entries `discovery` and `discovery-revise`, each with `subject: discovery`.
 See [Command-line bridge](../extending/cli-bridge.md#work-requests).
 
 The Run discovery row shows the state of the latest run:
@@ -135,20 +139,50 @@ The Run discovery row shows the state of the latest run:
 |---|---|---|
 | Not run | Discovery never ran on this project | Run discovery |
 | Discovery waits for a running bridge | Discovery never ran, and no bridge serves the project now | None. The Bridge ready row links to the setup |
-| Discovery waits for a bridge that can run it | Discovery never ran, and a bridge is online but cannot run the discovery work | None. Map the `discovery` kind in the bridge rule file, or set `appPrompts: true`. Run `loupe init` again when the bridge is old |
+| Discovery waits for a bridge that can run it | Discovery never ran, and a bridge is online but cannot run the discovery work | None. Map the `discovery` kind with `subject: discovery` in the bridge rule file, or set `appPrompts: true`. Run `loupe init` again when the bridge is old |
 | Discovery waits for a bridge that is not paused | Discovery never ran, and every bridge that can run it is paused | None. Resume new work on a bridge on the Agents page |
 | Discovery waits for a workflow | Discovery never ran, and the project has no workflow | None. Choose a workflow for the project |
 | Discovery waits for board automation | Discovery never ran, and the workflow of the board is off | None. Switch on **Run the workflow of the board** |
-| Running on card #N | A run is open. A second start is refused until it ends | Open card |
-| Discovery failed: reason | The run ended with no report. "No bridge took the work." means that no online bridge serves the project, so the request failed at once. "A bridge is online, but none can run discovery." means that the request failed at once, because no online bridge could take it. "The worker ended without a report." means that the worker stopped before it reported. "The discovery card left Backlog before the work ended." means that the work stopped because the card moved | Run again, when discovery can start |
-| A worker revises the report on card #N | You asked for changes to the report. The run is in the Revising state | Open report |
+| Discovery runs | Loupe asked for a worker, or a worker runs. The work is a new report, or the revision of a report after you asked for changes. A second start is refused until the run ends | [Cancel](#cancel-a-run). While a worker revises the report, also Open report |
+| Discovery failed: reason | The run failed. "Cancelled by" and a name means that this person selected **Cancel**. "Cancelled by a deleted account." means that the account of that person no longer exists. "No bridge took the work." means that no online bridge serves the project, so the request failed at once. It also shows when no bridge claimed the request for 2 hours. "A bridge is online, but none can run discovery." means that the request failed at once, because no online bridge could take it. "The worker ended without a report." means that the worker stopped before it reported | Run again, when discovery can start |
 | The report waits for your review | The worker reported. The run is in the Reported state | Open report |
 | Reviewed | The owner approved the report. The run is in the Done state, and the row is done | None |
+
+## Cancel a run
+
+**Cancel** ends a run that shows **Discovery runs**. Anyone who can open the Workshop can use it. Today that is the project owner.
+The Run discovery row offers it.
+When the owner hid the readiness guide, the top of the Workshop shows a **Discovery runs** notice with **Cancel** instead.
+The notice offers no start. It shows only before the first report arrives, and while a worker revises the report.
+It goes away when the report waits for your review, and it comes back during a revision. It also goes away when the run ends.
+
+A cancel does these things:
+
+- The run fails. The row then reads "Discovery failed: Cancelled by" and your name. It offers **Run again** when discovery can start.
+- Loupe cancels the open work request of the run, so no bridge starts it.
+- Loupe asks the bridge to [stop](worker-runs.md#stop-resume-and-cancel) each worker run of the discovery run that is still open. An interactive session takes no command, so close it yourself.
+
+A bridge that [takes no commands](worker-runs.md#stop-resume-and-cancel) cannot stop its worker. The cancel still succeeds, and Loupe refuses a report that the worker sends later.
+A cancel of a revision keeps the report document. An approval of that report creates no card.
+
+You can also stop the worker run on the [Agents page](../extending/cli-bridge.md#pause-stop-and-resume).
+The discovery run then fails too.
+
+## Replace a waiting report
+
+You can start a new run while a report waits for your review.
+The row offers no start in that state, so use `loupe discovery start`, the `discovery_start` MCP tool or the public API.
+The new run replaces the waiting report, and the old run is Superseded.
+Loupe archives the old report document with the reason "Replaced by a newer discovery run". The document stays readable among the archived documents.
+Loupe also cancels the open inbox review of the old report.
+Loupe refuses each verdict on that report with "This report was replaced by a newer discovery run.", so its proposals create no card.
 
 ## Review the report
 
 The worker submits its report with the `readiness_report_submit` MCP tool.
-Loupe writes the report as a document with the tag `readiness-report`, and links it to the discovery card.
+Loupe writes the report as a document with the tag `readiness-report`.
+The Run discovery row opens it with **Open report**.
+When the inbox is on, the report also opens a [readiness report review](inbox.md#readiness-report-reviews) in the inbox.
 The document lists the checks that are ready under **Ready**, the other checks under **Suggested**, and one section for each card the worker proposes.
 
 Each finding names who acts on it and what to do.
@@ -164,16 +198,13 @@ When you approve the report, Loupe creates one card for each ticked proposal.
 The cards go in the column of the proposal slot that the app rules name, which Loupe ships as `next`.
 When the project has no such column, they go in the Backlog.
 The run is then Done.
-When the discovery card is in the Backlog, the workflow moves it to the first done column.
-A discovery card in another column stays there.
 Proposals you leave unticked create no card.
 
 A second approval of the same report creates no second card.
 
-A verdict of changes requested creates no card. The run moves to Revising, and the `discovery-revise` rule asks a worker to revise the same report.
+A verdict of changes requested creates no card. The run moves to Revising, and Loupe asks a bridge to revise the same report, as work of kind `discovery-revise`.
 The worker submits a new version of the report document. Loupe replaces the proposals that made no card, and the run goes back to Reported.
 Review the new version, and approve it or ask for changes again.
 
 When you approve the report while a worker revises it, the approval wins.
 Loupe stops the revision, and creates the cards from the version you approved.
-While the run is Requested or Revising, the discovery card takes no manual move.

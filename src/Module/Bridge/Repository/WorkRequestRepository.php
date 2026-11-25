@@ -10,6 +10,7 @@ use App\Module\Bridge\Entity\BridgeWorkMatch;
 use App\Module\Bridge\Entity\CardHold;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Bridge\ValueObject\WorkRequestContext;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Project\Entity\Project;
@@ -353,6 +354,35 @@ class WorkRequestRepository extends ServiceEntityRepository
     }
 
     /**
+     * The open requests about a subject other than a card that fail when no bridge can take them, oldest first.
+     *
+     * @param list<string>|null $projectIds RFC 4122 ids, or null for every project
+     *
+     * @return list<WorkRequest>
+     */
+    public function findOpenOfOtherSubjectsThatFailWhenNoTaker(?array $projectIds = null): array
+    {
+        if ([] === $projectIds) {
+            return [];
+        }
+
+        $qb = $this->createQueryBuilder('w')
+            ->andWhere('w.state = :open')
+            ->andWhere('w.subjectType <> :card')
+            ->andWhere('w.failWhenNoTaker = true')
+            ->setParameter('open', WorkRequestState::Open->value)
+            ->setParameter('card', WorkSubject::CARD)
+            ->orderBy('w.createdAt', 'ASC')
+            ->addOrderBy('w.id', 'ASC');
+        if (null !== $projectIds) {
+            $qb->andWhere('w.project IN (:projects)')
+                ->setParameter('projects', $projectIds);
+        }
+
+        return array_values($qb->getQuery()->getResult());
+    }
+
+    /**
      * The open requests of a kind whose rule id starts with the prefix and that waited for a bridge
      * since the deadline or longer, oldest first. A reopen restarts the wait, and a work hold stops it.
      *
@@ -439,6 +469,55 @@ class WorkRequestRepository extends ServiceEntityRepository
     }
 
     /**
+     * Moves a claimed card request, its worker runs and the rows that copy their subject to another subject. The
+     * request then holds what a new request about that subject holds. An open request never moves, because a bridge
+     * refuses a claim whose answer names another subject than its queued offer. Call it inside a transaction. A
+     * managed entity of these rows is stale after it. Answers false when the request is not a claimed card request,
+     * or the subject has a live request of the kind. Temporary: only work the previous image opened about a card moves.
+     */
+    public function moveCardRequestToSubject(WorkRequest $request, WorkSubject $subject, string $capability, string $prompt): bool
+    {
+        $this->lockLive($subject, $request->kind);
+        if (null !== $this->liveRuleId($subject, $request->kind)) {
+            return false;
+        }
+
+        $connection = $this->getEntityManager()->getConnection();
+        $target = ['type' => $subject->type, 'subject' => $subject->id->toRfc4122(), 'request' => (string) $request->id];
+        $moved = $connection->executeStatement(
+            "UPDATE work_requests
+             SET subject_type = :type, subject_id = :subject, card_number = NULL, capability = :capability, prompt = :prompt,
+                 context = :context, fail_when_no_taker = TRUE, model = NULL, effort = NULL, role = NULL, round_number = NULL,
+                 resume_session_id = NULL, target_bridge_id = NULL
+             WHERE id = :request AND subject_type = 'card' AND state = 'claimed'",
+            $target + ['capability' => $capability, 'prompt' => $prompt, 'context' => new WorkRequestContext()->toArray()],
+            ['context' => Types::JSON],
+        );
+        if (0 === $moved) {
+            return false;
+        }
+
+        $connection->executeStatement(
+            "UPDATE bridge_worker_runs SET subject_type = :type, subject_id = :subject, card_number = NULL
+             WHERE work_request_id = :request AND subject_type = 'card'",
+            $target,
+        );
+        foreach (['bridge_worker_run_usage' => '', 'bridge_worker_run_billed_costs' => '', 'bridge_worker_run_facts' => ', card_number = NULL'] as $table => $more) {
+            $connection->executeStatement(
+                \sprintf(
+                    'UPDATE %s SET subject_type = :type, subject_id = :subject%s
+                     WHERE run_id IN (SELECT id FROM bridge_worker_runs WHERE work_request_id = :request AND subject_type = :type AND subject_id = :subject)',
+                    $table,
+                    $more,
+                ),
+                $target,
+            );
+        }
+
+        return true;
+    }
+
+    /**
      * Serialises the opens of one kind on one subject until the transaction
      * ends, so a second open reads the first instead of tripping the unique index.
      */
@@ -503,6 +582,22 @@ class WorkRequestRepository extends ServiceEntityRepository
             ->setParameter('project', $project)
             ->getQuery()
             ->getOneOrNullResult();
+    }
+
+    /**
+     * The open and claimed requests of the subject, oldest first.
+     *
+     * @return list<WorkRequest>
+     */
+    public function findLiveOfSubject(WorkSubject $subject): array
+    {
+        return array_values($this->ofSubject($subject)
+            ->andWhere('w.state IN (:live)')
+            ->setParameter('live', [WorkRequestState::Open->value, WorkRequestState::Claimed->value])
+            ->orderBy('w.createdAt', 'ASC')
+            ->addOrderBy('w.id', 'ASC')
+            ->getQuery()
+            ->getResult());
     }
 
     /**

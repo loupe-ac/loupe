@@ -22,7 +22,7 @@ final readonly class DiscoveryApiProblems
     public function from(DomainErrors|DiscoveryRunning $refusal): ApiProblemException|DomainErrors
     {
         if ($refusal instanceof DiscoveryRunning) {
-            return ApiProblemException::refused(409, 'discovery_running', $this->translator->trans(DiscoveryRunning::MESSAGE, ['%number%' => $refusal->cardNumber]), ['cardNumber' => $refusal->cardNumber]);
+            return ApiProblemException::refused(409, 'discovery_running', $this->translator->trans(DiscoveryRunning::MESSAGE), ['runId' => (string) $refusal->runId]);
         }
 
         $key = array_first($refusal->errors);
