@@ -535,6 +535,22 @@ class WorkRequestRepository extends ServiceEntityRepository
     }
 
     /**
+     * The open and claimed requests of the subject, oldest first.
+     *
+     * @return list<WorkRequest>
+     */
+    public function findLiveOfSubject(WorkSubject $subject): array
+    {
+        return array_values($this->ofSubject($subject)
+            ->andWhere('w.state IN (:live)')
+            ->setParameter('live', [WorkRequestState::Open->value, WorkRequestState::Claimed->value])
+            ->orderBy('w.createdAt', 'ASC')
+            ->addOrderBy('w.id', 'ASC')
+            ->getQuery()
+            ->getResult());
+    }
+
+    /**
      * The open requests of the card, oldest first.
      *
      * @return list<WorkRequest>

@@ -52,7 +52,7 @@ final class ShowWorkflowSettingsControllerTest extends WebTestCase
         self::assertSelectorTextContains('[data-rule-id="product-design-approved"]', 'Move the card to Tech design');
         self::assertSelectorTextContains('[data-rule-id="implement"]', 'implement');
         self::assertCount(1, $crawler->filter('#rule-implement[data-rule-id="implement"]'));
-        self::assertCount(1, $crawler->filter('[data-workflow-app-rules] #rule-discovery[data-rule-id="discovery"]'));
+        self::assertCount(1, $crawler->filter('[data-workflow-app-rules] #rule-post-widget-review[data-rule-id="post-widget-review"]'));
         self::assertSame(
             ['Stop the work of the card', 'Request changes on the documents', 'Move the card to Product design'],
             array_map(trim(...), $crawler->filter('[data-rule-id="product-design-undo"] [data-rule-action]')->extract(['_text'])),
@@ -62,8 +62,10 @@ final class ShowWorkflowSettingsControllerTest extends WebTestCase
         self::assertSelectorTextContains('[data-rule-id="implement"] [data-condition-source="workflow.source.forge"]', 'Forge: not card.pr.linked');
         self::assertSelectorTextContains('[data-rule-id="merged"] [data-condition-source="workflow.source.board"]', 'Board: not card.in_slot (slot: @terminal), card.children.finished');
         self::assertSelectorNotExists('[data-rule-missing]');
-        self::assertSelectorTextContains('[data-workflow-app-rules] [data-rule-id="discovery"] [data-condition-source="workflow.source.readiness"]', 'Readiness: card.discovery.requested');
-        self::assertSelectorNotExists('[data-workflow-template-rules] [data-rule-id="discovery"]');
+        self::assertSelectorTextContains('[data-workflow-app-rules] [data-rule-id="post-widget-review"] [data-condition-source="workflow.source.board"]', 'Board: card.site_review.verdict_unsent');
+        self::assertSelectorNotExists('[data-workflow-template-rules] [data-rule-id="post-widget-review"]');
+        // A discovery run asks for its own work, so no rule of the workflow names it.
+        self::assertSelectorNotExists('[data-rule-id="discovery"]');
         self::assertSelectorExists('[data-manual-move]');
         self::assertSame(['Anyone', 'A session that opens its run with the move'], array_values(array_unique($crawler->filter('[data-manual-move-by]')->extract(['_text']))));
         self::assertSame(['feature', 'bug', 'security', 'tooling', 'docs', 'idea', 'epic'], $crawler->filter('[data-workflow-types] [data-card-type]')->extract(['data-card-type']));

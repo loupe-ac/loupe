@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Readiness\Entity;
 
+use App\Module\Account\Entity\User;
 use App\Module\Board\Entity\Card;
 use App\Module\Project\Entity\Project;
 use App\Module\Readiness\Repository\DiscoveryRunRepository;
@@ -19,6 +20,9 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Table(name: 'discovery_runs')]
 class DiscoveryRun
 {
+    /** The subject type of the work requests and worker runs of a run. Their subject id is the run id. */
+    public const string SUBJECT_TYPE = 'discovery';
+
     public const int MAX_FAILURE_REASON_LENGTH = 1000;
 
     #[ORM\Column(type: UuidType::NAME, unique: true)]
@@ -40,17 +44,26 @@ class DiscoveryRun
     #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $endedAt = null;
 
+    /** The latest work request the app opened for the run. Only the paths that cancel that request read it. */
+    #[ORM\Column(type: UuidType::NAME, nullable: true)]
+    public ?Uuid $workRequestId = null;
+
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    #[ORM\ManyToOne(targetEntity: User::class)]
+    public ?User $cancelledBy = null;
+
     public function __construct(
         #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
         #[ORM\ManyToOne(targetEntity: Project::class)]
         public readonly Project $project,
 
-        #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-        #[ORM\ManyToOne(targetEntity: Card::class)]
-        public readonly Card $card,
-
         #[ORM\Column]
         public readonly \DateTimeImmutable $createdAt = new \DateTimeImmutable(),
+
+        /** The Backlog card of a run that started when a run had a card. A new run has none. */
+        #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
+        #[ORM\ManyToOne(targetEntity: Card::class)]
+        public readonly ?Card $card = null,
     ) {
     }
 

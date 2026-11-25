@@ -21,10 +21,9 @@ final class PublishDiscoveryChangedOnDiscoveryRunSavedTest extends KernelTestCas
         self::bootKernel();
         $this->captureLiveUpdates();
         $project = $this->workflowProject('discovery-live');
-        $card = $this->discoveryCard($project);
         $this->drainLiveUpdates();
 
-        $run = $this->discoveryRun($card);
+        $run = $this->discoveryRun($project);
         self::assertSame([$this->message($project)], $this->changed());
 
         $run->state = DiscoveryRunState::Reported;
@@ -37,7 +36,7 @@ final class PublishDiscoveryChangedOnDiscoveryRunSavedTest extends KernelTestCas
         self::bootKernel();
         $this->captureLiveUpdates();
         $project = $this->workflowProject('discovery-quiet');
-        $run = $this->discoveryRun($this->discoveryCard($project));
+        $run = $this->discoveryRun($project);
         // Guard: the run reached the hub, so the empty list below follows a working listener.
         self::assertNotSame([], $this->changed());
 

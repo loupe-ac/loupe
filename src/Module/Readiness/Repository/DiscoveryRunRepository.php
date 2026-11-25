@@ -61,16 +61,33 @@ class DiscoveryRunRepository extends ServiceEntityRepository
         return array_map(static fn (mixed $id): string => Uuid::fromString((string) $id)->toRfc4122(), $ids);
     }
 
-    public function latestForCard(Uuid $cardId): ?DiscoveryRun
+    /** The id of the run that waits for a worker, or null. It reads the rows, so a loaded run cannot hide a newer state. */
+    public function findLiveIdForProject(Project $project): ?Uuid
     {
-        return $this->createQueryBuilder('run')
-            ->where('run.card = :card')
-            ->setParameter('card', $cardId, UuidType::NAME)
+        $row = $this->createQueryBuilder('run')
+            ->select('run.id AS id')
+            ->where('run.project = :project')
+            ->andWhere('run.state IN (:live)')
+            ->setParameter('project', $project)
+            ->setParameter('live', [DiscoveryRunState::Requested, DiscoveryRunState::Revising])
             ->orderBy('run.createdAt', 'DESC')
             ->addOrderBy('run.id', 'DESC')
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $row['id'] ?? null;
+    }
+
+    /**
+     * The runs whose row says Reported. A run that was loaded before keeps its old state, so set the new
+     * state without a read of the old one.
+     *
+     * @return list<DiscoveryRun>
+     */
+    public function findReportedForProject(Project $project): array
+    {
+        return array_values($this->findBy(['project' => $project, 'state' => DiscoveryRunState::Reported], ['createdAt' => 'ASC']));
     }
 
     /** @return list<DiscoveryRun> */
@@ -92,21 +109,35 @@ class DiscoveryRunRepository extends ServiceEntityRepository
         return $this->findOneBy(['reportDocument' => $document]);
     }
 
+    /** The state in the row of the run that wrote the document, or null when no run did. A loaded run keeps its old state, so this reads no entity. */
+    public function findStateOfReport(Document $document): ?DiscoveryRunState
+    {
+        $row = $this->createQueryBuilder('run')
+            ->select('run.state AS state')
+            ->where('run.reportDocument = :document')
+            ->setParameter('document', $document)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        return $row['state'] ?? null;
+    }
+
     /**
-     * Reads the state and the report straight from the row, because the loaded run can be stale.
+     * Reads the row, because the loaded run can be stale.
      * Doctrine cannot refresh a run, since its constructor properties are read-only.
      *
-     * @return array{state: DiscoveryRunState, hasReport: bool}
+     * @return array{state: DiscoveryRunState, hasReport: bool, workRequestId: ?Uuid}
      */
     public function freshStateOf(DiscoveryRun $run): array
     {
         $row = $this->createQueryBuilder('run')
-            ->select('run.state AS state', 'IDENTITY(run.reportDocument) AS reportDocumentId')
+            ->select('run.state AS state', 'IDENTITY(run.reportDocument) AS reportDocumentId', 'run.workRequestId AS workRequestId')
             ->where('run.id = :id')
             ->setParameter('id', $run->id, UuidType::NAME)
             ->getQuery()
             ->getSingleResult();
 
-        return ['state' => $row['state'], 'hasReport' => null !== $row['reportDocumentId']];
+        return ['state' => $row['state'], 'hasReport' => null !== $row['reportDocumentId'], 'workRequestId' => $row['workRequestId']];
     }
 }

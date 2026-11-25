@@ -35,7 +35,6 @@ final class MarkCases
             'bridge_card_holds' => self::row(['card_id' => $id('C1'), 'project_id' => $id('PX')], ['held_at' => $someTime], ['C1']),
             'bridge_worker_waits' => self::row(['card_id' => $id('C1'), 'project_id' => $id('PX'), 'run_id' => $id('X1'), 'chain_root_run_id' => $id('X1'), 'bridge_id' => $id('BR1'), 'session_id' => $id('X1'), 'conditions' => [], 'opened_at' => $someTime, 'limit_at' => $someTime], ['ended_at' => $someTime], ['C1']),
             'document_agent_reviews' => self::row(['card_id' => $id('C1'), 'document_id' => $id('D1'), 'project_id' => $id('PX')], ['summary' => 'changed'], $parentAndChildren),
-            'discovery_runs' => self::row(['card_id' => $id('C1'), 'project_id' => $id('PX')], ['state' => 'failed'], ['C1']),
             'inbox_decisions' => self::row(['card_id' => $id('C1'), 'project_id' => $id('PX'), 'label' => 'naming', 'choice' => 'a', 'other_options' => [], 'made_by' => 'logged', 'created_at' => $someTime], ['changed_note' => 'changed'], ['C1']),
             'inbox_item_cards' => self::row(['card_id' => $id('C1')], ['linked_at' => $someTime], ['C1']),
             'workflow_rule_states' => self::row(['card_id' => $id('C1'), 'project_id' => $id('PX'), 'rule_id' => 'case'], ['truth' => true], ['C1'], rest: ['skipsCheckedCard' => true]),

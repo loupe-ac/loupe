@@ -6,15 +6,14 @@ namespace App\Tests\Module\Readiness\Mcp;
 
 use App\Module\Board\Entity\BoardAutomationSettings;
 use App\Module\Bridge\Entity\Bridge;
+use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Project\Entity\Project;
 use App\Module\Readiness\Entity\DiscoveryRun;
 use App\Module\Readiness\Entity\DiscoveryRunState;
-use App\Module\Readiness\EventListener\FailDiscoveryOnRequestWithdrawn;
 use App\Module\Readiness\Mcp\DiscoveryStartTool;
 use App\Module\Readiness\Mcp\ReadinessGetTool;
 use App\Module\Readiness\Mcp\ReadinessReportSubmitTool;
 use App\Module\Review\Entity\Document;
-use App\Module\Workflow\Contract\Actor;
 use App\Tests\Module\Readiness\DiscoveryScenario;
 use App\Tests\Support\AgentCredential;
 use App\Tests\Support\McpRefusalMessages;
@@ -51,8 +50,8 @@ final class ReadinessToolsTest extends KernelTestCase
     public function test_readiness_get_reports_a_failed_run_with_its_reason(): void
     {
         $project = $this->workflowProject('readiness-get-failed');
-        $run = $this->discoveryRun($this->discoveryCard($project));
-        $run->fail(FailDiscoveryOnRequestWithdrawn::NO_TAKER, new \DateTimeImmutable());
+        $run = $this->discoveryRun($project);
+        $run->fail(WorkRequest::REASON_NO_TAKER, new \DateTimeImmutable());
         $this->em()->flush();
         $this->actAsMcpTokenBoundTo($project);
 
@@ -63,14 +62,12 @@ final class ReadinessToolsTest extends KernelTestCase
         self::assertSame([
             'runId' => (string) $run->id,
             'state' => 'failed',
-            'cardId' => (string) $run->card->id,
-            'cardNumber' => $run->card->number,
-            'reason' => FailDiscoveryOnRequestWithdrawn::NO_TAKER,
+            'reason' => WorkRequest::REASON_NO_TAKER,
             'createdAt' => $run->createdAt->format(\DATE_ATOM),
         ], $answer['discovery']);
     }
 
-    public function test_discovery_start_opens_a_run_reported_by_the_agent(): void
+    public function test_discovery_start_opens_a_run(): void
     {
         $project = $this->liveProject('discovery-start-tool');
         $this->actAsMcpTokenBoundTo($project);
@@ -79,8 +76,7 @@ final class ReadinessToolsTest extends KernelTestCase
 
         $run = $this->em()->find(DiscoveryRun::class, $answer['runId']);
         self::assertNotNull($run);
-        self::assertSame(['cardId' => (string) $run->card->id, 'cardNumber' => $run->card->number, 'runId' => (string) $run->id, 'state' => 'requested'], $answer);
-        self::assertSame(Actor::Agent, $run->card->reporter);
+        self::assertSame(['runId' => (string) $run->id, 'state' => 'requested'], $answer);
     }
 
     public function test_discovery_start_with_no_live_bridge_names_the_fix(): void
@@ -118,14 +114,14 @@ final class ReadinessToolsTest extends KernelTestCase
         $this->discoveryStart()();
     }
 
-    public function test_a_second_discovery_start_names_the_open_card(): void
+    public function test_a_second_discovery_start_names_the_open_run(): void
     {
         $project = $this->liveProject('discovery-start-tool-twice');
         $this->actAsMcpTokenBoundTo($project);
         $first = $this->discoveryStart()();
 
         $this->expectException(ToolCallException::class);
-        $this->expectExceptionMessage('Discovery already runs on card #'.$first['cardNumber']);
+        $this->expectExceptionMessage('Discovery already runs, in run '.$first['runId']);
 
         $this->discoveryStart()();
     }
@@ -144,7 +140,7 @@ final class ReadinessToolsTest extends KernelTestCase
     public function test_readiness_report_submit_stores_the_report_and_returns_the_document(): void
     {
         $project = $this->workflowProject('report-submit-tool');
-        $run = $this->discoveryRun($this->discoveryCard($project));
+        $run = $this->discoveryRun($project);
         $this->actAsMcpTokenBoundTo($project);
 
         $answer = $this->reportSubmit()(
@@ -165,7 +161,7 @@ final class ReadinessToolsTest extends KernelTestCase
     public function test_readiness_report_submit_takes_an_actor_and_an_action_and_defaults_them_for_an_older_plugin(): void
     {
         $project = $this->workflowProject('report-submit-tool-actor');
-        $run = $this->discoveryRun($this->discoveryCard($project));
+        $run = $this->discoveryRun($project);
         $this->actAsMcpTokenBoundTo($project);
 
         $answer = $this->reportSubmit()(
@@ -187,7 +183,7 @@ final class ReadinessToolsTest extends KernelTestCase
     public function test_readiness_report_submit_accepts_the_gap_status_of_an_older_plugin(): void
     {
         $project = $this->workflowProject('report-submit-tool-gap');
-        $run = $this->discoveryRun($this->discoveryCard($project));
+        $run = $this->discoveryRun($project);
         $this->actAsMcpTokenBoundTo($project);
 
         $answer = $this->reportSubmit()(
@@ -206,7 +202,7 @@ final class ReadinessToolsTest extends KernelTestCase
     public function test_readiness_report_submit_names_the_fix_for_each_refusal(): void
     {
         $project = $this->workflowProject('report-submit-tool-refusals');
-        $run = $this->discoveryRun($this->discoveryCard($project));
+        $run = $this->discoveryRun($project);
         $this->actAsMcpTokenBoundTo($project);
         $finding = ['check' => 'Tests run', 'status' => 'ready', 'evidence' => 'Yes.'];
         $proposal = ['key' => 'a', 'title' => 'A', 'type' => 'feature', 'body' => 'B'];
@@ -233,7 +229,7 @@ final class ReadinessToolsTest extends KernelTestCase
     public function test_readiness_report_submit_refuses_a_second_report_for_the_run(): void
     {
         $project = $this->workflowProject('report-submit-tool-twice');
-        $run = $this->discoveryRun($this->discoveryCard($project));
+        $run = $this->discoveryRun($project);
         $this->actAsMcpTokenBoundTo($project);
         $this->reportSubmit()((string) $run->id, 'lifecycle', []);
 

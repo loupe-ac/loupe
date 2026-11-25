@@ -4,38 +4,6 @@
 proposalSlot: next
 
 rules:
-    # The rule reads the state of the discovery run, so a failed run turns it false and the engine does not retry.
-    - id: discovery
-      slot: '@backlog'
-      when: { card.discovery.requested: {} }
-      then:
-          request:
-              kind: discovery
-              onNoTaker: fail
-              prompt: discovery
-              checks:
-                  - The loupe skill package is installed for the agent, with the loupe-discovery skill
-                  - The bridge rule file maps the discovery kind, or sets appPrompts to true
-
-    # The owner asked for changes to the report. An approval or a failure ends the run, so the rule turns false and the engine cancels the request.
-    - id: discovery-revise
-      slot: '@backlog'
-      when: { card.discovery.revising: {} }
-      then:
-          request:
-              kind: discovery-revise
-              onNoTaker: fail
-              prompt: discovery-revise
-              checks:
-                  - The loupe skill package is installed for the agent, with the loupe-discovery skill
-                  - The bridge rule file maps the discovery-revise kind, or sets appPrompts to true
-
-    # The listener that approves a report sets the run to done. The engine then moves the card to the terminal column.
-    - id: discovery-approved
-      slot: '@backlog'
-      when: { card.discovery.approved: {} }
-      then: { move: { to: '@terminal' } }
-
     - id: post-widget-review
       when: { card.site_review.verdict_unsent: {} }
       then: { forge-write: { write: post-review } }
@@ -60,3 +28,18 @@ requests:
       checks:
           - The loupe skill package is installed for the agent, with the loupe-analysis skill
           - The bridge rule file maps the analysis kind, or sets appPrompts to true
+
+    # A discovery run asks for its own work, and no card takes part. The second entry revises the report after a request for changes.
+    - id: discovery
+      kind: discovery
+      prompt: discovery
+      checks:
+          - The loupe skill package is installed for the agent, with the loupe-discovery skill
+          - The bridge rule file maps the discovery kind, or sets appPrompts to true
+
+    - id: discovery-revise
+      kind: discovery-revise
+      prompt: discovery-revise
+      checks:
+          - The loupe skill package is installed for the agent, with the loupe-discovery skill
+          - The bridge rule file maps the discovery-revise kind, or sets appPrompts to true

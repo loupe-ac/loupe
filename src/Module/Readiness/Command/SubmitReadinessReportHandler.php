@@ -6,12 +6,11 @@ namespace App\Module\Readiness\Command;
 
 use App\Exception\DomainErrors;
 use App\Module\Board\Entity\Card;
-use App\Module\Board\Entity\CardDocument;
-use App\Module\Board\Event\CardDocumentsChanged;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Readiness\Entity\DiscoveryProposal;
 use App\Module\Readiness\Entity\DiscoveryRun;
 use App\Module\Readiness\Entity\DiscoveryRunState;
+use App\Module\Readiness\Event\DiscoveryReportWaiting;
 use App\Module\Readiness\Repository\DiscoveryProposalRepository;
 use App\Module\Readiness\Repository\DiscoveryRunRepository;
 use App\Module\Readiness\Service\ProposalTypes;
@@ -31,7 +30,7 @@ use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
 
 /**
- * Writes the report of a discovery run as a document, stores the proposals, and links the document to the discovery card.
+ * Writes the report of a discovery run as a document and stores the proposals.
  * A run the owner sent back for changes takes a new version of the same document, and its proposals are replaced.
  */
 final readonly class SubmitReadinessReportHandler
@@ -109,8 +108,6 @@ final readonly class SubmitReadinessReportHandler
                 tagNames: [self::TAG],
             ));
 
-            $card = $run->card;
-            $card->syncDocuments(...[...array_map(static fn (CardDocument $link): Document => $link->document, $card->documents->toArray()), $document]);
             foreach ($proposals as $proposal) {
                 $this->em->persist($proposal);
             }
@@ -124,7 +121,6 @@ final readonly class SubmitReadinessReportHandler
             throw $document;
         }
 
-        $cardId = $run->card->id ?? throw new \LogicException('A stored card has an id.');
         $action = $revised ? 'readiness.report_revised' : 'readiness.report_submitted';
         $suggested = \count(array_filter($command->findings, static fn (ReportFinding $finding): bool => ReadinessReportWriter::isSuggested($finding->status)));
         $this->auditor->record(
@@ -133,7 +129,6 @@ final readonly class SubmitReadinessReportHandler
             [
                 'discoveryRunId' => (string) $run->id,
                 'projectId' => (string) $project->id,
-                'cardId' => (string) $cardId,
                 'documentId' => (string) $document->id,
                 'findingCount' => \count($command->findings),
                 'suggestedCount' => $suggested,
@@ -142,8 +137,11 @@ final readonly class SubmitReadinessReportHandler
             ],
             new AuditSubject('discovery_run', (string) $run->id),
         );
-        // Also the signal that the run reported: the rule reads the run state, so the engine evaluates the card again.
-        $this->events->dispatch(new CardDocumentsChanged($project->id ?? throw new \LogicException('A stored project has an id.'), $cardId));
+        $this->events->dispatch(new DiscoveryReportWaiting(
+            $project->id ?? throw new \LogicException('A stored project has an id.'),
+            $run->id ?? throw new \LogicException('A stored run has an id.'),
+            $document->id ?? throw new \LogicException('A stored document has an id.'),
+        ));
 
         return $document;
     }

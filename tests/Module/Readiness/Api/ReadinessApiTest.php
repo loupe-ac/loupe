@@ -51,16 +51,14 @@ final class ReadinessApiTest extends WebTestCase
 
     public function test_it_reads_the_latest_discovery_run(): void
     {
-        $card = $this->discoveryCard($this->project);
-        $run = $this->discoveryRun($card, DiscoveryRunState::Requested);
+        $run = $this->discoveryRun($this->project, DiscoveryRunState::Requested);
 
         $this->send(Request::METHOD_GET);
 
         $discovery = $this->json()['discovery'];
         PublicSpec::assertMatches('ReadinessDiscovery', $discovery);
         self::assertSame((string) $run->id, $discovery['runId']);
-        self::assertSame((string) $card->id, $discovery['cardId']);
-        self::assertSame($card->number, $discovery['cardNumber']);
+        self::assertSame(['runId', 'state', 'reason', 'createdAt'], array_keys($discovery));
         self::assertSame('requested', $discovery['state']);
         self::assertNull($discovery['reason']);
     }

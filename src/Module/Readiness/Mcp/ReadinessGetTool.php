@@ -31,7 +31,7 @@ final readonly class ReadinessGetTool
      * @return array{
      *     guideHidden: bool,
      *     rows: list<array{key: string, done: bool, status: string}>,
-     *     discovery: array{runId: string, state: string, cardId: string, cardNumber: int, reason: string|null, createdAt: string}|null,
+     *     discovery: array{runId: string, state: string, reason: string|null, createdAt: string}|null,
      * }
      */
     public function __invoke(): array
@@ -50,8 +50,6 @@ final readonly class ReadinessGetTool
                 'discovery' => null === $run ? null : [
                     'runId' => (string) $run->id,
                     'state' => $run->state->value,
-                    'cardId' => (string) $run->card->id,
-                    'cardNumber' => $run->card->number,
                     'reason' => $run->failureReason,
                     'createdAt' => $run->createdAt->format(\DATE_ATOM),
                 ],

@@ -7,9 +7,6 @@ namespace App\Module\Readiness\Service\Dev;
 use App\DevSeed\DevSeederInterface;
 use App\DevSeed\DevSeedId;
 use App\DevSeed\SeedContext;
-use App\Module\Board\Entity\Card;
-use App\Module\Board\Repository\BoardColumnRepository;
-use App\Module\Board\Repository\CardRepository;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Project\Service\Dev\DevProjectSeeder;
 use App\Module\Readiness\Entity\DiscoveryRun;
@@ -31,8 +28,6 @@ final readonly class DevDiscoveryRunSeeder implements DevSeederInterface
     public function __construct(
         private EntityManagerInterface $em,
         private ProjectRepository $projects,
-        private BoardColumnRepository $boardColumns,
-        private CardRepository $cards,
         private DiscoveryRunRepository $discoveryRuns,
     ) {
     }
@@ -63,21 +58,8 @@ final readonly class DevDiscoveryRunSeeder implements DevSeederInterface
 
         $project = $this->projects->find(DevProjectSeeder::lifecycleProjectId())
             ?? throw new \LogicException('The lifecycle project does not exist.');
-        $column = $this->boardColumns->findForProject($project)[0]
-            ?? throw new \LogicException('The lifecycle project has no column.');
-        $card = new Card(
-            project: $project,
-            column: $column,
-            title: 'Discover what '.$project->name.' needs for agents',
-            body: 'This card tracks a read-only discovery run.',
-            number: $this->cards->nextNumber($project),
-            type: 'feature',
-            createdAt: $context->at(120),
-        );
-        $context->ids->assign($card, DevSeedId::of('readiness/discovery-run/card'));
-        $this->em->persist($card);
 
-        $run = new DiscoveryRun($project, $card, $context->at(120));
+        $run = new DiscoveryRun($project, $context->at(120));
         $context->ids->assign($run, self::runId());
         $this->em->persist($run);
         $this->em->flush();

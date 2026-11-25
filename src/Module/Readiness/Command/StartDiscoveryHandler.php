@@ -5,24 +5,34 @@ declare(strict_types=1);
 namespace App\Module\Readiness\Command;
 
 use App\Exception\DomainErrors;
-use App\Module\Board\Command\CreateCardCommand;
-use App\Module\Board\Command\CreateCardHandler;
+use App\Module\Bridge\Command\OpenWorkRequestCommand;
+use App\Module\Bridge\Command\OpenWorkRequestHandler;
+use App\Module\Bridge\Command\WorkRequestAlreadyLive;
+use App\Module\Bridge\ValueObject\WorkRequestContext;
+use App\Module\Bridge\ValueObject\WorkSubject;
+use App\Module\Project\Entity\Project;
 use App\Module\Readiness\Entity\DiscoveryRun;
 use App\Module\Readiness\Entity\DiscoveryRunState;
+use App\Module\Readiness\Event\DiscoveryReportWithdrawn;
 use App\Module\Readiness\Repository\DiscoveryRunRepository;
 use App\Module\Readiness\Service\ReadinessChecklist;
-use App\Module\Workflow\Contract\CardTypeCatalog;
+use App\Module\Review\Command\ArchiveDocumentCommand;
+use App\Module\Review\Command\ArchiveDocumentHandler;
+use App\Module\Workflow\Template\AppRules;
 use Doctrine\DBAL\LockMode;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Clock\ClockInterface;
+use Psr\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\Uid\Uuid;
+use Symfony\Contracts\Translation\TranslatorInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
 
-/** Opens a discovery run on a new Backlog card. The app rule then requests the work from a bridge. */
+/** Stores a requested discovery run, then opens the work request that offers it to the bridges. */
 final readonly class StartDiscoveryHandler
 {
-    private const string CARD_TYPE = 'tooling';
-
     public const string NO_LIVE_BRIDGE = 'readiness.discovery.error.no_bridge';
     public const string NO_CAPABLE_BRIDGE = 'readiness.discovery.error.no_capable_bridge';
     public const string NO_CAPABLE_BRIDGE_APP_PROMPTS = 'readiness.discovery.error.no_capable_bridge_app_prompts';
@@ -32,20 +42,32 @@ final readonly class StartDiscoveryHandler
 
     public const string AUTOMATION_OFF = 'readiness.discovery.error.automation_off';
 
+    /** The kind, the rule id and the prompt of the first request of a run. */
+    public const string WORK_KIND = 'discovery';
+    public const string CAPABILITY = 'subject-discovery';
+    public const string REQUEST_REFUSED = 'request-refused';
+    public const string REQUEST_FAILED = 'request-failed';
+
+    public const string SUPERSEDED_ARCHIVE_REASON = 'readiness.discovery.superseded_archive_reason';
+
     public function __construct(
         private ReadinessChecklist $checklist,
         private DiscoveryRunRepository $discoveryRuns,
-        private CreateCardHandler $createCard,
+        private OpenWorkRequestHandler $openWorkRequest,
+        private ArchiveDocumentHandler $archiveDocument,
+        private AppRules $appRules,
         private EntityManagerInterface $em,
+        private ClockInterface $clock,
+        private TranslatorInterface $translator,
+        private EventDispatcherInterface $events,
         private Auditor $auditor,
-        private CardTypeCatalog $catalog,
     ) {
     }
 
     public function __invoke(StartDiscoveryCommand $command): DiscoveryRun
     {
         $project = $command->project;
-        // A run the engine cannot request would stay requested with no work.
+        // A run that no bridge can take would fail as soon as it opens its request.
         $refusal = $this->checklist->startRefusal($project);
         if (null !== $refusal) {
             $field = match ($refusal) {
@@ -56,23 +78,21 @@ final readonly class StartDiscoveryHandler
             throw new DomainErrors([$field => $refusal]);
         }
 
-        // The lock makes the check and the new card one step, so two starts cannot both pass. A refusal leaves the closure as a value, because a throw closes the EntityManager.
-        $run = $this->em->wrapInTransaction(function () use ($command, $project): DiscoveryRun|DiscoveryRunning {
+        // The lock makes the check and the new run one step, so two starts cannot both pass. A verdict takes the same project row, so the reads below see each verdict that committed first. A refusal leaves the closure as a value, because a throw closes the EntityManager.
+        $superseded = [];
+        $run = $this->em->wrapInTransaction(function () use ($project, &$superseded): DiscoveryRun|DiscoveryRunning {
             $this->em->lock($project, LockMode::PESSIMISTIC_WRITE);
-            $latest = $this->discoveryRuns->latestForProject($project);
-            if (null !== $latest && \in_array($latest->state, [DiscoveryRunState::Requested, DiscoveryRunState::Revising], true)) {
-                return new DiscoveryRunning($latest->card->number);
+            $live = $this->discoveryRuns->findLiveIdForProject($project);
+            if (null !== $live) {
+                return new DiscoveryRunning($live);
             }
 
-            $types = $this->catalog->forProject($project->requireId());
-            $card = ($this->createCard)(new CreateCardCommand(
-                project: $project,
-                title: 'Discover what '.$project->name.' needs for agents', // @translation-check-ignore
-                body: 'This card tracks a read-only discovery run. A worker reads the repository and the workflow, and writes a readiness report. The app moves this card, so leave it where it is.', // @translation-check-ignore
-                type: $types->has(self::CARD_TYPE) ? self::CARD_TYPE : $types->defaultKey,
-                reporter: $command->reporter,
-            ));
-            $run = new DiscoveryRun($project, $card);
+            foreach ($this->discoveryRuns->findReportedForProject($project) as $reported) {
+                $reported->state = DiscoveryRunState::Superseded;
+                $reported->endedAt = $this->clock->now();
+                $superseded[] = $reported;
+            }
+            $run = new DiscoveryRun($project, $this->clock->now());
             $this->em->persist($run);
             $this->em->flush();
 
@@ -81,20 +101,102 @@ final readonly class StartDiscoveryHandler
         if ($run instanceof DiscoveryRunning) {
             throw $run;
         }
+        $runId = $run->id ?? throw new \LogicException('A stored run has an id.');
 
-        $cardId = $run->card->id ?? throw new \LogicException('A flushed card has an id.');
+        // Not inside a transaction of ours: Bridge announces the request after its own commit. A request that no bridge can take expires inside this call, and the run is then Failed already.
+        try {
+            $request = ($this->openWorkRequest)(new OpenWorkRequestCommand(
+                project: $project,
+                subject: new WorkSubject(DiscoveryRun::SUBJECT_TYPE, $runId),
+                cardNumber: null,
+                kind: self::WORK_KIND,
+                capability: self::CAPABILITY,
+                ruleId: self::WORK_KIND,
+                context: new WorkRequestContext(),
+                prompt: $this->appRules->prompt(self::WORK_KIND),
+                failWhenNoTaker: true,
+            ));
+        } catch (DomainErrors|WorkRequestAlreadyLive $e) {
+            $run->fail(self::REQUEST_REFUSED, $this->clock->now());
+            $this->em->flush();
+            $this->retire($project, $superseded);
+
+            throw $e;
+        } catch (\Throwable $e) {
+            $this->failUnflushed($runId);
+            if ($this->em->isOpen()) {
+                $this->retire($project, $superseded);
+            }
+
+            throw $e;
+        }
+
+        // Only the id changes: the flush writes no state, so a run that failed inside the open stays Failed.
+        $run->workRequestId = $request->id;
+        $this->em->flush();
+        // Outside the project lock, because a verdict locks the project row and then the document row.
+        $this->retire($project, $superseded);
+
         $this->auditor->record(
             'readiness.discovery_started',
             AuditOutcome::Success,
             [
-                'discoveryRunId' => (string) $run->id,
+                'discoveryRunId' => (string) $runId,
                 'projectId' => (string) $project->id,
-                'cardId' => (string) $cardId,
+                'workRequestId' => (string) $request->id,
+                'supersededCount' => \count($superseded),
                 'reporter' => $command->reporter->value,
             ],
-            new AuditSubject('discovery_run', (string) $run->id),
+            new AuditSubject('discovery_run', (string) $runId),
         );
 
         return $run;
+    }
+
+    /** @param list<DiscoveryRun> $superseded */
+    private function retire(Project $project, array $superseded): void
+    {
+        foreach ($superseded as $old) {
+            if (null !== $old->reportDocument) {
+                ($this->archiveDocument)(new ArchiveDocumentCommand($old->reportDocument, $this->translator->trans(self::SUPERSEDED_ARCHIVE_REASON)));
+            }
+            $this->events->dispatch(new DiscoveryReportWithdrawn(
+                $project->id ?? throw new \LogicException('A stored project has an id.'),
+                $old->id ?? throw new \LogicException('A stored run has an id.'),
+            ));
+        }
+    }
+
+    /**
+     * A failed transaction closes the entity manager, so the writes go through the connection.
+     * A failure after the request committed keeps the run live, because a bridge can still claim it.
+     */
+    private function failUnflushed(Uuid $runId): void
+    {
+        $connection = $this->em->getConnection();
+        $committed = $connection->fetchOne(
+            'SELECT id FROM work_requests WHERE subject_type = :type AND subject_id = :id ORDER BY created_at DESC LIMIT 1',
+            ['type' => DiscoveryRun::SUBJECT_TYPE, 'id' => $runId->toRfc4122()],
+        );
+        if (\is_string($committed)) {
+            $connection->executeStatement(
+                'UPDATE discovery_runs SET work_request_id = :request WHERE id = :id',
+                ['request' => $committed, 'id' => $runId->toRfc4122()],
+            );
+
+            return;
+        }
+
+        $connection->executeStatement(
+            'UPDATE discovery_runs SET state = :failed, failure_reason = :reason, ended_at = :now WHERE id = :id AND state = :requested',
+            [
+                'failed' => DiscoveryRunState::Failed->value,
+                'reason' => self::REQUEST_FAILED,
+                'now' => $this->clock->now(),
+                'id' => $runId->toRfc4122(),
+                'requested' => DiscoveryRunState::Requested->value,
+            ],
+            ['now' => Types::DATETIME_IMMUTABLE],
+        );
     }
 }

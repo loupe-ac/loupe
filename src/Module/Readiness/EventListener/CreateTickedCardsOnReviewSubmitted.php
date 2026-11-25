@@ -12,9 +12,7 @@ use App\Module\Board\Entity\CardSourceKind;
 use App\Module\Board\Repository\BoardColumnRepository;
 use App\Module\Bridge\Command\WithdrawWorkRequestCommand;
 use App\Module\Bridge\Command\WithdrawWorkRequestHandler;
-use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\ValueObject\WorkRequestState;
-use App\Module\Readiness\Command\FailDiscoveryRunHandler;
 use App\Module\Readiness\Entity\DiscoveryRunState;
 use App\Module\Readiness\Repository\DiscoveryProposalRepository;
 use App\Module\Readiness\Repository\DiscoveryRunRepository;
@@ -27,7 +25,6 @@ use App\Module\Review\Repository\DecisionSelectionRepository;
 use App\Module\Review\Service\DecisionBlockService;
 use App\Module\Review\ValueObject\Decision;
 use App\Module\Workflow\Contract\Actor;
-use App\Module\Workflow\Contract\CardEvaluations;
 use App\Module\Workflow\Contract\ProposalSlot;
 use App\Module\Workflow\Repository\WorkflowSlotLinkRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -36,7 +33,7 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 
 /**
- * The owner approved a discovery report, also while a worker revises it. Each proposal they ticked becomes a card in the proposal column. The workflow moves the discovery card to done once the run is done.
+ * The owner approved a discovery report, also while a worker revises it. Each proposal they ticked becomes a card in the proposal column.
  * The event fires inside the verdict transaction, so the card handlers join it, and a failure here undoes the verdict.
  */
 #[AsEventListener]
@@ -49,10 +46,8 @@ final readonly class CreateTickedCardsOnReviewSubmitted
         private WorkflowSlotLinkRepository $workflowSlotLinks,
         private BoardColumnRepository $boardColumns,
         private CreateCardHandler $createCard,
-        private CardEvaluations $evaluations,
         private ProposalSlot $proposalSlot,
         private DecisionBlockService $decisionBlocks,
-        private WorkRequestRepository $workRequests,
         private WithdrawWorkRequestHandler $withdrawWorkRequest,
         private EntityManagerInterface $em,
         private ClockInterface $clock,
@@ -97,11 +92,15 @@ final readonly class CreateTickedCardsOnReviewSubmitted
         }
         $document = $event->review->version->document;
         $run = $this->discoveryRuns->findByReportDocument($document);
-        if (null === $run || !\in_array($run->state, [DiscoveryRunState::Reported, DiscoveryRunState::Revising], true)
-            || $event->review->version->versionNumber !== $document->currentVersion()->versionNumber) {
+        if (null === $run || $event->review->version->versionNumber !== $document->currentVersion()->versionNumber) {
             return;
         }
-        $wasRevising = DiscoveryRunState::Revising === $run->state;
+        // The row, because the verdict holds the project lock and the loaded run can be older than it.
+        $fresh = $this->discoveryRuns->freshStateOf($run);
+        if (!\in_array($fresh['state'], [DiscoveryRunState::Reported, DiscoveryRunState::Revising], true)) {
+            return;
+        }
+        $wasRevising = DiscoveryRunState::Revising === $fresh['state'];
 
         $project = $run->project;
         $ticked = $this->tickedLabels($event, $document);
@@ -141,17 +140,10 @@ final readonly class CreateTickedCardsOnReviewSubmitted
         $run->state = DiscoveryRunState::Done;
         $run->endedAt = $this->clock->now();
         $this->em->flush();
-        if ($this->evaluations->isOn()) {
-            $this->evaluations->forCards([$run->card->id ?? throw new \LogicException('A stored card has an id.')], self::class);
-        }
 
         // The approval wins over a revision under way. The run is Done first, so the cancel of the request fails no run.
-        if ($wasRevising) {
-            foreach ($this->workRequests->findLiveForCard($run->card->id ?? throw new \LogicException('A stored card has an id.')) as $request) {
-                if (FailDiscoveryRunHandler::REVISE_RULE_ID === $request->ruleId) {
-                    ($this->withdrawWorkRequest)(new WithdrawWorkRequestCommand($request->id ?? throw new \LogicException('A persisted work request has an id.'), WorkRequestState::Cancelled));
-                }
-            }
+        if ($wasRevising && null !== $fresh['workRequestId']) {
+            ($this->withdrawWorkRequest)(new WithdrawWorkRequestCommand($fresh['workRequestId'], WorkRequestState::Cancelled));
         }
 
         $this->logger->info('readiness.report_approved', ['discoveryRunId' => (string) $run->id, 'projectId' => (string) $project->id, 'cardsCreated' => $created]);

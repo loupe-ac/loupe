@@ -40,8 +40,8 @@ final class StartDiscoveryController extends AppController
             ($this->startDiscovery)(new StartDiscoveryCommand($project, Actor::Human));
         } catch (DomainErrors $e) {
             $this->addFlash('error', $this->translator->trans(array_first($e->errors)));
-        } catch (DiscoveryRunning $e) {
-            $this->addFlash('error', $this->translator->trans(DiscoveryRunning::MESSAGE, ['%number%' => $e->cardNumber]));
+        } catch (DiscoveryRunning) {
+            $this->addFlash('error', $this->translator->trans(DiscoveryRunning::MESSAGE));
         }
 
         return $this->redirectToRoute('app_project_workshop', ['id' => (string) $project->id]);

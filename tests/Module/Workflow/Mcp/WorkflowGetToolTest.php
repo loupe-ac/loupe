@@ -66,7 +66,7 @@ final class WorkflowGetToolTest extends KernelTestCase
         $kinds = array_column($answer['kinds'], null, 'kind');
         self::assertSame([
             'product-design', 'product-design-revise', 'design-review', 'tech-design-session', 'tech-design', 'tech-design-revise', 'tech-design-recheck', 'implement', 'breakdown',
-            'fix', 'review', 'rebase-stacked', 'sync', 'merge', 'teardown', 'epic-preview', 'sync-epic', 'discovery', 'discovery-revise', 'analysis',
+            'fix', 'review', 'rebase-stacked', 'sync', 'merge', 'teardown', 'epic-preview', 'sync-epic', 'analysis', 'discovery', 'discovery-revise',
         ], array_column($answer['kinds'], 'kind'));
         self::assertSame('template', $kinds['implement']['origin']);
         self::assertSame(['implement'], $kinds['implement']['rules']);
@@ -115,9 +115,9 @@ final class WorkflowGetToolTest extends KernelTestCase
         self::assertTrue($answer['approvalCoversConflictResolution']);
         self::assertSame([
             ['kind' => 'teardown', 'origin' => 'template', 'rules' => ['teardown'], 'checks' => []],
+            ['kind' => 'analysis', 'origin' => 'app', 'rules' => ['insights.analysis'], 'checks' => [self::ANALYSIS_CHECK, self::ANALYSIS_BRIDGE_CHECK]],
             ['kind' => 'discovery', 'origin' => 'app', 'rules' => ['discovery'], 'checks' => [self::DISCOVERY_CHECK, self::DISCOVERY_BRIDGE_CHECK]],
             ['kind' => 'discovery-revise', 'origin' => 'app', 'rules' => ['discovery-revise'], 'checks' => [self::DISCOVERY_CHECK, self::DISCOVERY_REVISE_BRIDGE_CHECK]],
-            ['kind' => 'analysis', 'origin' => 'app', 'rules' => ['insights.analysis'], 'checks' => [self::ANALYSIS_CHECK, self::ANALYSIS_BRIDGE_CHECK]],
         ], $answer['kinds']);
         self::assertSame([null], array_values(array_unique(array_column($answer['columns'], 'slot'))));
     }

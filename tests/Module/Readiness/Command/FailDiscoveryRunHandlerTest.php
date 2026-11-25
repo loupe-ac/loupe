@@ -18,15 +18,13 @@ final class FailDiscoveryRunHandlerTest extends KernelTestCase
     {
         self::bootKernel();
         $project = $this->workflowProject('discovery-fail-late');
-        $this->bindLifecycle($project);
-        $card = $this->discoveryCard($project);
-        $run = $this->discoveryRun($card, DiscoveryRunState::Revising);
+        $run = $this->discoveryRun($project, DiscoveryRunState::Revising);
         // Another request approved the report, so the row is Done while this request still holds a Revising run.
         $this->em()->getConnection()->executeStatement('UPDATE discovery_runs SET state = ? WHERE id = ?', [DiscoveryRunState::Done->value, $run->id?->toRfc4122()]);
 
         $handler = self::getContainer()->get(FailDiscoveryRunHandler::class);
         self::assertInstanceOf(FailDiscoveryRunHandler::class, $handler);
-        $failed = $handler(new FailDiscoveryRunCommand($card->id ?? throw new \LogicException('A stored card has an id.'), 'worker-failed', FailDiscoveryRunHandler::REVISE_RULE_ID));
+        $failed = $handler(new FailDiscoveryRunCommand($run, 'worker-failed', FailDiscoveryRunHandler::REVISE_RULE_ID));
 
         self::assertFalse($failed);
         self::assertSame(DiscoveryRunState::Done, $run->state);
@@ -37,14 +35,12 @@ final class FailDiscoveryRunHandlerTest extends KernelTestCase
     {
         self::bootKernel();
         $project = $this->workflowProject('discovery-fail-revising');
-        $this->bindLifecycle($project);
-        $card = $this->discoveryCard($project);
-        $run = $this->discoveryRun($card, DiscoveryRunState::Revising);
+        $run = $this->discoveryRun($project, DiscoveryRunState::Revising);
 
         $handler = self::getContainer()->get(FailDiscoveryRunHandler::class);
         self::assertInstanceOf(FailDiscoveryRunHandler::class, $handler);
 
-        self::assertTrue($handler(new FailDiscoveryRunCommand($card->id ?? throw new \LogicException('A stored card has an id.'), 'worker-failed', FailDiscoveryRunHandler::REVISE_RULE_ID)));
+        self::assertTrue($handler(new FailDiscoveryRunCommand($run, 'worker-failed', FailDiscoveryRunHandler::REVISE_RULE_ID)));
         self::assertSame([DiscoveryRunState::Failed, 'worker-failed'], [$run->state, $run->failureReason]);
     }
 }
