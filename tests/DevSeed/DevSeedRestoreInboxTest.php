@@ -36,6 +36,7 @@ final class DevSeedRestoreInboxTest extends DevSeedTestCase
         yield 'one item of a completed ask' => [\sprintf("DELETE FROM inbox_items WHERE id = '%s'", DevSeedId::of('inbox/item/reviewed'))];
         yield 'the item of a session ask' => [\sprintf("DELETE FROM inbox_items WHERE id = '%s'", DevSeedId::of('inbox/item/session-checklist'))];
         yield 'the item of a command run' => [\sprintf("DELETE FROM inbox_items WHERE id = '%s'", DevSeedId::of('inbox/item/command-run-0'))];
+        yield 'the bridge outage notice, which takes its outage with it' => [\sprintf("DELETE FROM inbox_items WHERE id = '%s'", DevSeedId::of('inbox/item/bridge-outage'))];
         yield 'the ask of a command run' => [\sprintf("DELETE FROM inbox_asks WHERE id = '%s'", DevSeedId::of('inbox/ask/command-run-1'))];
     }
 
