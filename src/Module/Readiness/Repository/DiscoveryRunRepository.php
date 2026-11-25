@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Readiness\Repository;
 
+use App\Module\Account\Entity\User;
 use App\Module\Project\Entity\Project;
 use App\Module\Readiness\Entity\DiscoveryRun;
 use App\Module\Readiness\Entity\DiscoveryRunState;
@@ -32,6 +33,12 @@ class DiscoveryRunRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+    }
+
+    /** @return list<DiscoveryRun> oldest first */
+    public function findCancelledBy(User $user): array
+    {
+        return $this->findBy(['cancelledBy' => $user], ['createdAt' => 'ASC', 'id' => 'ASC']);
     }
 
     /**
