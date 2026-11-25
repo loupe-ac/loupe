@@ -5,20 +5,15 @@ declare(strict_types=1);
 namespace App\Tests\Module\Readiness\Command;
 
 use App\Module\Bridge\Entity\Bridge;
-use Symfony\Component\Uid\Uuid;
-use Symfony\Component\Messenger\Event\WorkerMessageFailedEvent;
-use Symfony\Component\Messenger\Stamp\RedeliveryStamp;
-use Symfony\Component\Messenger\Envelope;
-use PHPUnit\Framework\Attributes\DataProvider;
-use App\Module\Readiness\Command\StartDiscoveryHandler;
-use App\Module\Bridge\ValueObject\WorkerRunState;
-use App\Module\Bridge\Event\WorkerRunChanged;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkRequest;
+use App\Module\Bridge\Event\WorkerRunChanged;
 use App\Module\Bridge\Event\WorkRequestChanged;
+use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Project\Entity\Project;
 use App\Module\Readiness\Command\ReportFinding;
+use App\Module\Readiness\Command\StartDiscoveryHandler;
 use App\Module\Readiness\Command\SubmitReadinessReportCommand;
 use App\Module\Readiness\Command\SubmitReadinessReportHandler;
 use App\Module\Readiness\Entity\DiscoveryRun;
@@ -32,9 +27,14 @@ use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\Review;
 use App\Tests\Module\Readiness\DiscoveryScenario;
 use Doctrine\DBAL\Connection;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\Messenger\Envelope;
+use Symfony\Component\Messenger\Event\WorkerMessageFailedEvent;
+use Symfony\Component\Messenger\Stamp\RedeliveryStamp;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
+use Symfony\Component\Uid\Uuid;
 
 /** The verdicts on a discovery report, and the work request that a request for changes opens after the verdict. */
 final class DiscoveryRevisionTest extends KernelTestCase

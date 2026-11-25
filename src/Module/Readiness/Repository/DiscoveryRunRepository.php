@@ -80,6 +80,23 @@ class DiscoveryRunRepository extends ServiceEntityRepository
     }
 
     /**
+     * The requested and revising runs that hold a card, oldest first. Only a run from before a run had no card holds one.
+     *
+     * @return list<DiscoveryRun>
+     */
+    public function findLiveWithCard(): array
+    {
+        return array_values($this->createQueryBuilder('run')
+            ->where('run.card IS NOT NULL')
+            ->andWhere('run.state IN (:live)')
+            ->setParameter('live', [DiscoveryRunState::Requested, DiscoveryRunState::Revising])
+            ->orderBy('run.createdAt', 'ASC')
+            ->addOrderBy('run.id', 'ASC')
+            ->getQuery()
+            ->getResult());
+    }
+
+    /**
      * The runs whose row says Reported. A run that was loaded before keeps its old state, so set the new
      * state without a read of the old one.
      *

@@ -10,6 +10,7 @@ use App\Module\Bridge\Entity\BridgeWorkMatch;
 use App\Module\Bridge\Entity\CardHold;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Bridge\ValueObject\WorkRequestContext;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Project\Entity\Project;
@@ -465,6 +466,55 @@ class WorkRequestRepository extends ServiceEntityRepository
             ['now' => $now, 'project' => $projectId->toRfc4122(), 'open' => WorkRequestState::Open->value],
             ['now' => Types::DATETIME_IMMUTABLE],
         );
+    }
+
+    /**
+     * Moves a live card request, its worker runs and the rows that copy their subject to another subject. The request
+     * then holds what a new request about that subject holds. Call it inside a transaction. A managed entity of these
+     * rows is stale after it. Answers false when the request is not a live card request, or the subject has a live
+     * request of the kind. Temporary: only the work that the previous image opened about a card moves.
+     */
+    public function moveCardRequestToSubject(WorkRequest $request, WorkSubject $subject, string $capability, string $prompt, \DateTimeImmutable $now): bool
+    {
+        $this->lockLive($subject, $request->kind);
+        if (null !== $this->liveRuleId($subject, $request->kind)) {
+            return false;
+        }
+
+        $connection = $this->getEntityManager()->getConnection();
+        $target = ['type' => $subject->type, 'subject' => $subject->id->toRfc4122(), 'request' => (string) $request->id];
+        $moved = $connection->executeStatement(
+            "UPDATE work_requests
+             SET subject_type = :type, subject_id = :subject, card_number = NULL, capability = :capability, prompt = :prompt,
+                 context = :context, fail_when_no_taker = TRUE, model = NULL, effort = NULL, role = NULL, round_number = NULL,
+                 resume_session_id = NULL, target_bridge_id = NULL,
+                 reopened_at = CASE WHEN state = 'open' THEN CAST(:now AS TIMESTAMP(0)) ELSE reopened_at END
+             WHERE id = :request AND subject_type = 'card' AND state IN ('open', 'claimed')",
+            $target + ['capability' => $capability, 'prompt' => $prompt, 'context' => new WorkRequestContext()->toArray(), 'now' => $now],
+            ['context' => Types::JSON, 'now' => Types::DATETIME_IMMUTABLE],
+        );
+        if (0 === $moved) {
+            return false;
+        }
+
+        $connection->executeStatement(
+            "UPDATE bridge_worker_runs SET subject_type = :type, subject_id = :subject, card_number = NULL
+             WHERE work_request_id = :request AND subject_type = 'card'",
+            $target,
+        );
+        foreach (['bridge_worker_run_usage' => '', 'bridge_worker_run_billed_costs' => '', 'bridge_worker_run_facts' => ', card_number = NULL'] as $table => $more) {
+            $connection->executeStatement(
+                \sprintf(
+                    'UPDATE %s SET subject_type = :type, subject_id = :subject%s
+                     WHERE run_id IN (SELECT id FROM bridge_worker_runs WHERE work_request_id = :request AND subject_type = :type AND subject_id = :subject)',
+                    $table,
+                    $more,
+                ),
+                $target,
+            );
+        }
+
+        return true;
     }
 
     /**
