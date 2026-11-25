@@ -7,6 +7,7 @@ namespace App\Tests\Module\Readiness\Service\Dev;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Project\Service\Dev\DevProjectSeeder;
+use App\Module\Readiness\Command\CancelDiscoveryHandler;
 use App\Module\Readiness\Entity\DiscoveryRun;
 use App\Module\Readiness\Entity\DiscoveryRunState;
 use App\Module\Readiness\Repository\DiscoveryRunRepository;
@@ -67,7 +68,55 @@ final class DevDiscoveryRunSeederTest extends KernelTestCase
 
         self::assertNotNull($workers->find(DevDiscoveryRunSeeder::workerRunId()));
         self::assertSame(1, $workers->count(['subjectType' => DiscoveryRun::SUBJECT_TYPE]));
-        self::assertSame(2, $this->service(DiscoveryRunRepository::class)->count([]));
+        self::assertSame(4, $this->service(DiscoveryRunRepository::class)->count([]));
+    }
+
+    public function test_it_seeds_a_live_run_behind_a_hidden_guide_for_the_workshop_notice(): void
+    {
+        $context = SeedContextFactory::create(self::getContainer());
+        DevProjectFixture::create(self::getContainer(), $context);
+
+        $this->service(DevDiscoveryRunSeeder::class)->seed($context);
+        $this->service(EntityManagerInterface::class)->clear();
+
+        $runs = $this->service(DiscoveryRunRepository::class);
+        $run = $runs->find(DevDiscoveryRunSeeder::noticeRunId()) ?? throw new \LogicException('The run of the notice is missing.');
+        self::assertSame(DiscoveryRunState::Requested, $run->state);
+        self::assertNull($run->workRequestId);
+        self::assertSame((string) DevProjectSeeder::setupDoneProjectId(), (string) $run->project->id);
+        self::assertSame($run, $runs->latestForProject($run->project));
+        self::assertNotNull($run->project->readinessGuideHiddenAt);
+    }
+
+    public function test_it_seeds_a_cancelled_run_behind_a_shown_guide(): void
+    {
+        $context = SeedContextFactory::create(self::getContainer());
+        DevProjectFixture::create(self::getContainer(), $context);
+
+        $this->service(DevDiscoveryRunSeeder::class)->seed($context);
+        $this->service(EntityManagerInterface::class)->clear();
+
+        $runs = $this->service(DiscoveryRunRepository::class);
+        $run = $runs->find(DevDiscoveryRunSeeder::cancelledRunId()) ?? throw new \LogicException('The cancelled run is missing.');
+        self::assertSame([DiscoveryRunState::Failed, CancelDiscoveryHandler::REASON], [$run->state, $run->failureReason]);
+        self::assertSame((string) $context->devUser()->id, (string) $run->cancelledBy?->id);
+        self::assertNotNull($run->endedAt);
+        self::assertSame((string) DevProjectSeeder::inboxFlatProjectId(), (string) $run->project->id);
+        self::assertSame($run, $runs->latestForProject($run->project));
+        self::assertNull($runs->findLiveIdForProject($run->project));
+        self::assertNull($run->project->readinessGuideHiddenAt);
+    }
+
+    /** The twin of the three preview states. */
+    public function test_the_dev_project_has_no_run(): void
+    {
+        $context = SeedContextFactory::create(self::getContainer());
+        $dev = DevProjectFixture::create(self::getContainer(), $context);
+
+        $this->service(DevDiscoveryRunSeeder::class)->seed($context);
+
+        self::assertNull($this->service(DiscoveryRunRepository::class)->latestForProject($dev));
+        self::assertNull($dev->readinessGuideHiddenAt);
     }
 
     /**
