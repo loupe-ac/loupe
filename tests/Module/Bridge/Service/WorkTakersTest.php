@@ -255,6 +255,10 @@ final class WorkTakersTest extends KernelTestCase
 
         self::assertSame(WorkTakerState::NotCapable, $reading->state);
         self::assertSame([], $reading->failingAccounts);
+
+        $toOther = $this->seedWorkRequest($this->em(), $project, createdAt: new \DateTimeImmutable('2026-10-16 11:00:00'), targetBridgeId: $other->id);
+
+        self::assertEquals([new FailingAccount($other->label, 'one', 'claude is not on PATH')], $this->read($project, $toOther)->failingAccounts);
     }
 
     public function test_a_bridge_that_cannot_take_the_work_for_another_cause_names_no_failed_account(): void
