@@ -28,6 +28,8 @@ final readonly class WorkshopReadinessRow
         public ?string $cancelCsrfTokenId = null,
         /** The state of the latest discovery run, or none, on the row that shows discovery. */
         public ?string $discoveryState = null,
+        /** Whether a person cancelled the latest discovery run. */
+        public bool $discoveryCancelled = false,
         /** The section of the guide that holds the row. A row of the optional section does not count as a required step. */
         public string $group = self::GROUP_DISCOVERY,
         /** An optional choice inside a required section, which does not count as a required step either. */

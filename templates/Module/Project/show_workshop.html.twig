@@ -11,24 +11,17 @@
 {% block body %}
 {% set readiness = is_granted(constant('App\\Module\\Project\\Security\\ProjectVoter::MANAGE'), workshop.project) ? workshop.readiness : null %}
 {% set guideOnly = readiness is not null and workshop.quiet %}
-{#- Outside the guide, a discovery change reloads the page too, so no notice and no Cancel goes stale. The controller holds the whole workspace, so an open card drawer holds the reload. -#}
-{% set pageRefresh = guideOnly ? {} : {
-    'data-worker-run-refresh-target': 'frame',
-    'data-worker-run-refresh-whole-value': 'true',
-    'data-worker-run-refresh-project-value': workshop.project.id ~ '',
-    'data-worker-run-refresh-events-value': ['project.discovery_changed']|json_encode,
-} %}
-<twig:Ds:Workspace class="lp-workshop" data-workshop data-controller="{{ guideOnly ? 'card-drawer' : 'card-drawer worker-run-refresh' }}" {{ ...pageRefresh }}>
+{#- A change can alter the guide, so the whole page reloads. Outside the guide, only discovery does, for the notice and the Cancel of the sidebar. The controller holds the whole workspace, so an open card drawer holds the reload. -#}
+{% set reloadEvents = guideOnly ? ['worker_run.changed', 'board.card_changed', 'inbox.open_count_changed', 'bridge.readiness_changed', 'project.discovery_changed'] : ['project.discovery_changed'] %}
+<twig:Ds:Workspace class="lp-workshop" data-workshop data-controller="card-drawer worker-run-refresh"
+    data-worker-run-refresh-target="frame"
+    data-worker-run-refresh-whole-value="true"
+    data-worker-run-refresh-project-value="{{ workshop.project.id }}"
+    data-worker-run-refresh-events-value="{{ reloadEvents|json_encode }}">
     {% if guideOnly %}
     {% do mercure_subscribe(worker_runs_topic(workshop.project)) %}
     {% do mercure_subscribe(board_topic(workshop.project)) %}
-    {#- A run, a card change, an inbox item or a bridge report can change the guide, so the whole page reloads. -#}
-    <div class="lp-readiness-guide" data-readiness-guide data-readiness-layout="full"
-         data-controller="worker-run-refresh"
-         data-worker-run-refresh-target="frame"
-         data-worker-run-refresh-whole-value="true"
-         data-worker-run-refresh-project-value="{{ workshop.project.id }}"
-         data-worker-run-refresh-events-value="{{ ['worker_run.changed', 'board.card_changed', 'inbox.open_count_changed', 'bridge.readiness_changed', 'project.discovery_changed']|json_encode }}">
+    <div class="lp-readiness-guide" data-readiness-guide data-readiness-layout="full">
         <twig:Ds:PageHeader variant="workshop" :title="'readiness.guide.heading'|trans({'%project%': workshop.project.name})" :description="'readiness.guide.count'|trans({'%done%': readiness.doneCount, '%total%': readiness.total})" />
         {% include '@Project/_readiness_checklist.html.twig' with {project: workshop.project, readiness: readiness, layout: 'full'} only %}
     </div>

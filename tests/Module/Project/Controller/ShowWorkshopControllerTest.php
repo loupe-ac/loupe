@@ -331,8 +331,11 @@ final class ShowWorkshopControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorCount(1, '[data-workshop] [data-readiness-guide]');
         self::assertSelectorExists('[data-readiness-guide][data-readiness-layout="full"]');
-        $live = $crawler->filter('[data-readiness-guide][data-controller="worker-run-refresh"][data-worker-run-refresh-target="frame"]');
+        // The "New work" button opens the card drawer here too, so the controller holds the drawer as well as the guide.
+        $live = $crawler->filter('[data-workshop][data-controller~="worker-run-refresh"][data-worker-run-refresh-target="frame"]');
         self::assertCount(1, $live);
+        self::assertCount(1, $live->filter('[data-readiness-guide]'));
+        self::assertCount(1, $live->filter('#card-drawer-frame'));
         self::assertSame('true', $live->attr('data-worker-run-refresh-whole-value'));
         self::assertSame((string) $project->id, $live->attr('data-worker-run-refresh-project-value'));
         self::assertSame(['worker_run.changed', 'board.card_changed', 'inbox.open_count_changed', 'bridge.readiness_changed', 'project.discovery_changed'], json_decode((string) $live->attr('data-worker-run-refresh-events-value'), true));

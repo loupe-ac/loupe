@@ -256,6 +256,7 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
             cancelUrl: $cancellable ? $cancel : null,
             cancelCsrfTokenId: $cancellable ? self::CANCEL_TOKEN : null,
             discoveryState: $run?->state->value ?? 'none',
+            discoveryCancelled: DiscoveryRunState::Failed === $run?->state && CancelDiscoveryHandler::REASON === $run->failureReason,
         );
 
         return match ($run?->state) {

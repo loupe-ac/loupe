@@ -33,7 +33,7 @@ final class CancelDiscoveryControllerTest extends WebTestCase
         $stored = $this->stored($run);
         self::assertSame([DiscoveryRunState::Failed, (string) $owner->id], [$stored->state, (string) $stored->cancelledBy?->id]);
         $client->followRedirect();
-        self::assertSelectorExists('[data-readiness-row="repository"][data-readiness-discovery-state="failed"]');
+        self::assertSelectorExists('[data-readiness-row="repository"][data-readiness-discovery-state="failed"][data-readiness-discovery-cancelled]');
     }
 
     public function test_the_action_checks_the_token_of_the_cancel_form(): void

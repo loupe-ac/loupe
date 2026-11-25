@@ -179,6 +179,7 @@ final class ReadinessChecklistTest extends KernelTestCase
 
         self::assertSame(['readiness.row.repository.failed', 'failed', 'readiness.row.repository.retry'], [$row->status, $row->discoveryState, $row->actionLabel]);
         self::assertSame(['%reason%' => $text], $row->statusParameters);
+        self::assertFalse($row->discoveryCancelled);
         self::assertSame('/projects/'.$project->id.'/readiness/discovery/start', $row->actionUrl);
         self::assertSame(ReadinessChecklist::START_TOKEN, $row->actionCsrfTokenId);
     }
@@ -210,6 +211,7 @@ final class ReadinessChecklistTest extends KernelTestCase
         $row = $this->row($this->readiness($this->checklist(), $project), 'repository');
 
         self::assertSame(['%reason%' => str_replace('Riley Chen', $project->owner->fullName, $text)], $row->statusParameters);
+        self::assertTrue($row->discoveryCancelled);
     }
 
     public function test_a_failed_run_with_no_live_bridge_shows_the_raw_reason_and_no_action(): void
