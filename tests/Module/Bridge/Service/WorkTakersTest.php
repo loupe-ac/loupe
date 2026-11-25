@@ -12,6 +12,7 @@ use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Service\BridgeLiveness;
 use App\Module\Bridge\Service\WorkTakers;
 use App\Module\Bridge\ValueObject\AccountLimitCause;
+use App\Module\Bridge\ValueObject\FailingAccount;
 use App\Module\Bridge\ValueObject\RefusedTaker;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
@@ -212,6 +213,84 @@ final class WorkTakersTest extends KernelTestCase
         $this->failedAccounts($bridge, ['one', 'two'], ['one'], (string) $project->id);
 
         self::assertSame(WorkTakerState::NotCapable, $this->read($project, $request)->state, 'the bridge skips the kind when one variant account failed');
+    }
+
+    public function test_the_not_capable_reading_names_each_failed_account_and_its_bridge(): void
+    {
+        [$project, $request, $owner] = $this->scenario('failing-named');
+        $older = $this->bridge($owner, $project, seenSecondsAgo: 20);
+        $this->failedAccounts($older, ['three'], ['three'], (string) $project->id);
+        $newer = $this->bridge($owner, $project, seenSecondsAgo: 10);
+        $this->failedAccounts($newer, ['one', 'two'], ['two'], (string) $project->id);
+
+        $reading = $this->read($project, $request);
+
+        self::assertSame(WorkTakerState::NotCapable, $reading->state);
+        self::assertEquals([
+            new FailingAccount($newer->label, 'two', 'claude is not on PATH'),
+            new FailingAccount($older->label, 'three', 'claude is not on PATH'),
+        ], $reading->failingAccounts);
+    }
+
+    public function test_a_working_bridge_beside_a_failing_one_leaves_an_available_reading_with_no_failed_account(): void
+    {
+        [$project, $request, $owner] = $this->scenario('failing-beside-working');
+        $failing = $this->bridge($owner, $project, seenSecondsAgo: 10);
+        $this->failedAccounts($failing, ['one'], ['one'], (string) $project->id);
+        $this->bridge($owner, $project, seenSecondsAgo: 20);
+
+        $reading = $this->read($project, $request);
+
+        self::assertSame(WorkTakerState::Available, $reading->state);
+        self::assertSame([], $reading->failingAccounts);
+    }
+
+    public function test_the_not_capable_reading_names_the_failed_account_that_would_run_the_app_prompt(): void
+    {
+        [$project, $request, $owner] = $this->scenario('failing-app-prompt', prompt: 'Build {cardId}.');
+        $bridge = $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: [], capabilities: [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, Bridge::CAPABILITY_APP_PROMPTS]);
+        $this->failedAppPromptAccount($bridge, (string) $project->id);
+
+        self::assertEquals([new FailingAccount($bridge->label, 'one', 'claude is not on PATH')], $this->read($project, $request)->failingAccounts);
+    }
+
+    public function test_a_bridge_that_is_not_the_target_of_the_request_names_no_failed_account(): void
+    {
+        [$project, $untargeted, $owner] = $this->scenario('failing-not-target');
+        $target = $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: ['fix']);
+        $other = $this->bridge($owner, $project, seenSecondsAgo: 20);
+        $this->failedAccounts($other, ['one'], ['one'], (string) $project->id);
+        $targeted = $this->seedWorkRequest($this->em(), $project, createdAt: new \DateTimeImmutable('2026-10-16 11:00:00'), targetBridgeId: $target->id);
+
+        self::assertEquals([new FailingAccount($other->label, 'one', 'claude is not on PATH')], $this->read($project, $untargeted)->failingAccounts);
+
+        $reading = $this->read($project, $targeted);
+
+        self::assertSame(WorkTakerState::NotCapable, $reading->state);
+        self::assertSame([], $reading->failingAccounts);
+
+        $toOther = $this->seedWorkRequest($this->em(), $project, createdAt: new \DateTimeImmutable('2026-10-16 11:00:00'), targetBridgeId: $other->id);
+
+        self::assertEquals([new FailingAccount($other->label, 'one', 'claude is not on PATH')], $this->read($project, $toOther)->failingAccounts);
+    }
+
+    public function test_a_bridge_that_cannot_take_the_work_for_another_cause_names_no_failed_account(): void
+    {
+        [$project, $request, $owner] = $this->scenario('failing-other-cause', capability: 'interactive');
+        $able = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_WAITS, 'interactive'];
+        $named = $this->bridge($owner, $project, seenSecondsAgo: 10, capabilities: $able);
+        $quiet = $this->bridge($owner, $project, seenSecondsAgo: $this->window() + 1, capabilities: $able);
+        $unmapped = $this->bridge($owner, $project, seenSecondsAgo: 20, workKinds: ['fix'], capabilities: $able);
+        $incapable = $this->bridge($owner, $project, seenSecondsAgo: 30);
+        $elsewhere = $this->bridge($owner, $project, seenSecondsAgo: 40, capabilities: $able, follows: false);
+        foreach ([$named, $quiet, $unmapped, $incapable, $elsewhere] as $bridge) {
+            $this->failedAccounts($bridge, ['one'], ['one'], (string) $project->id);
+        }
+
+        $reading = $this->read($project, $request);
+
+        self::assertSame(WorkTakerState::NotCapable, $reading->state);
+        self::assertEquals([new FailingAccount($named->label, 'one', 'claude is not on PATH')], $reading->failingAccounts);
     }
 
     public function test_a_failed_app_prompt_account_waits_on_the_no_capable_marker(): void

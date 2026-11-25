@@ -20,6 +20,7 @@ final class DevSeedRestoreInboxTablesTest extends DevSeedTestCase
         yield 'every document link' => ['DELETE FROM inbox_item_documents'];
         yield 'every review' => ['DELETE FROM inbox_reviews'];
         yield 'every action' => ['DELETE FROM inbox_actions'];
+        yield 'every bridge outage' => ['DELETE FROM inbox_bridge_outages'];
     }
 
     #[DataProvider('inboxTableDeletions')]

@@ -374,7 +374,26 @@ class Bridge
      */
     public function failsProjectFor(string $projectId, string $workKind): bool
     {
-        return array_any($this->accountsRunning($workKind), static fn (array $row): bool => array_any($row['failedProjects'] ?? [], static fn (array $failed): bool => $failed['projectId'] === $projectId));
+        return [] !== $this->projectFailures($projectId, $workKind);
+    }
+
+    /**
+     * The accounts that run the work kind and failed their check for the project, each with the reported reason.
+     *
+     * @return list<array{account: string, reason: string}>
+     */
+    public function projectFailures(string $projectId, string $workKind): array
+    {
+        $failures = [];
+        foreach ($this->accountsRunning($workKind) as $row) {
+            foreach ($row['failedProjects'] ?? [] as $failed) {
+                if ($failed['projectId'] === $projectId) {
+                    $failures[] = ['account' => $row['name'], 'reason' => $failed['reason']];
+                }
+            }
+        }
+
+        return $failures;
     }
 
     /**

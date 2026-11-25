@@ -9,6 +9,7 @@ use App\Module\Board\Repository\CardRepository;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\WorkTakers;
+use App\Module\Bridge\ValueObject\FailingAccount;
 use App\Module\Bridge\ValueObject\RefusedTaker;
 use App\Module\Bridge\ValueObject\WorkTakerReading;
 use App\Module\Bridge\ValueObject\WorkTakerState;
@@ -102,6 +103,10 @@ final readonly class BridgeOutageReconciler
             $expired = array_values(array_unique(array_merge(...array_map(static fn (array $row): array => $row['reading']->expiredTakers, array_values($withoutTaker)))));
             sort($expired);
             $refused = self::refusedOf($withoutTaker);
+            $failing = self::failingOf($withoutTaker);
+            $online = array_any($withoutTaker, static fn (array $row): bool => WorkTakerState::NotCapable === $row['reading']->state);
+            // Some waiting request has no line that names its cause.
+            $unexplained = array_any($withoutTaker, static fn (array $row): bool => [] === $row['reading']->failingAccounts && [] === $row['reading']->refusedTakers);
 
             if (null === $outage) {
                 $cutoff = $now->modify(\sprintf('-%d minutes', $this->afterMinutes));
@@ -111,14 +116,14 @@ final readonly class BridgeOutageReconciler
                     return null;
                 }
 
-                $outage = $this->open($project, $cards, self::earliest($due), $now, $expired, $refused);
+                $outage = $this->open($project, $cards, self::earliest($due), $now, $online, $expired, $failing, $refused, $unexplained);
                 $this->em->flush();
                 $this->searchIndexer->index($outage->item);
 
                 return true;
             }
 
-            if ($outage->item->isDismissed() || !$this->extend($outage->item, $cards, $now, $expired, $refused)) {
+            if ($outage->item->isDismissed() || !$this->extend($outage->item, $cards, $now, $online, $expired, $failing, $refused, $unexplained)) {
                 return null;
             }
             $this->em->flush();
@@ -220,11 +225,34 @@ final readonly class BridgeOutageReconciler
     }
 
     /**
-     * @param array<string, Card> $cards
-     * @param list<string>        $expired
-     * @param list<RefusedTaker>  $refused
+     * Each failed account once for each of its reasons as the notice shows them, whatever the number of requests it
+     * holds back.
+     *
+     * @param array<string, array{request: WorkRequest, reading: WorkTakerReading}> $rows
+     *
+     * @return list<FailingAccount>
      */
-    private function open(Project $project, array $cards, \DateTimeImmutable $startedAt, \DateTimeImmutable $now, array $expired, array $refused): InboxBridgeOutage
+    private static function failingOf(array $rows): array
+    {
+        $failing = [];
+        foreach ($rows as $row) {
+            foreach ($row['reading']->failingAccounts as $account) {
+                // The escaped form is equal exactly when the shown lines are equal.
+                $failing[$account->label."\0".$account->account."\0".MarkdownLiteral::line($account->reason)] = $account;
+            }
+        }
+        ksort($failing);
+
+        return array_values($failing);
+    }
+
+    /**
+     * @param array<string, Card>  $cards
+     * @param list<string>         $expired
+     * @param list<FailingAccount> $failing
+     * @param list<RefusedTaker>   $refused
+     */
+    private function open(Project $project, array $cards, \DateTimeImmutable $startedAt, \DateTimeImmutable $now, bool $online, array $expired, array $failing, array $refused, bool $unexplained): InboxBridgeOutage
     {
         $item = new InboxItem(
             project: $project,
@@ -239,7 +267,7 @@ final readonly class BridgeOutageReconciler
         foreach ($cards as $card) {
             $item->cards->add(new InboxItemCard($item, $card, $now));
         }
-        $item->body = $this->body($item, $expired, $refused);
+        $item->body = $this->body($item, $online, $expired, $failing, $refused, $unexplained);
         $outage = new InboxBridgeOutage($project, $item, $startedAt);
         $this->em->persist($item);
         $this->em->persist($outage);
@@ -253,11 +281,12 @@ final readonly class BridgeOutageReconciler
      * Links the cards the item does not hold yet and writes its body again
      * when a card joined or the text changed.
      *
-     * @param array<string, Card> $cards
-     * @param list<string>        $expired
-     * @param list<RefusedTaker>  $refused
+     * @param array<string, Card>  $cards
+     * @param list<string>         $expired
+     * @param list<FailingAccount> $failing
+     * @param list<RefusedTaker>   $refused
      */
-    private function extend(InboxItem $item, array $cards, \DateTimeImmutable $now, array $expired, array $refused): bool
+    private function extend(InboxItem $item, array $cards, \DateTimeImmutable $now, bool $online, array $expired, array $failing, array $refused, bool $unexplained): bool
     {
         $linked = [];
         foreach ($item->cards as $link) {
@@ -271,7 +300,7 @@ final readonly class BridgeOutageReconciler
                 $added = true;
             }
         }
-        $body = $this->body($item, $expired, $refused);
+        $body = $this->body($item, $online, $expired, $failing, $refused, $unexplained);
         if (!$added && $body === $item->body) {
             return false;
         }
@@ -283,30 +312,41 @@ final readonly class BridgeOutageReconciler
     }
 
     /**
-     * @param list<string>       $expired
-     * @param list<RefusedTaker> $refused
+     * @param list<string>         $expired
+     * @param list<FailingAccount> $failing
+     * @param list<RefusedTaker>   $refused
      */
-    private function body(InboxItem $item, array $expired, array $refused): string
+    private function body(InboxItem $item, bool $online, array $expired, array $failing, array $refused, bool $unexplained): string
     {
         $cards = array_map(static fn (InboxItemCard $link): Card => $link->card, $item->cards->toArray());
         usort($cards, static fn (Card $a, Card $b): int => $a->number <=> $b->number);
 
         $lines = array_map(
-            fn (Card $card): string => '- '.$this->translator->trans('inbox.bridge_outage.body.card', ['%number%' => $card->number, '%title%' => $card->title], null, $this->locale),
+            fn (Card $card): string => '- '.$this->translator->trans('inbox.bridge_outage.body.card', ['%number%' => $card->number, '%title%' => MarkdownLiteral::line($card->title)], null, $this->locale),
             $cards,
         );
 
-        $body = $this->translator->trans('inbox.bridge_outage.body.intro', [], null, $this->locale)
+        $body = $this->translator->trans($online ? 'inbox.bridge_outage.body.intro_online' : 'inbox.bridge_outage.body.intro', [], null, $this->locale)
             ."\n\n".implode("\n", $lines);
-        // The start-a-bridge advice is wrong while an online bridge is the one the server refused.
-        if ([] === $refused || [] !== $expired) {
-            $body .= "\n\n".$this->translator->trans('inbox.bridge_outage.body.remedy', ['%bridges%' => implode(', ', $expired), '%count%' => \count($expired)], null, $this->locale);
+        // While a bridge is online, the advice to start one is wrong, so only an expired login keeps this line.
+        if (!$online || [] !== $expired) {
+            $body .= "\n\n".$this->translator->trans('inbox.bridge_outage.body.remedy', ['%bridges%' => implode(', ', array_map(MarkdownLiteral::line(...), $expired)), '%count%' => \count($expired)], null, $this->locale);
         }
-        if ([] !== $refused) {
-            $body .= "\n\n".implode("\n", array_map($this->refusedLine(...), $refused));
+        // The `*` marker starts a new Markdown list. With `-`, the causes would join the list of cards.
+        $causes = [...array_map($this->failingLine(...), $failing), ...array_map($this->refusedLine(...), $refused)];
+        if ([] !== $causes) {
+            $body .= "\n\n".implode("\n", $causes);
+        }
+        if ($online && $unexplained) {
+            $body .= "\n\n".$this->translator->trans('inbox.bridge_outage.body.remedy_online', [], null, $this->locale);
         }
 
         return $body;
+    }
+
+    private function failingLine(FailingAccount $failing): string
+    {
+        return '* '.$this->translator->trans('inbox.bridge_outage.body.failing_account', ['%account%' => $failing->account, '%bridge%' => MarkdownLiteral::line($failing->label), '%reason%' => MarkdownLiteral::line($failing->reason)], null, $this->locale);
     }
 
     private function refusedLine(RefusedTaker $taker): string
@@ -317,7 +357,7 @@ final readonly class BridgeOutageReconciler
             default => 'inbox.bridge_outage.body.refused.no_account',
         };
 
-        return '- '.$this->translator->trans($key, ['%bridge%' => $taker->label, '%account%' => $taker->account ?? ''], null, $this->locale);
+        return '* '.$this->translator->trans($key, ['%bridge%' => MarkdownLiteral::line($taker->label), '%account%' => $taker->account ?? ''], null, $this->locale);
     }
 
     /**

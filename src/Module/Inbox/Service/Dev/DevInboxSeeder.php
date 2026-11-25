@@ -31,6 +31,8 @@ use App\Module\Inbox\Entity\InboxActionKind;
 use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxAskItem;
 use App\Module\Inbox\Entity\InboxAskOrigin;
+use App\Module\Inbox\Entity\InboxBridgeOutage;
+use App\Module\Inbox\Entity\InboxCloseCause;
 use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxConfidence;
 use App\Module\Inbox\Entity\InboxItem;
@@ -41,9 +43,11 @@ use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Entity\InboxReview;
 use App\Module\Inbox\Entity\InboxReviewVerdict;
 use App\Module\Inbox\Repository\InboxActionRepository;
+use App\Module\Inbox\Repository\InboxBridgeOutageRepository;
 use App\Module\Inbox\Repository\InboxItemRepository;
 use App\Module\Inbox\Repository\InboxReviewRepository;
 use App\Module\Inbox\Service\InboxSearchIndexer;
+use App\Module\Inbox\Service\MarkdownLiteral;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Project\Service\Dev\DevProjectSeeder;
@@ -54,8 +58,10 @@ use App\Module\SiteReview\Entity\SiteReviewComment;
 use App\Module\SiteReview\Service\Dev\DevSiteFeedbackSeeder;
 use App\Module\Workflow\Contract\CardEvaluations;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\DependencyInjection\Attribute\When;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
  * Writes the open and completed requests of the dev project, and the links
@@ -91,6 +97,11 @@ final readonly class DevInboxSeeder implements DevSeederInterface
         private CardSiteReviewCommentRepository $cardSiteReviewComments,
         private InboxSearchIndexer $inboxSearch,
         private CardEvaluations $evaluations,
+        private InboxBridgeOutageRepository $inboxBridgeOutages,
+        private TranslatorInterface $translator,
+
+        #[Autowire(param: 'kernel.default_locale')]
+        private string $locale,
     ) {
     }
 
@@ -132,6 +143,8 @@ final readonly class DevInboxSeeder implements DevSeederInterface
             ...$this->seedSessionPromptItems($context, $project, $owner, $onboarding),
             ...$this->seedCommandRuns($context, $project, $owner, $onboarding),
             ...$this->seedApiKeyNotices($context, $project),
+            // Last, so the numbers of the other items of a fresh database stay as they are.
+            $this->seedBridgeOutageNotice($context, $project, [$checkout, $history]),
         ];
         $this->em->flush();
 
@@ -438,6 +451,44 @@ final readonly class DevInboxSeeder implements DevSeederInterface
             }),
             $this->closedNotice($context, $project, 'api-key-notice-twin', 5_460, InboxAskOrigin::Loupe),
         ];
+    }
+
+    /**
+     * An ended outage with a failed account, in the shape BridgeOutageReconciler stores: no ask holds it.
+     * It is closed, because the reconciler rewrites or closes the notice of an open outage.
+     *
+     * @param list<Card> $cards
+     */
+    private function seedBridgeOutageNotice(SeedContext $context, Project $project, array $cards): InboxItem
+    {
+        usort($cards, static fn (Card $a, Card $b): int => $a->number <=> $b->number);
+        $cardLines = array_map(
+            fn (Card $card): string => '- '.$this->translator->trans('inbox.bridge_outage.body.card', ['%number%' => $card->number, '%title%' => MarkdownLiteral::line($card->title)], null, $this->locale),
+            $cards,
+        );
+        $failingLine = '* '.$this->translator->trans('inbox.bridge_outage.body.failing_account', ['%account%' => 'codex', '%bridge%' => MarkdownLiteral::line('macbookpro'), '%reason%' => MarkdownLiteral::line('codex plugins could not be read')], null, $this->locale);
+        $closedAt = $context->at(4_500 - 1_800);
+
+        $notice = $this->item($context, 'bridge-outage', $project, InboxItemKind::Notice, $this->translator->trans('inbox.bridge_outage.title', [], null, $this->locale), false, 4_500, [
+            'body' => $this->translator->trans('inbox.bridge_outage.body.intro_online', [], null, $this->locale)."\n\n".implode("\n", $cardLines)."\n\n".$failingLine,
+        ], static function (InboxItem $item) use ($closedAt): void {
+            $item->state = InboxItemState::Resolved;
+            $item->closedBy = InboxCloser::Loupe;
+            $item->closeCause = InboxCloseCause::FactEnded;
+            $item->closedAt = $closedAt;
+            $item->updatedAt = $closedAt;
+        }, InboxAskOrigin::Loupe);
+        foreach ($cards as $card) {
+            $this->linkCard($notice, $card);
+        }
+
+        if (!$this->inboxBridgeOutages->findOneBy(['item' => $notice]) instanceof InboxBridgeOutage) {
+            $outage = new InboxBridgeOutage($project, $notice, $context->at(4_500 + 600));
+            $outage->endedAt = $notice->closedAt;
+            $this->em->persist($outage);
+        }
+
+        return $notice;
     }
 
     /** @param (\Closure(InboxItem): void)|null $adjust */

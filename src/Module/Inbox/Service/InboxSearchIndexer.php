@@ -40,12 +40,13 @@ final readonly class InboxSearchIndexer
         // COALESCE, because the body is nullable and a NULL operand turns the
         // whole vector NULL, which leaves the title unsearchable too. The linked
         // card titles go in too, because a wait item names its card only by number.
+        // A Markdown escape would split a word such as a host name, so the body goes in without its escapes.
         $this->connection->executeStatement(
             \sprintf(
                 <<<'SQL'
                     UPDATE inbox_items
                     SET search_vector = setweight(to_tsvector(search_language::regconfig, title), '%1$s')
-                        || setweight(to_tsvector(search_language::regconfig, COALESCE(body, '')), '%2$s')
+                        || setweight(to_tsvector(search_language::regconfig, regexp_replace(COALESCE(body, ''), '\\([[:punct:]])', '\1', 'g')), '%2$s')
                         || setweight(to_tsvector(search_language::regconfig, COALESCE((
                             SELECT string_agg(card.title, ' ')
                             FROM inbox_item_cards link

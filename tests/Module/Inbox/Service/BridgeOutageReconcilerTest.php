@@ -30,7 +30,9 @@ use App\Tests\Support\StubLoginLiveness;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
+use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\Uid\Uuid;
+use Twig\Environment;
 
 final class BridgeOutageReconcilerTest extends KernelTestCase
 {
@@ -38,6 +40,8 @@ final class BridgeOutageReconcilerTest extends KernelTestCase
     use QueuedPushes;
 
     private const string NOW = '2026-10-16 12:00:00';
+    private const string ONLINE_INTRO = 'A bridge is online, but none can take the work of these cards:';
+    private const string GENERIC_REMEDY = 'Map this kind of work in the bridge rule file, or set `appPrompts: true`. Run `loupe update` if the bridge is old.';
 
     private EntityManagerInterface $em;
     private MockClock $clock;
@@ -411,8 +415,7 @@ final class BridgeOutageReconcilerTest extends KernelTestCase
         $this->reconciler->reconcile($this->project);
 
         $body = $this->bodyOf($this->onlyOutage()->item);
-        self::assertStringContainsString('The login of macbookpro expired. Run `loupe login` on that machine.', $body);
-        self::assertStringNotContainsString('Start a bridge', $body);
+        self::assertSame(self::ONLINE_INTRO."\n\n- Card 12: Ship it\n\nThe login of macbookpro expired. Run `loupe login` on that machine.\n\n".self::GENERIC_REMEDY, $body);
     }
 
     public function test_a_notice_asks_for_a_login_on_each_machine_when_several_logins_expired(): void
@@ -447,8 +450,7 @@ final class BridgeOutageReconcilerTest extends KernelTestCase
         $this->reconciler->reconcile($this->project);
 
         $body = $this->bodyOf($this->onlyOutage()->item);
-        self::assertStringContainsString('macbookpro runs a CLI that names no account in its claims. Run `loupe update` on that machine.', $body);
-        self::assertStringNotContainsString('Start a bridge', $body);
+        self::assertSame(self::ONLINE_INTRO."\n\n- Card 12: Ship it\n\n* macbookpro runs a CLI that names no account in its claims. Run `loupe update` on that machine.", $body);
     }
 
     public function test_a_notice_names_the_account_that_the_server_refused(): void
@@ -461,7 +463,9 @@ final class BridgeOutageReconcilerTest extends KernelTestCase
         $this->reconciler->reconcile($this->project);
 
         $body = $this->bodyOf($this->onlyOutage()->item);
+        self::assertStringStartsWith(self::ONLINE_INTRO, $body);
         self::assertStringContainsString('The server refused macbookpro for the account work. Check the account of the work entry or the experiment variant in `rules.yaml`, then run `loupe bridge reload`.', $body);
+        self::assertStringNotContainsString(self::GENERIC_REMEDY, $body);
         self::assertStringNotContainsString('loupe update', $body);
     }
 
@@ -476,7 +480,9 @@ final class BridgeOutageReconcilerTest extends KernelTestCase
         $this->reconciler->reconcile($this->project);
 
         $body = $this->bodyOf($this->onlyOutage()->item);
+        self::assertStringStartsWith(self::ONLINE_INTRO, $body);
         self::assertStringContainsString('The server refused macbookpro because its claim named no account. Check the work entry in `rules.yaml`, then run `loupe bridge reload`.', $body);
+        self::assertStringNotContainsString(self::GENERIC_REMEDY, $body);
         self::assertStringNotContainsString('loupe update', $body);
     }
 
@@ -493,7 +499,220 @@ final class BridgeOutageReconcilerTest extends KernelTestCase
 
         $this->reconciler->reconcile($this->project);
 
-        self::assertSame(1, substr_count($this->bodyOf($this->onlyOutage()->item), 'The server refused macbookpro'));
+        $body = $this->bodyOf($this->onlyOutage()->item);
+        self::assertStringStartsWith(self::ONLINE_INTRO, $body);
+        self::assertSame(1, substr_count($body, 'The server refused macbookpro'));
+        self::assertStringNotContainsString(self::GENERIC_REMEDY, $body);
+    }
+
+    public function test_a_notice_names_the_failed_account_of_an_online_bridge_that_would_run_the_work(): void
+    {
+        $this->waitingRequest($this->card, '2026-10-16 11:00:00');
+        $bridge = $this->bridge(seenSecondsAgo: 10);
+        $bridge->name = 'macbookpro';
+        $this->accounts($bridge, ['work' => 'claude is not on PATH']);
+
+        $this->reconciler->reconcile($this->project);
+
+        $body = $this->bodyOf($this->onlyOutage()->item);
+        self::assertSame(self::ONLINE_INTRO."\n\n- Card 12: Ship it\n\n* ".$this->accountLine('work', 'claude is not on PATH'), $body);
+        self::assertStringNotContainsString('Start a bridge', $body);
+        self::assertStringNotContainsString('No bridge is online', $body);
+    }
+
+    public function test_a_notice_adds_the_general_remedy_when_one_waiting_request_has_no_named_cause(): void
+    {
+        $this->waitingRequest($this->card, '2026-10-16 11:00:00');
+        $other = $this->card($this->em, $this->project, 13);
+        $this->em->flush();
+        $this->waitingRequest($other, '2026-10-16 11:00:00', kind: 'review');
+        $bridge = $this->bridge(seenSecondsAgo: 10);
+        $bridge->name = 'macbookpro';
+        $this->accounts($bridge, ['work' => 'claude is not on PATH']);
+
+        $this->reconciler->reconcile($this->project);
+
+        self::assertSame(
+            self::ONLINE_INTRO."\n\n- Card 12: Ship it\n- Card 13: Ship it\n\n* ".$this->accountLine('work', 'claude is not on PATH')."\n\n".self::GENERIC_REMEDY,
+            $this->bodyOf($this->onlyOutage()->item),
+        );
+    }
+
+    public function test_an_open_notice_follows_the_failed_accounts_as_one_is_fixed_and_a_reason_changes(): void
+    {
+        $this->waitingRequest($this->card, '2026-10-16 11:00:00');
+        $other = $this->card($this->em, $this->project, 13);
+        $this->em->flush();
+        $this->waitingRequest($other, '2026-10-16 11:00:00');
+        $bridge = $this->bridge(seenSecondsAgo: 10);
+        $bridge->name = 'macbookpro';
+        $this->accounts($bridge, ['work' => 'claude is not on PATH', 'home' => 'not logged in']);
+        $this->reconciler->reconcile($this->project);
+        $item = $this->onlyOutage()->item;
+        // Each failed account shows once, whatever the number of requests it holds back.
+        self::assertStringEndsWith("\n\n* ".$this->accountLine('home', 'not logged in')."\n* ".$this->accountLine('work', 'claude is not on PATH'), $this->bodyOf($item));
+
+        $this->clock->sleep(60);
+        $this->accounts($bridge, ['work' => 'claude is not on PATH', 'home' => null]);
+        $this->reconciler->reconcile($this->project);
+
+        self::assertStringEndsWith("\n\n* ".$this->accountLine('work', 'claude is not on PATH'), $this->bodyOf($item));
+        self::assertStringNotContainsString('not logged in', $this->bodyOf($item));
+        self::assertEquals(new \DateTimeImmutable('2026-10-16 12:01:00'), $item->updatedAt);
+
+        $this->clock->sleep(60);
+        $this->accounts($bridge, ['work' => 'login check timed out', 'home' => null]);
+        $this->reconciler->reconcile($this->project);
+
+        self::assertStringEndsWith("\n\n* ".$this->accountLine('work', 'login check timed out'), $this->bodyOf($item));
+        self::assertStringNotContainsString('not on PATH', $this->bodyOf($item));
+        self::assertEquals(new \DateTimeImmutable('2026-10-16 12:02:00'), $item->updatedAt);
+        self::assertSame(1, $this->itemCount());
+    }
+
+    public function test_a_reason_cannot_break_out_of_its_line_or_hide_text_as_markup(): void
+    {
+        $this->waitingRequest($this->card, '2026-10-16 11:00:00');
+        $bridge = $this->bridge(seenSecondsAgo: 10);
+        $bridge->name = 'macbookpro';
+        $this->accounts($bridge, ['work' => "no <path>\n\n```\r\n# heading\n- item"]);
+
+        $this->reconciler->reconcile($this->project);
+
+        $html = $this->renderedBody();
+        self::assertCount(2, $html->filter('ul'), 'the cards and the causes are two lists');
+        self::assertCount(2, $html->filter('li'));
+        self::assertCount(0, $html->filter('h1, pre'));
+        self::assertStringContainsString('no <path> ``` # heading - item. Fix the account', $html->filter('li')->last()->text());
+    }
+
+    public function test_a_card_title_that_looks_like_a_tag_stays_text_and_keeps_the_rest_of_the_notice(): void
+    {
+        $this->card->title = '<script>';
+        $other = $this->card($this->em, $this->project, 13);
+        $other->title = 'Render <details> blocks';
+        $this->waitingRequest($this->card, '2026-10-16 11:00:00');
+        $this->waitingRequest($other, '2026-10-16 11:00:00');
+
+        $this->reconciler->reconcile($this->project);
+
+        $html = $this->renderedBody();
+        self::assertSame(['Card 12: <script>', 'Card 13: Render <details> blocks'], $html->filter('li')->each(static fn (Crawler $line): string => $line->text()));
+        self::assertStringContainsString('Start a bridge, or run loupe login.', $html->text());
+    }
+
+    public function test_a_card_title_with_a_line_break_stays_on_the_line_of_its_card(): void
+    {
+        $this->card->title = "Ship it\n\n# Now\n```";
+        $this->waitingRequest($this->card, '2026-10-16 11:00:00');
+
+        $this->reconciler->reconcile($this->project);
+
+        $html = $this->renderedBody();
+        self::assertCount(0, $html->filter('h1, pre'));
+        self::assertSame(['Card 12: Ship it # Now ```'], $html->filter('li')->each(static fn (Crawler $line): string => $line->text()));
+        self::assertStringContainsString('Start a bridge, or run loupe login.', $html->text());
+    }
+
+    public function test_a_bridge_label_stays_text_in_the_line_of_a_failed_account(): void
+    {
+        $this->waitingRequest($this->card, '2026-10-16 11:00:00');
+        $bridge = $this->bridge(seenSecondsAgo: 10);
+        $bridge->name = '<b>mac*book*';
+        $this->accounts($bridge, ['work' => 'not logged in']);
+
+        $this->reconciler->reconcile($this->project);
+
+        $html = $this->renderedBody();
+        self::assertCount(0, $html->filter('b, em'));
+        self::assertSame('The account work on <b>mac*book* fails its check for this project: not logged in. Fix the account, then run loupe bridge reload on that machine.', $html->filter('li')->last()->text());
+    }
+
+    public function test_a_bridge_label_stays_text_in_the_line_of_a_refused_bridge(): void
+    {
+        $request = $this->waitingRequest($this->card, '2026-10-16 11:00:00');
+        $bridge = $this->bridge(seenSecondsAgo: 10);
+        $bridge->name = '<script>';
+        $this->refuse($bridge, $request, 'work');
+
+        $this->reconciler->reconcile($this->project);
+
+        self::assertStringStartsWith('The server refused <script> for the account work. Check', $this->renderedBody()->filter('li')->last()->text());
+    }
+
+    public function test_a_bridge_label_stays_text_in_the_line_of_an_expired_login(): void
+    {
+        $login = Uuid::v7();
+        $this->waitingRequest($this->card, '2026-10-16 11:00:00');
+        $bridge = $this->bridge(seenSecondsAgo: 3600);
+        $bridge->loginId = $login;
+        $bridge->name = '<script>';
+        $this->em->flush();
+        $this->logins->expired = [$login->toRfc4122()];
+
+        $this->reconciler->reconcile($this->project);
+
+        self::assertStringContainsString('The login of <script> expired. Run loupe login on that machine.', $this->renderedBody()->text());
+    }
+
+    public function test_the_markdown_in_a_reason_stays_text(): void
+    {
+        $reason = 'run `codex login` [here](https://example.com) *now* **or** _later_ &amp; ![x](https://example.com/x.png) \\<br> https://example.com';
+        $this->waitingRequest($this->card, '2026-10-16 11:00:00');
+        $bridge = $this->bridge(seenSecondsAgo: 10);
+        $bridge->name = 'macbookpro';
+        $this->accounts($bridge, ['work' => $reason]);
+
+        $this->reconciler->reconcile($this->project);
+
+        $line = $this->renderedBody()->filter('li')->last();
+        self::assertCount(0, $line->filter('a, img, em, strong, br'));
+        self::assertSame(['loupe bridge reload'], $line->filter('code')->each(static fn (Crawler $code): string => $code->text()), 'only the code span of the notice itself');
+        self::assertSame('The account work on macbookpro fails its check for this project: '.$reason.'. Fix the account, then run loupe bridge reload on that machine.', $line->text());
+    }
+
+    public function test_the_search_finds_a_bridge_by_a_name_with_punctuation(): void
+    {
+        $this->waitingRequest($this->card, '2026-10-16 11:00:00');
+        $bridge = $this->bridge(seenSecondsAgo: 10);
+        $bridge->name = 'studio-mac.local';
+        $this->accounts($bridge, ['work' => 'not logged in']);
+
+        $this->reconciler->reconcile($this->project);
+
+        self::assertSame(1, $this->searchHits('studio-mac.local'));
+    }
+
+    /** The body as the page shows it, through the filter of the template. */
+    private function renderedBody(): Crawler
+    {
+        $twig = self::getContainer()->get('twig');
+        self::assertInstanceOf(Environment::class, $twig);
+
+        return new Crawler('<div>'.$twig->createTemplate('{{ body|inbox_markdown }}')->render(['body' => $this->bodyOf($this->onlyOutage()->item)]).'</div>');
+    }
+
+    /** @param array<string, ?string> $accounts the reason each account fails the project, or null when it passes, by account name */
+    private function accounts(Bridge $bridge, array $accounts): void
+    {
+        $bridge->accounts = array_map(
+            fn (string $name, ?string $reason): array => [
+                'name' => $name,
+                'harness' => 'claude',
+                'state' => 'ready',
+                'reason' => null,
+                'kinds' => ['implement'],
+                'failedProjects' => null === $reason ? [] : [['projectId' => (string) $this->project->id, 'reason' => $reason]],
+            ],
+            array_keys($accounts),
+            array_values($accounts),
+        );
+        $this->em->flush();
+    }
+
+    private function accountLine(string $account, string $reason): string
+    {
+        return \sprintf('The account %s on macbookpro fails its check for this project: %s. Fix the account, then run `loupe bridge reload` on that machine.', $account, $reason);
     }
 
     private function refuse(Bridge $bridge, WorkRequest $request, ?string $account): void
@@ -507,14 +726,14 @@ final class BridgeOutageReconcilerTest extends KernelTestCase
         return $item->body ?? throw new \LogicException('A notice has a body.');
     }
 
-    private function waitingRequest(Card $card, string $createdAt): WorkRequest
+    private function waitingRequest(Card $card, string $createdAt, string $kind = 'implement'): WorkRequest
     {
         $request = new WorkRequest(
             project: $card->project,
             subjectType: 'card',
             subjectId: $card->id ?? throw new \LogicException('A stored card has an id.'),
             cardNumber: $card->number,
-            kind: 'implement',
+            kind: $kind,
             capability: null,
             ruleId: 'implement-on-entry',
             createdAt: new \DateTimeImmutable($createdAt),

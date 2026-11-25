@@ -6636,6 +6636,10 @@
                 <source>inbox.bridge_outage.body.intro</source>
                 <target>No bridge is online that can take the work of these cards:</target>
             </trans-unit>
+            <trans-unit id="inbox.bridge_outage.body.intro_online">
+                <source>inbox.bridge_outage.body.intro_online</source>
+                <target>A bridge is online, but none can take the work of these cards:</target>
+            </trans-unit>
             <trans-unit id="inbox.bridge_outage.body.card">
                 <source>inbox.bridge_outage.body.card</source>
                 <target>Card %number%: %title%</target>
@@ -6643,6 +6647,14 @@
             <trans-unit id="inbox.bridge_outage.body.remedy">
                 <source>inbox.bridge_outage.body.remedy</source>
                 <target>{0}Start a bridge, or run `loupe login`.|{1}The login of %bridges% expired. Run `loupe login` on that machine.|]1,Inf]The logins of %bridges% expired. Run `loupe login` on each of those machines.</target>
+            </trans-unit>
+            <trans-unit id="inbox.bridge_outage.body.failing_account">
+                <source>inbox.bridge_outage.body.failing_account</source>
+                <target>The account %account% on %bridge% fails its check for this project: %reason%. Fix the account, then run `loupe bridge reload` on that machine.</target>
+            </trans-unit>
+            <trans-unit id="inbox.bridge_outage.body.remedy_online">
+                <source>inbox.bridge_outage.body.remedy_online</source>
+                <target>Map this kind of work in the bridge rule file, or set `appPrompts: true`. Run `loupe update` if the bridge is old.</target>
             </trans-unit>
             <trans-unit id="inbox.bridge_outage.body.refused.version_gap">
                 <source>inbox.bridge_outage.body.refused.version_gap</source>

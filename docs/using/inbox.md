@@ -753,13 +753,33 @@ worked, or the bridges go away again after one came back.
 Loupe opens the notice **No bridge can take work** when the work of a card waits
 for 10 minutes and no online bridge can take it. A paused bridge keeps the work
 waiting, and Loupe opens no notice for it.
-The notice lists each card that waits. It tells you to start a bridge, or to run
-`loupe login`. When the server refused the claim of a bridge for one waiting
-request, the notice names that bridge and the cause. It says `loupe update` only
-when the bridge is too old to name an account. Otherwise it tells you to check
-the account of the work entry in `rules.yaml` and to run `loupe bridge reload`. When more work starts to wait, Loupe adds its card to the open
-notice. A project has one such notice at a time. The `inbox:` list of the
-template does not turn it off.
+The notice lists each card that waits. When no bridge is online, it tells you
+to start a bridge, or to run `loupe login`.
+
+When a bridge is online but cannot take the work, the notice says so, and it
+does not tell you to start a bridge. It asks for `loupe login` only when the
+login of a quiet bridge that could take the work expired.
+
+An account can fail its check for the project. The notice names each such
+account of an online bridge that is set up for the waiting work. It shows the
+bridge and the reason that the bridge reports. Fix the account, then run
+`loupe bridge reload` on that machine.
+
+When the server refused the claim of a bridge for one waiting request, the
+notice names that bridge and the cause. For that bridge, it says `loupe update`
+only when the bridge is too old to name an account. Otherwise it tells you to
+check the account of the work entry in `rules.yaml` and to run
+`loupe bridge reload`.
+
+A bridge can be online while the notice names no failed account and no refused
+bridge for a waiting request. The notice then adds general advice. Map this kind
+of work in the bridge rule file, or set `appPrompts: true`. Run `loupe update`
+if the bridge is old.
+
+When more work starts to wait, Loupe adds its card to the open notice. The text
+of an open notice changes when the cause changes, such as when you fix an
+account or its reason changes. A project has one such notice at a time. The
+`inbox:` list of the template does not turn it off.
 
 Loupe closes the notice as **resolved** when a bridge can take the work again.
 Loupe closes it as **cancelled** when the waiting work ended and no bridge came

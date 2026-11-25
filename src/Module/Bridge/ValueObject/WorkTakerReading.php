@@ -37,6 +37,12 @@ final readonly class WorkTakerReading
          * @var list<RefusedTaker>
          */
         public array $refusedTakers = [],
+        /**
+         * On a not-capable reading: the failed accounts of the online bridges whose setup covers the work.
+         *
+         * @var list<FailingAccount>
+         */
+        public array $failingAccounts = [],
     ) {
     }
 }

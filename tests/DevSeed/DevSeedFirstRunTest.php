@@ -30,9 +30,17 @@ use App\Module\Board\View\CardValueView;
 use App\Module\Bridge\Entity\ExperimentDefinition;
 use App\Module\Bridge\Service\Dev\DevBridgeSeeder;
 use App\Module\Inbox\Entity\InboxAskOrigin;
+use App\Module\Inbox\Entity\InboxCloseCause;
+use App\Module\Inbox\Entity\InboxCloser;
 use App\Module\Inbox\Entity\InboxItem;
+use App\Module\Inbox\Entity\InboxItemCard;
+use App\Module\Inbox\Entity\InboxItemKind;
+use App\Module\Inbox\Entity\InboxItemState;
+use App\Module\Inbox\Repository\InboxAskRepository;
+use App\Module\Inbox\Repository\InboxBridgeOutageRepository;
 use App\Module\Inbox\Service\Dev\DevAgentRunSeeder;
 use App\Module\Inbox\Service\Dev\DevExperimentSeeder;
+use App\Module\Inbox\Service\MarkdownLiteral;
 use App\Module\Insights\Repository\InsightsSavedGraphRepository;
 use App\Module\Insights\Service\Dev\DevEdgeProjectSeeder;
 use App\Module\Insights\Service\SavedGraphCap;
@@ -85,6 +93,7 @@ final class DevSeedFirstRunTest extends DevSeedTestCase
             'internal value' => $this->the_seed_writes_an_internal_value_on_one_card_and_none_on_its_twins_once(...),
             'merge question marker' => $this->the_seed_writes_one_card_with_the_merge_question_marker_that_the_minute_task_leaves_alone(...),
             'waitlist' => $this->the_seed_writes_visible_and_hidden_entries_and_their_patterns_once(...),
+            'bridge outage notice' => $this->the_seed_writes_a_closed_bridge_outage_notice_with_a_failed_account(...),
             'api key records' => $this->the_seed_writes_each_record_of_an_api_key_and_its_twin_once(...),
             'document live' => $this->the_seed_writes_the_states_of_the_document_live_previews_once(...),
             'session start cards' => $this->the_seed_writes_the_two_session_start_cards_once(...),
@@ -181,6 +190,37 @@ final class DevSeedFirstRunTest extends DevSeedTestCase
             $times = array_map(strval(...), $column);
             self::assertSame($times, array_values(array_unique($times)), $table.' holds two records with one creation time.');
         }
+    }
+
+    private function the_seed_writes_a_closed_bridge_outage_notice_with_a_failed_account(): void
+    {
+        $em = $this->em();
+        $notice = $em->find(InboxItem::class, DevSeedId::of('inbox/item/bridge-outage'));
+        self::assertInstanceOf(InboxItem::class, $notice);
+        self::assertSame(InboxItemKind::Notice, $notice->kind);
+        self::assertSame(InboxAskOrigin::Loupe, $notice->origin);
+        self::assertFalse($notice->blocking);
+        self::assertSame('No bridge can take work', $notice->title);
+        self::assertSame(InboxItemState::Resolved, $notice->state);
+        self::assertSame(InboxCloser::Loupe, $notice->closedBy);
+        self::assertSame(InboxCloseCause::FactEnded, $notice->closeCause);
+
+        $cards = array_values($notice->cards->map(static fn (InboxItemCard $link): Card => $link->card)->toArray());
+        usort($cards, static fn (Card $a, Card $b): int => $a->number <=> $b->number);
+        self::assertCount(2, $cards);
+        $cardLines = array_map(static fn (Card $card): string => \sprintf('- Card %d: %s', $card->number, MarkdownLiteral::line($card->title)), $cards);
+        self::assertSame(
+            "A bridge is online, but none can take the work of these cards:\n\n".implode("\n", $cardLines)
+                ."\n\n* The account codex on macbookpro fails its check for this project: codex plugins could not be read. Fix the account, then run `loupe bridge reload` on that machine.",
+            $notice->body,
+        );
+
+        // The reconciler stores its notice with no ask, and ties it to an outage that ends when the notice closes.
+        self::assertSame([], self::getContainer()->get(InboxAskRepository::class)->findHolding($notice));
+        $outage = self::getContainer()->get(InboxBridgeOutageRepository::class)->findOneBy(['item' => $notice]);
+        self::assertNotNull($outage);
+        self::assertEquals($notice->closedAt, $outage->endedAt);
+        self::assertLessThan($notice->createdAt, $outage->startedAt);
     }
 
     private function the_runs_bridges_billing_and_notifications_of_the_pages_exist(): void
