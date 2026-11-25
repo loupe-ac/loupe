@@ -52,7 +52,12 @@ final readonly class FailDiscoveryRunHandler
         // The report and the verdict take the same project row, so an approval that commits first leaves a Done run here, never a Failed one.
         $failed = $this->em->wrapInTransaction(function () use ($run, $waitsFor, $command): bool {
             $this->em->lock($run->project, LockMode::PESSIMISTIC_WRITE);
-            $run->state = $this->discoveryRuns->freshStateOf($run)['state'];
+            $fresh = $this->discoveryRuns->freshStateOf($run);
+            $run->state = $fresh['state'];
+            // Read under the lock, so a report that committed first counts.
+            if (null !== $command->workRequestId && \in_array($command->workRequestId->toRfc4122(), $fresh['answeredWorkRequestIds'], true)) {
+                return false;
+            }
             if (!\in_array($run->state, $waitsFor, true) || !$run->fail($command->reason, $this->clock->now())) {
                 return false;
             }

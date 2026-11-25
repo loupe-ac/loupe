@@ -151,17 +151,22 @@ class DiscoveryRunRepository extends ServiceEntityRepository
      * Reads the row, because the loaded run can be stale.
      * Doctrine cannot refresh a run, since its constructor properties are read-only.
      *
-     * @return array{state: DiscoveryRunState, hasReport: bool, workRequestId: ?Uuid}
+     * @return array{state: DiscoveryRunState, hasReport: bool, workRequestId: ?Uuid, answeredWorkRequestIds: list<string>}
      */
     public function freshStateOf(DiscoveryRun $run): array
     {
         $row = $this->createQueryBuilder('run')
-            ->select('run.state AS state', 'IDENTITY(run.reportDocument) AS reportDocumentId', 'run.workRequestId AS workRequestId')
+            ->select('run.state AS state', 'IDENTITY(run.reportDocument) AS reportDocumentId', 'run.workRequestId AS workRequestId', 'run.answeredWorkRequestIds AS answeredWorkRequestIds')
             ->where('run.id = :id')
             ->setParameter('id', $run->id, UuidType::NAME)
             ->getQuery()
             ->getSingleResult();
 
-        return ['state' => $row['state'], 'hasReport' => null !== $row['reportDocumentId'], 'workRequestId' => $row['workRequestId']];
+        return [
+            'state' => $row['state'],
+            'hasReport' => null !== $row['reportDocumentId'],
+            'workRequestId' => $row['workRequestId'],
+            'answeredWorkRequestIds' => $row['answeredWorkRequestIds'] ?? [],
+        ];
     }
 }

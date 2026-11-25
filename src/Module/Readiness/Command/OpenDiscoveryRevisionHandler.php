@@ -15,12 +15,11 @@ use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\ValueObject\WorkRequestContext;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
-use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Readiness\Entity\DiscoveryRun;
 use App\Module\Readiness\Entity\DiscoveryRunState;
 use App\Module\Readiness\Repository\DiscoveryRunRepository;
+use App\Module\Readiness\Service\DiscoveryWorkRequestStore;
 use App\Module\Workflow\Template\AppRules;
-use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -31,13 +30,12 @@ final readonly class OpenDiscoveryRevisionHandler
 {
     public function __construct(
         private DiscoveryRunRepository $discoveryRuns,
-        private ProjectRepository $projects,
         private OpenWorkRequestHandler $openWorkRequest,
         private WithdrawWorkRequestHandler $withdrawWorkRequest,
         private WorkRequestRepository $workRequests,
         private FailDiscoveryRunHandler $failDiscoveryRun,
+        private DiscoveryWorkRequestStore $storeWorkRequest,
         private AppRules $appRules,
-        private EntityManagerInterface $em,
         private LoggerInterface $logger,
     ) {
     }
@@ -58,17 +56,7 @@ final readonly class OpenDiscoveryRevisionHandler
             return;
         }
 
-        // The project lock orders this against an approval: it reads the new id, or the read below sees the run it ended.
-        $state = $this->em->wrapInTransaction(function () use ($run, $request): DiscoveryRunState {
-            $this->projects->lockForWrite($run->project);
-            $run->workRequestId = $request->id;
-            $this->em->flush();
-
-            return $this->discoveryRuns->freshStateOf($run)['state'];
-        });
-        if (DiscoveryRunState::Done === $state || DiscoveryRunState::Failed === $state) {
-            ($this->withdrawWorkRequest)(new WithdrawWorkRequestCommand($request->id ?? throw new \LogicException('A persisted work request has an id.'), WorkRequestState::Cancelled));
-        }
+        $this->storeWorkRequest->store($run, $request, DiscoveryRunState::Revising);
     }
 
     private function openOrAdopt(DiscoveryRun $run, OpenDiscoveryRevisionCommand $command): WorkRequest
@@ -95,10 +83,11 @@ final readonly class OpenDiscoveryRevisionHandler
             );
             if (null !== $live) {
                 $liveId = $live->id ?? throw new \LogicException('A persisted work request has an id.');
-                if (true !== $command->previousWorkRequestId?->equals($liveId)) {
+                $answered = \in_array($liveId->toRfc4122(), $this->discoveryRuns->freshStateOf($run)['answeredWorkRequestIds'], true);
+                if (!$answered && true !== $command->previousWorkRequestId?->equals($liveId)) {
                     return $live;
                 }
-                // The worker of the revision before this one reported, and its request did not settle yet.
+                // The request serves a revision before this one, and it did not settle yet.
                 ($this->withdrawWorkRequest)(new WithdrawWorkRequestCommand($liveId, WorkRequestState::Cancelled));
             }
 

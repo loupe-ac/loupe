@@ -49,7 +49,7 @@ final readonly class FailDiscoveryOnRunEnded
 
             $run = $this->discoveryRuns->find($workerRun->subjectId);
             if (null !== $run) {
-                ($this->failDiscoveryRun)(new FailDiscoveryRunCommand($run, $workerRun->failureReason ?? self::WORKER_ENDED, $workerRun->ruleId));
+                ($this->failDiscoveryRun)(new FailDiscoveryRunCommand($run, $workerRun->failureReason ?? self::WORKER_ENDED, $workerRun->ruleId, $workerRun->workRequestId));
             }
         }
     }

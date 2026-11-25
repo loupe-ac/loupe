@@ -7,11 +7,8 @@ namespace App\Module\Readiness\Command;
 use App\Exception\DomainErrors;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Repository\CardRepository;
-use App\Module\Bridge\Command\WithdrawWorkRequestCommand;
-use App\Module\Bridge\Command\WithdrawWorkRequestHandler;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\WorkRequestRepository;
-use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Readiness\Entity\DiscoveryProposal;
 use App\Module\Readiness\Entity\DiscoveryRun;
@@ -68,7 +65,6 @@ final readonly class SubmitReadinessReportHandler
         private ProposalTypes $proposalTypes,
         private CreateDocumentHandler $createDocument,
         private WorkRequestRepository $workRequests,
-        private WithdrawWorkRequestHandler $withdrawWorkRequest,
         private ReviseDocumentHandler $reviseDocument,
         private ReadinessReportWriter $writer,
         private EntityManagerInterface $em,
@@ -90,21 +86,17 @@ final readonly class SubmitReadinessReportHandler
 
         // The lock makes the state check and the report one step, so two reports cannot both pass. A refusal leaves the closure as a value, because a throw closes the EntityManager.
         $revised = false;
-        $answered = [];
-        $document = $this->em->wrapInTransaction(function () use ($command, $run, $types, &$revised, &$answered): Document|DomainErrors {
+        $document = $this->em->wrapInTransaction(function () use ($command, $run, $types, &$revised): Document|DomainErrors {
             $this->em->lock($command->project, LockMode::PESSIMISTIC_WRITE);
             $fresh = $this->discoveryRuns->freshStateOf($run);
             // A verdict that committed after the load changed the row only, and a state the entity still holds is not written again.
             $run->state = $fresh['state'];
+            // Read under the lock: a later verdict waits for it, so none of these serves a later revision.
+            $answered = $this->answeredWith($run, $fresh['answeredWorkRequestIds']);
             if (DiscoveryRunState::Revising === $fresh['state']) {
                 $revised = true;
-                // Read under the lock: a later verdict waits for it, so none of these serves a later revision.
-                $answered = array_values(array_filter(
-                    $this->workRequests->findLiveOfSubject(new WorkSubject(DiscoveryRun::SUBJECT_TYPE, $run->id ?? throw new \LogicException('A stored run has an id.'))),
-                    static fn (WorkRequest $request): bool => FailDiscoveryRunHandler::REVISE_RULE_ID === $request->ruleId,
-                ));
 
-                return $this->revise($command, $run, $types);
+                return $this->revise($command, $run, $types, $answered);
             }
             if ($fresh['hasReport']) {
                 return new DomainErrors(['runId' => self::ALREADY_REPORTED]);
@@ -127,6 +119,7 @@ final readonly class SubmitReadinessReportHandler
             }
             $run->reportDocument = $document;
             $run->state = DiscoveryRunState::Reported;
+            $run->answeredWorkRequestIds = $answered;
             $this->em->flush();
 
             return $document;
@@ -134,12 +127,6 @@ final readonly class SubmitReadinessReportHandler
         if ($document instanceof DomainErrors) {
             throw $document;
         }
-        // The work of a live revise request is done. Its worker can still end after the owner asks for more changes, and that end must fail nothing.
-        // The first request stays live, because its worker still has questions to ask after the report.
-        foreach ($answered as $request) {
-            ($this->withdrawWorkRequest)(new WithdrawWorkRequestCommand($request->id ?? throw new \LogicException('A persisted work request has an id.'), WorkRequestState::Cancelled));
-        }
-
         $action = $revised ? 'readiness.report_revised' : 'readiness.report_submitted';
         $suggested = \count(array_filter($command->findings, static fn (ReportFinding $finding): bool => ReadinessReportWriter::isSuggested($finding->status)));
         $this->auditor->record(
@@ -169,8 +156,9 @@ final readonly class SubmitReadinessReportHandler
      * A new version of the report document replaces the proposals that made no card, and the run goes back to Reported.
      *
      * @param list<string> $types
+     * @param list<string> $answered
      */
-    private function revise(SubmitReadinessReportCommand $command, DiscoveryRun $run, array $types): Document|DomainErrors
+    private function revise(SubmitReadinessReportCommand $command, DiscoveryRun $run, array $types, array $answered): Document|DomainErrors
     {
         $document = $run->reportDocument;
         if (null === $document) {
@@ -201,9 +189,25 @@ final readonly class SubmitReadinessReportHandler
             $this->em->persist($proposal);
         }
         $run->state = DiscoveryRunState::Reported;
+        $run->answeredWorkRequestIds = $answered;
         $this->em->flush();
 
         return $document;
+    }
+
+    /**
+     * The requests that a report arriving now answers, with those of the reports before it. A report cancels none
+     * of them, because a cancel makes the bridge stop the worker that is still at work.
+     *
+     * @param list<string> $before
+     *
+     * @return list<string>
+     */
+    private function answeredWith(DiscoveryRun $run, array $before): array
+    {
+        $live = $this->workRequests->findLiveOfSubject(new WorkSubject(DiscoveryRun::SUBJECT_TYPE, $run->id ?? throw new \LogicException('A stored run has an id.')));
+
+        return array_values(array_unique([...$before, ...array_map(static fn (WorkRequest $request): string => (string) $request->id, $live)]));
     }
 
     /**

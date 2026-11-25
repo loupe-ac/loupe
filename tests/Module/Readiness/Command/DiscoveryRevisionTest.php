@@ -11,6 +11,7 @@ use App\Module\Bridge\Event\WorkerRunChanged;
 use App\Module\Bridge\Event\WorkRequestChanged;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkRequestState;
+use App\Module\Bridge\WorkSubject\WorkSubjectHandlers;
 use App\Module\Project\Entity\Project;
 use App\Module\Readiness\Command\ReportFinding;
 use App\Module\Readiness\Command\StartDiscoveryHandler;
@@ -190,8 +191,36 @@ final class DiscoveryRevisionTest extends KernelTestCase
         self::assertSame(DiscoveryRunState::Done, $this->run->state);
     }
 
-    /** The bridge settles a request only after its worker ends, so the old worker can end while the next revision waits for its message. */
-    public function test_a_revised_report_cancels_its_request_so_the_old_worker_cannot_fail_the_next_revision(): void
+    /** A cancel makes the bridge stop the worker, and the worker that reported is still at work. */
+    public function test_a_revised_report_leaves_its_revise_request_live_and_its_worker_end_fails_nothing(): void
+    {
+        $report = $this->report();
+        $this->verdict($report, 'changes-requested');
+        $this->handle($this->revisionMessage());
+        $request = $this->discoveryRequests($this->run)[0];
+        $request->state = WorkRequestState::Claimed;
+        $this->em()->flush();
+
+        $this->report();
+
+        self::assertSame(WorkRequestState::Claimed, $request->state);
+
+        $this->end($this->workerRun($request, WorkerRunState::Succeeded));
+
+        self::assertSame(DiscoveryRunState::Reported, $this->storedRun($this->run)->state);
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function ends(): iterable
+    {
+        yield 'the worker ended' => ['worker'];
+        yield 'the request was refused' => ['refused'];
+        yield 'the request expired' => ['expired'];
+    }
+
+    /** The bridge settles a request only after its worker ends, so the old work can end while the next revision waits for its message. */
+    #[DataProvider('ends')]
+    public function test_the_end_of_an_answered_request_cannot_fail_the_next_revision(string $end): void
     {
         $report = $this->report();
         $this->verdict($report, 'changes-requested');
@@ -202,22 +231,143 @@ final class DiscoveryRevisionTest extends KernelTestCase
         $this->report();
         $this->verdict($report, 'changes-requested');
 
-        $this->end($this->workerRun($old, WorkerRunState::Lost));
+        $this->endWork($old, $end);
 
         self::assertSame(DiscoveryRunState::Revising, $this->storedRun($this->run)->state);
-        self::assertSame(WorkRequestState::Cancelled, $this->discoveryRequests($this->run)[0]->state);
     }
 
     /** The message stores the id after it opens the request, so a quick report can come first. */
-    public function test_a_revised_report_cancels_a_revise_request_whose_id_the_run_does_not_hold_yet(): void
+    #[DataProvider('ends')]
+    public function test_the_end_of_an_answered_request_whose_id_the_run_never_stored_fails_nothing(string $end): void
+    {
+        $report = $this->report();
+        $this->verdict($report, 'changes-requested');
+        $old = $this->discoveryRequest($this->run, 'discovery-revise');
+        $old->state = WorkRequestState::Claimed;
+        $this->em()->flush();
+        $this->report();
+        $this->verdict($report, 'changes-requested');
+
+        $this->endWork($old, $end);
+
+        self::assertSame(DiscoveryRunState::Revising, $this->storedRun($this->run)->state);
+    }
+
+    /** A bridge keeps a final report it cannot deliver, so a worker can end two revisions late. */
+    public function test_the_end_of_a_request_answered_two_revisions_ago_fails_nothing(): void
+    {
+        $report = $this->report();
+        $this->verdict($report, 'changes-requested');
+        $first = $this->discoveryRequest($this->run, 'discovery-revise');
+        $this->report();
+        $first->state = WorkRequestState::Done;
+        $this->em()->flush();
+        $this->verdict($report, 'changes-requested');
+        $this->discoveryRequest($this->run, 'discovery-revise');
+        $this->report();
+        $this->verdict($report, 'changes-requested');
+
+        $this->endWork($first, 'worker');
+
+        self::assertSame(DiscoveryRunState::Revising, $this->storedRun($this->run)->state);
+    }
+
+    public function test_the_end_of_an_unanswered_request_still_fails_a_run_that_has_an_answered_one(): void
+    {
+        $report = $this->report();
+        $this->verdict($report, 'changes-requested');
+        $first = $this->discoveryRequest($this->run, 'discovery-revise');
+        $this->report();
+        $first->state = WorkRequestState::Done;
+        $this->em()->flush();
+        $this->verdict($report, 'changes-requested');
+        $second = $this->discoveryRequest($this->run, 'discovery-revise');
+
+        $this->endWork($second, 'worker');
+
+        self::assertSame(DiscoveryRunState::Failed, $this->storedRun($this->run)->state);
+    }
+
+    /** The run can hold an older id, so only the mark of the report tells that the live request serves no new revision. */
+    public function test_a_new_revision_replaces_a_live_answered_request_whose_id_the_run_never_stored(): void
+    {
+        $report = $this->report();
+        $this->verdict($report, 'changes-requested');
+        $old = $this->discoveryRequest($this->run, 'discovery-revise');
+        $old->state = WorkRequestState::Claimed;
+        $this->em()->flush();
+        $this->report();
+        $this->jobs()->reset();
+        $this->verdict($report, 'changes-requested');
+
+        $this->handle($this->revisionMessage());
+
+        $requests = $this->discoveryRequests($this->run);
+        self::assertCount(2, $requests);
+        $states = [];
+        foreach ($requests as $request) {
+            $states[$request->id?->equals($old->id) ? 'old' : 'new'] = $request->state;
+        }
+        self::assertSame(['old' => WorkRequestState::Cancelled, 'new' => WorkRequestState::Open], $states);
+        self::assertFalse($this->storedRun($this->run)->workRequestId?->equals($old->id));
+    }
+
+    /** The report read the live requests before this one existed, so nothing answered it. */
+    public function test_a_report_that_lands_before_the_request_opens_gets_the_request_cancelled(): void
     {
         $this->verdict($this->report(), 'changes-requested');
-        $request = $this->discoveryRequest($this->run, 'discovery-revise');
+        $this->onOpen(function (): void {
+            $this->em()->getConnection()->executeStatement("UPDATE discovery_runs SET state = 'reported' WHERE id = ?", [(string) $this->run->id]);
+        });
 
-        $this->report();
+        $this->handle($this->revisionMessage());
 
-        self::assertSame(WorkRequestState::Cancelled, $request->state);
+        self::assertSame(WorkRequestState::Cancelled, $this->discoveryRequests($this->run)[0]->state);
+    }
+
+    /** The report answered the request, and its worker can still be at work. */
+    public function test_a_report_that_answers_the_request_while_it_opens_leaves_it_live(): void
+    {
+        $this->verdict($this->report(), 'changes-requested');
+        $this->onOpen(function (): void {
+            $this->report();
+        });
+
+        $this->handle($this->revisionMessage());
+
+        self::assertSame(WorkRequestState::Open, $this->discoveryRequests($this->run)[0]->state);
         self::assertSame(DiscoveryRunState::Reported, $this->storedRun($this->run)->state);
+    }
+
+    private function onOpen(\Closure $then): void
+    {
+        $dispatcher = self::getContainer()->get('event_dispatcher');
+        self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
+        $dispatcher->addListener(WorkRequestChanged::class, static function (WorkRequestChanged $event) use ($then): void {
+            if (WorkRequestState::Open === $event->state) {
+                $then();
+            }
+        });
+    }
+
+    private function endWork(WorkRequest $request, string $end): void
+    {
+        if ('worker' === $end) {
+            $this->end($this->workerRun($request, WorkerRunState::Lost));
+
+            return;
+        }
+        $handlers = self::getContainer()->get(WorkSubjectHandlers::class);
+        self::assertInstanceOf(WorkSubjectHandlers::class, $handlers);
+        $handler = $handlers->for(DiscoveryRun::SUBJECT_TYPE) ?? throw new \LogicException('Discovery has a handler.');
+        if ('refused' === $end) {
+            $request->state = WorkRequestState::Refused;
+            $handler->onSettled($request);
+
+            return;
+        }
+        $request->state = WorkRequestState::Expired;
+        $handler->onExpired($request);
     }
 
     /** A cancel stops the worker, and the first worker still asks the owner its questions after the report. */

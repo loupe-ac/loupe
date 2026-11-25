@@ -72,7 +72,7 @@ final readonly class DiscoveryWorkSubjectHandler implements FormerWorkSubjectInt
     {
         $run = $this->discoveryRuns->find($request->subjectId);
         if (null !== $run) {
-            ($this->failDiscoveryRun)(new FailDiscoveryRunCommand($run, $reason, $request->ruleId));
+            ($this->failDiscoveryRun)(new FailDiscoveryRunCommand($run, $reason, $request->ruleId, $request->id));
         }
     }
 }

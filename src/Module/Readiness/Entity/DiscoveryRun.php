@@ -9,6 +9,7 @@ use App\Module\Board\Entity\Card;
 use App\Module\Project\Entity\Project;
 use App\Module\Readiness\Repository\DiscoveryRunRepository;
 use App\Module\Review\Entity\Document;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
@@ -47,6 +48,15 @@ class DiscoveryRun
     /** The latest work request the app opened for the run. No path finds the run through it. */
     #[ORM\Column(type: UuidType::NAME, nullable: true)]
     public ?Uuid $workRequestId = null;
+
+    /**
+     * The work requests that were live when a report of the run arrived. The report answered their work, so their
+     * end fails nothing. All of them, because a bridge can send the end of a worker several revisions late.
+     *
+     * @var list<string>|null RFC 4122 ids
+     */
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    public ?array $answeredWorkRequestIds = null;
 
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     #[ORM\ManyToOne(targetEntity: User::class)]

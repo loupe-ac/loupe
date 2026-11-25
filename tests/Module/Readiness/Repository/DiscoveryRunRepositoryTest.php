@@ -132,12 +132,12 @@ final class DiscoveryRunRepositoryTest extends KernelTestCase
         self::bootKernel();
         $project = $this->workflowProject('discovery-fresh');
         $run = $this->discoveryRun($project);
-        self::assertSame(['state' => DiscoveryRunState::Requested, 'hasReport' => false, 'workRequestId' => null], $this->repository()->freshStateOf($run));
+        self::assertSame(['state' => DiscoveryRunState::Requested, 'hasReport' => false, 'workRequestId' => null, 'answeredWorkRequestIds' => []], $this->repository()->freshStateOf($run));
 
-        $this->em()->getConnection()->executeStatement("UPDATE discovery_runs SET state = 'failed' WHERE id = :id", ['id' => (string) $run->id]);
+        $this->em()->getConnection()->executeStatement("UPDATE discovery_runs SET state = 'failed', answered_work_request_ids = '[\"a\"]' WHERE id = :id", ['id' => (string) $run->id]);
 
         self::assertSame(DiscoveryRunState::Requested, $run->state);
-        self::assertSame(['state' => DiscoveryRunState::Failed, 'hasReport' => false, 'workRequestId' => null], $this->repository()->freshStateOf($run));
+        self::assertSame(['state' => DiscoveryRunState::Failed, 'hasReport' => false, 'workRequestId' => null, 'answeredWorkRequestIds' => ['a']], $this->repository()->freshStateOf($run));
     }
 
     public function test_the_proposals_of_a_run_list_in_tick_box_order_with_the_covered_ones_last(): void
