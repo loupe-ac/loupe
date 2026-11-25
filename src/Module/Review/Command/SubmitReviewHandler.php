@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Review\Command;
 
 use App\Exception\DomainErrors;
+use App\Module\Review\Contract\VerdictGuardInterface;
 use App\Module\Review\Entity\Review;
 use App\Module\Review\Entity\Verdict;
 use App\Module\Review\Event\ReviewSubmitted;
@@ -16,6 +17,7 @@ use App\Module\Review\Service\DecisionSummaryReader;
 use App\Module\Review\Service\DocumentLiveSignals;
 use App\Module\Review\Service\DraftStateSignal;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
@@ -23,6 +25,7 @@ use Ubermuda\AuditBundle\AuditSubject;
 
 final readonly class SubmitReviewHandler
 {
+    /** @param iterable<VerdictGuardInterface> $guards */
     public function __construct(
         private EntityManagerInterface $em,
         private DocumentRepository $documents,
@@ -34,6 +37,9 @@ final readonly class SubmitReviewHandler
         private DocumentLiveSignals $liveSignals,
         private DecisionSummaryReader $decisionSummary,
         private Auditor $auditor,
+
+        #[AutowireIterator(VerdictGuardInterface::TAG)]
+        private iterable $guards,
     ) {
     }
 
@@ -73,6 +79,13 @@ final readonly class SubmitReviewHandler
             $expectedReviewId = null === $command->expectedReviewId ? null : strtolower($command->expectedReviewId);
             if ($newest?->id?->toRfc4122() !== $expectedReviewId) {
                 return new DomainErrors(['expectedReviewId' => 'review.document.flash.verdict_changed']);
+            }
+
+            foreach ($this->guards as $guard) {
+                $refusal = $guard->refusal($document, $verdict);
+                if (null !== $refusal) {
+                    return new DomainErrors(['verdict' => $refusal], fromGuard: true);
+                }
             }
 
             // Read under the same lock as the write, so an answer cleared in

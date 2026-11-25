@@ -394,6 +394,11 @@ when@test:
         App\Tests\Module\Workflow\Fact\ListsDocumentsReady:
             autoconfigure: true
 
+        # No production class implements the verdict guard yet, so this one proves that the tag reaches the handler.
+        App\Tests\Module\Review\Support\StubVerdictGuard:
+            autoconfigure: true
+            public: true
+
         # Paratest processes share one cache directory, so a clear() in one
         # process wipes the entries of another. Each process gets its own.
         cache.app:
