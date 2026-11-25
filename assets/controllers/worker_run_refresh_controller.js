@@ -32,9 +32,15 @@ export default class extends Controller {
             }
         };
         this.element.addEventListener('close', this.onDialogClose, true);
-        this.unsubscribe = on(this.eventsValue, (data) => this.receive(data), {
-            onReconnect: () => this.schedule(),
-        });
+        this.listen();
+    }
+
+    // A page morph keeps the element and can change the list. Stimulus also calls this before connect().
+    eventsValueChanged() {
+        if (this.unsubscribe) {
+            this.unsubscribe();
+            this.listen();
+        }
     }
 
     disconnect() {
@@ -42,6 +48,12 @@ export default class extends Controller {
         this.element.removeEventListener('close', this.onDialogClose, true);
         this.unsubscribe?.();
         this.unsubscribe = undefined;
+    }
+
+    listen() {
+        this.unsubscribe = on(this.eventsValue, (data) => this.receive(data), {
+            onReconnect: () => this.schedule(),
+        });
     }
 
     receive(data) {

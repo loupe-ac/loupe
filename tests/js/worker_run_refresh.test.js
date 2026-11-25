@@ -188,6 +188,73 @@ it('reloads the whole page when it has no filters to keep', async () => {
     delete window.Turbo;
 });
 
+const LAYOUT_EVENTS = ['worker_run.changed', 'board.card_changed'];
+const NEXT_LAYOUT_EVENTS = ['project.discovery_changed'];
+
+function activeSubscriptions() {
+    return live.subscriptions.filter((subscription) => !subscription.removed);
+}
+
+/** A page morph keeps the element and writes the new attribute on it. */
+async function morphEvents(element, events) {
+    element.setAttribute(
+        'data-worker-run-refresh-events-value',
+        JSON.stringify(events),
+    );
+    await vi.advanceTimersByTimeAsync(0);
+}
+
+it('listens for the new events after a morph changes the events value', async () => {
+    const frame = await mount({
+        src: '/projects/1/worker-runs',
+        events: LAYOUT_EVENTS,
+    });
+    const first = subscription();
+
+    await morphEvents(frame.parentElement, NEXT_LAYOUT_EVENTS);
+
+    expect(first.removed).toBe(true);
+    expect(activeSubscriptions().map(({ types }) => types)).toEqual([
+        NEXT_LAYOUT_EVENTS,
+    ]);
+    activeSubscriptions()[0].handler({ type: 'project.discovery_changed' });
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MILLISECONDS);
+    expect(frame.reload).toHaveBeenCalledOnce();
+});
+
+it('keeps a held reload when a morph changes the events value', async () => {
+    const frame = await mount({
+        src: '/projects/1/worker-runs',
+        events: LAYOUT_EVENTS,
+    });
+    const drawer = document.getElementById('drawer');
+    drawer.setAttribute('open', '');
+    await signal();
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MILLISECONDS);
+
+    await morphEvents(frame.parentElement, NEXT_LAYOUT_EVENTS);
+    activeSubscriptions()[0].handler({ type: 'project.discovery_changed' });
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MILLISECONDS);
+    expect(frame.reload).not.toHaveBeenCalled();
+
+    drawer.removeAttribute('open');
+    drawer.dispatchEvent(new Event('close'));
+    expect(frame.reload).toHaveBeenCalledOnce();
+});
+
+it('listens once when the same element leaves the page and comes back', async () => {
+    const frame = await mount({ events: LAYOUT_EVENTS });
+    const element = frame.parentElement;
+
+    element.remove();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(activeSubscriptions()).toHaveLength(0);
+
+    document.body.append(element);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(activeSubscriptions()).toHaveLength(1);
+});
+
 it('reloads the whole page when its own element is the target', async () => {
     window.Turbo = { visit: vi.fn() };
     document.body.innerHTML = `<div data-controller="worker-run-refresh" data-worker-run-refresh-target="frame" data-worker-run-refresh-whole-value="true"
