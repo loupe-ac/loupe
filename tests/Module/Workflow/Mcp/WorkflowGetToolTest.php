@@ -40,9 +40,9 @@ final class WorkflowGetToolTest extends KernelTestCase
     private const string DISCOVERY_CHECK = 'The loupe skill package is installed for the agent, with the loupe-discovery skill';
     private const string ANALYSIS_CHECK = 'The loupe skill package is installed for the agent, with the loupe-analysis skill';
     private const string ANALYSIS_BRIDGE_CHECK = 'The bridge rule file maps the analysis kind, or sets appPrompts to true';
-    private const string DISCOVERY_REVISE_BRIDGE_CHECK = 'The bridge rule file maps the discovery-revise kind, or sets appPrompts to true';
+    private const string DISCOVERY_REVISE_BRIDGE_CHECK = 'The bridge rule file maps the discovery-revise kind with subject: discovery, or sets appPrompts to true';
 
-    private const string DISCOVERY_BRIDGE_CHECK = 'The bridge rule file maps the discovery kind, or sets appPrompts to true';
+    private const string DISCOVERY_BRIDGE_CHECK = 'The bridge rule file maps the discovery kind with subject: discovery, or sets appPrompts to true';
 
     protected function setUp(): void
     {

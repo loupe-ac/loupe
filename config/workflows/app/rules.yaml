@@ -35,11 +35,11 @@ requests:
       prompt: discovery
       checks:
           - The loupe skill package is installed for the agent, with the loupe-discovery skill
-          - The bridge rule file maps the discovery kind, or sets appPrompts to true
+          - 'The bridge rule file maps the discovery kind with subject: discovery, or sets appPrompts to true'
 
     - id: discovery-revise
       kind: discovery-revise
       prompt: discovery-revise
       checks:
           - The loupe skill package is installed for the agent, with the loupe-discovery skill
-          - The bridge rule file maps the discovery-revise kind, or sets appPrompts to true
+          - 'The bridge rule file maps the discovery-revise kind with subject: discovery, or sets appPrompts to true'
