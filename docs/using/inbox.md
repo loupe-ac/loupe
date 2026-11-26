@@ -118,7 +118,7 @@ The **Closed** side lists the closed asks, newest close first, ten to a page.
 ### Grouping by card
 
 The **Open** side groups its rows by card. Each group has a heading with the
-card number and title. A row sits in the group of each card it links, so an ask
+card number, title and column. A row sits in the group of each card it links, so an ask
 with two cards shows in both groups. A row with no card sits in the **No card**
 group, which comes last. The group with the newest ask comes first. Inside a
 group, an ask that holds an open blocking item comes first, then the others,
