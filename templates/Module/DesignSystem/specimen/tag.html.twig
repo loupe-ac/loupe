@@ -1,3 +1,6 @@
 {# twig-cs-fixer-disable #}
 {# Dev-only specimen for the styleguide, so it is intentionally untranslated. #}
 <twig:Ds:Tag :tone="variant">{{ variant }}</twig:Ds:Tag>
+{% if variant == 'neutral' %}
+    <span class="lp-styleguide__well"><twig:Ds:Tag :tone="variant" :raised="true">raised</twig:Ds:Tag></span>
+{% endif %}

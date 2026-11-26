@@ -95,12 +95,14 @@
                                             <twig:ux:icon name="lucide:layout-list" class="lp-icon lp-icon--sm" aria-hidden="true" />
                                             <span class="lp-inbox-group__number">#{{ group.card.number }}</span>
                                             <span class="lp-inbox-group__title">{{ group.card.title|reference_plain }}</span>
-                                            <twig:Ds:Tag tone="neutral">{{ group.card.column.label }}</twig:Ds:Tag>
+                                            {% include '@Board/_column_tag.html.twig' with {column: group.card.column, raised: true} only %}
                                         {%- else -%}
                                             <span class="lp-inbox-group__title">{{ 'inbox.group.none'|trans }}</span>
                                         {%- endif -%}
-                                        {% if group.rows is not empty %}<span class="lp-inbox-group__count">{{ 'inbox.group.open'|trans({'%count%': group.rows|length}) }}</span>{% endif %}
-                                        {% if group.digest %}<span class="lp-inbox-group__count" data-inbox-digest-count>{{ 'inbox.digest.new'|trans({'%count%': group.digest.count}) }}</span>{% endif %}
+                                        <span class="lp-inbox-group__counts">
+                                            {% if group.rows is not empty %}<span class="lp-inbox-group__count">{{ 'inbox.group.open'|trans({'%count%': group.rows|length}) }}</span>{% endif %}
+                                            {% if group.digest %}<span class="lp-inbox-group__count" data-inbox-digest-count>{{ 'inbox.digest.new'|trans({'%count%': group.digest.count}) }}</span>{% endif %}
+                                        </span>
                                     </h2>
                                     {% if group.digest %}
                                         {% include '@Inbox/_inbox_digest.html.twig' with {digest: group.digest} only %}

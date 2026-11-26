@@ -7,6 +7,7 @@ namespace App\Tests\Module\Inbox\Controller;
 use App\Mercure\LiveUpdates;
 use App\Mercure\ProjectTopicBuilder;
 use App\Mercure\UserTopicBuilder;
+use App\Module\Board\Entity\BoardColumn;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Board\Entity\Forge;
@@ -22,6 +23,7 @@ use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Entity\InboxReview;
 use App\Module\Inbox\Service\InboxSearchIndexer;
 use App\Module\Review\Entity\Document;
+use App\Module\Workflow\Contract\LabelTone;
 use App\Session\ReadOnlyAwareSessionHandler;
 use App\Tests\Module\Board\BoardColumnFixtures;
 use App\Tests\Module\Inbox\InboxScenario;
@@ -174,6 +176,57 @@ final class ShowInboxControllerTest extends WebTestCase
         $header = $crawler->filter('[data-inbox-group="'.$first->id.'"] .lp-inbox-group__heading');
         self::assertCount(1, $header->filter('.lp-tag'));
         self::assertStringContainsString('1 open', $header->text());
+    }
+
+    public function test_a_group_heading_shows_a_default_column_translated_and_in_its_tone(): void
+    {
+        $owner = $this->signedUpUser($this->em, 'inbox-group-column');
+        $project = $this->inboxProject($this->em, $owner);
+        $this->seedColumns($project);
+        $column = $this->column($project, 'in-progress');
+        $tone = $column->tone->value;
+        $card = new Card(project: $project, column: $column, title: 'Linked work', body: 'Body', number: 1);
+        $this->em->persist($card);
+        $item = $this->question($this->em, $project, 1);
+        $item->cards->add(new InboxItemCard($item, $card));
+        $this->em->flush();
+        $this->setInboxFlag(true);
+        $projectId = (string) $project->id;
+        $this->em->clear();
+
+        $this->client->loginUser($owner);
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$projectId.'/inbox');
+
+        self::assertResponseIsSuccessful();
+        $heading = $crawler->filter('[data-inbox-group="'.$card->id.'"] .lp-inbox-group__heading');
+        self::assertSame('In progress', trim($heading->filter('.lp-tag')->text()));
+        self::assertSame($tone, $heading->filter('.lp-tag')->attr('data-tone'));
+        self::assertCount(1, $heading->filter('.lp-tag.lp-tag--raised'), 'the band is darker than the neutral fill');
+        self::assertStringNotContainsString('board.card.status.', $heading->text());
+    }
+
+    public function test_a_group_heading_shows_a_custom_column_label_in_its_tone(): void
+    {
+        $owner = $this->signedUpUser($this->em, 'inbox-group-custom');
+        $project = $this->inboxProject($this->em, $owner);
+        $column = new BoardColumn(project: $project, label: 'Waiting on QA', slug: 'waiting-on-qa', position: 0, tone: LabelTone::Sky);
+        $this->em->persist($column);
+        $card = new Card(project: $project, column: $column, title: 'Linked work', body: 'Body', number: 1);
+        $this->em->persist($card);
+        $item = $this->question($this->em, $project, 1);
+        $item->cards->add(new InboxItemCard($item, $card));
+        $this->em->flush();
+        $this->setInboxFlag(true);
+        $projectId = (string) $project->id;
+        $this->em->clear();
+
+        $this->client->loginUser($owner);
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$projectId.'/inbox');
+
+        self::assertResponseIsSuccessful();
+        $tag = $crawler->filter('[data-inbox-group="'.$card->id.'"] .lp-inbox-group__heading .lp-tag');
+        self::assertSame('Waiting on QA', trim($tag->text()));
+        self::assertSame('sky', $tag->attr('data-tone'));
     }
 
     public function test_the_linked_menu_shows_three_rows_of_a_kind_and_holds_the_rest_behind_show_more(): void

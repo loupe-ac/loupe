@@ -1,0 +1,15 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+{% set name = entry.name %}
+Loupe's {{ name|lower }}. {{ entry.summary }}
+
+```jsx
+{% for variant in entry.variants %}
+<{{ name }} tone="{{ variant }}">Example</{{ name }}>
+{% endfor %}
+<{{ name }} tone="neutral" raised>On a darker surface</{{ name }}>
+```
+
+Variants: {{ entry.variants|map(v => '`' ~ v ~ '`')|join(', ') }}. States: {{ entry.states|join(', ') }}.
+
+Pass `raised` for a tag on a darker surface, such as `surface-3`. It changes the fill of a plain or neutral tag only. Labels are sentence case and never end in a full stop. The component emits the real `{{ entry.rootClass }}` classes of the app.
+{% endautoescape %}

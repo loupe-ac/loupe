@@ -238,6 +238,7 @@ final class ShowBoardControllerTest extends WebTestCase
         $column = $row->eq(2)->filter('.lp-tag');
         self::assertCount(1, $column);
         self::assertContains($column->attr('data-tone'), ['neutral', 'lime', 'purple', 'amber', 'green']);
+        self::assertCount(0, $list->filter('.lp-tag--raised'), 'only a tag on a darker surface is raised');
         self::assertCount(1, $crawler->filter('.lp-board__column-head .lp-tone-dot--green'));
     }
 

@@ -52,7 +52,7 @@ A building block is a Twig component under `templates/components/Ds/`. Its CSS l
 | Flash | A message after an action, with a dismiss button. A `title` or an `actions` block makes the block form, for a notice with a heading and buttons | success, error, warning, info |
 | EmptyState | A panel that says a list or page has nothing yet | compact, on-card. Takes an icon, a title, a body and one link |
 | Badge | The status of a document in a list | in-review, draft, approved, changes-requested |
-| Tag | A short label, such as a card type or a column | neutral, lime, purple, green, amber, red, teal, sky, blue, indigo, pink, orange |
+| Tag | A short label, such as a card type or a column | neutral, lime, purple, green, amber, red, teal, sky, blue, indigo, pink, orange. `raised` is for a darker surface |
 | StatusChip | A state with a coloured dot and an optional reason tooltip | pending, addressed, resolved, ok, failed, neutral |
 | StateMark | An icon that names what a card needs now, with its reason in an interactive tooltip | stuck, needs-you, working, waiting |
 | StatusBox | The state of a card with its reason, its facts, what clears it, and the other states that apply | stuck, needs-you, working, waiting |
@@ -167,7 +167,7 @@ Write the feedback parts like this:
 <twig:Ds:StatusChip modifier="ok" :label="'x.state'|trans" :reason="reason" />
 ```
 
-A Tag takes `as="li"` inside a list. A StatusChip takes `:dot="false"` for no dot, and `as="button"` for a chip that toggles a panel.
+A Tag takes `as="li"` inside a list, and `:raised="true"` on a darker surface, such as `surface-3`. A plain or neutral raised tag takes the `surface-1` fill, and a colour tone keeps its fill. A StatusChip takes `:dot="false"` for no dot, and `as="button"` for a chip that toggles a panel.
 
 Write a dialog, tabs, pagination and a tooltip like this:
 
@@ -369,9 +369,9 @@ The command builds `components/bundle.js` with esbuild. Node and esbuild are in 
 
 The wrappers write the same class names as the Twig components. A wrapper adds no style of its own.
 
-A component with an inner structure, or a Twig prop that is true or false, sets `export` on its catalog entry. The Input, Tooltip, Textarea, Flash, CodeBlock, EmptyState, SectionHeading, Pagination, StatusChip, StateMark and StatusBox are core examples, and a sidebar is a `layout` one. The value names a folder under `templates/Module/DesignSystem/export/<group>/`. The folder holds the hand-written `component.jsx.twig`, `component.d.ts.twig`, `component.prompt.md.twig` (the component README) and `demo.jsx.twig` of the part. The export renders those files in place of the generic templates.
+A component with an inner structure, or a Twig prop that is true or false, sets `export` on its catalog entry. The Input, Tag, Tooltip, Textarea, Flash, CodeBlock, EmptyState, SectionHeading, Pagination, StatusChip, StateMark and StatusBox are core examples, and a sidebar is a `layout` one. The value names a folder under `templates/Module/DesignSystem/export/<group>/`. The folder holds the hand-written `component.jsx.twig`, `component.d.ts.twig`, `component.prompt.md.twig` (the component README) and `demo.jsx.twig` of the part. The export renders those files in place of the generic templates.
 
-The generic wrapper names its modifier prop after the Twig prop. The `modifierProp` field of the entry holds that name, `variant` by default: Avatar uses `tone`, Badge uses `status`, Tag uses `tone`, Dialog uses `size`, and StatusChip uses `modifier`. The old `variant` name does not work on those components. An entry with `takesAs` set also takes an `as` prop, as the Twig component does. Flash takes `severity` the same way. `SimpleComponentParityTest` compares each of these wrappers with its Twig component.
+The generic wrapper names its modifier prop after the Twig prop. The `modifierProp` field of the entry holds that name, `variant` by default: Avatar uses `tone`, Badge uses `status`, Dialog uses `size`, and StatusChip uses `modifier`. The old `variant` name does not work on those components. An entry with `takesAs` set also takes an `as` prop, as the Twig component does. Flash takes `severity` the same way. `SimpleComponentParityTest` compares each of these wrappers with its Twig component.
 
 The SectionHeading wrapper takes its title as the children, with no `title` prop, and always draws the actions block. The Pagination wrapper takes data in place of a route name: `page`, `totalPages`, an optional `pageList` with `null` for a gap, and an optional `hrefFor(page)` that returns `#` by default. Its labels are the English texts of the app, so they do not follow a translation change. The EmptyState wrapper takes its `icon` as an inline SVG element.
 

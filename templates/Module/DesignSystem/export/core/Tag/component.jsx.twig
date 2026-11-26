@@ -1,0 +1,27 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+import React from 'react';
+
+export const {{ entry.name|upper }}_VARIANTS = [{{ entry.variants|map(v => "'" ~ v ~ "'")|join(', ') }}];
+export const {{ entry.name|upper }}_SIZES = [];
+
+export function {{ entry.name }}({ tone, as: Element = '{{ entry.element }}', raised = false, className: extra, children, ...rest }) {
+    const classes = ['{{ entry.rootClass }}'];
+
+    for (const modifier of (tone || '').split(/\s+/).filter(Boolean)) {
+        classes.push('{{ entry.rootClass }}--' + modifier);
+    }
+    if (raised) {
+        classes.push('{{ entry.rootClass }}--raised');
+    }
+    if (extra) {
+        classes.push(extra);
+    }
+    const className = classes.join(' ');
+
+    return (
+        <Element {...rest} className={className}>
+            {children}
+        </Element>
+    );
+}
+{% endautoescape %}

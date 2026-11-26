@@ -370,31 +370,48 @@
 
     /* One card of the grouped open list, with its rows below the heading. */
     .lp-core-inbox .lp-inbox-group {
-        display: flex;
-        flex-direction: column;
-        gap: calc(var(--spacing) * 0.5);
-        @apply pb-2;
+        @apply flex flex-col pb-2;
+    }
+
+    /* No gap under the heading band, so a flex gap does not fit here. */
+    .lp-core-inbox .lp-inbox-group__heading + * ~ * {
+        @apply mt-0.5;
     }
 
     .lp-core-inbox .lp-inbox-group__heading {
-        display: flex;
-        gap: calc(var(--spacing) * 1.5);
-        color: var(--text-mute);
-        @apply px-3 pt-2 text-xs font-semibold;
+        @apply flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-line-faint bg-surface-3 px-4 pt-3 pb-1.5 font-sans text-sm font-semibold tracking-normal text-fg;
     }
 
-    .lp-core-inbox .lp-inbox-group__heading {
-        align-items: center;
+    .lp-core-inbox .lp-inbox-group + .lp-inbox-group .lp-inbox-group__heading {
+        @apply border-t border-line-faint;
+    }
+
+    .lp-core-inbox .lp-inbox-group .lp-list-row,
+    .lp-core-inbox .lp-inbox-group .lp-inbox-digest {
+        @apply pl-7;
     }
 
     .lp-core-inbox .lp-inbox-group__title {
         @apply truncate;
     }
 
+    /* The basis keeps some of the title readable in a narrow list. The counts then wrap, and
+       a long card number or column label moves the tag down with them. */
+    .lp-core-inbox .lp-inbox-group__heading .lp-inbox-group__title {
+        @apply max-w-max grow basis-24;
+    }
+
+    /* No nowrap, so a very long column label still wraps inside the band, even with no space in it. */
+    .lp-core-inbox .lp-inbox-group__heading .lp-tag {
+        @apply max-w-full shrink-0 wrap-anywhere;
+    }
+
+    .lp-core-inbox .lp-inbox-group__counts {
+        @apply ml-auto flex shrink-0 gap-2;
+    }
+
     .lp-core-inbox .lp-inbox-group__count {
-        margin-left: auto;
-        color: var(--text-dim);
-        @apply shrink-0 font-normal;
+        @apply text-xs font-normal text-fg-dim;
     }
 
     .lp-core-inbox .lp-inbox-digest {
@@ -9368,6 +9385,10 @@
     }
     .lp-styleguide__specimen .lp-list-row {
         @apply w-full;
+    }
+    /* A darker surface under a raised specimen. */
+    .lp-styleguide__well {
+        @apply inline-flex rounded-md bg-surface-3 p-2;
     }
     .lp-styleguide__tooltip-anchor {
         @apply relative inline-block pb-16 text-sm font-semibold text-ink;
