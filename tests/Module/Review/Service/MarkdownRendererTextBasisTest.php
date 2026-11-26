@@ -58,22 +58,21 @@ final class MarkdownRendererTextBasisTest extends TestCase
     }
 
     /**
-     * The block-or-drop decision reads W3CReference::BODY_ELEMENTS, a third-party
-     * constant. If a Symfony release reclassifies an element as unsafe it stops
-     * being blocked and starts being dropped, deleting its text and shifting every
-     * anchor below it — with nothing else in the suite failing.
+     * The sanitizer reads W3CReference, a third-party table, and a Symfony release
+     * can reclassify an element in it. The sweep ignores the safe flag, so a
+     * reclassified element stays covered. A swallowed element deletes its text and
+     * shifts every anchor below it.
      */
-    public function test_every_element_the_sanitizer_considers_safe_still_contributes_its_text(): void
+    public function test_every_body_element_still_contributes_its_text(): void
     {
         $renderer = new MarkdownRenderer(new NullLogger(), new IdentityTranslator());
         $swallowed = [];
         $checked = 0;
 
-        foreach ($this->elementNames() as $element) {
-            // <template> is excluded because the HTML5 parser puts its content in a
-            // separate fragment, so no sanitizer configuration can reach it. That is
-            // true of the pre-existing config too, so nothing changed for it.
-            if (!(W3CReference::BODY_ELEMENTS[$element] ?? false) || in_array($element, [...self::VOID_ELEMENTS, 'template'], true)) {
+        foreach (array_keys(W3CReference::BODY_ELEMENTS) as $element) {
+            // The HTML5 parser puts the content of <template> in a separate fragment,
+            // which no sanitizer configuration reaches. The renderer drops <script>.
+            if (in_array($element, [...self::VOID_ELEMENTS, 'script', 'template'], true)) {
                 continue;
             }
 
