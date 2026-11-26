@@ -7,6 +7,10 @@
     .lp-tag--neutral {
         @apply bg-surface-3 text-fg-mute;
     }
+    /* For a darker surface. Keep it before the colour tones, so that their fill wins. */
+    .lp-tag--raised {
+        @apply bg-surface-1;
+    }
     .lp-tag--lime {
         @apply bg-accent-soft text-accent-ink;
     }

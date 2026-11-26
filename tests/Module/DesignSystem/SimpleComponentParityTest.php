@@ -66,6 +66,16 @@ final class SimpleComponentParityTest extends KernelTestCase
         self::assertStringContainsString('as?: keyof JSX.IntrinsicElements;', self::componentTypes('Tag'));
     }
 
+    public function test_the_tag_wrapper_takes_the_raised_prop_of_the_twig_component(): void
+    {
+        $jsx = self::componentJsx('Tag');
+
+        self::assertStringContainsString('raised = false,', $jsx);
+        self::assertStringContainsString("classes.push('lp-tag--raised');", $jsx);
+        self::assertStringContainsString('raised?: boolean;', self::componentTypes('Tag'));
+        self::assertStringContainsString('lp-tag--raised', $this->render('<twig:Ds:Tag :raised="true">A</twig:Ds:Tag>'));
+    }
+
     public function test_the_prop_types_name_the_twig_props(): void
     {
         foreach (['Avatar' => 'tone', 'Badge' => 'status', 'Tag' => 'tone', 'Dialog' => 'size'] as $name => $prop) {

@@ -1,2 +1,2 @@
-{#- A coloured label. Props: label (translated text), tone (a LabelTone value), class (optional). -#}
-<twig:Ds:Tag :tone="tone" :class="class|default('')" :data-tone="tone">{{ label }}</twig:Ds:Tag>
+{#- A coloured label. Props: label (translated text), tone (a LabelTone value), class (optional), raised (optional, for a darker surface). -#}
+<twig:Ds:Tag :tone="tone" :class="class|default('')" :raised="raised|default(false)" :data-tone="tone">{{ label }}</twig:Ds:Tag>

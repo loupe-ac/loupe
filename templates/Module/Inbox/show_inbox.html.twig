@@ -95,7 +95,7 @@
                                             <twig:ux:icon name="lucide:layout-list" class="lp-icon lp-icon--sm" aria-hidden="true" />
                                             <span class="lp-inbox-group__number">#{{ group.card.number }}</span>
                                             <span class="lp-inbox-group__title">{{ group.card.title|reference_plain }}</span>
-                                            {% include '@Board/_column_tag.html.twig' with {column: group.card.column} only %}
+                                            {% include '@Board/_column_tag.html.twig' with {column: group.card.column, raised: true} only %}
                                         {%- else -%}
                                             <span class="lp-inbox-group__title">{{ 'inbox.group.none'|trans }}</span>
                                         {%- endif -%}

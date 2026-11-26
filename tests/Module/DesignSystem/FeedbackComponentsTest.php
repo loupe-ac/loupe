@@ -91,6 +91,26 @@ final class FeedbackComponentsTest extends KernelTestCase
         );
     }
 
+    public function test_a_raised_tag_takes_a_modifier_class(): void
+    {
+        self::assertStringContainsString(
+            '<span class="lp-tag lp-tag--neutral lp-tag--raised">x</span>',
+            $this->render('<twig:Ds:Tag tone="neutral" :raised="true">x</twig:Ds:Tag>'),
+        );
+        self::assertStringContainsString('<span class="lp-tag lp-tag--raised">x</span>', $this->render('<twig:Ds:Tag raised>x</twig:Ds:Tag>'));
+        self::assertStringContainsString('<span class="lp-tag lp-tag--sky">x</span>', $this->render('<twig:Ds:Tag tone="sky" :raised="false">x</twig:Ds:Tag>'));
+    }
+
+    /** The rules have equal specificity, so their order decides which fill wins. */
+    public function test_the_raised_fill_beats_the_neutral_fill_and_yields_to_a_colour(): void
+    {
+        $css = (string) file_get_contents(\dirname(__DIR__, 3).'/assets/styles/components/tag.css');
+        preg_match_all('/^\s*\.lp-tag--([a-z]+) \{/m', $css, $matches);
+
+        self::assertSame(['neutral', 'raised', 'lime'], \array_slice($matches[1], 0, 3));
+        self::assertMatchesRegularExpression('/\.lp-tag--raised \{\s*@apply bg-surface-1;\s*\}/', $css);
+    }
+
     public function test_a_status_chip_draws_a_dot_unless_told_not_to(): void
     {
         $with = $this->render('<twig:Ds:StatusChip modifier="ok" label="Fine" />');

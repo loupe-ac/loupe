@@ -201,6 +201,7 @@ final class ShowInboxControllerTest extends WebTestCase
         $heading = $crawler->filter('[data-inbox-group="'.$card->id.'"] .lp-inbox-group__heading');
         self::assertSame('In progress', trim($heading->filter('.lp-tag')->text()));
         self::assertSame($tone, $heading->filter('.lp-tag')->attr('data-tone'));
+        self::assertCount(1, $heading->filter('.lp-tag.lp-tag--raised'), 'the band is darker than the neutral fill');
         self::assertStringNotContainsString('board.card.status.', $heading->text());
     }
 
