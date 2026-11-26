@@ -20,7 +20,7 @@ use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
 
 /**
  * Serves one stored file under a signed link. The signature is the only
- * credential: the firewall for these paths reads no session and sets no cookie.
+ * credential: no firewall that serves a file reads a session or sets a cookie.
  *
  * The response carries its own CSP, and the nelmio listener leaves a response
  * that already has one alone. On the app domain the sandbox has no
