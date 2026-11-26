@@ -40,6 +40,7 @@ use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
     methods: ['GET'],
     stateless: true,
 )]
+// Not stateless: on the app domain this path is behind the main firewall, which reads the session before the 404.
 #[Route(
     '/{versionId}/{expires}/{signature}/{path}',
     name: self::ROUTE_HOST,
@@ -50,7 +51,6 @@ use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
         'path' => '.+',
     ],
     methods: ['GET'],
-    stateless: true,
 )]
 final class ShowArtifactContentController extends AppController
 {
