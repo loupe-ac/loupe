@@ -160,7 +160,13 @@ func newInitCmd() *cobra.Command {
 			"--review-profile starts the agent also when the file exists. --agent picks claude or codex; with both on the PATH " +
 			"and a terminal, the command asks once. With no terminal or no agent, it prints the prompt.\n" +
 			"11. Offer to start discovery, only when the profile is complete and pushed and the accounts pass. It asks once, and starts nothing without a terminal.\n" +
-			"12. Print what remains and the project page. When the Loupe GitHub App does not cover the repository of the origin remote, or its state is unknown, the install link comes first. The accounts are reported before step 10, so a failing account never stops the agent.\n\n" +
+			"12. Print what remains and the project page. When the Loupe GitHub App does not cover the repository of the origin remote, or its state is unknown, the install link comes first. The accounts are reported before step 10, so a failing account never stops the agent. " +
+			"This step also reports the bridge check of the project, from the rule file. What remains lists each command whose program is missing. " +
+			"It also lists each work kind that needs an entry because appPrompts is off, and each other rule file warning of the project. " +
+			"When a work kind that the rule file lists runs the app prompt for the project, a line that starts with \"Note:\" names it. " +
+			"That app prompt runs no before command. The line also names the setup scripts that the repository holds. " +
+			"A script counts when its name holds setup and it is in bin, bin/worktrees or scripts. " +
+			"These lines do not stop discovery, and they do not change the exit status.\n\n" +
 			"Steps 1, 2, 3, 4 and 6 stop the command when they fail. The other steps report a failure and go on. " +
 			"A bridge that fails to start, or a used account that fails for this project, makes the command exit with an error after the last step.",
 		Args: cobra.NoArgs,
@@ -257,6 +263,8 @@ func runInit(cmd *cobra.Command, o initOptions) (err error) {
 	if err != nil {
 		return err
 	}
+	// The wait for the App can change the slug of site, and not this key.
+	ruleKey := siteRuleSlug(site)
 	if inSecondSetup() {
 		skipSharedStep(cmd, "Codex")
 	} else if targets := codexTargets(path); len(targets) > 0 {
@@ -279,6 +287,7 @@ func runInit(cmd *cobra.Command, o initOptions) (err error) {
 	}
 	left.profile, left.profileRan = initProfile(cmd, dir, site, o, left.app)
 	initDiscovery(cmd, cfg, dir, site, &left)
+	left.bridge = checkInitBridge(path, ruleKey)
 	view.Finish()
 	initNext(cmd.OutOrStdout(), cfg.BaseURL, dir, site, left)
 

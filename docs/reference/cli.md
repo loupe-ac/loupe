@@ -143,7 +143,7 @@ The steps, in order:
 9. Install the Playwright browser, when the repository uses Playwright.
 10. Write the repository profile with an agent, when the workflow of the project needs one and the file is missing or unfinished.
 11. Offer to start discovery, when onboarding is ready.
-12. Report what remains, and print the project link. When the Loupe GitHub App does not cover the repository of the `origin` remote, or its state is unknown, the install link comes first. When the App reaches that repository and no project holds it, the line reads `Shared with Loupe, not in this project.` and the link opens the repository picker with that repository ticked. That state needs CLI 2.6.0 and a server that has the lookup route. An older server shows the install link as before.
+12. Report what remains, and print the project link. When the Loupe GitHub App does not cover the repository of the `origin` remote, or its state is unknown, the install link comes first. When the App reaches that repository and no project holds it, the line reads `Shared with Loupe, not in this project.` and the link opens the repository picker with that repository ticked. That state needs CLI 2.6.0 and a server that has the lookup route. An older server shows the install link as before. This step also reports the bridge check of the project, as [the last lines](#the-bridge-check-in-the-last-lines) say.
 
 From the moment `loupe init` knows the project, it keeps an init run open on that project. While the run is open, the inbox opens no merge question and no notice about the repository, and it closes none that was open before. `loupe init` renews the run every minute and closes it when it ends, also on Ctrl-C. When `loupe init` ends with no error, the close also marks the init of the project as finished. A Ctrl-C or an error exit does not mark it. A run that stays quiet for five minutes closes by itself. When the server cannot hold the run, init prints `This Loupe server cannot hold the onboarding inbox items. They may appear while init runs.` and goes on. The hold and the finished mark need CLI 2.7.0 and a server that has the init run.
 
@@ -164,7 +164,7 @@ Step 11 asks `Start discovery now? It runs a worker that checks the repository a
 
 On a yes, `loupe init` starts discovery and prints `Discovery started: <link of the Workshop page>`. The run creates no card. The list of what remains arrives some minutes later, in the report, and the discovery row of the Workshop opens it. On a no, or with no terminal, nothing starts, and the last lines say `Start discovery with `loupe discovery start` when you are ready.` When a condition fails, nothing is asked. The last lines name what remains and say `Run `loupe init` again when these are done. It then offers to start discovery.`
 
-The last lines come after step 11, and they name only the steps that remain, such as fixing an account, finishing the profile, pushing the two files and restarting Claude Code. They end with the link to the project page. `loupe init` exits with an error when an account that a work entry of this project uses fails for this project. A failure in another project does not change the exit status.
+The last lines come after step 11, and they name only the steps that remain, such as fixing an account, finishing the profile, pushing the two files and restarting Claude Code. They also hold the [bridge check of the project](#the-bridge-check-in-the-last-lines). They end with the link to the project page. `loupe init` exits with an error when an account that a work entry of this project uses fails for this project. A failure in another project does not change the exit status.
 
 This ending needs the next release of the CLI after v2.1.0, and a Loupe instance that has the discovery route.
 
@@ -186,6 +186,18 @@ This ending needs the next release of the CLI after v2.1.0, and a Loupe instance
 | `--force`, `--mcp`, `--no-mcp`, `--mcp-json` | Work as they do for `loupe project link` |
 
 The project list always shows when your login covers a project, also when it covers one. Its last row creates a new project. With no terminal, `loupe init` prints the list and stops. Pass `--project <slug>` to use a project, or `--name "<name>"` to create one.
+
+### The bridge check in the last lines
+
+`loupe init` reads the rule file again at the end and checks the entries of this project. It uses the checks of [`loupe bridge check`](#loupe-bridge-check). When the rule file does not load, it adds no line, because the account check reports that. These items go into the list of what remains:
+
+- A command whose program is missing. The line names the rule file and the project folder. It also names the entry (shared or of the project), the work kind, the field and the command. A relative path with a slash must exist in the project folder. An absolute path must exist. A name with no slash must be on your `PATH`. A program that holds a placeholder or `~` is not checked.
+- A work kind that another project lists and this project does not, when `appPrompts` is off. Add a work entry for it, because a request of that kind for this project is skipped.
+- Each other [warning of the rule file](#loupe-bridge-check) about this project, such as one about an experiment. A warning about another project does not show.
+
+When a work kind that the rule file lists runs the app prompt for this project, one line that starts with `Note:` follows the list. It names each such kind, and that app prompt runs no `before` command. A kind that the rule file does not list at all gets no mention. The line also names the setup scripts that the repository holds. A setup script is a file in `bin`, `bin/worktrees` or `scripts` of the project folder whose name holds `setup`.
+
+These lines do not stop discovery, and they do not change the exit status. They need the next release of the CLI after v2.10.2.
 
 ### The folder question
 

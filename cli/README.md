@@ -400,6 +400,17 @@ loupe init --repoint             # point a rule file entry that maps another fol
    The command exits with an error when an account that a work entry of this
    project uses fails. A failure in another project, and an account that only
    another project uses, never change the exit status.
+
+   The list of what remains also holds the bridge check of the project, from the
+   rule file. It lists each command whose program is missing. It lists each work
+   kind that needs an entry because `appPrompts` is off. It also lists each other
+   rule file warning about this project. When a work kind that the rule file lists
+   runs the app prompt for the project, a line that starts with `Note:` names it.
+   That app prompt runs no `before` command. The line also names the setup scripts
+   that the repository holds. A setup script is a file in `bin`, `bin/worktrees` or `scripts`
+   whose name holds `setup`. These lines do not stop discovery or change the
+   exit status. The bridge check needs a CLI released after v2.10.2.
+
     When the Loupe GitHub App does not cover the repository of the `origin` remote, step 13 asks the server about it with the lookup route of the public API. A repository that the App reaches and no project holds prints `Shared with Loupe, not in this project.`, and the link opens the picker with that repository ticked (`/projects/<id>/github/install?repository=owner/name`). This needs CLI 2.6.0 and a server that has the route. An older server, or a failed call, leaves the plain install link.
 
     From the project step to the end, `loupe init` keeps an interactive run of the work kind `init` open on the project. The inbox opens no onboarding item while it is open. Init renews the run every 60 seconds, and closes it on exit and on Ctrl-C. When init ends with no error, the close marks the init of the project as finished. Ctrl-C and an error exit do not mark it. This needs CLI 2.7.0. On a server that cannot hold the run, init prints `This Loupe server cannot hold the onboarding inbox items. They may appear while init runs.` and goes on.
