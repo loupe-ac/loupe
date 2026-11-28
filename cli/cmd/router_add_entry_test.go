@@ -42,8 +42,8 @@ func withAddEntry(t *testing.T, accept bool) (*harness, *fakeWork, *[]string, *a
 
 		return load()
 	}
-	src.addEntry = func(text string) (func() error, error) {
-		added = append(added, text)
+	src.addEntry = func(slug, text string) (func() error, error) {
+		added = append(added, slug+" "+text)
 
 		return func() error { return nil }, nil
 	}
@@ -59,7 +59,7 @@ func TestAnAddEntryRequestAddsTheEntryAndReloads(t *testing.T) {
 
 	h.offer(f, addEntryRequest(1, addEntryText))
 
-	if !slices.Equal(*added, []string{addEntryText}) {
+	if !slices.Equal(*added, []string{"loupe " + addEntryText}) {
 		t.Fatalf("added = %q", *added)
 	}
 	if got := f.settled(); !slices.Equal(got, []string{workID(1) + " " + tokenOf(1) + " done"}) {
@@ -82,7 +82,7 @@ func TestAFailedReloadUndoesTheEntryAndRefuses(t *testing.T) {
 	h, f, _, _ := withAddEntry(t, true)
 	h.router.source.load = func() (*rules.Set, error) { return nil, errors.New("broken") }
 	undone := 0
-	h.router.source.addEntry = func(string) (func() error, error) {
+	h.router.source.addEntry = func(string, string) (func() error, error) {
 		return func() error { undone++; return nil }, nil
 	}
 
@@ -100,7 +100,7 @@ func TestAFailedReloadUndoesTheEntryAndRefuses(t *testing.T) {
 // so an add that wrote the file before the bridge stopped reports its result.
 func TestARetriedAddEntryWithTheSameEntrySettlesAsDone(t *testing.T) {
 	h, f, _, loads := withAddEntry(t, true)
-	h.router.source.addEntry = func(string) (func() error, error) { return nil, rules.ErrEntryPresent }
+	h.router.source.addEntry = func(string, string) (func() error, error) { return nil, rules.ErrEntryPresent }
 
 	h.offer(f, addEntryRequest(1, addEntryText))
 
@@ -154,7 +154,7 @@ func TestAnAddEntryRequestIsRefusedWithAReasonCode(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			h, f, added, loads := withAddEntry(t, tc.accept)
-			h.router.source.addEntry = func(text string) (func() error, error) {
+			h.router.source.addEntry = func(_, text string) (func() error, error) {
 				*added = append(*added, text)
 
 				return nil, tc.err

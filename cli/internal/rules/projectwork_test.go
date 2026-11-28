@@ -1,6 +1,7 @@
 package rules
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -8,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/config"
 )
 
 const otherProjectID = "0192f3a1-4b2c-7d3e-8f10-a2b3c4d5e6f8"
@@ -115,10 +117,10 @@ func TestAProjectOnlyFileLoads(t *testing.T) {
 
 func TestParseChecksEachProjectEntryAndNamesTheProject(t *testing.T) {
 	for name, tc := range map[string]struct{ fields, want string }{
-		"a command entry":    {"action: command\nrun: [make]", `project "loupe" work "x": action command is not allowed under a project`},
-		"an unknown account": {"prompt: x\naccount: nope", `project "loupe" work "x"`},
-		"a bad kind":         {"prompt: x", `project "loupe" work "Bad_Kind"`},
-		"an unknown key":     {"prompt: x\nbogus: 1", "bogus"},
+		"a command with a prompt": {"action: command\nrun: [make]\nprompt: x", `project "loupe" work "x": prompt names agent behaviour`},
+		"an unknown account":      {"prompt: x\naccount: nope", `project "loupe" work "x"`},
+		"a bad kind":              {"prompt: x", `project "loupe" work "Bad_Kind"`},
+		"an unknown key":          {"prompt: x\nbogus: 1", "bogus"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			kind := "x"
@@ -134,7 +136,7 @@ func TestParseChecksEachProjectEntryAndNamesTheProject(t *testing.T) {
 	}
 }
 
-func TestACommandEntryStaysSharedAndRunsInAProject(t *testing.T) {
+func TestASharedCommandEntryRunsInAProject(t *testing.T) {
 	s, _, _ := twoProjects(t, "  test:\n    action: command\n    run: [make]\n")
 
 	if m := s.MatchWork(requestFor(projectID, "test")); m.Skip != Run || m.Command == nil {
@@ -145,12 +147,137 @@ func TestACommandEntryStaysSharedAndRunsInAProject(t *testing.T) {
 	}
 }
 
-func TestACommandEntryUnderAProjectIsRefusedAlsoForTeardown(t *testing.T) {
-	loupeDir, plansDir := t.TempDir(), t.TempDir()
-	body := claudeAccount + claudeDefaults + "projects:\n  loupe:\n    dir: " + loupeDir + "\n    work:\n      teardown:\n        action: command\n        run: [make]\n  plans:\n    dir: " + plansDir + "\nwork:\n  fix:\n    prompt: x\n"
+// commandFile follows loupe and plans, which Check resolves. loupe hides the
+// shared build command with a worker and lists a command of its own. plans
+// replaces the shared test command, with the same text.
+func commandFile(t *testing.T) *Set {
+	t.Helper()
+	body := claudeAccount + claudeDefaults + "projects:\n" +
+		"  loupe:\n    dir: " + t.TempDir() + "\n    work:\n      build:\n        prompt: x\n      ship:\n        action: command\n        run: [ship]\n" +
+		"  plans:\n    dir: " + t.TempDir() + "\n    work:\n      test:\n        action: command\n        run: [make]\n      deploy:\n        action: command\n        run: [deploy]\n" +
+		"work:\n  test:\n    action: command\n    run: [make]\n  build:\n    action: command\n    run: [make, build]\n  fix:\n    prompt: x\n"
+	s, err := Parse([]byte(body), Defaults{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Check(t.Context(), columnsServer(t, map[string]string{"loupe": loupeColumns, "plans": otherColumns})); err != nil {
+		t.Fatal(err)
+	}
+
+	return s
+}
+
+func TestCommandEntriesListTheSharedRowsFirstThenTheRowsOfEachProject(t *testing.T) {
+	var got []string
+	for _, c := range commandFile(t).CommandEntries() {
+		got = append(got, fmt.Sprintf("%s/%s %v except=%v", c.Slug, c.Name, c.Entry.Run, c.Except))
+	}
+	want := []string{
+		"/build [make build] except=[loupe]",
+		"/test [make] except=[plans]",
+		"loupe/ship [ship] except=[]",
+		"plans/deploy [deploy] except=[]",
+		"plans/test [make] except=[]",
+	}
+	if !slices.Equal(got, want) {
+		t.Fatalf("CommandEntries =\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+}
+
+func TestAProjectCommandEntryRunsForItsProjectOnly(t *testing.T) {
+	s := commandFile(t)
+
+	m := s.MatchWork(requestFor(projectID, "ship"))
+	if m.Skip != Run || m.Action != ActionCommand || m.Command == nil || !slices.Equal(m.Command.Argv, []string{"ship"}) || m.Account != "" || m.Pool != "" || m.Schema != "" {
+		t.Fatalf("loupe ship = %+v", m)
+	}
+	if m := s.MatchWork(requestFor(otherProjectID, "ship")); m.Skip != NoRule {
+		t.Fatalf("plans ship = %+v", m)
+	}
+	w := requestFor(otherProjectID, "ship")
+	w.Capability = CapabilityRunCommand
+	if got := s.RunCommandRefusal(w); got != RefuseEntryMissing {
+		t.Fatalf("plans refusal = %q", got)
+	}
+	w.ProjectID = projectID
+	if got := s.RunCommandRefusal(w); got != "" {
+		t.Fatalf("loupe refusal = %q", got)
+	}
+}
+
+func TestAProjectTeardownCommandRunsForItsProjectOnly(t *testing.T) {
+	body := claudeAccount + claudeDefaults + "projects:\n  loupe:\n    dir: " + t.TempDir() + "\n    work:\n      teardown:\n        action: command\n        run: [make, down]\n  plans:\n    dir: " + t.TempDir() + "\nwork:\n  fix:\n    prompt: x\n"
+	s, err := Parse([]byte(body), Defaults{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Check(t.Context(), columnsServer(t, map[string]string{"loupe": loupeColumns, "plans": otherColumns})); err != nil {
+		t.Fatal(err)
+	}
+	own, err := config.WorktreeDir("loupe", 87)
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := config.WorktreeDir("plans", 87)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m := s.MatchWork(requestFor(projectID, TeardownKind))
+	if want := []string{"sh", "-c", teardownAfterScript, "sh", own, "make", "down"}; m.Skip != Run || m.Command == nil || !slices.Equal(m.Command.Argv, want) {
+		t.Fatalf("loupe teardown = %+v %+v", m, m.Command)
+	}
+	m = s.MatchWork(requestFor(otherProjectID, TeardownKind))
+	if want := []string{"sh", "-c", teardownScript, "sh", other}; m.Skip != Run || m.Command == nil || !slices.Equal(m.Command.Argv, want) {
+		t.Fatalf("plans teardown = %+v %+v", m, m.Command)
+	}
+
+	w := requestFor(projectID, TeardownKind)
+	w.Capability = CapabilityRunCommand
+	if got := s.RunCommandRefusal(w); got != "" {
+		t.Fatalf("loupe refusal = %q", got)
+	}
+	if m := s.MatchWork(w); m.Skip != Run || m.Command == nil || !slices.Equal(m.Command.Argv, []string{"make", "down"}) {
+		t.Fatalf("loupe run by name = %+v", m)
+	}
+	w.ProjectID = otherProjectID
+	if got := s.RunCommandRefusal(w); got != RefuseEntryMissing {
+		t.Fatalf("plans refusal = %q", got)
+	}
+	if m := s.MatchWork(w); m.Skip != NoRule {
+		t.Fatalf("plans run by name = %+v", m)
+	}
+}
+
+func TestAProjectExperimentOverAProjectCommandEntryIsRefused(t *testing.T) {
+	body := claudeAccount + claudeDefaults + "projects:\n  loupe:\n    dir: " + t.TempDir() + "\n    work:\n      split:\n        action: command\n        run: [make]\n" +
+		"    experiments:\n      trial:\n        covers: [split]\n        baseline: a\n        variants:\n          - {name: a, weight: 1, model: opus}\nwork:\n  split:\n    prompt: y\n"
 	_, err := Parse([]byte(body), Defaults{})
-	if err == nil || !strings.Contains(err.Error(), "not allowed under a project") {
+	if err == nil || !strings.Contains(err.Error(), `project "loupe": experiment "trial": covers kind "split", and an experiment covers a worker entry`) {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+// A project experiment takes a worker entry for a card only, so the warning
+// must propose one for no other entry.
+func TestWarningsProposeNoProjectExperimentForAnEntryItCannotCover(t *testing.T) {
+	for name, entry := range map[string]string{
+		"a command":           "action: command\n        run: [make]",
+		"a worker of no card": "prompt: x\n        subject: analysis",
+	} {
+		t.Run(name, func(t *testing.T) {
+			body := claudeAccount + claudeDefaults + "projects:\n  loupe:\n    dir: " + t.TempDir() + "\n    work:\n      split:\n        " + entry + "\n" +
+				"experiments:\n  trial:\n    covers: [split]\n    baseline: a\n    variants:\n      - {name: a, weight: 1, model: opus}\n" +
+				"work:\n  split:\n    prompt: y\n"
+			s, err := Parse([]byte(body), Defaults{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := s.Warnings()
+			if len(got) != 1 || !strings.Contains(got[0], "runs without the variants") || strings.Contains(got[0], "experiments: block") {
+				t.Fatalf("Warnings = %v", got)
+			}
+		})
 	}
 }
 

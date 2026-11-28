@@ -12,8 +12,8 @@ use Symfony\Component\Yaml\Exception\ParseException;
 use Symfony\Component\Yaml\Yaml;
 
 /**
- * Checks the command of a run-command suggestion. The patterns come from the entry of the asking bridge,
- * else from the proposed entry. With neither, the values stay unchecked and the bridge decides.
+ * Checks the command of a run-command suggestion. The patterns come from the entry that the asking bridge runs
+ * for the project, else from the proposed entry. With neither, the values stay unchecked and the bridge decides.
  */
 final class SuggestedCommandCheck
 {
@@ -23,7 +23,7 @@ final class SuggestedCommandCheck
     private const string DELIMITER = "\x01";
 
     /** @return ?string the error key of the first refusal, or null when the command passes */
-    public static function error(AskInboxRunCommand $command, ?string $proposedEntry, ?Bridge $bridge): ?string
+    public static function error(AskInboxRunCommand $command, ?string $proposedEntry, ?Bridge $bridge, string $projectId): ?string
     {
         if (!self::isBranchName($command->branch)) {
             return AskInboxHandler::SUGGESTION_BRANCH_INVALID;
@@ -37,7 +37,7 @@ final class SuggestedCommandCheck
             }
         }
 
-        $patterns = self::bridgePatterns($bridge, $command->entry) ?? $proposed;
+        $patterns = self::bridgePatterns($bridge, $command->entry, $projectId) ?? $proposed;
         if (null === $patterns) {
             return null;
         }
@@ -65,9 +65,9 @@ final class SuggestedCommandCheck
     }
 
     /** @return array<string, string>|null the pattern of each param of the entry the bridge reported, or null when it has no such entry */
-    private static function bridgePatterns(?Bridge $bridge, string $entry): ?array
+    private static function bridgePatterns(?Bridge $bridge, string $entry, string $projectId): ?array
     {
-        $row = array_find($bridge->commandEntries ?? [], static fn (array $row): bool => $row['name'] === $entry);
+        $row = $bridge?->commandEntryFor($entry, $projectId);
         if (null === $row) {
             return null;
         }

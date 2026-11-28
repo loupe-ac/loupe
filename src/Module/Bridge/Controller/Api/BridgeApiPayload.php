@@ -43,7 +43,7 @@ final readonly class BridgeApiPayload
             'takesCommands' => $bridge->takesCommands(),
             'takesReruns' => $bridge->takesReruns(),
             'acceptsEntries' => $bridge->acceptsEntries(),
-            'commandEntries' => $bridge->commandEntries,
+            'commandEntries' => $bridge->commandEntriesFor($projectId),
             'workerPools' => $bridge->workerPools,
             'workerPoolsReportedAt' => $bridge->workerPoolsReportedAt?->format(\DATE_ATOM),
             'accounts' => null === $bridge->accounts ? null : array_map(static fn (array $account): array => self::accountOf($account, $connection), $bridge->accounts),

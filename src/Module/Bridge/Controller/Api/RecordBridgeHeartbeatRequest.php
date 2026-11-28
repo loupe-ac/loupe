@@ -388,8 +388,9 @@ final class RecordBridgeHeartbeatRequest
     }
 
     /**
-     * The command entry rows as the bridge row stores them. A blank
-     * description is stored as none. Null when the bridge sent no report.
+     * The command entry rows as the bridge row stores them, with the project ids
+     * in canonical form. A blank description or an empty project id is stored as
+     * none. Null when the bridge sent no report.
      *
      * @return list<CommandEntryRow>|null
      */
@@ -409,6 +410,11 @@ final class RecordBridgeHeartbeatRequest
             ], array_values($entry->params ?? [])),
             'run' => array_values($entry->run ?? []),
             'timeout' => $entry->timeout ?? '',
+            'projectId' => null === $entry->projectId || '' === $entry->projectId ? null : Uuid::fromString($entry->projectId)->toRfc4122(),
+            'exceptProjects' => array_values(array_unique(array_map(
+                static fn (string $id): string => Uuid::fromString($id)->toRfc4122(),
+                $entry->exceptProjects,
+            ))),
         ], array_values($this->commandEntries));
     }
 

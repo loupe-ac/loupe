@@ -9147,7 +9147,7 @@
                         "type": "boolean"
                     },
                     "commandEntries": {
-                        "description": "Each command entry the bridge can run, as its last heartbeat reported them: `name`, `description`, `params`, `run` and `timeout`. Null when it reported none.",
+                        "description": "The command entries that run for this project, one for each name, as the last heartbeat reported them: `name`, `description`, `params`, `run` and `timeout`. Null when the bridge reported no list.",
                         "type": "array",
                         "items": {
                             "type": "object",
@@ -15693,6 +15693,20 @@
                         "nullable": true,
                         "default": null,
                         "maxLength": 20
+                    },
+                    "projectId": {
+                        "title": "Null or empty for a shared entry, which an older bridge also sends.",
+                        "type": "string",
+                        "nullable": true,
+                        "default": null
+                    },
+                    "exceptProjects": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "default": [],
+                        "maxItems": 500
                     }
                 },
                 "type": "object"
@@ -15958,7 +15972,7 @@
                         "maxItems": 50
                     },
                     "commandEntries": {
-                        "title": "The command entry rows as the bridge row stores them. A blank\ndescription is stored as none. Null when the bridge sent no report.",
+                        "title": "The command entry rows as the bridge row stores them, with the project ids\nin canonical form. A blank description or an empty project id is stored as\nnone. Null when the bridge sent no report.",
                         "type": "array",
                         "items": {
                             "$ref": "#/components/schemas/BridgeCommandEntryInput"

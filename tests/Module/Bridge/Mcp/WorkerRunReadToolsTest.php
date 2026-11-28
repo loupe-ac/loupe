@@ -478,7 +478,12 @@ final class WorkerRunReadToolsTest extends KernelTestCase
         $live = $this->seedBridge($em, $project->owner, projects: [(string) $project->id], cliVersion: '1.6.0', workerPools: [['name' => 'default', 'size' => 2, 'inUse' => 1, 'queued' => 0]], workerPoolsReportedAt: new \DateTimeImmutable('2026-09-30 11:00:00'));
         $live->capabilities = [Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_RERUN_COMMAND, Bridge::CAPABILITY_ADD_ENTRY];
         $entry = ['name' => 'design-export', 'description' => null, 'params' => [['name' => 'out', 'pattern' => '^var$', 'description' => null]], 'run' => ['true', '{out}'], 'timeout' => '10m'];
-        $live->commandEntries = [$entry];
+        $live->commandEntries = [
+            ['description' => 'Shared', 'projectId' => null, 'exceptProjects' => [(string) $project->id]] + $entry,
+            $entry + ['projectId' => (string) $project->id],
+            ['name' => 'elsewhere', 'projectId' => (string) $other->id] + $entry,
+            ['name' => 'hidden', 'projectId' => null, 'exceptProjects' => [(string) $project->id, (string) $other->id]] + $entry,
+        ];
         $live->pauseRequested = true;
         $live->name = 'laptop';
         $live->requestedName = 'laptop';

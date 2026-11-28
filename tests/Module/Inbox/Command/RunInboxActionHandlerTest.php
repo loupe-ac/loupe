@@ -1552,6 +1552,21 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         self::assertSame([$first->id?->toRfc4122()], array_map(static fn (InboxAction $action): ?string => $action->id?->toRfc4122(), $this->service(InboxActionRepository::class)->findByItem($item)));
     }
 
+    public function test_an_add_that_the_bridge_refused_because_the_entry_exists_cannot_be_sent_again(): void
+    {
+        $this->addBridge();
+        $item = $this->commandTodo(suggestions: [self::proposalSuggestion()]);
+        $first = $this->runAction($item, InboxActionKind::AddEntry) ?? throw new \LogicException('An add records a row.');
+        $request = $this->em()->find(WorkRequest::class, $first->workRequestId) ?? throw new \LogicException('The request is stored.');
+        $request->state = WorkRequestState::Refused;
+        $request->reason = 'entry-exists';
+        $this->em()->flush();
+
+        $this->assertRefused($item, InboxActionKind::AddEntry, ['action' => RunInboxActionHandler::NOT_AVAILABLE]);
+
+        self::assertSame([$first->id?->toRfc4122()], array_map(static fn (InboxAction $action): ?string => $action->id?->toRfc4122(), $this->service(InboxActionRepository::class)->findByItem($item)));
+    }
+
     public function test_a_request_that_loses_the_race_leaves_no_add_row(): void
     {
         $this->addBridge();

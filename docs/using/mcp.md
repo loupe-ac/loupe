@@ -374,7 +374,7 @@ Roughly in the order an agent uses them:
 | `bucket_rule_create` | Add a time bucket rule at the end of the list, with a `pattern` glob of at most 120 characters and a `bucket` name of 1 to 64 lower case letters, digits, underscores or hyphens. A bad pattern or bucket, or a project at its limit, gives a tool error. The answer is the list of rules |
 | `bucket_rule_move` | Move a rule one place `up` or `down`, by its `ruleId`. The first rule cannot move up and the last cannot move down, so those moves change nothing. An id of another project gives a tool error. The answer is the list of rules |
 | `bucket_rule_delete` | Delete a rule by its `ruleId`. An id of another project gives a tool error. The answer is the rules that remain |
-| `bridge_list` | List the bridges that follow the project, with their name, their push login, their heartbeat, why a quiet bridge is quiet (`quietCause`: `login-expired`, `unknown`, or null for a live bridge), their pause, their worker pools, their account checks, their skill packages with version, state and failure reason, their command entries, whether they add a proposed entry (`acceptsEntries`) and their open runs |
+| `bridge_list` | List the bridges that follow the project, with their name, their push login, their heartbeat, why a quiet bridge is quiet (`quietCause`: `login-expired`, `unknown`, or null for a live bridge), their pause, their worker pools, their account checks, their skill packages with version, state and failure reason, the command entries that they run for this project, whether they add a proposed entry (`acceptsEntries`) and their open runs |
 | `worker_run_resume` | Ask the bridges to resume up to 50 ended worker runs, each resumed or refused on its own |
 | `worker_run_stop` | Ask the bridge to stop a queued or running worker run. The stop does not make the card unmanaged, so call `card_hold` for that |
 | `card_hold` | Make a card unmanaged, by `cardId` or `number`. The workflow makes no move and starts no work on the card, and no bridge starts a worker on it, until `card_release`. Loupe cancels the work requests of the card that no bridge took yet. A live run goes on |
@@ -949,8 +949,9 @@ the entry to the `rules.yaml` of a bridge that opted in, so do not put the name
 in the text.
 
 Loupe checks the `command` before it stores the suggestion. The branch must be a
-git branch name of at most 200 characters. When the bridge has the entry, each
-param must be one the entry declares, each declared param must have a value, and
+git branch name of at most 200 characters. When the bridge runs an entry of
+that name for this project, each param must be one the entry declares, each
+declared param must have a value, and
 each value must match the whole pattern of its param. The bridge entry comes from
 the `bridgeId` you pass, else from the open ask of your session, else from the
 first run of your session, and only while that bridge belongs to the project

@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"log/slog"
 	"net/url"
 	"os/exec"
 	"slices"
@@ -16,10 +17,19 @@ import (
 // worktreeTimeout bounds the git calls of one heartbeat, all projects together.
 const worktreeTimeout = 5 * time.Second
 
+// reportableCommandEntries drops the entries of a project with no id, because
+// the server would read their rows as shared.
+func reportableCommandEntries(set *rules.Set) []rules.CommandEntry {
+	return slices.DeleteFunc(set.CommandEntries(), func(c rules.CommandEntry) bool {
+		return c.Slug != "" && set.ProjectID(c.Slug) == ""
+	})
+}
+
 // commandEntryReports lists the command entries of the set for the heartbeat,
-// in name order, at most api.MaxCommandEntries of them.
+// the shared ones first, at most api.MaxCommandEntries of them. It is never
+// nil, so an empty list clears the rows the server holds.
 func commandEntryReports(set *rules.Set) []api.CommandEntryReport {
-	entries := set.CommandEntries()
+	entries := reportableCommandEntries(set)
 	out := make([]api.CommandEntryReport, 0, min(len(entries), api.MaxCommandEntries))
 	for _, c := range entries[:min(len(entries), api.MaxCommandEntries)] {
 		params := make([]api.CommandParamReport, 0, len(c.Entry.Params))
@@ -31,10 +41,39 @@ func commandEntryReports(set *rules.Set) []api.CommandEntryReport {
 		if timeout == "" {
 			timeout = strings.TrimSuffix(rules.DefaultCommandTimeout.String(), "0s")
 		}
-		out = append(out, api.CommandEntryReport{Name: c.Name, Description: c.Entry.Description, Params: params, Run: c.Entry.Run, Timeout: timeout})
+		var except []string
+		for _, slug := range c.Except {
+			if id := set.ProjectID(slug); id != "" {
+				except = append(except, id)
+			}
+		}
+		projectID := ""
+		if c.Slug != "" {
+			projectID = set.ProjectID(c.Slug)
+		}
+		out = append(out, api.CommandEntryReport{Name: c.Name, Description: c.Entry.Description, Params: params, Run: c.Entry.Run, Timeout: timeout, ProjectID: projectID, ExceptProjects: except})
 	}
 
 	return out
+}
+
+// warnCommandEntriesCut names the command entries that the heartbeat cannot
+// carry. It runs when a set loads, so no heartbeat repeats the line.
+func warnCommandEntriesCut(log *slog.Logger, set *rules.Set) {
+	entries := reportableCommandEntries(set)
+	if len(entries) <= api.MaxCommandEntries {
+		return
+	}
+	var dropped []string
+	for _, c := range entries[api.MaxCommandEntries:] {
+		name := c.Name
+		if c.Slug != "" {
+			name = c.Slug + "/" + name
+		}
+		dropped = append(dropped, name)
+	}
+	log.Warn("command_entries_cut", "limit", api.MaxCommandEntries, "dropped", dropped,
+		"message", "Loupe does not list these command entries, so it cannot offer to run them.")
 }
 
 func sortedParamNames(params map[string]rules.Param) []string {

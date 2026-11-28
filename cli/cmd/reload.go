@@ -44,7 +44,7 @@ type reloadSource struct {
 	checkAccounts func(ctx context.Context, set *rules.Set) []accountResult
 	// addEntry adds a command entry to the rule file, and returns a func that
 	// takes it out again. Nil refuses the request.
-	addEntry func(text string) (undo func() error, err error)
+	addEntry func(slug, text string) (undo func() error, err error)
 }
 
 // newReloadSource reads the rule file at path with the bridge flags as
@@ -57,7 +57,9 @@ func newReloadSource(path string, defaults rules.Defaults, cfg config.Config, lo
 		check:         func(ctx context.Context, set *rules.Set) error { return set.Check(ctx, apiClient(cfg)) },
 		events:        func(ctx context.Context) (api.Events, error) { return apiClient(cfg).Events(ctx, cfg.BridgeID) },
 		checkAccounts: checkAccounts,
-		addEntry:      func(text string) (func() error, error) { return rules.AddWorkEntry(path, text, defaults) },
+		addEntry: func(slug, text string) (func() error, error) {
+			return rules.AddWorkEntry(path, slug, text, defaults)
+		},
 	}
 	if lock != nil {
 		src.lock = lock.follow
@@ -285,6 +287,7 @@ func (r *router) swap(b built, seq uint64) reloadResult {
 	warnUnknownModes(r.log, set)
 	warnMovedHooks(r.log, set)
 	warnAgentsOff(r.log, set)
+	warnCommandEntriesCut(r.log, set)
 	warnAccountsOff(r.log, b.accounts)
 	if off := set.AccountsOff(); len(off) > 0 {
 		res.AccountsOff = off

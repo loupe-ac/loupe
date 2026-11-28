@@ -1496,6 +1496,12 @@ func (s *Set) HasInteractive() bool {
 	return slices.ContainsFunc(s.allEntries(), func(w WorkEntry) bool { return w.Action == ActionInteractive })
 }
 
+// Slug is the mapped slug of a project id that Check resolved, and "" for any
+// other id.
+func (s *Set) Slug(projectID string) string {
+	return s.slugs[projectID]
+}
+
 // ProjectID is the id Check resolved for a mapped slug.
 func (s *Set) ProjectID(slug string) string {
 	for id, sl := range s.slugs {

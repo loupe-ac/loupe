@@ -142,7 +142,7 @@ final readonly class ItemActions
             return null;
         }
 
-        return $this->runCommands->view($item, $suggestion, $this->askingBridgeOf($item, $waits, $runs), $item->isAutomatic() ? $watch?->cardId : self::onlyCardOf($item), $branch, $params, $this->runCommandRuns->forItems([$item])[self::key($item)] ?? null, isset($this->runCommandRuns->itemsAddingEntry([$item])[self::key($item)]));
+        return $this->runCommands->view($item, $suggestion, $this->askingBridgeOf($item, $waits, $runs), $item->isAutomatic() ? $watch?->cardId : self::onlyCardOf($item), $branch, $params, $this->runCommandRuns->forItems([$item])[self::key($item)] ?? null, $this->runCommandRuns->entryAddsOf([$item])[self::key($item)] ?? null);
     }
 
     /** The card a command run of the item belongs to: the watched card of a wait item, or the only card of a to-do. */
@@ -255,7 +255,7 @@ final readonly class ItemActions
             }
         }
         $commandRuns = $this->runCommandRuns->forItems($commandItems);
-        $addingEntry = $this->runCommandRuns->itemsAddingEntry($commandItems);
+        $entryAdds = $this->runCommandRuns->entryAddsOf($commandItems);
 
         $actions = [];
         foreach ($items as $item) {
@@ -272,7 +272,7 @@ final readonly class ItemActions
             $commandSuggestion = $suggestions[InboxActionKind::RunCommand->value] ?? null;
             $runCommand = null === $commandSuggestion?->command
                 ? null
-                : $this->runCommands->view($item, $commandSuggestion, $this->askingBridgeOf($item, $waits, $runs), $item->isAutomatic() ? ($watchedCards[self::key($item)] ?? null) : self::onlyCardOf($item), run: $commandRuns[self::key($item)] ?? null, addEntryLive: isset($addingEntry[self::key($item)]));
+                : $this->runCommands->view($item, $commandSuggestion, $this->askingBridgeOf($item, $waits, $runs), $item->isAutomatic() ? ($watchedCards[self::key($item)] ?? null) : self::onlyCardOf($item), run: $commandRuns[self::key($item)] ?? null, entryAdds: $entryAdds[self::key($item)] ?? null);
             $story = $item->isAutomatic() ? $this->workLimitStoryOf($waits) : null;
             $holdable = null !== $story && null !== ($watchedCards[self::key($item)] ?? null) && !$this->cardHolds->existsForCard($item->project, $watchedCards[self::key($item)]);
             $fitting = $this->fitting($item, $waits, $resumableRuns, $releasablePauses, isset($sendAgent[self::key($item)]), $sessionOffered && !$sessionLive, null !== $runCommand, $story, $holdable);

@@ -232,6 +232,55 @@ final class ItemActionsRunCommandTest extends KernelTestCase
         self::assertSame($reason, $action->disabledReasonKey);
     }
 
+    public function test_the_view_reads_the_entry_row_of_the_project_of_the_item(): void
+    {
+        $this->bridge->commandEntries = [
+            ['run' => ['shared', '{out}'], 'projectId' => null, 'exceptProjects' => [(string) $this->project->id]] + self::entryRow(),
+            ['run' => ['elsewhere', '{out}'], 'projectId' => (string) Uuid::v7()] + self::entryRow(),
+            ['run' => ['own', '{out}'], 'projectId' => (string) $this->project->id] + self::entryRow(),
+        ];
+        $this->em->flush();
+
+        $view = $this->viewOf($this->todo());
+
+        self::assertSame(['own', 'var/out'], $view->argv);
+        self::assertNull($view->disabledReasonKey);
+    }
+
+    public function test_the_view_offers_neither_a_hidden_shared_row_nor_the_row_of_another_project(): void
+    {
+        $this->bridge->commandEntries = [
+            ['projectId' => null, 'exceptProjects' => [(string) $this->project->id]] + self::entryRow(),
+            ['projectId' => (string) Uuid::v7()] + self::entryRow(),
+        ];
+        $this->em->flush();
+
+        $this->bridge->capabilities = [...$this->bridge->capabilities ?? [], Bridge::CAPABILITY_ADD_ENTRY];
+        $this->em->flush();
+
+        $view = $this->viewOf($this->todo(proposedEntry: "action: command\nrun: [make, export]"));
+
+        self::assertSame([], $view->argv);
+        self::assertSame([], $view->runList);
+        self::assertSame('inbox.action.run-command.disabled.entry_replaced', $view->disabledReasonKey);
+        // The rule file holds an entry of the name for this project, so an add cannot turn the run on.
+        self::assertFalse($view->entryMissing);
+        self::assertFalse($view->canAddEntry());
+    }
+
+    public function test_the_row_of_another_project_leaves_the_entry_missing(): void
+    {
+        $this->bridge->capabilities = [...$this->bridge->capabilities ?? [], Bridge::CAPABILITY_ADD_ENTRY];
+        $this->bridge->commandEntries = [['projectId' => (string) Uuid::v7()] + self::entryRow()];
+        $this->em->flush();
+
+        $view = $this->viewOf($this->todo(proposedEntry: "action: command\nrun: [make, export]"));
+
+        self::assertSame([], $view->runList);
+        self::assertSame('inbox.action.run-command.disabled.entry_missing', $view->disabledReasonKey);
+        self::assertTrue($view->canAddEntry());
+    }
+
     public function test_a_todo_with_no_ask_has_no_bridge(): void
     {
         $action = $this->runCommandAction($this->todo(asked: false));
@@ -364,6 +413,83 @@ final class ItemActionsRunCommandTest extends KernelTestCase
         $this->addEntryRequest($todo, WorkRequestState::Open, cancelled: true);
 
         self::assertTrue($this->viewOf($todo)->canAddEntry());
+    }
+
+    public function test_an_add_that_the_bridge_refused_because_the_entry_exists_is_not_offered_again(): void
+    {
+        $todo = $this->todoWithMissingEntry();
+        $this->addEntryRequest($todo, WorkRequestState::Refused, reason: 'entry-exists');
+
+        $view = $this->viewOf($todo);
+
+        self::assertSame('inbox.action.run-command.disabled.entry_exists', $view->disabledReasonKey);
+        self::assertFalse($view->entryMissing);
+        self::assertFalse($view->canAddEntry());
+        self::assertFalse($this->actions()->runCommandFor($todo)?->canAddEntry(), 'The handler reads this view.');
+    }
+
+    /** @return iterable<string, array{string, bool, string}> the reason, whether another bridge refused, and the refused entry name */
+    public static function refusalsThatKeepTheOffer(): iterable
+    {
+        yield 'another reason' => ['file-changed', false, 'design-export'];
+        yield 'a refusal of another bridge' => ['entry-exists', true, 'design-export'];
+        yield 'a refusal of another entry name' => ['entry-exists', false, 'other-export'];
+    }
+
+    #[DataProvider('refusalsThatKeepTheOffer')]
+    public function test_a_refusal_that_says_nothing_of_this_entry_keeps_the_offer(string $reason, bool $otherBridge, string $name): void
+    {
+        $todo = $this->todoWithMissingEntry();
+        $this->addEntryRequest($todo, WorkRequestState::Refused, reason: $reason, targetBridgeId: $otherBridge ? Uuid::v7() : null, name: $name);
+
+        $view = $this->viewOf($todo);
+
+        self::assertSame('inbox.action.run-command.disabled.entry_missing', $view->disabledReasonKey);
+        self::assertTrue($view->canAddEntry());
+    }
+
+    public function test_only_the_newest_add_of_the_item_decides_the_offer(): void
+    {
+        $todo = $this->todoWithMissingEntry();
+        $this->addEntryRequest($todo, WorkRequestState::Refused, reason: 'entry-exists', requestedAt: new \DateTimeImmutable('-2 hours'));
+        $this->addEntryRequest($todo, WorkRequestState::Expired, requestedAt: new \DateTimeImmutable('-1 hour'));
+
+        self::assertTrue($this->viewOf($todo)->canAddEntry());
+    }
+
+    public function test_the_refusal_of_one_item_leaves_the_offer_of_another(): void
+    {
+        $refused = $this->todoWithMissingEntry();
+        $other = $this->todo(proposedEntry: 'action: command');
+        $this->addEntryRequest($refused, WorkRequestState::Refused, reason: 'entry-exists');
+
+        $actions = $this->actions()->forItems([$refused, $other]);
+
+        $reasons = array_map(
+            static fn (InboxItem $item): ?string => array_find($actions[(string) $item->id], static fn (ItemAction $action): bool => InboxActionKind::RunCommand === $action->kind)?->disabledReasonKey,
+            [$refused, $other],
+        );
+        self::assertSame(['inbox.action.run-command.disabled.entry_exists', 'inbox.action.run-command.disabled.entry_missing'], $reasons);
+    }
+
+    public function test_run_works_when_a_command_row_appears_after_the_refusal(): void
+    {
+        $todo = $this->todoWithMissingEntry();
+        $this->addEntryRequest($todo, WorkRequestState::Refused, reason: 'entry-exists');
+        $this->bridge->commandEntries = [self::entryRow()];
+        $this->em->flush();
+
+        self::assertNull($this->viewOf($todo)->disabledReasonKey);
+    }
+
+    public function test_a_hidden_shared_row_keeps_its_own_reason_after_a_refusal(): void
+    {
+        $todo = $this->todoWithMissingEntry();
+        $this->addEntryRequest($todo, WorkRequestState::Refused, reason: 'entry-exists');
+        $this->bridge->commandEntries = [['projectId' => null, 'exceptProjects' => [(string) $this->project->id]] + self::entryRow()];
+        $this->em->flush();
+
+        self::assertSame('inbox.action.run-command.disabled.entry_replaced', $this->viewOf($todo)->disabledReasonKey);
     }
 
     public function test_a_value_that_fails_its_pattern_turns_the_action_off_and_marks_the_param(): void
@@ -783,7 +909,16 @@ final class ItemActionsRunCommandTest extends KernelTestCase
         $this->em->flush();
     }
 
-    private function addEntryRequest(InboxItem $item, WorkRequestState $state, bool $cancelled = false): void
+    private function todoWithMissingEntry(): InboxItem
+    {
+        $this->bridge->commandEntries = [];
+        $this->bridge->capabilities = [...($this->bridge->capabilities ?? []), Bridge::CAPABILITY_ADD_ENTRY];
+        $this->em->flush();
+
+        return $this->todo(proposedEntry: 'action: command');
+    }
+
+    private function addEntryRequest(InboxItem $item, WorkRequestState $state, bool $cancelled = false, ?string $reason = null, ?Uuid $targetBridgeId = null, string $name = 'design-export', ?\DateTimeImmutable $requestedAt = null): void
     {
         $request = new WorkRequest(
             project: $this->project,
@@ -796,9 +931,12 @@ final class ItemActionsRunCommandTest extends KernelTestCase
             createdAt: new \DateTimeImmutable(),
         );
         $request->state = $state;
+        $request->reason = $reason;
+        $request->targetBridgeId = $targetBridgeId ?? $this->bridge->id;
+        $request->prompt = $name.":\n  action: command\n";
         $this->em->persist($request);
         $this->em->flush();
-        $action = new InboxAction($item, InboxActionKind::AddEntry, $this->project->owner, '', new \DateTimeImmutable());
+        $action = new InboxAction($item, InboxActionKind::AddEntry, $this->project->owner, '', $requestedAt ?? new \DateTimeImmutable());
         $action->workRequestId = $request->id;
         $action->cancelledAt = $cancelled ? new \DateTimeImmutable() : null;
         $this->em->persist($action);

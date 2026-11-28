@@ -16,6 +16,9 @@ use Symfony\Component\Uid\Uuid;
 
 final class SuggestedCommandCheckTest extends TestCase
 {
+    private const string PROJECT = '0199a3c4-0000-7000-8000-00000000000a';
+    private const string OTHER_PROJECT = '0199a3c4-0000-7000-8000-00000000000b';
+
     #[TestWith(['main'])]
     #[TestWith(['feature/card-883-run-command'])]
     #[TestWith(['release-1.2'])]
@@ -62,70 +65,95 @@ final class SuggestedCommandCheckTest extends TestCase
 
     public function test_a_wrong_branch_is_refused_first(): void
     {
-        self::assertSame(AskInboxHandler::SUGGESTION_BRANCH_INVALID, SuggestedCommandCheck::error($this->command(branch: 'a b'), null, null));
+        self::assertSame(AskInboxHandler::SUGGESTION_BRANCH_INVALID, SuggestedCommandCheck::error($this->command(branch: 'a b'), null, null, self::PROJECT));
     }
 
     public function test_a_command_with_no_pattern_source_stays_unchecked(): void
     {
-        self::assertNull(SuggestedCommandCheck::error($this->command(['anything' => 'goes']), null, null));
-        self::assertNull(SuggestedCommandCheck::error($this->command(['anything' => 'goes']), null, $this->bridge([])));
-        self::assertNull(SuggestedCommandCheck::error($this->command(['anything' => 'goes']), null, $this->bridge([$this->row('other', 'x', '^x$')])));
+        self::assertNull(SuggestedCommandCheck::error($this->command(['anything' => 'goes']), null, null, self::PROJECT));
+        self::assertNull(SuggestedCommandCheck::error($this->command(['anything' => 'goes']), null, $this->bridge([]), self::PROJECT));
+        self::assertNull(SuggestedCommandCheck::error($this->command(['anything' => 'goes']), null, $this->bridge([$this->row('other', 'x', '^x$')]), self::PROJECT));
     }
 
     public function test_the_pattern_of_the_bridge_entry_is_checked_against_the_whole_value(): void
     {
         $bridge = $this->bridge([$this->row('test', 'filter', '[a-z]+')]);
 
-        self::assertNull(SuggestedCommandCheck::error($this->command(['filter' => 'abc']), null, $bridge));
-        self::assertSame(AskInboxHandler::SUGGESTION_PARAM_INVALID, SuggestedCommandCheck::error($this->command(['filter' => 'abc1']), null, $bridge));
-        self::assertSame(AskInboxHandler::SUGGESTION_PARAM_INVALID, SuggestedCommandCheck::error($this->command(['filter' => "abc\n"]), null, $bridge));
-        self::assertSame(AskInboxHandler::SUGGESTION_PARAM_INVALID, SuggestedCommandCheck::error($this->command(['filter' => '1abc']), null, $bridge));
+        self::assertNull(SuggestedCommandCheck::error($this->command(['filter' => 'abc']), null, $bridge, self::PROJECT));
+        self::assertSame(AskInboxHandler::SUGGESTION_PARAM_INVALID, SuggestedCommandCheck::error($this->command(['filter' => 'abc1']), null, $bridge, self::PROJECT));
+        self::assertSame(AskInboxHandler::SUGGESTION_PARAM_INVALID, SuggestedCommandCheck::error($this->command(['filter' => "abc\n"]), null, $bridge, self::PROJECT));
+        self::assertSame(AskInboxHandler::SUGGESTION_PARAM_INVALID, SuggestedCommandCheck::error($this->command(['filter' => '1abc']), null, $bridge, self::PROJECT));
     }
 
     public function test_an_alternation_cannot_escape_the_whole_value_match(): void
     {
         $bridge = $this->bridge([$this->row('test', 'filter', 'a|b')]);
 
-        self::assertNull(SuggestedCommandCheck::error($this->command(['filter' => 'b']), null, $bridge));
-        self::assertSame(AskInboxHandler::SUGGESTION_PARAM_INVALID, SuggestedCommandCheck::error($this->command(['filter' => 'bx']), null, $bridge));
+        self::assertNull(SuggestedCommandCheck::error($this->command(['filter' => 'b']), null, $bridge, self::PROJECT));
+        self::assertSame(AskInboxHandler::SUGGESTION_PARAM_INVALID, SuggestedCommandCheck::error($this->command(['filter' => 'bx']), null, $bridge, self::PROJECT));
     }
 
     public function test_a_param_the_entry_does_not_declare_is_refused(): void
     {
         $bridge = $this->bridge([$this->row('test', 'filter', '.*')]);
 
-        self::assertSame(AskInboxHandler::SUGGESTION_PARAM_INVALID, SuggestedCommandCheck::error($this->command(['filter' => 'a', 'extra' => 'b']), null, $bridge));
+        self::assertSame(AskInboxHandler::SUGGESTION_PARAM_INVALID, SuggestedCommandCheck::error($this->command(['filter' => 'a', 'extra' => 'b']), null, $bridge, self::PROJECT));
+    }
+
+    public function test_the_patterns_come_from_the_row_of_the_project(): void
+    {
+        $bridge = $this->bridge([
+            $this->row('test', 'filter', '[a-z]+') + ['projectId' => null, 'exceptProjects' => [self::PROJECT]],
+            $this->row('test', 'filter', '[0-9]+') + ['projectId' => self::PROJECT],
+        ]);
+
+        self::assertNull(SuggestedCommandCheck::error($this->command(['filter' => '42']), null, $bridge, self::PROJECT));
+        self::assertSame(AskInboxHandler::SUGGESTION_PARAM_INVALID, SuggestedCommandCheck::error($this->command(['filter' => 'abc']), null, $bridge, self::PROJECT));
+        self::assertNull(SuggestedCommandCheck::error($this->command(['filter' => 'abc']), null, $bridge, self::OTHER_PROJECT));
+        self::assertSame(AskInboxHandler::SUGGESTION_PARAM_INVALID, SuggestedCommandCheck::error($this->command(['filter' => '42']), null, $bridge, self::OTHER_PROJECT));
+    }
+
+    public function test_a_hidden_shared_row_and_the_row_of_another_project_give_no_pattern(): void
+    {
+        $bridge = $this->bridge([
+            $this->row('test', 'filter', '[a-z]+') + ['projectId' => null, 'exceptProjects' => [self::PROJECT]],
+            $this->row('test', 'filter', '[a-z]+') + ['projectId' => self::OTHER_PROJECT],
+        ]);
+        $proposed = "action: command\nparams:\n  filter:\n    pattern: '[0-9]+'\n";
+
+        self::assertNull(SuggestedCommandCheck::error($this->command(['filter' => '42']), $proposed, $bridge, self::PROJECT));
+        self::assertNull(SuggestedCommandCheck::error($this->command(['filter' => 'anything at all']), null, $bridge, self::PROJECT));
     }
 
     public function test_a_declared_param_with_no_value_is_refused(): void
     {
         $bridge = $this->bridge([$this->row('test', 'filter', '.*')]);
 
-        self::assertSame(AskInboxHandler::SUGGESTION_PARAM_INVALID, SuggestedCommandCheck::error($this->command(), null, $bridge));
+        self::assertSame(AskInboxHandler::SUGGESTION_PARAM_INVALID, SuggestedCommandCheck::error($this->command(), null, $bridge, self::PROJECT));
     }
 
     public function test_a_pattern_that_pcre_cannot_compile_leaves_the_value_unchecked(): void
     {
         $bridge = $this->bridge([$this->row('test', 'filter', '(?<name>a)(?P<name>b')]);
 
-        self::assertNull(SuggestedCommandCheck::error($this->command(['filter' => 'whatever']), null, $bridge));
+        self::assertNull(SuggestedCommandCheck::error($this->command(['filter' => 'whatever']), null, $bridge, self::PROJECT));
     }
 
     public function test_a_pattern_that_holds_the_delimiter_leaves_the_value_unchecked(): void
     {
         $bridge = $this->bridge([$this->row('test', 'filter', "a\x01b")]);
 
-        self::assertNull(SuggestedCommandCheck::error($this->command(['filter' => 'whatever']), null, $bridge));
+        self::assertNull(SuggestedCommandCheck::error($this->command(['filter' => 'whatever']), null, $bridge, self::PROJECT));
     }
 
     public function test_the_pattern_of_the_proposed_entry_is_used_when_the_bridge_lacks_the_entry(): void
     {
         $proposed = "action: command\nrun: [make, test]\nparams:\n  filter:\n    pattern: '[a-z]+'\n";
 
-        self::assertNull(SuggestedCommandCheck::error($this->command(['filter' => 'abc']), $proposed, $this->bridge([])));
-        self::assertNull(SuggestedCommandCheck::error($this->command(['filter' => 'abc']), $proposed, null));
-        self::assertSame(AskInboxHandler::SUGGESTION_PARAM_INVALID, SuggestedCommandCheck::error($this->command(['filter' => 'ABC']), $proposed, null));
-        self::assertSame(AskInboxHandler::SUGGESTION_PARAM_INVALID, SuggestedCommandCheck::error($this->command(['filter' => 'abc', 'extra' => 'x']), $proposed, null));
+        self::assertNull(SuggestedCommandCheck::error($this->command(['filter' => 'abc']), $proposed, $this->bridge([]), self::PROJECT));
+        self::assertNull(SuggestedCommandCheck::error($this->command(['filter' => 'abc']), $proposed, null, self::PROJECT));
+        self::assertSame(AskInboxHandler::SUGGESTION_PARAM_INVALID, SuggestedCommandCheck::error($this->command(['filter' => 'ABC']), $proposed, null, self::PROJECT));
+        self::assertSame(AskInboxHandler::SUGGESTION_PARAM_INVALID, SuggestedCommandCheck::error($this->command(['filter' => 'abc', 'extra' => 'x']), $proposed, null, self::PROJECT));
     }
 
     public function test_the_entry_of_the_bridge_wins_over_the_proposed_entry(): void
@@ -133,16 +161,16 @@ final class SuggestedCommandCheckTest extends TestCase
         $bridge = $this->bridge([$this->row('test', 'filter', '[0-9]+')]);
         $proposed = "action: command\nparams:\n  filter:\n    pattern: '[a-z]+'\n";
 
-        self::assertNull(SuggestedCommandCheck::error($this->command(['filter' => '42']), $proposed, $bridge));
-        self::assertSame(AskInboxHandler::SUGGESTION_PARAM_INVALID, SuggestedCommandCheck::error($this->command(['filter' => 'abc']), $proposed, $bridge));
+        self::assertNull(SuggestedCommandCheck::error($this->command(['filter' => '42']), $proposed, $bridge, self::PROJECT));
+        self::assertSame(AskInboxHandler::SUGGESTION_PARAM_INVALID, SuggestedCommandCheck::error($this->command(['filter' => 'abc']), $proposed, $bridge, self::PROJECT));
     }
 
     public function test_a_proposed_entry_with_no_params_declares_none(): void
     {
         $proposed = "action: command\nrun: [make]\n";
 
-        self::assertNull(SuggestedCommandCheck::error($this->command(), $proposed, null));
-        self::assertSame(AskInboxHandler::SUGGESTION_PARAM_INVALID, SuggestedCommandCheck::error($this->command(['x' => 'y']), $proposed, null));
+        self::assertNull(SuggestedCommandCheck::error($this->command(), $proposed, null, self::PROJECT));
+        self::assertSame(AskInboxHandler::SUGGESTION_PARAM_INVALID, SuggestedCommandCheck::error($this->command(['x' => 'y']), $proposed, null, self::PROJECT));
     }
 
     #[DataProvider('wrongProposedEntries')]
@@ -150,7 +178,7 @@ final class SuggestedCommandCheckTest extends TestCase
     {
         $bridge = $this->bridge([$this->row('test', 'filter', '.*')]);
 
-        self::assertSame(AskInboxHandler::SUGGESTION_ENTRY_INVALID, SuggestedCommandCheck::error($this->command(['filter' => 'a']), $proposed, $bridge));
+        self::assertSame(AskInboxHandler::SUGGESTION_ENTRY_INVALID, SuggestedCommandCheck::error($this->command(['filter' => 'a']), $proposed, $bridge, self::PROJECT));
     }
 
     /** @return iterable<string, array{string}> */

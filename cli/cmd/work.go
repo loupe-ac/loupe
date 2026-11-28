@@ -352,7 +352,7 @@ func (r *router) addEntry(w api.WorkRequest, source string) {
 		}
 		r.reloadMu.Lock()
 		defer r.reloadMu.Unlock()
-		undo, err := r.addEntryToFile(w.Prompt)
+		undo, err := r.addEntryToFile(r.rules().Slug(w.ProjectID), w.Prompt)
 		if errors.Is(err, rules.ErrEntryPresent) {
 			undo, err = nil, nil
 		}
@@ -383,13 +383,14 @@ func (r *router) addEntry(w api.WorkRequest, source string) {
 	})
 }
 
-// addEntryToFile adds the entry text to the rule file.
-func (r *router) addEntryToFile(text string) (func() error, error) {
+// addEntryToFile adds the entry text to the rule file, for a request of the
+// project slug.
+func (r *router) addEntryToFile(slug, text string) (func() error, error) {
 	if r.source.addEntry == nil {
 		return nil, &rules.EntryRefusal{Reason: rules.RefuseWriteFailed, Err: errors.New("the bridge cannot write the rule file")}
 	}
 
-	return r.source.addEntry(text)
+	return r.source.addEntry(slug, text)
 }
 
 // resumeRuns are the settings a run of m can take: those of its entry, and

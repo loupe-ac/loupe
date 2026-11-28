@@ -5,6 +5,11 @@ declare(strict_types=1);
 namespace App\Tests\DevSeed;
 
 use App\DevSeed\DevSeedId;
+use App\Module\Bridge\Entity\Bridge;
+use App\Module\Bridge\Repository\BridgeRepository;
+use App\Module\Inbox\Entity\InboxAsk;
+use App\Module\Inbox\Entity\InboxItem;
+use App\Module\Project\Service\Dev\DevProjectSeeder;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 
@@ -53,6 +58,26 @@ final class DevSeedRestoreInboxTest extends DevSeedTestCase
 
         self::assertSame($counts, $this->rowCounts());
         self::assertSame(0, (int) $connection->fetchOne('SELECT COUNT(*) FROM inbox_items WHERE search_vector IS NULL'), 'A restored item has no search vector.');
+    }
+
+    public function test_a_later_run_adds_the_hidden_shared_command_to_a_stored_command_bridge(): void
+    {
+        $this->seed(self::DAY);
+        $bridgeId = DevSeedId::of('bridge/bridge/design-export');
+        $project = (string) DevProjectSeeder::devProjectId();
+        // A database that an older seed wrote holds the bridge with its first entry alone.
+        self::assertSame(1, $this->em()->getConnection()->executeStatement('UPDATE bridges SET command_entries = json_build_array(command_entries -> 0) WHERE id = ?', [(string) $bridgeId]));
+
+        $this->seed(self::DAY);
+        $this->seed(self::DAY);
+
+        $bridge = self::getContainer()->get(BridgeRepository::class)->findOneBy(['id' => $bridgeId]);
+        self::assertInstanceOf(Bridge::class, $bridge);
+        self::assertTrue($bridge->hidesSharedEntry('worktree-teardown', $project));
+        self::assertNull($bridge->commandEntryFor('worktree-teardown', $project));
+        self::assertSame(['design-export', 'worktree-teardown'], array_column($bridge->commandEntries ?? [], 'name'));
+        self::assertInstanceOf(InboxItem::class, $this->em()->find(InboxItem::class, DevSeedId::of('inbox/item/command-replaced')));
+        self::assertInstanceOf(InboxAsk::class, $this->em()->find(InboxAsk::class, DevSeedId::of('inbox/ask/command-replaced')));
     }
 
     public function test_a_later_run_restores_the_session_bridge_of_a_stored_ask(): void

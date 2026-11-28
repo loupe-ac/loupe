@@ -61,9 +61,9 @@ func TestBridgeCheckPassesAFileWithNoWarning(t *testing.T) {
 }
 
 func TestBridgeCheckFailsOnAFileThatDoesNotLoad(t *testing.T) {
-	path := writeCheckRules(t, checkFile+"projects:\n  loupe:\n    dir: "+t.TempDir()+"\n    work:\n      x:\n        action: command\n        run: [make]\n")
+	path := writeCheckRules(t, checkFile+"projects:\n  loupe:\n    dir: "+t.TempDir()+"\n    work:\n      x:\n        action: command\n        run: [make]\n        prompt: x\n")
 
-	if _, err := runBridgeCheck(t, "--rules", path); err == nil || !strings.Contains(err.Error(), "not allowed under a project") {
+	if _, err := runBridgeCheck(t, "--rules", path); err == nil || !strings.Contains(err.Error(), `project "loupe" work "x": prompt names agent behaviour`) {
 		t.Fatalf("err = %v", err)
 	}
 }
