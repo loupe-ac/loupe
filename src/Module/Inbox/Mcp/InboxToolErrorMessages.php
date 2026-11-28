@@ -147,6 +147,7 @@ final readonly class InboxToolErrorMessages
             RunCommandResolver::UNSUPPORTED => 'The bridge cannot run commands from the inbox. The owner must update the CLI.',
             RunCommandResolver::ENTRY_MISSING => 'The rule file of the bridge has no such command.',
             RunCommandResolver::ENTRY_REPLACED => 'The rule file of the bridge has its own entry of this name for this project, and the bridge reports no command for it.',
+            RunCommandResolver::ENTRY_EXISTS => 'The bridge refused to add this command, because its rule file held another entry of this name. It reports no command of that name for this project. The owner must put the command under that name in the rule file by hand, then run loupe bridge reload.',
             RunCommandResolver::PARAM_INVALID => 'A param value does not fit the pattern of its param.',
             RunCommandResolver::NO_WORKTREE => 'The bridge has no worktree for this branch.',
             RunCommandResolver::PLACEHOLDER_MISSING => 'The command needs a card, and this item has no single card.',

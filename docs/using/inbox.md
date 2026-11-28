@@ -639,6 +639,10 @@ The reasons are:
   and the bridge reports no command for it. That entry replaces a shared command.
   Either it is no command, or the bridge left it out of its report, which holds
   at most 50 command entries. Loupe offers no add here.
+- The bridge refused to add the command with `entry-exists`, because its rule
+  file held another entry of this name, and it still reports no command of that
+  name for this project. See
+  [Adding a proposed entry](#adding-a-proposed-entry).
 - The command uses `{workRequestId}` or `{project}`. The bridge fills these
   only at the run, so Loupe cannot show the command before you run it.
 - The command uses `{cardId}` or `{cardNumber}`, and the item has no single
@@ -737,11 +741,17 @@ as added. The bridge also refuses when the
 file changed while it added the entry, or when the reload after the write
 failed. The status line then shows "Refused" and the reason code:
 `entry-invalid`, `entry-exists`, `not-accepted`, `write-failed`,
-`file-changed` or `reload-failed`. A refused add changes nothing. The button
-comes back, so you can try again. Add the entry by hand when the bridge keeps
-refusing. For `entry-exists`, change or rename the entry that the rule file
-holds. Loupe cannot see an entry of this project that is no command when no
-shared command has its name. It then offers the add, and the bridge refuses it.
+`file-changed` or `reload-failed`. A refused add changes nothing.
+
+After a refusal other than `entry-exists`, the button comes back, so you can try
+again. Add the entry by hand when the bridge keeps refusing.
+
+After `entry-exists`, the item offers no add. It shows why the Run button is off.
+Loupe cannot see an entry that is no command, so the refusal is all that it
+knows. Put the command under that name in the rule file by hand, then run
+`loupe bridge reload`. The Run button turns on when the bridge reports the
+command. The add does not come back on this item while the same bridge is asked
+for the same name, even after you remove the other entry.
 
 When the bridge did not opt in, the reason line says so. The item shows the
 entry with a **Copy** button. Add it under `work:` in the rule file by hand,

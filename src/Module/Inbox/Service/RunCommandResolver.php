@@ -14,6 +14,7 @@ use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Inbox\Command\RunInboxActionHandler;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
+use App\Module\Inbox\View\EntryAdds;
 use App\Module\Inbox\View\RunCommandBranch;
 use App\Module\Inbox\View\RunCommandOutcome;
 use App\Module\Inbox\View\RunCommandParam;
@@ -35,6 +36,7 @@ final readonly class RunCommandResolver
     public const string UNSUPPORTED = 'inbox.action.run-command.disabled.unsupported';
     public const string ENTRY_MISSING = 'inbox.action.run-command.disabled.entry_missing';
     public const string ENTRY_REPLACED = 'inbox.action.run-command.disabled.entry_replaced';
+    public const string ENTRY_EXISTS = 'inbox.action.run-command.disabled.entry_exists';
     public const string PARAM_INVALID = 'inbox.action.run-command.disabled.param_invalid';
     public const string NO_WORKTREE = 'inbox.action.run-command.disabled.no_worktree';
     public const string PLACEHOLDER_MISSING = 'inbox.action.run-command.disabled.placeholder_missing';
@@ -56,7 +58,7 @@ final readonly class RunCommandResolver
      * @param array<string, string>|null $params the values the owner confirmed, else the ones of the suggestion
      * @param Uuid|null                  $cardId the card the run belongs to, which fills the card placeholders
      */
-    public function view(InboxItem $item, SuggestedAction $suggestion, ?Bridge $bridge, ?Uuid $cardId, ?string $branch = null, ?array $params = null, ?RunCommandRun $run = null, bool $addEntryLive = false): RunCommandView
+    public function view(InboxItem $item, SuggestedAction $suggestion, ?Bridge $bridge, ?Uuid $cardId, ?string $branch = null, ?array $params = null, ?RunCommandRun $run = null, ?EntryAdds $entryAdds = null): RunCommandView
     {
         $command = $suggestion->command ?? throw new \LogicException('A run-command suggestion carries its command.');
         $branch ??= $command['branch'];
@@ -64,6 +66,8 @@ final readonly class RunCommandResolver
         $row = $bridge?->commandEntryFor($command['entry'], (string) $item->project->id);
         // The bridge refuses to add an entry here, because the project holds one of the name already.
         $replaced = null === $row && ($bridge?->hidesSharedEntry($command['entry'], (string) $item->project->id) ?? false);
+        // No heartbeat row names an entry that is no command, so only a refused add tells that the rule file holds one.
+        $exists = null === $row && !$replaced && null !== $bridge && self::refusedFor($entryAdds?->refusedAsExisting, $bridge, $command['entry']);
 
         $branches = $this->branches($item, $bridge, $command['branch']);
         $folder = array_find($branches, static fn (RunCommandBranch $candidate): bool => $candidate->branch === $branch)?->path;
@@ -107,6 +111,7 @@ final readonly class RunCommandResolver
             null === $bridge => self::NO_BRIDGE,
             !$bridge->takesRunCommands() => self::UNSUPPORTED,
             $replaced => self::ENTRY_REPLACED,
+            $exists => self::ENTRY_EXISTS,
             null === $row => self::ENTRY_MISSING,
             null !== $placeholderReason => $placeholderReason,
             !$valid => self::PARAM_INVALID,
@@ -119,7 +124,7 @@ final readonly class RunCommandResolver
             branch: $branch,
             bridgeId: $bridge?->id->toRfc4122(),
             bridgeName: $bridge?->label,
-            entryMissing: null !== $bridge && null === $row && !$replaced,
+            entryMissing: null !== $bridge && null === $row && !$replaced && !$exists,
             acceptsEntries: $bridge?->acceptsEntries() ?? false,
             entryYaml: self::entryYaml($command['entry'], $suggestion->proposedEntry),
             branches: $branches,
@@ -133,8 +138,20 @@ final readonly class RunCommandResolver
             bridgeQuiet: null !== $bridge && $this->isQuiet($bridge, $item),
             runList: $row['run'] ?? [],
             context: $context,
-            addEntryLive: $addEntryLive,
+            addEntryLive: $entryAdds->live ?? false,
         );
+    }
+
+    /** A refusal speaks of the rule file of one bridge and of one name. A wait item can change both with a newer run. */
+    private static function refusedFor(?WorkRequest $refusal, Bridge $bridge, string $entry): bool
+    {
+        if (null === $refusal || true !== $refusal->targetBridgeId?->equals($bridge->id)) {
+            return false;
+        }
+        // The prompt is the entry text that entryYaml() wrote: one mapping, keyed by the name.
+        $sent = Yaml::parse($refusal->prompt ?? '');
+
+        return \is_array($sent) && $entry === (string) array_key_first($sent);
     }
 
     /** The proposed entry under its name, as the bridge writes it, or null when the text is no mapping of keys. */
