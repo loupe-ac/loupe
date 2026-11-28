@@ -23,7 +23,8 @@ final class BridgeCommandEntryInput
 
     /**
      * @param list<BridgeCommandParamInput>|null $params
-     * @param list<string>|null                  $run    the argv, with its placeholders
+     * @param list<string>|null                  $run            the argv, with its placeholders
+     * @param list<string>                       $exceptProjects the projects that do not run a shared entry
      */
     public function __construct(
         #[Assert\Length(max: self::MAX_NAME_LENGTH)]
@@ -49,6 +50,15 @@ final class BridgeCommandEntryInput
         #[Assert\Length(max: self::MAX_TIMEOUT_LENGTH)]
         #[Assert\NotBlank]
         public ?string $timeout = null,
+
+        /** Null or blank for a shared entry, which an older bridge also sends. */
+        #[Assert\Uuid]
+        public ?string $projectId = null,
+
+        #[Assert\All([new Assert\Type('string'), new Assert\NotBlank(), new Assert\Uuid()])]
+        #[Assert\Count(max: RecordBridgeHeartbeatRequest::MAX_PROJECTS)]
+        #[Assert\Type('list')]
+        public array $exceptProjects = [],
     ) {
     }
 }

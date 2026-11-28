@@ -262,6 +262,26 @@ final class WorkerRunApiTest extends WebTestCase
         self::assertSame($projectIds[$ids[1]], $second['items'][0]['projectIds']);
     }
 
+    public function test_the_project_bridge_list_carries_the_command_entries_that_run_for_the_project(): void
+    {
+        $row = static fn (string $name, string $run): array => ['name' => $name, 'description' => null, 'params' => [], 'run' => [$run], 'timeout' => '5m'];
+        $mine = (string) $this->project->id;
+        $theirs = (string) $this->other->id;
+        $this->bridge->commandEntries = [
+            $row('lint', 'shared-lint') + ['projectId' => null, 'exceptProjects' => [$theirs]],
+            $row('export', 'shared-export') + ['projectId' => null, 'exceptProjects' => [$mine]],
+            $row('hidden', 'shared-hidden') + ['projectId' => null, 'exceptProjects' => [$mine, $theirs]],
+            $row('export', 'own-export') + ['projectId' => $mine],
+            $row('secret', 'their-secret') + ['projectId' => $theirs],
+        ];
+        $this->em->flush();
+
+        $this->send(Request::METHOD_GET, '/api/v1/projects/'.$mine.'/bridges');
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame([$row('lint', 'shared-lint'), $row('export', 'own-export')], $this->json()['items'][0]['commandEntries']);
+    }
+
     public function test_a_credential_bound_to_one_project_sees_only_the_bridges_that_serve_it(): void
     {
         $this->seedBridge($this->em, $this->owner, projects: [(string) $this->other->id, (string) $this->project->id]);

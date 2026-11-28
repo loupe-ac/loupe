@@ -60,7 +60,7 @@ final readonly class RunCommandResolver
         $command = $suggestion->command ?? throw new \LogicException('A run-command suggestion carries its command.');
         $branch ??= $command['branch'];
         $values = $params ?? $command['params'];
-        $row = array_find($bridge->commandEntries ?? [], static fn (array $row): bool => $row['name'] === $command['entry']);
+        $row = $bridge?->commandEntryFor($command['entry'], (string) $item->project->id);
 
         $branches = $this->branches($item, $bridge, $command['branch']);
         $folder = array_find($branches, static fn (RunCommandBranch $candidate): bool => $candidate->branch === $branch)?->path;

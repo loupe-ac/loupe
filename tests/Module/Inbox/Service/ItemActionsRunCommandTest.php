@@ -232,6 +232,37 @@ final class ItemActionsRunCommandTest extends KernelTestCase
         self::assertSame($reason, $action->disabledReasonKey);
     }
 
+    public function test_the_view_reads_the_entry_row_of_the_project_of_the_item(): void
+    {
+        $this->bridge->commandEntries = [
+            ['run' => ['shared', '{out}'], 'projectId' => null, 'exceptProjects' => [(string) $this->project->id]] + self::entryRow(),
+            ['run' => ['elsewhere', '{out}'], 'projectId' => (string) Uuid::v7()] + self::entryRow(),
+            ['run' => ['own', '{out}'], 'projectId' => (string) $this->project->id] + self::entryRow(),
+        ];
+        $this->em->flush();
+
+        $view = $this->viewOf($this->todo());
+
+        self::assertSame(['own', 'var/out'], $view->argv);
+        self::assertNull($view->disabledReasonKey);
+    }
+
+    public function test_the_view_offers_neither_a_hidden_shared_row_nor_the_row_of_another_project(): void
+    {
+        $this->bridge->commandEntries = [
+            ['projectId' => null, 'exceptProjects' => [(string) $this->project->id]] + self::entryRow(),
+            ['projectId' => (string) Uuid::v7()] + self::entryRow(),
+        ];
+        $this->em->flush();
+
+        $view = $this->viewOf($this->todo());
+
+        self::assertTrue($view->entryMissing);
+        self::assertSame([], $view->argv);
+        self::assertSame([], $view->runList);
+        self::assertSame('inbox.action.run-command.disabled.entry_missing', $view->disabledReasonKey);
+    }
+
     public function test_a_todo_with_no_ask_has_no_bridge(): void
     {
         $action = $this->runCommandAction($this->todo(asked: false));

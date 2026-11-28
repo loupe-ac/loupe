@@ -142,7 +142,7 @@ final readonly class InboxItemDrafter
             cards: $cards,
             documents: $documents,
             reviewTarget: $reviewTarget,
-            suggestedActions: $this->suggestions($input->suggestedActions, $input->kind, $linkedCardIds, $field('suggestedActions'), $bridge),
+            suggestedActions: $this->suggestions($input->suggestedActions, $input->kind, $linkedCardIds, $field('suggestedActions'), $bridge, (string) $project->id),
             dismissible: $input->dismissible,
             recommendedOption: $recommendedOption,
             confidence: null === $recommendedOption ? null : InboxConfidence::from($input->confidence ?? ''),
@@ -290,7 +290,7 @@ final readonly class InboxItemDrafter
      *
      * @return list<array{action: string, reason: string, recommended: bool, cardId: ?string, command: array{entry: string, branch: string, params: array<string, string>}|null, proposedEntry: ?string, prompt: ?string}>
      */
-    private function suggestions(array $suggestions, InboxItemKind $kind, array $linkedCardIds, string $field, ?Bridge $bridge): array
+    private function suggestions(array $suggestions, InboxItemKind $kind, array $linkedCardIds, string $field, ?Bridge $bridge, string $projectId): array
     {
         if (\count($suggestions) > RunSuggestions::MAX_SUGGESTIONS) {
             throw new DomainErrors([$field => AskInboxHandler::TOO_MANY_SUGGESTIONS]);
@@ -343,7 +343,7 @@ final readonly class InboxItemDrafter
                     throw new DomainErrors([$field => AskInboxHandler::SUGGESTION_COMMAND_REQUIRED]);
                 }
                 $command = new AskInboxRunCommand(trim($suggestion->command->entry), $suggestion->command->branch, $suggestion->command->params);
-                $error = SuggestedCommandCheck::error($command, $suggestion->proposedEntry, $bridge);
+                $error = SuggestedCommandCheck::error($command, $suggestion->proposedEntry, $bridge, $projectId);
                 if (null !== $error) {
                     throw new DomainErrors([$field => $error]);
                 }

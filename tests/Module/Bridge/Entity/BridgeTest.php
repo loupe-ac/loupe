@@ -52,6 +52,75 @@ final class BridgeTest extends TestCase
         self::assertTrue($bridge->acceptsEntries());
     }
 
+    private const string PROJECT_A = '0199a3c4-0000-7000-8000-00000000000a';
+    private const string PROJECT_B = '0199a3c4-0000-7000-8000-00000000000b';
+    private const string PROJECT_C = '0199a3c4-0000-7000-8000-00000000000c';
+
+    public function test_a_row_stored_with_neither_project_key_runs_for_every_project(): void
+    {
+        $bridge = $this->bridge('0199a3c4-0000-7000-8000-0123456789ab');
+        $bridge->commandEntries = [self::commandRow('export', 'old')];
+
+        self::assertSame(self::commandRow('export', 'old'), $bridge->commandEntryFor('export', self::PROJECT_A));
+        self::assertSame([self::commandRow('export', 'old')], $bridge->commandEntriesFor(self::PROJECT_A));
+        self::assertNull($bridge->commandEntryFor('other', self::PROJECT_A));
+    }
+
+    /** @return iterable<string, array{bool}> */
+    public static function rowOrders(): iterable
+    {
+        yield 'the shared row first' => [false];
+        yield 'the project row first' => [true];
+    }
+
+    #[DataProvider('rowOrders')]
+    public function test_each_project_gets_its_own_row_and_the_shared_row_unless_it_is_hidden(bool $reversed): void
+    {
+        $shared = self::commandRow('export', 'shared') + ['projectId' => null, 'exceptProjects' => [self::PROJECT_A, self::PROJECT_C]];
+        $own = self::commandRow('export', 'own') + ['projectId' => self::PROJECT_A, 'exceptProjects' => []];
+        $bridge = $this->bridge('0199a3c4-0000-7000-8000-0123456789ab');
+        $bridge->commandEntries = $reversed ? [$own, $shared] : [$shared, $own];
+
+        self::assertSame($own, $bridge->commandEntryFor('export', self::PROJECT_A));
+        self::assertSame($shared, $bridge->commandEntryFor('export', self::PROJECT_B));
+        self::assertNull($bridge->commandEntryFor('export', self::PROJECT_C), 'The project hides the shared entry, and the other project row is not its own.');
+        self::assertSame([self::commandRow('export', 'own')], $bridge->commandEntriesFor(self::PROJECT_A));
+        self::assertSame([self::commandRow('export', 'shared')], $bridge->commandEntriesFor(self::PROJECT_B));
+        self::assertSame([], $bridge->commandEntriesFor(self::PROJECT_C));
+    }
+
+    public function test_the_project_list_holds_one_row_for_each_name_the_project_runs(): void
+    {
+        $bridge = $this->bridge('0199a3c4-0000-7000-8000-0123456789ab');
+        $bridge->commandEntries = [
+            self::commandRow('lint', 'shared lint') + ['projectId' => null, 'exceptProjects' => []],
+            self::commandRow('export', 'shared export') + ['projectId' => null, 'exceptProjects' => [self::PROJECT_A]],
+            self::commandRow('export', 'export of A') + ['projectId' => self::PROJECT_A],
+            self::commandRow('secret', 'secret of B') + ['projectId' => self::PROJECT_B],
+        ];
+
+        self::assertSame([self::commandRow('lint', 'shared lint'), self::commandRow('export', 'export of A')], $bridge->commandEntriesFor(self::PROJECT_A));
+        self::assertSame([self::commandRow('lint', 'shared lint'), self::commandRow('export', 'shared export'), self::commandRow('secret', 'secret of B')], $bridge->commandEntriesFor(self::PROJECT_B));
+        self::assertNull($bridge->commandEntryFor('secret', self::PROJECT_A));
+    }
+
+    public function test_the_project_list_keeps_no_report_apart_from_an_empty_one(): void
+    {
+        $bridge = $this->bridge('0199a3c4-0000-7000-8000-0123456789ab');
+
+        self::assertNull($bridge->commandEntriesFor(self::PROJECT_A));
+        self::assertNull($bridge->commandEntryFor('export', self::PROJECT_A));
+
+        $bridge->commandEntries = [];
+        self::assertSame([], $bridge->commandEntriesFor(self::PROJECT_A));
+    }
+
+    /** @return array{name: string, description: string, params: list<array{name: string, pattern: string, description: null}>, run: list<string>, timeout: string} */
+    private static function commandRow(string $name, string $description): array
+    {
+        return ['name' => $name, 'description' => $description, 'params' => [], 'run' => ['make', $name], 'timeout' => '5m'];
+    }
+
     /** @return iterable<string, array{list<string>, ?string, ?string, bool}> */
     public static function appPrompts(): iterable
     {

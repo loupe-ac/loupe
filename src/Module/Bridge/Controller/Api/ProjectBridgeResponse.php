@@ -64,7 +64,7 @@ final readonly class ProjectBridgeResponse
         #[OA\Property(description: 'True when the bridge adds a proposed command entry to its rule file after the owner confirms.')]
         public bool $acceptsEntries,
 
-        #[OA\Property(description: 'Each command entry the bridge can run, as its last heartbeat reported them: `name`, `description`, `params`, `run` and `timeout`. Null when it reported none.', type: 'array', items: new OA\Items(type: 'object', additionalProperties: true), nullable: true)]
+        #[OA\Property(description: 'The command entries that run for this project, one for each name, as the last heartbeat reported them: `name`, `description`, `params`, `run` and `timeout`. Null when the bridge reported no list.', type: 'array', items: new OA\Items(type: 'object', additionalProperties: true), nullable: true)]
         public ?array $commandEntries,
 
         #[OA\Property(description: 'Each worker pool of the bridge, with `name`, `size`, `inUse` and `queued`, as its last heartbeat reported them. Null when it reported none.', type: 'array', items: new OA\Items(type: 'object', additionalProperties: true), nullable: true)]

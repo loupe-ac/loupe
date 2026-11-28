@@ -529,12 +529,50 @@ final class BridgeHeartbeatApiTest extends WebTestCase
                 'params' => [['name' => 'out', 'pattern' => '^var/[a-z-]+$', 'description' => null]],
                 'run' => ['bin/console', 'app:design-system:export', '{out}'],
                 'timeout' => '10m',
+                'projectId' => null,
+                'exceptProjects' => [],
             ],
-            ['name' => 'plain', 'description' => null, 'params' => [], 'run' => ['true'], 'timeout' => '10m'],
+            ['name' => 'plain', 'description' => null, 'params' => [], 'run' => ['true'], 'timeout' => '10m', 'projectId' => null, 'exceptProjects' => []],
         ], $bridge->commandEntries);
         self::assertSame([['projectId' => strtolower($projectId), 'branch' => 'epic/42', 'path' => '/work/card-42']], $bridge->worktrees);
         self::assertNotNull($bridge->commandEntriesReportedAt);
         self::assertNotNull($bridge->worktreesReportedAt);
+    }
+
+    public function test_the_project_of_a_command_entry_and_the_projects_that_hide_it_are_stored_in_canonical_form(): void
+    {
+        $client = static::createClient();
+        $owner = $this->user($this->em(), 'heartbeat-entry-projects@example.com');
+        $raw = $this->agentToken($client, $owner);
+        $bridgeId = (string) Uuid::v4();
+        $projectId = (string) Uuid::v7();
+        $hiding = (string) Uuid::v7();
+
+        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'commandEntries' => [
+            self::commandEntry(['exceptProjects' => [strtoupper($hiding), $hiding]]),
+            self::commandEntry(['projectId' => strtoupper($projectId)]),
+            self::commandEntry(['name' => 'blank', 'projectId' => '']),
+        ]]);
+
+        self::assertResponseStatusCodeSame(200);
+        $rows = $this->bridge($owner, $bridgeId)->commandEntries ?? [];
+        self::assertSame(
+            [[null, [$hiding]], [$projectId, []], [null, []]],
+            array_map(static fn (array $row): array => [$row['projectId'] ?? null, $row['exceptProjects'] ?? null], $rows),
+        );
+    }
+
+    public function test_a_shared_command_entry_may_be_hidden_by_as_many_projects_as_a_heartbeat_names(): void
+    {
+        $client = static::createClient();
+        $owner = $this->user($this->em(), 'heartbeat-entry-except-cap@example.com');
+        $raw = $this->agentToken($client, $owner);
+        $bridgeId = (string) Uuid::v4();
+        $hiding = array_map(static fn (): string => (string) Uuid::v7(), range(1, RecordBridgeHeartbeatRequest::MAX_PROJECTS));
+
+        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'commandEntries' => [self::commandEntry(['exceptProjects' => $hiding])]]);
+
+        self::assertResponseStatusCodeSame(200);
     }
 
     /** A bridge from before command entries sends none, so a missing key keeps the rows and an empty list clears them. */
@@ -1535,6 +1573,15 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         yield 'command entries keyed by name' => [['commandEntries' => ['design-export' => self::commandEntry()]]];
         yield 'too many command entries' => [['commandEntries' => array_fill(0, RecordBridgeHeartbeatRequest::MAX_COMMAND_ENTRIES + 1, self::commandEntry())]];
         yield 'a command entry that is not an object' => [['commandEntries' => ['design-export']]];
+        yield 'a command entry project that is not a uuid' => [['commandEntries' => [self::commandEntry(['projectId' => 'loupe'])]]];
+        yield 'a command entry project of spaces' => [['commandEntries' => [self::commandEntry(['projectId' => '  '])]]];
+        yield 'excepted projects that are not a list' => [['commandEntries' => [self::commandEntry(['exceptProjects' => 'loupe'])]]];
+        yield 'excepted projects keyed by name' => [['commandEntries' => [self::commandEntry(['exceptProjects' => ['loupe' => '0199a3c4-0000-7000-8000-00000000000a']])]]];
+        yield 'null excepted projects' => [['commandEntries' => [self::commandEntry(['exceptProjects' => null])]]];
+        yield 'an excepted project that is not a uuid' => [['commandEntries' => [self::commandEntry(['exceptProjects' => ['loupe']])]]];
+        yield 'a blank excepted project' => [['commandEntries' => [self::commandEntry(['exceptProjects' => ['']])]]];
+        yield 'an excepted project that is not text' => [['commandEntries' => [self::commandEntry(['exceptProjects' => [7]])]]];
+        yield 'too many excepted projects' => [['commandEntries' => [self::commandEntry(['exceptProjects' => array_fill(0, RecordBridgeHeartbeatRequest::MAX_PROJECTS + 1, '0199a3c4-0000-7000-8000-00000000000a')])]]];
         yield 'a command entry with no name' => [['commandEntries' => [self::commandEntry(['name' => null])]]];
         yield 'a command entry name that is too long' => [['commandEntries' => [self::commandEntry(['name' => str_repeat('a', BridgeCommandEntryInput::MAX_NAME_LENGTH + 1)])]]];
         yield 'a command entry description that is too long' => [['commandEntries' => [self::commandEntry(['description' => str_repeat('a', BridgeCommandEntryInput::MAX_DESCRIPTION_LENGTH + 1)])]]];

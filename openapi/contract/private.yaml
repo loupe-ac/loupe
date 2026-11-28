@@ -2452,6 +2452,16 @@ components:
               timeout:
                 type: string
                 maxLength: 20
+              projectId:
+                type: string
+                format: uuid
+                nullable: true
+              exceptProjects:
+                type: array
+                items:
+                  type: string
+                  format: uuid
+                maxItems: 500
           nullable: true
           maxItems: 50
         worktrees:
