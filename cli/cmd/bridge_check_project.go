@@ -77,7 +77,11 @@ func buildProjectCheck(set *rules.Set, path, slug string) projectCheck {
 		entry, ok := set.WorkEntryFor(slug, kind)
 		if !ok {
 			if kind != rules.TeardownKind || set.Isolation() != rules.IsolationWorktree {
-				report.Kinds = append(report.Kinds, kindCheck{Kind: kind, Source: "none", Action: "missing", Commands: []commandCheck{}})
+				source, action := "none", "missing"
+				if set.AppPrompts() {
+					source, action = "app", "app-prompt"
+				}
+				report.Kinds = append(report.Kinds, kindCheck{Kind: kind, Source: source, Action: action, Commands: []commandCheck{}})
 			}
 
 			continue

@@ -2145,14 +2145,17 @@ The command exits with status 1 when the file does not load, and 0 otherwise.
 ### `loupe bridge check --project <slug> --json`
 
 Prints one JSON object for a project of the rule file, for discovery to read. It
-needs a CLI released after v2.1.0, and both flags go together.
+needs a CLI released after v2.1.0, and both flags go together. The `app-prompt`
+action needs a CLI released after v2.10.2.
 
 ```bash
 loupe bridge check --project loupe --json
 ```
 
 - `project`, `dir`, `dirExists`, `rules`: the slug, its folder, whether the folder exists, and the rule file.
-- `kinds[]`: each work kind that the bridge advertises, with `kind`, `source` (`project`, `shared` or `none`), `action` (`worker`, `interactive`, `command`, or `missing` for a kind that another project lists and this project does not), `account`, `harness` and `commands[]`.
+- `kinds[]`: each work kind that the bridge advertises, with `kind`, `source` (`project`, `shared`, `app` or `none`), `action` (`worker`, `interactive`, `command`, `app-prompt` or `missing`), `account`, `harness` and `commands[]`.
+- `app-prompt` and `missing` are for a kind that another project lists and this project does not. The kind is `app-prompt`, with `source` `app`, when the file has `appPrompts: true`. It is `missing`, with `source` `none`, when the file does not. CLI v2.10.2 and older report `missing` in both cases. Neither row has an `account`, a `harness` or commands.
+- An `app-prompt` kind runs only a request that carries a valid prompt, and it opens no interactive session. A `session` request can run its prompt as an unattended worker, so give the project a `session` entry. An app prompt runs on the account of `defaults.account`. Loupe refuses the claim when entries or experiment variants of the kind, in any project of the file, use only other accounts.
 - `commands[]`: one item for each `before`, `refresh`, `reset` and `run` command, with `field`, `argv`, `checked`, `resolved` and `exists`. `checked` is false for a command with a placeholder or a `~`. A path with a slash resolves in the project folder, and a bare name resolves on `PATH`.
 - `accounts[]`: each account that a kind uses, with `name`, `harness`, `configDir`, `configDirExists`, `mcpServers` and `mcpError`. `mcpServers` lists the names that the account config and the `.mcp.json` of the project declare. A server that a plugin brings is not listed.
 
