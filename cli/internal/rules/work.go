@@ -352,8 +352,8 @@ func (s *Set) MatchWork(w api.WorkRequest) Match {
 }
 
 // removesWorktree reports whether the bridge itself ends w: the teardown of a
-// card, when the set isolates cards in worktrees and the work map has no
-// teardown entry for the card.
+// card, when the set isolates cards in worktrees and no teardown entry covers
+// the project of the card.
 func (s *Set) removesWorktree(w api.WorkRequest) bool {
 	_, mapped := s.entry(w)
 
