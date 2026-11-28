@@ -482,7 +482,7 @@ rules:
               cancelOnly: open
               checks:
                   - A worktree per card, so two cards never share one checkout
-                  - "A new worktree has what the gate needs, such as installed dependencies. When it does not, the actor is owner, and the action names the setup command to add to the before command of the bridge work entry"
+                  - "A new worktree has what the gate needs, such as installed dependencies. When it does not, the actor is owner, and the action names the setup command to add to the before command of the bridge work entry. A kind that the bridge check reports as app-prompt has no before command. This check then fails when the repository needs a setup step. The action says to add a work entry with a before command that runs the step"
                   - "A preview URL per branch, with the review widget on it. When it fails, the actor is owner, and the action says to give each worker folder its own URL, or to remove the preview steps from the profile"
                   - The .loupe/lifecycle.md sections that the stage skills read
                   - "The before command of the bridge work entry gives the worker the folder that the instruction files describe. When it does not, the actor is owner, and the action names the line to correct"
