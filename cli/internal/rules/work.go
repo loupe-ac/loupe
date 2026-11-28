@@ -659,14 +659,37 @@ func (s *Set) WorkGaps(w api.WorkRequest) []string {
 type CommandEntry struct {
 	Name  string
 	Entry WorkEntry
+	// Slug is the project of a project entry, and "" for a shared one.
+	Slug string
+	// Except lists the projects that do not run a shared entry, in name order.
+	Except []string
 }
 
-// CommandEntries lists the command entries of the work map, in name order.
+// CommandEntries lists the command entries the set runs: the shared ones in
+// name order, then those of each project, by project and name. The shared ones
+// come first, so a caller that cuts the list drops project entries.
 func (s *Set) CommandEntries() []CommandEntry {
 	var out []CommandEntry
-	for _, kind := range s.WorkKinds() {
-		if e := s.work[kind]; e.Action == ActionCommand {
-			out = append(out, CommandEntry{Name: kind, Entry: e})
+	for _, kind := range s.SharedWorkKinds() {
+		e := s.work[kind]
+		if e.Action != ActionCommand {
+			continue
+		}
+		c := CommandEntry{Name: kind, Entry: e}
+		// A project entry of the kind replaces the shared one. A covered copy
+		// never does here, because no experiment covers a command entry.
+		for _, slug := range s.Projects() {
+			if _, own := s.projectWork[slug][kind]; own {
+				c.Except = append(c.Except, slug)
+			}
+		}
+		out = append(out, c)
+	}
+	for _, slug := range s.Projects() {
+		for _, kind := range s.ProjectWorkKinds(slug) {
+			if e, _ := s.entryFor(slug, kind); e.Action == ActionCommand {
+				out = append(out, CommandEntry{Name: kind, Entry: e, Slug: slug})
+			}
 		}
 	}
 

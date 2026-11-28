@@ -739,6 +739,10 @@ type CommandEntryReport struct {
 	Params      []CommandParamReport `json:"params"`
 	Run         []string             `json:"run"`
 	Timeout     string               `json:"timeout"`
+	// ProjectID is the project of a project entry. The server reads a row with
+	// none as a shared entry, which every project runs but ExceptProjects.
+	ProjectID      string   `json:"projectId,omitempty"`
+	ExceptProjects []string `json:"exceptProjects,omitempty"`
 }
 
 // CommandParamReport is one parameter of a command entry.

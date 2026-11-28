@@ -14,9 +14,7 @@ import (
 )
 
 // checkProjectWork checks the work entries of one project as it checks the
-// shared ones, and names the project in each error. A command entry stays in
-// the shared map, because the heartbeat reports command entries with no
-// project.
+// shared ones, and names the project in each error.
 func (s *Set) checkProjectWork(slug string, p Project, declaredPools map[string]WorkerPool, pools map[string]int, known, declared []string, root *yaml.Node) []error {
 	var errs []error
 	for _, kind := range slices.Sorted(maps.Keys(p.Work)) {
@@ -24,9 +22,6 @@ func (s *Set) checkProjectWork(slug string, p Project, declaredPools map[string]
 		label := fmt.Sprintf("project %q work %q", slug, kind)
 		if err := checkWork(kind, &w); err != nil {
 			errs = append(errs, fmt.Errorf("%s: %w", label, err))
-		}
-		if w.Action == ActionCommand {
-			errs = append(errs, fmt.Errorf("%s: action %s is not allowed under a project, because the heartbeat reports command entries with no project; list it under work", label, ActionCommand))
 		}
 		errs = append(errs, s.checkEntryAccounts([]any{"projects", slug, "work", kind}, label+": ", &w, declared, root)...)
 		if w.Action == "" {
@@ -194,8 +189,13 @@ func (s *Set) Warnings() []string {
 			case own != nil && shared != nil:
 				out = append(out, fmt.Sprintf("project %s: experiment %q covers %s for this project, so its runs leave the top-level experiment %q", slug, own.Name, kind, shared.Name))
 			case own == nil && shared != nil:
-				if _, listed := s.projectWork[slug][kind]; listed {
-					out = append(out, fmt.Sprintf("project %s: work %s runs without the variants of experiment %q, which covers the shared entry only; add an experiments: block under the project to run a trial on it", slug, kind, shared.Name))
+				if listed, ok := s.projectWork[slug][kind]; ok {
+					line := fmt.Sprintf("project %s: work %s runs without the variants of experiment %q, which covers the shared entry only", slug, kind, shared.Name)
+					// An experiment takes a worker entry only.
+					if listed.Action == "" {
+						line += "; add an experiments: block under the project to run a trial on it"
+					}
+					out = append(out, line)
 				}
 			}
 		}

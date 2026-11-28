@@ -39,14 +39,16 @@ func refuseEntry(reason string, format string, args ...any) *EntryRefusal {
 }
 
 // AddWorkEntry adds one command entry to the work map of the rule file at
-// path. The text is a YAML mapping with one key, the entry name. The file must
-// set acceptEntries. The bridge rewrites the whole file from its parsed tree,
-// so comments and layout can change. The file stays unchanged when the
-// function returns an error, and the result must pass the checks of Parse
-// with defaults. The file must also hold the bytes the function read when it
-// replaces them, so an edit made meanwhile stays. On success, undo puts the
-// old bytes back, unless the file changed since the write.
-func AddWorkEntry(path, entryYAML string, defaults Defaults) (undo func() error, err error) {
+// path, for a request of the project slug. The text is a YAML mapping with one
+// key, the entry name. The file must set acceptEntries, and the project must
+// list no entry of that name, which would hide the new one. The bridge
+// rewrites the whole file from its parsed tree, so comments and layout can
+// change. The file stays unchanged when the function returns an error, and the
+// result must pass the checks of Parse with defaults. The file must also hold
+// the bytes the function read when it replaces them, so an edit made meanwhile
+// stays. On success, undo puts the old bytes back, unless the file changed
+// since the write.
+func AddWorkEntry(path, slug, entryYAML string, defaults Defaults) (undo func() error, err error) {
 	if resolved, err := filepath.EvalSymlinks(path); err == nil {
 		path = resolved
 	}
@@ -65,6 +67,10 @@ func AddWorkEntry(path, entryYAML string, defaults Defaults) (undo func() error,
 	name, entry, err := parseNewEntry(entryYAML)
 	if err != nil {
 		return nil, err
+	}
+
+	if _, hidden := f.Projects[slug].Work[name]; hidden {
+		return nil, refuseEntry(RefuseEntryExists, "project %q lists its own entry %q, which would hide a shared one", slug, name)
 	}
 
 	var doc yaml.Node
