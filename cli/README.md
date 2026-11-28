@@ -875,8 +875,12 @@ line, and runs no more work for it.
 A project can list its own work entries under `projects.<slug>.work`. Each one
 replaces the shared entry of the same kind for that project, and the project
 uses the shared entry for each kind it does not list. A project entry takes the
-fields of a shared entry, except `action: command`. This needs a CLI released
-after v2.0.2, because an older CLI refuses a `work` key under a project.
+fields of a shared entry. A `work` key under a project needs a CLI released
+after v2.0.2, because an older CLI refuses it. A
+[command entry](#the-command-action) under a project needs a CLI released after
+v2.10.2. An older CLI refuses to load the whole rule file. Update the Loupe
+server before the CLI. An older server ignores the keys `projectId` and
+`exceptProjects` of the heartbeat, so it matches command entries by name alone.
 [Work entries of a project](../docs/extending/cli-bridge.md#work-entries-of-a-project)
 gives an example. Run [`loupe bridge check`](#loupe-bridge-check) after a change.
 
@@ -950,7 +954,7 @@ older file.
 `defaults.isolation` is `worktree` or `none`, and `worktree` is the default.
 With `worktree`, each card gets a git worktree of its own under
 `<config dir>/loupe/worktrees/<project>/card-<number>`, and the bridge removes it
-on the `teardown` request of the card when the work map has no `teardown` entry.
+on the `teardown` request of the card when no `teardown` entry runs for the project.
 A `before` command wins over the worktree. `none` runs workers in the project
 folder. [Worker isolation](../docs/extending/cli-bridge.md#worker-isolation)
 gives the details.
@@ -1458,6 +1462,9 @@ work:
     timeout: 5m
 ```
 
+A command entry can sit in the shared `work` map or in `projects.<slug>.work`. A
+project entry replaces the shared entry of its kind for that project.
+
 `run` is an argv list, and no shell reads it. Each element takes the
 placeholders of the work map, and the bridge fills each element on its own. A
 value therefore never splits into two arguments. The command runs in the
@@ -1497,8 +1504,14 @@ pattern that fits.
 
 ### Command entries in the heartbeat
 
-The heartbeat lists every command entry: `name`, `description`, `params`, `run`
-and `timeout`. It lists at most 50 entries, in name order. It also lists, for
+The heartbeat lists the shared command entries and those of each project:
+`name`, `description`, `params`, `run` and `timeout`. A row of a project entry
+also has `projectId`. A shared row has `exceptProjects`, the projects that list
+their own entry of that name. The shared entries come first, in name order. The
+entries of each project follow, by project slug and name. The heartbeat holds at
+most 50 command entries. When the rule file has more, the bridge logs
+`command_entries_cut` at start and at each reload, and Loupe cannot offer to run
+the entries that the line names. The heartbeat also lists, for
 each followed project, the branch and the folder of each worktree that
 `git worktree list --porcelain` shows in the project `dir`. It lists at most 200
 worktrees. A detached or bare worktree has no branch and is left out. The bridge
@@ -1517,7 +1530,8 @@ the entry as the owner confirmed it. The bridge checks the
 request again before it runs. It settles the request as refused, with a reason
 code, and starts no run, when a check fails:
 
-- `entry-missing`: the work map has no command entry of that name.
+- `entry-missing`: the entry that runs for the project under that name is no
+  command entry, or no entry has that name.
 - `entry-changed`: the `run` list of the entry differs from the one in the
   request, because the rule file changed after the owner confirmed it.
 - `param-invalid`: a parameter is missing, undeclared, or does not match its
@@ -1560,8 +1574,9 @@ the `prompt` field of the request. It is one YAML mapping with one key, the
 entry name. The bridge starts no agent and takes no worker slot. It does this:
 
 1. It checks that the file still sets `acceptEntries: true`.
-2. It adds the entry to the `work` map. It creates the map when the file has
-   none.
+2. It adds the entry to the shared `work` map. It creates the map when the file
+   has none. Each project runs the new command, unless it lists its own entry
+   of that name.
 3. It loads the new text through the checks of a normal load. It writes the
    file only when the checks pass.
 4. It reloads, as `loupe bridge reload` does, and settles the request as
@@ -1578,7 +1593,11 @@ file as it was:
   has a body that is no mapping, has an action other than `command`, or the
   new file fails its checks. A parameter with no `pattern`, a pattern that RE2
   refuses, and a parameter named like a built-in placeholder are examples.
-- `entry-exists`: the `work` map holds an entry with this name already.
+- `entry-exists`: the project of the request lists its own entry of this name,
+  and that entry differs from the new one. For a project with no such entry, the
+  shared `work` map holds a different entry of this name. An identical entry
+  counts as present. The bridge then writes nothing, reloads, and settles the
+  request as `done`.
 - `not-accepted`: the file does not set `acceptEntries: true`.
 - `write-failed`: the bridge could not read or write the file.
 - `file-changed`: the file changed while the bridge added the entry. The
@@ -1972,6 +1991,7 @@ no card, `subject` is the ask id. A worker line for a review verdict also names
 | `accounts_migration_done` | `rules`: the bridge gave the rule file an `accounts` block at start |
 | `accounts_migration_failed` | `rules`, `error`, `block`: the bridge could not add the `accounts` block. `block` holds the lines to paste. Level `WARN` |
 | `agents_off` | `reason`, `message`: the rule file has no `accounts` block, so no worker, interactive session or app prompt runs. Command entries still run. Level `WARN` |
+| `command_entries_cut` | `limit`, `dropped`, `message`: the rule file holds more command entries than the heartbeat carries. `dropped` names each one left out, as `<name>` or `<slug>/<name>`. It logs at start and at each reload. Level `WARN` |
 | `project_unmapped` | `project`: logged once per project the file does not map |
 | `project_gone` | `project`, `message`: a refresh no longer lists a mapped project, logged once per project |
 | `worker_queued` | `card`, `project`, `rule`, `worker_pool`, `queue_depth`, `pool_depth` |
