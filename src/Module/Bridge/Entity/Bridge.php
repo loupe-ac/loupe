@@ -311,6 +311,12 @@ class Bridge
         return $shared;
     }
 
+    /** Whether the project does not run a shared entry of the name, because its rule file holds an entry of its own. */
+    public function hidesSharedEntry(string $name, string $projectId): bool
+    {
+        return array_any($this->commandEntries ?? [], static fn (array $row): bool => $row['name'] === $name && \in_array($projectId, $row['exceptProjects'] ?? [], true));
+    }
+
     /**
      * The command entries that the project runs, one for each name. Null until a bridge sends a report.
      * The project reads this list, so it names its keys: a stored row also holds the ids of other projects.

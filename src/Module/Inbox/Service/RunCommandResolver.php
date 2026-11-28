@@ -34,6 +34,7 @@ final readonly class RunCommandResolver
     public const string NO_BRIDGE = 'inbox.action.run-command.disabled.no_bridge';
     public const string UNSUPPORTED = 'inbox.action.run-command.disabled.unsupported';
     public const string ENTRY_MISSING = 'inbox.action.run-command.disabled.entry_missing';
+    public const string ENTRY_REPLACED = 'inbox.action.run-command.disabled.entry_replaced';
     public const string PARAM_INVALID = 'inbox.action.run-command.disabled.param_invalid';
     public const string NO_WORKTREE = 'inbox.action.run-command.disabled.no_worktree';
     public const string PLACEHOLDER_MISSING = 'inbox.action.run-command.disabled.placeholder_missing';
@@ -61,6 +62,8 @@ final readonly class RunCommandResolver
         $branch ??= $command['branch'];
         $values = $params ?? $command['params'];
         $row = $bridge?->commandEntryFor($command['entry'], (string) $item->project->id);
+        // The bridge refuses to add an entry here, because the project holds one of the name already.
+        $replaced = null === $row && ($bridge?->hidesSharedEntry($command['entry'], (string) $item->project->id) ?? false);
 
         $branches = $this->branches($item, $bridge, $command['branch']);
         $folder = array_find($branches, static fn (RunCommandBranch $candidate): bool => $candidate->branch === $branch)?->path;
@@ -103,6 +106,7 @@ final readonly class RunCommandResolver
             $run?->state->isLive() ?? false => self::RUNNING,
             null === $bridge => self::NO_BRIDGE,
             !$bridge->takesRunCommands() => self::UNSUPPORTED,
+            $replaced => self::ENTRY_REPLACED,
             null === $row => self::ENTRY_MISSING,
             null !== $placeholderReason => $placeholderReason,
             !$valid => self::PARAM_INVALID,
@@ -115,7 +119,7 @@ final readonly class RunCommandResolver
             branch: $branch,
             bridgeId: $bridge?->id->toRfc4122(),
             bridgeName: $bridge?->label,
-            entryMissing: null !== $bridge && null === $row,
+            entryMissing: null !== $bridge && null === $row && !$replaced,
             acceptsEntries: $bridge?->acceptsEntries() ?? false,
             entryYaml: self::entryYaml($command['entry'], $suggestion->proposedEntry),
             branches: $branches,

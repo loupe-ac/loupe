@@ -255,12 +255,30 @@ final class ItemActionsRunCommandTest extends KernelTestCase
         ];
         $this->em->flush();
 
-        $view = $this->viewOf($this->todo());
+        $this->bridge->capabilities = [...$this->bridge->capabilities ?? [], Bridge::CAPABILITY_ADD_ENTRY];
+        $this->em->flush();
 
-        self::assertTrue($view->entryMissing);
+        $view = $this->viewOf($this->todo(proposedEntry: "action: command\nrun: [make, export]"));
+
         self::assertSame([], $view->argv);
         self::assertSame([], $view->runList);
+        self::assertSame('inbox.action.run-command.disabled.entry_replaced', $view->disabledReasonKey);
+        // The rule file holds an entry of the name for this project, so an add cannot turn the run on.
+        self::assertFalse($view->entryMissing);
+        self::assertFalse($view->canAddEntry());
+    }
+
+    public function test_the_row_of_another_project_leaves_the_entry_missing(): void
+    {
+        $this->bridge->capabilities = [...$this->bridge->capabilities ?? [], Bridge::CAPABILITY_ADD_ENTRY];
+        $this->bridge->commandEntries = [['projectId' => (string) Uuid::v7()] + self::entryRow()];
+        $this->em->flush();
+
+        $view = $this->viewOf($this->todo(proposedEntry: "action: command\nrun: [make, export]"));
+
+        self::assertSame([], $view->runList);
         self::assertSame('inbox.action.run-command.disabled.entry_missing', $view->disabledReasonKey);
+        self::assertTrue($view->canAddEntry());
     }
 
     public function test_a_todo_with_no_ask_has_no_bridge(): void
