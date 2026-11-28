@@ -176,7 +176,7 @@ Each row of `commandEntries` holds these fields:
 | `params` | required. A list of at most 20 parameters, which may be empty. Each parameter has a `name` of 1 to 100 characters, a `pattern` of 1 to 500 characters, and an optional `description` of at most 500 characters. A value must match the whole pattern |
 | `run` | required. The argv of the entry with its placeholders, a list of 1 to 50 strings of at most 1000 characters each |
 | `timeout` | required. The time limit of the entry, such as `10m`, at most 20 characters |
-| `projectId` | optional. The project of an entry under `projects.<slug>.work`, as a uuid. A missing, `null` or blank value makes the row a shared one. The server stores the uuid in lower case |
+| `projectId` | optional. The project of an entry under `projects.<slug>.work`, as a uuid. A missing, `null` or empty value makes the row a shared one. The server stores the uuid in lower case |
 | `exceptProjects` | optional. A list of at most 500 project uuids. These projects do not run the shared row. A missing value reads as an empty list. The server stores each uuid in lower case, once |
 
 For a project, the server picks the row of a name in this order:

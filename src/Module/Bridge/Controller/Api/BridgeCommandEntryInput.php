@@ -51,7 +51,7 @@ final class BridgeCommandEntryInput
         #[Assert\NotBlank]
         public ?string $timeout = null,
 
-        /** Null or blank for a shared entry, which an older bridge also sends. */
+        /** Null or empty for a shared entry, which an older bridge also sends. */
         #[Assert\Uuid]
         public ?string $projectId = null,
 

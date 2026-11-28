@@ -389,7 +389,7 @@ final class RecordBridgeHeartbeatRequest
 
     /**
      * The command entry rows as the bridge row stores them, with the project ids
-     * in canonical form. A blank description or project id is stored as
+     * in canonical form. A blank description or an empty project id is stored as
      * none. Null when the bridge sent no report.
      *
      * @return list<CommandEntryRow>|null

@@ -2762,8 +2762,8 @@ Loupe records on the epic the blockers that were done when the work opened.
 
 A worker entry takes `prompt`, `account`,
 `model`, `permissions`, `before` and `workerPool`. A command entry takes
-`run` and `timeout`. The rule check
-refuses a field that the action does not use.
+`run`, `timeout`, `description` and `params`. Each entry also takes `subject`.
+The rule check refuses a field that the action does not use.
 
 A work request is about a subject. The `subject` key of an entry names the
 subject type that the entry runs, and it is `card` when you leave it out. An

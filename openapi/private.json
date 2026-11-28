@@ -15695,7 +15695,7 @@
                         "maxLength": 20
                     },
                     "projectId": {
-                        "title": "Null or blank for a shared entry, which an older bridge also sends.",
+                        "title": "Null or empty for a shared entry, which an older bridge also sends.",
                         "type": "string",
                         "nullable": true,
                         "default": null
@@ -15972,7 +15972,7 @@
                         "maxItems": 50
                     },
                     "commandEntries": {
-                        "title": "The command entry rows as the bridge row stores them, with the project ids\nin canonical form. A blank description or project id is stored as\nnone. Null when the bridge sent no report.",
+                        "title": "The command entry rows as the bridge row stores them, with the project ids\nin canonical form. A blank description or an empty project id is stored as\nnone. Null when the bridge sent no report.",
                         "type": "array",
                         "items": {
                             "$ref": "#/components/schemas/BridgeCommandEntryInput"
