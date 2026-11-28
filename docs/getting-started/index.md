@@ -65,11 +65,13 @@ needs no profile skips this step. With no terminal or no agent, `loupe init`
 prints a prompt for you to paste into an agent. The agent runs when
 `.loupe/lifecycle.md` is missing. Pass `--review-profile` to run it again.
 
-The last lines name only what remains. They end with the link to the project
-page. Start discovery from there. When the Loupe GitHub App does not cover the
-repository of the folder, or Loupe cannot tell, a `Loupe GitHub App` block comes
-first, with the install link. Installing the App is then the first item of what
-remains.
+The last lines name what remains, including what the rule file of the bridge
+lacks for the project. A `Note:` line can name work kinds that run the app
+prompt. This part needs a CLI released after v2.10.2. The lines end with the
+link to the project page. Start discovery from there. When the Loupe GitHub App
+does not cover the repository of the folder, or Loupe cannot tell, a
+`Loupe GitHub App` block comes first, with the install link. Installing the App
+is then the first item of what remains.
 
 When Claude Code does not start the `loupe` MCP server yet, `loupe project link`
 offers to declare it for every repository. `--mcp` accepts the offer with no

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -51,6 +52,103 @@ type initLeft struct {
 	discoveryStarted bool
 	// app says what the repository needs from the Loupe GitHub App.
 	app appCheck
+	// bridge is the bridge check of the project.
+	bridge initBridgeCheck
+}
+
+// initBridgeCheck holds what the bridge check of the project says. No part of
+// it stops discovery or changes the exit status.
+type initBridgeCheck struct {
+	// actions holds one line for each thing the owner has to fix.
+	actions []string
+	// note says which work kinds run the app prompt, and is empty when none do.
+	note string
+}
+
+// setupScriptPatterns match the setup scripts of a repository, from its root.
+var setupScriptPatterns = []string{"bin/worktrees/*setup*", "bin/*setup*", "scripts/*setup*"}
+
+// checkInitBridge checks the project with the key slug in the rule file at
+// path. It gives nothing for a file that does not load, which the account step
+// reports.
+func checkInitBridge(path, slug string) initBridgeCheck {
+	var out initBridgeCheck
+	set, err := rules.Load(path, rules.Defaults{})
+	if err != nil || !slices.Contains(set.Projects(), slug) {
+		return out
+	}
+	report := buildProjectCheck(set, path, slug)
+
+	var appPrompt []string
+	for _, k := range report.Kinds {
+		switch k.Action {
+		case "app-prompt":
+			appPrompt = append(appPrompt, k.Kind)
+		case "missing":
+			out.actions = append(out.actions, fmt.Sprintf("Add a work entry %s to %s. Another project lists this kind, so a request of this kind for this project is skipped.", k.Kind, path))
+		}
+		for _, c := range k.Commands {
+			if c.Checked && !c.Exists {
+				out.actions = append(out.actions, missingCommandAction(report, k, c))
+			}
+		}
+	}
+
+	for _, w := range set.Warnings() {
+		// The report above gives a missing entry and a missing file already.
+		if !strings.HasPrefix(w, "project "+slug+": ") || strings.Contains(w, ": lists no work entry ") || strings.Contains(w, ", which does not exist in ") {
+			continue
+		}
+		out.actions = append(out.actions, fmt.Sprintf("Check %s: %s.", path, w))
+	}
+
+	if len(appPrompt) > 0 {
+		out.note = fmt.Sprintf("Note: for this project, the app prompt runs with no before command for: %s.", strings.Join(appPrompt, ", "))
+		if scripts := setupScripts(report.Dir); len(scripts) > 0 {
+			out.note += fmt.Sprintf(" The project folder holds these setup scripts: %s. No before command runs a script for these kinds.", strings.Join(scripts, ", "))
+		}
+	}
+
+	return out
+}
+
+func missingCommandAction(report projectCheck, k kindCheck, c commandCheck) string {
+	entry := "the shared work entry " + k.Kind
+	if k.Source == "project" {
+		entry = "the work entry " + k.Kind + " of this project"
+	}
+	program := c.Argv[0]
+	var problem string
+	switch {
+	case filepath.IsAbs(program):
+		problem = fmt.Sprintf("%s does not exist. The project folder is %s", program, report.Dir)
+	case strings.Contains(program, "/"):
+		problem = fmt.Sprintf("%s does not exist in %s", program, report.Dir)
+	default:
+		problem = fmt.Sprintf("%s is not on your PATH. The project folder is %s", program, report.Dir)
+	}
+
+	return fmt.Sprintf("Fix the %s command of %s in %s. The command is `%s`, and %s.", c.Field, entry, report.Rules, strings.Join(c.Argv, " "), problem)
+}
+
+// setupScripts lists the regular files of dir that match setupScriptPatterns,
+// as sorted relative paths. The patterns run inside dir, so a folder name with
+// a bracket is not read as a pattern.
+func setupScripts(dir string) []string {
+	root := os.DirFS(dir)
+	var out []string
+	for _, pattern := range setupScriptPatterns {
+		// Glob fails only on a malformed pattern, and each one is fixed.
+		matches, _ := fs.Glob(root, pattern)
+		for _, m := range matches {
+			if info, err := fs.Stat(root, m); err == nil && info.Mode().IsRegular() {
+				out = append(out, m)
+			}
+		}
+	}
+	slices.Sort(out)
+
+	return out
 }
 
 // reportAccounts prints the state of each account of the rule file, in every
@@ -229,8 +327,8 @@ func discoveryBlockers(left initLeft, files []string) []string {
 	return out
 }
 
-// initNext prints the last lines. They name only what remains, and the link
-// opens the project.
+// initNext prints the last lines. They name only what remains, with the note
+// of the bridge check, and the link opens the project.
 func initNext(out io.Writer, baseURL, dir string, site api.Site, left initLeft) {
 	todo := discoveryBlockers(left, filesNotPushed(dir, site))
 	blocked := len(todo) > 0
@@ -244,6 +342,9 @@ func initNext(out io.Writer, baseURL, dir string, site api.Site, left initLeft) 
 			todo = append(todo, "Start discovery with `loupe discovery start` when you are ready.")
 		}
 	}
+
+	// These go after the discovery line, so its "these" does not include them.
+	todo = append(todo, left.bridge.actions...)
 
 	if left.app.missing() {
 		todo = append([]string{"Install the Loupe GitHub App with the link above."}, todo...)
@@ -261,6 +362,9 @@ func initNext(out io.Writer, baseURL, dir string, site api.Site, left initLeft) 
 	}
 	for i, t := range todo {
 		fmt.Fprintf(out, "%d. %s\n", i+1, initview.ShortPath(t))
+	}
+	if left.bridge.note != "" {
+		fmt.Fprintln(out, initview.ShortPath(left.bridge.note))
 	}
 	fmt.Fprintf(out, "Open %s/projects/%s\n", strings.TrimRight(baseURL, "/"), site.ID)
 }
