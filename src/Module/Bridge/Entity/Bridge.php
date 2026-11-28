@@ -314,7 +314,7 @@ class Bridge
     /** Whether the project does not run a shared entry of the name, because its rule file holds an entry of its own. */
     public function hidesSharedEntry(string $name, string $projectId): bool
     {
-        return array_any($this->commandEntries ?? [], static fn (array $row): bool => $row['name'] === $name && \in_array($projectId, $row['exceptProjects'] ?? [], true));
+        return array_any($this->commandEntries ?? [], static fn (array $row): bool => $row['name'] === $name && null === ($row['projectId'] ?? null) && \in_array($projectId, $row['exceptProjects'] ?? [], true));
     }
 
     /**
