@@ -191,8 +191,8 @@ func (s *Set) Warnings() []string {
 			case own == nil && shared != nil:
 				if listed, ok := s.projectWork[slug][kind]; ok {
 					line := fmt.Sprintf("project %s: work %s runs without the variants of experiment %q, which covers the shared entry only", slug, kind, shared.Name)
-					// An experiment takes a worker entry only.
-					if listed.Action == "" {
+					// An experiment takes a worker entry for a card only.
+					if listed.Action == "" && listed.Subject == api.SubjectCard {
 						line += "; add an experiments: block under the project to run a trial on it"
 					}
 					out = append(out, line)

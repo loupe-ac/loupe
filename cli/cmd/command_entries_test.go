@@ -89,8 +89,7 @@ func layeredSet(t *testing.T, shared string) *rules.Set {
 	return set
 }
 
-// resolved gives each project of ids its id. A project that ids lacks gets no
-// id, as a project that Check did not resolve.
+// resolved runs Check, which gives each project its id from ids.
 func resolved(t *testing.T, set *rules.Set, ids map[string]string) *rules.Set {
 	t.Helper()
 	if err := set.Check(context.Background(), projectIDs(ids)); err != nil {

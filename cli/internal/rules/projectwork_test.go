@@ -258,19 +258,26 @@ func TestAProjectExperimentOverAProjectCommandEntryIsRefused(t *testing.T) {
 	}
 }
 
-// A project experiment takes a worker entry only, so the warning must not
-// propose one for a command entry.
-func TestWarningsProposeNoProjectExperimentForACommandEntry(t *testing.T) {
-	body := claudeAccount + claudeDefaults + "projects:\n  loupe:\n    dir: " + t.TempDir() + "\n    work:\n      split:\n        action: command\n        run: [make]\n" +
-		"experiments:\n  trial:\n    covers: [split]\n    baseline: a\n    variants:\n      - {name: a, weight: 1, model: opus}\n" +
-		"work:\n  split:\n    prompt: y\n"
-	s, err := Parse([]byte(body), Defaults{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	got := s.Warnings()
-	if len(got) != 1 || !strings.Contains(got[0], "runs without the variants") || strings.Contains(got[0], "experiments: block") {
-		t.Fatalf("Warnings = %v", got)
+// A project experiment takes a worker entry for a card only, so the warning
+// must propose one for no other entry.
+func TestWarningsProposeNoProjectExperimentForAnEntryItCannotCover(t *testing.T) {
+	for name, entry := range map[string]string{
+		"a command":           "action: command\n        run: [make]",
+		"a worker of no card": "prompt: x\n        subject: analysis",
+	} {
+		t.Run(name, func(t *testing.T) {
+			body := claudeAccount + claudeDefaults + "projects:\n  loupe:\n    dir: " + t.TempDir() + "\n    work:\n      split:\n        " + entry + "\n" +
+				"experiments:\n  trial:\n    covers: [split]\n    baseline: a\n    variants:\n      - {name: a, weight: 1, model: opus}\n" +
+				"work:\n  split:\n    prompt: y\n"
+			s, err := Parse([]byte(body), Defaults{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := s.Warnings()
+			if len(got) != 1 || !strings.Contains(got[0], "runs without the variants") || strings.Contains(got[0], "experiments: block") {
+				t.Fatalf("Warnings = %v", got)
+			}
+		})
 	}
 }
 
