@@ -2798,7 +2798,8 @@ wait for a long implementation run. The entry needs a worktree only for the git
 objects, so a `before` command is optional. A bridge with `appPrompts: true` and
 no `review` entry runs the review prompt that Loupe ships with the request. That
 run uses the account and the model defaults of an app prompt. A model that the
-request names replaces the model. When a `fix` request starts for an agent review, the `fix` entry runs
+request names replaces the model. When a `fix` request starts for an agent
+review, the `fix` entry runs
 the `loupe-stage-fix-round` skill, which reads the findings from `card_get`.
 
 The `design-review` kind runs the `loupe-stage-design-review` skill. The
