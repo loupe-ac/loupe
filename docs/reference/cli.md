@@ -565,16 +565,24 @@ The command exits with status 1 when the file does not load, and 0 otherwise.
 
 ## `loupe bridge check --project`
 
-`loupe bridge check --project <slug> --json` prints one JSON object for a project, from the machine of the bridge. Discovery reads it. The slug is the key of the project in the rule file. Both flags go together. The command makes no network call, and it needs the next release of the CLI after v2.1.0.
+`loupe bridge check --project <slug> --json` prints one JSON object for a project, from the machine of the bridge. Discovery reads it. The slug is the key of the project in the rule file. Both flags go together. The command makes no network call, and it needs the next release of the CLI after v2.1.0. The `app-prompt` action needs the next release after v2.10.2.
 
 | Field | Meaning |
 |---|---|
 | `project`, `dir`, `dirExists`, `rules` | The slug, its folder, whether the folder exists, and the rule file |
-| `kinds[].kind`, `source`, `action` | A work kind that the bridge advertises. `source` is `project`, `shared` or `none`. `action` is `worker`, `interactive` or `command`, or `missing` for a kind that another project lists and this project does not. A missing kind has `source` `none` and no commands |
+| `kinds[].kind`, `source`, `action` | A work kind that the bridge advertises. `source` is `project`, `shared`, `app` or `none`. `action` is `worker`, `interactive`, `command`, `app-prompt` or `missing`. The last two are for a kind that another project lists and this project does not, as the text below says |
 | `kinds[].account`, `harness` | The account and the harness of an agent entry |
 | `kinds[].commands[]` | One item for each `before`, `refresh`, `reset` and `run` command, with `field`, `argv`, `checked`, `resolved` and `exists` |
 | `accounts[].name`, `harness`, `configDir`, `configDirExists` | An account that a kind uses, and its configuration folder. `configDir` is empty for the default folder |
 | `accounts[].mcpServers`, `mcpError` | The names of the MCP servers that the account config and the `.mcp.json` of the project declare, and the reason when a file cannot be read. A server that the config turns off is left out: a Codex table with `enabled = false`, or a name in `disabledMcpServers` or `disabledMcpjsonServers` of the project in `.claude.json` |
+
+A kind has `source` `app` and `action` `app-prompt` when the rule file has `appPrompts: true`. It has `source` `none` and `action` `missing` when the file does not. CLI v2.10.2 and older report `missing` in both cases. An `app-prompt` row and a `missing` row have no `account`, no `harness` and no commands.
+
+An `app-prompt` row does not say that every request of the kind runs:
+
+- The bridge runs the prompt that the request carries. It skips a request with no prompt or with a prompt that is not valid.
+- An app prompt opens no interactive session. The bridge skips a request that has the `interactive` capability. A `session` request can run its prompt as an unattended worker, so give the project a `session` entry.
+- An app prompt runs on the account of `defaults.account`. Loupe refuses the claim when entries or experiment variants of the kind, in any project of the rule file, use only other accounts.
 
 `checked` is false for a command with a placeholder or a `~`, which the command does not resolve. A path with a slash resolves in the project folder, and a bare name resolves on `PATH`. For Claude Code, the servers come from `.claude.json` and the `.mcp.json` of the project. For Codex, they come from the `[mcp_servers.<name>]` tables of `config.toml` and of the profile file. A server that a plugin brings is not listed.
 

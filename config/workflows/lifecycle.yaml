@@ -482,12 +482,12 @@ rules:
               cancelOnly: open
               checks:
                   - A worktree per card, so two cards never share one checkout
-                  - "A new worktree has what the gate needs, such as installed dependencies. When it does not, the actor is owner, and the action names the setup command to add to the before command of the bridge work entry"
+                  - "A new worktree has what the gate needs, such as installed dependencies. When it does not, the actor is owner, and the action names the setup command to add to the before command of the bridge work entry. A kind that the bridge check reports as app-prompt has no before command. This check then fails when the repository needs a setup step. The action says to add a work entry with a before command that runs the step"
                   - "A preview URL per branch, with the review widget on it. When it fails, the actor is owner, and the action says to give each worker folder its own URL, or to remove the preview steps from the profile"
                   - The .loupe/lifecycle.md sections that the stage skills read
                   - "The before command of the bridge work entry gives the worker the folder that the instruction files describe. When it does not, the actor is owner, and the action names the line to correct"
                   - A build command and a test command that an agent can run
-                  - "The bridge commands of this kind resolve for this project and exist in its folder. Read loupe bridge check --project <slug> --json on the bridge machine. When one does not, the actor is owner, and the action names the command and the folder"
+                  - "The bridge commands of this kind resolve for this project and exist in its folder. Read loupe bridge check --project <slug> --json on the bridge machine. A kind that it reports as app-prompt runs the prompt that Loupe ships, and has no command to resolve. When one does not, the actor is owner, and the action names the command and the folder"
                   - "Each tool that the profile names exists for the worker account. Read the same bridge check for the configuration folder and the MCP servers of the account. When one is missing, the actor is owner, and the action names the tool and the account"
                   - "A gate step that serves the main checkout, such as an e2e run against a shared stack, tests the code of the worker folder. When it does not, the actor is owner, and the action names the step and how to point it at the worker folder"
                   - "A gate step that uses a shared stack, such as e2e against one dev server, never runs in two workers at once. A lock in the gate command, or a bridge limit of one worker for the project, holds that. A rule in the profile alone does not count. When it fails, the actor is owner, and the action names the step and the lock or the limit to add"

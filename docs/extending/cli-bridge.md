@@ -2795,9 +2795,11 @@ findings with the `agent_review_submit` tool. It changes no file. Give the entry
 its own `model`, because the reviewer should not be the model that wrote the
 code. Use a `workerPool` apart from the `implement` entry, so a review does not
 wait for a long implementation run. The entry needs a worktree only for the git
-objects, so a `before` command is optional. A bridge with `appPrompts` alone runs
-no review: the review rules belong to the Lifecycle template, which carries no
-app prompt. When a `fix` request starts for an agent review, the `fix` entry runs
+objects, so a `before` command is optional. A bridge with `appPrompts: true` and
+no `review` entry runs the review prompt that Loupe ships with the request. That
+run uses the account and the model defaults of an app prompt. A model that the
+request names replaces the model. When a `fix` request starts for an agent
+review, the `fix` entry runs
 the `loupe-stage-fix-round` skill, which reads the findings from `card_get`.
 
 The `design-review` kind runs the `loupe-stage-design-review` skill. The
@@ -2806,9 +2808,10 @@ document, the code and the prototype, and sends its findings with the
 `document_review_submit` tool. It changes no file and no document. Give the
 entry its own `model`, and a `workerPool` apart from the design entries, as for
 `review`. The entry needs no worktree, so it has no `before` command. A bridge
-with no `design-review` entry takes no design review: the request waits, the
-card shows that no bridge can run it, and the draft stays hidden until the
-owner publishes it.
+with `appPrompts: true` and no `design-review` entry runs the shipped prompt. A
+bridge with no such entry and no `appPrompts` takes no design review. When no
+bridge takes it, the request waits, the card shows that no bridge can run it, and
+the draft stays hidden until the owner publishes it.
 
 ```yaml
 work:

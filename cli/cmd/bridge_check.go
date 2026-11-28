@@ -25,8 +25,9 @@ func newBridgeCheckCmd() *cobra.Command {
 			"for discovery to read. The slug is the key of the project in the rule file. The object " +
 			"holds these fields:\n" +
 			"  project, dir, dirExists, rules: the slug, its folder, whether the folder exists, and the rule file.\n" +
-			"  kinds: one item for each work kind that the project can run, with kind, source " +
-			"(project or shared), action (worker, interactive or command), account, harness, and " +
+			"  kinds: one item for each work kind that the bridge advertises, with kind, source " +
+			"(project, shared, app or none), action (worker, interactive, command, app-prompt or " +
+			"missing), account, harness, and " +
 			"commands. Each command has field (before, refresh, reset or run), argv, checked, " +
 			"resolved and exists. checked is false for a command with a placeholder or a ~, which the " +
 			"command does not resolve. A path with a slash resolves in the project folder, and a " +
