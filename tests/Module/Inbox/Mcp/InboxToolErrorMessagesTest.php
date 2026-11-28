@@ -36,7 +36,7 @@ final class InboxToolErrorMessagesTest extends TestCase
         yield 'not an agent item' => [JoinInboxAskHandler::NOT_AGENT_ITEM, 'Loupe opened this item for a card wait, a fact or a rule, so no agent can join it. Only an item that an agent or a person asked is joinable.'];
         yield 'not the caller' => [CallerSessionGuard::NOT_CALLER, 'Pass your own session id. This call comes from another session.'];
         yield 'final' => [InboxItemCloser::ERROR_FINAL, 'The item is closed, so its response is final.'];
-        yield 'an add refused for an existing entry' => [RunCommandResolver::ENTRY_EXISTS, 'The bridge refused to add this command, because its rule file held another entry of this name. It reports no command of that name for this project. The owner must put the command under that name in the rule file by hand, then run loupe bridge reload.'];
+        yield 'an add refused for an existing entry' => [RunCommandResolver::ENTRY_EXISTS, 'The bridge refused to add this command, because its rule file held another entry of this name. It reports no command of that name for this project. The owner must change that entry in the rule file by hand, then run loupe bridge reload.'];
         yield 'review on the page' => [InboxToolErrorMessages::REVIEW_ON_PAGE, 'A review verdict stays on the inbox page. Ask the owner to give it there, or call document_verdict_submit when the owner gave it in the chat.'];
     }
 
