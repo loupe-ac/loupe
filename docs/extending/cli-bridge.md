@@ -2292,15 +2292,25 @@ work:
 Here `make-plans` gets the shared entry and a plain worktree, and `loupe` gets
 its own `before` command.
 
-- A project entry has the same fields as a shared entry, except `action: command`. A command entry stays in the shared `work` map, because the heartbeat reports command entries with no project.
+- A project entry has the same fields as a shared entry. It can be a [command entry](#command-action), with `action: command`.
+- A project entry replaces the shared entry of its kind, whatever the action of each one. So a project that lists a worker entry does not run a shared command of that name.
 - The bridge reports one list of kinds for all its projects. A kind that only one project lists is advertised and claimed. A request of that kind for another project runs the app prompt when `appPrompts` is on, and is skipped otherwise.
-- A top-level experiment covers the shared entry only. A project entry of a covered kind runs without its variants. To run a trial on a project, put an `experiments:` block under the project, as [Experiments of a project](#experiments-of-a-project) says.
+- A top-level experiment covers the shared entry only. A project entry of a covered kind runs without its variants. To run a trial on a project, put an `experiments:` block under the project, as [Experiments of a project](#experiments-of-a-project) says. An experiment covers only a worker entry about a card, so it never covers a command entry.
 - `loupe bridge check` and `loupe bridge status` warn about a relative setup command that its project folder lacks, and about a kind that a project cannot run.
 - `loupe bridge reload` names a project entry as `<slug>/<kind>` in its added, changed and removed lists.
 
 A bridge on a CLI older than this change refuses a `work` key under a project.
 Move an entry under its project only after the CLI of the bridge machine is
 updated.
+
+A command entry under a project needs a CLI released after v2.10.2. An older CLI
+refuses to load the whole rule file. Update the Loupe server before the CLI. An
+older server ignores the heartbeat keys `projectId` and `exceptProjects`, so it
+matches command entries by name alone. It can then show a project the command of
+another project, or a shared command that the project replaces. The bridge still
+checks the run against its own entry. It refuses the run as `entry-missing` when
+the project has no such command, and as `entry-changed` when the `run` lists
+differ.
 
 ## Worker isolation
 
@@ -2339,8 +2349,9 @@ The bridge removes the worktree of a card on its `teardown` request when
 folder and then `git worktree prune` in the project folder. A folder that is
 already gone is not an error. The run reports as a command run.
 
-With no `teardown` entry, the bridge does the removal alone and starts no agent.
-A `teardown` entry with `action: command` runs first, and the removal follows
+With no `teardown` entry for the project, shared or its own, the bridge does the
+removal alone and starts no agent. A `teardown` entry with `action: command`
+runs first, and the removal follows
 whatever the command returned. A failed command keeps its exit code. A failed
 removal fails the run only when the command passed, and its git output is in the
 run output. A `teardown` entry that runs a worker or an interactive session
@@ -2451,10 +2462,11 @@ A repository can already make and remove its worktrees for Claude Code, with a
 and `loupe hook worktree-remove` run those hooks as bridge commands, so the
 repository keeps one script for both uses. They need a CLI release that has
 the `hook` command. `loupe init` checks each hook on its own. It proposes the
-`before` entry for a `WorktreeCreate` hook, and the `teardown` entry for either
-hook, so a repository with only a `WorktreeRemove` hook gets its cleanup too.
-When a `teardown` command entry exists, it proposes to add the hook command to
-that entry.
+`before` entry for a `WorktreeCreate` hook. For either hook, it proposes a
+`teardown` entry in the shared `work` map when no `teardown` entry runs for the
+project. So a repository with only a `WorktreeRemove` hook gets its cleanup too.
+When a `teardown` command entry already runs for the project, its own or the
+shared one, it proposes to add the hook command to that entry.
 
 ```yaml
 projects:
@@ -2491,8 +2503,9 @@ then add the `before` command.
 - Neither command sends `session_id`, `transcript_path` or the other common fields of a Claude Code hook. The bridge runs the commands before the worker session starts and after the last worker ends, so no session and no transcript exist. A hook that needs those fields does not work as a bridge command.
 - A `WorktreeRemove` hook can leave the git removal to its caller, as Claude Code removes the worktree after the hook. When the worktree is still there after the hook, `worktree-remove` runs `git worktree remove --force` and `git worktree prune`. It does the same in a project with a `WorktreeCreate` hook and no `WorktreeRemove` hook.
 - `worktree-remove` does nothing when the project has no such worktree, has neither worktree hook, or does not own the worktree.
-- The `teardown` entry sits in the shared `work` map, because a command entry cannot sit under a project. Its command does nothing in a project with no hook, so one entry serves every project.
-- When the shared `work` map already has a `teardown` command entry, run both commands in it. Wrap them in `sh -c`, and pass each placeholder as an argument. `loupe init` proposes this change:
+- The command of the `teardown` entry does nothing in a project with no hook, so one entry in the shared `work` map serves every project.
+- A project can list its own `teardown` command entry, which replaces the shared one for that project. Put in it each cleanup command that the project needs. This needs a CLI released after v2.10.2.
+- When a `teardown` command entry already runs for the project, run both commands in it. Wrap them in `sh -c`, and pass each placeholder as an argument. `loupe init` proposes this change:
 
   ```yaml
   work:
@@ -2505,8 +2518,8 @@ then add the `before` command.
 
 A command entry waits until a running worker of the same card ends. The bridge
 does not retry a failed command. With a bridge worktree, the bridge also
-removes its own folder after a `teardown` command entry, or alone when the work
-map has no `teardown` entry. [Before command](#before-command)
+removes its own folder after a `teardown` command entry, or alone when no
+`teardown` entry runs for the project. [Before command](#before-command)
 and [Command action](#command-action) give the details.
 
 ## Refresh and reset commands
@@ -2564,6 +2577,9 @@ work:
     run: ["bin/teardown.sh", "{cardNumber}"]
 ```
 
+A command entry can sit in the shared `work` map or under a project, as
+[Work entries of a project](#work-entries-of-a-project) says.
+
 `run` is an argv list, and no shell reads it. Under worktree isolation, the
 bridge wraps the `run` of a `teardown` entry in `sh` to remove its worktree
 afterwards. It passes each element unchanged, and the removal shares the
@@ -2596,8 +2612,13 @@ a built-in placeholder. A pattern is only as strict as the operator writes it,
 so write the narrowest pattern that fits. A loose pattern lets a value such as
 `--exec=...` through.
 
-The heartbeat lists each command entry with its parameters, and each worktree of
-the followed projects. The bridge always reports the capability `run-command`.
+The heartbeat lists the shared command entries and those of each project, with
+their parameters. It also lists each worktree of the followed projects. It holds
+at most 50 command entries, the shared ones first. When the rule file has more,
+the bridge logs `command_entries_cut` with the names that it leaves out. It logs
+the line at start and at each reload. Loupe cannot offer to run those entries.
+[The heartbeat reference](../reference/bridge-heartbeat.md) gives the rows. The
+bridge always reports the capability `run-command`.
 
 ### Running an entry from the inbox
 
@@ -2607,7 +2628,9 @@ branch, a value for each parameter, and the `run` list that the owner confirmed.
 against its own `rules.yaml`, and settles it as refused, with a reason code,
 when a check fails:
 
-- `entry-missing`: the work map has no command entry of that name.
+- `entry-missing`: the entry that runs for the project under that name is no
+  command entry, or no entry has that name. The entry of the project comes
+  first, then the shared one.
 - `entry-changed`: the `run` list of the entry is not the one the owner
   confirmed.
 - `param-invalid`: a value is missing, undeclared, or does not match the whole
@@ -2651,8 +2674,10 @@ When the owner chooses **Add to rules.yaml**, the server sends the bridge a work
 request with the capability `add-entry`. The `prompt` field holds the entry
 text: one YAML mapping with one key, the entry name. The bridge starts no agent
 and takes no worker slot. It checks that the file still sets
-`acceptEntries: true`, adds the entry under `work`, and checks the new file as a
-normal load does. It writes the file only when the checks pass. It then reloads, as
+`acceptEntries: true`, adds the entry to the shared `work` map, and checks the new
+file as a normal load does. So each project runs the new command, unless it
+lists its own entry of that name. It writes the file only when the checks pass.
+It then reloads, as
 `loupe bridge reload` does, and settles the request as `done` only when the
 reload runs the entry. An add waits for a reload that already runs.
 
@@ -2665,7 +2690,11 @@ file as it was:
 - `entry-invalid`: the text does not parse, holds more or less than one key,
   has a body that is no mapping, has an action other than `command`, or the
   new file fails its checks.
-- `entry-exists`: the `work` map holds an entry with this name already.
+- `entry-exists`: the project of the request lists its own entry of this name,
+  and that entry differs from the new one. For a project with no such entry, the
+  shared `work` map holds a different entry of this name. An identical entry
+  counts as present. The bridge then writes nothing, reloads, and settles the
+  request as `done`.
 - `not-accepted`: the file does not set `acceptEntries: true`.
 - `write-failed`: the bridge could not read or write the file.
 - `file-changed`: the file changed while the bridge added the entry. The
@@ -2733,8 +2762,8 @@ Loupe records on the epic the blockers that were done when the work opened.
 
 A worker entry takes `prompt`, `account`,
 `model`, `permissions`, `before` and `workerPool`. A command entry takes
-`run` and `timeout`. The rule check
-refuses a field that the action does not use.
+`run`, `timeout`, `description` and `params`. Each entry also takes `subject`.
+The rule check refuses a field that the action does not use.
 
 A work request is about a subject. The `subject` key of an entry names the
 subject type that the entry runs, and it is `card` when you leave it out. An
@@ -2787,7 +2816,7 @@ request `teardown` each time a card reaches a terminal column. A `teardown`
 request that no bridge takes waits until a bridge takes it, and the card does
 not pause. With [worker isolation](#worker-isolation) on, the bridge removes
 the worktree of the card without an agent. It does so after a `teardown`
-command entry, or alone when the work map has no `teardown` entry.
+command entry, or alone when no `teardown` entry runs for the project.
 
 The `review` kind runs the `loupe-stage-review` skill of the Loupe plugin. The
 worker reads the change of the pull request at its head commit, and sends its
@@ -2795,9 +2824,11 @@ findings with the `agent_review_submit` tool. It changes no file. Give the entry
 its own `model`, because the reviewer should not be the model that wrote the
 code. Use a `workerPool` apart from the `implement` entry, so a review does not
 wait for a long implementation run. The entry needs a worktree only for the git
-objects, so a `before` command is optional. A bridge with `appPrompts` alone runs
-no review: the review rules belong to the Lifecycle template, which carries no
-app prompt. When a `fix` request starts for an agent review, the `fix` entry runs
+objects, so a `before` command is optional. A bridge with `appPrompts: true` and
+no `review` entry runs the review prompt that Loupe ships with the request. That
+run uses the account and the model defaults of an app prompt. A model that the
+request names replaces the model. When a `fix` request starts for an agent
+review, the `fix` entry runs
 the `loupe-stage-fix-round` skill, which reads the findings from `card_get`.
 
 The `design-review` kind runs the `loupe-stage-design-review` skill. The
@@ -2806,9 +2837,10 @@ document, the code and the prototype, and sends its findings with the
 `document_review_submit` tool. It changes no file and no document. Give the
 entry its own `model`, and a `workerPool` apart from the design entries, as for
 `review`. The entry needs no worktree, so it has no `before` command. A bridge
-with no `design-review` entry takes no design review: the request waits, the
-card shows that no bridge can run it, and the draft stays hidden until the
-owner publishes it.
+with `appPrompts: true` and no `design-review` entry runs the shipped prompt. A
+bridge with no such entry and no `appPrompts` takes no design review. When no
+bridge takes it, the request waits, the card shows that no bridge can run it, and
+the draft stays hidden until the owner publishes it.
 
 ```yaml
 work:

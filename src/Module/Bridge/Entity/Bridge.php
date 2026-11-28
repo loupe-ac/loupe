@@ -28,7 +28,8 @@ use Symfony\Component\Uid\Uuid;
  * @phpstan-type FailedProjectRow array{projectId: string, reason: string}
  * @phpstan-type AccountRow array{name: string, harness: string, state: 'ready'|'failing', reason: ?string, used?: bool, kinds?: list<string>, stopAt?: int, failedProjects?: list<FailedProjectRow>, appPrompts?: bool}
  * @phpstan-type CommandParamRow array{name: string, pattern: string, description: ?string}
- * @phpstan-type CommandEntryRow array{name: string, description: ?string, params: list<CommandParamRow>, run: list<string>, timeout: string}
+ * @phpstan-type CommandEntryRow array{name: string, description: ?string, params: list<CommandParamRow>, run: list<string>, timeout: string, projectId?: ?string, exceptProjects?: list<string>}
+ * @phpstan-type ProjectCommandEntryRow array{name: string, description: ?string, params: list<CommandParamRow>, run: list<string>, timeout: string}
  * @phpstan-type WorktreeRow array{projectId: string, branch: string, path: string}
  * @phpstan-type RepositoryRow array{projectId: string, path: string, remoteUrl: string}
  * @phpstan-type GitIdentityRow array{projectId: string, mode: 'agent_account'|'app_token'|'machine', commitName: string, pushLogin: string, githubUserId: ?int}
@@ -283,6 +284,66 @@ class Bridge
         #[ORM\Column(name: 'last_seen_at')]
         public \DateTimeImmutable $lastSeenAt,
     ) {
+    }
+
+    /**
+     * The command entry that the project runs under the name: its own row, else a shared row that it does not hide.
+     * A row with no `projectId` is shared.
+     *
+     * @return CommandEntryRow|null
+     */
+    public function commandEntryFor(string $name, string $projectId): ?array
+    {
+        $shared = null;
+        foreach ($this->commandEntries ?? [] as $row) {
+            if ($row['name'] !== $name) {
+                continue;
+            }
+            $rowProject = $row['projectId'] ?? null;
+            if ($rowProject === $projectId) {
+                return $row;
+            }
+            if (null === $rowProject && !\in_array($projectId, $row['exceptProjects'] ?? [], true)) {
+                $shared ??= $row;
+            }
+        }
+
+        return $shared;
+    }
+
+    /** Whether the project does not run a shared entry of the name, because its rule file holds an entry of its own. */
+    public function hidesSharedEntry(string $name, string $projectId): bool
+    {
+        return array_any($this->commandEntries ?? [], static fn (array $row): bool => $row['name'] === $name && null === ($row['projectId'] ?? null) && \in_array($projectId, $row['exceptProjects'] ?? [], true));
+    }
+
+    /**
+     * The command entries that the project runs, one for each name. Null until a bridge sends a report.
+     * The project reads this list, so it names its keys: a stored row also holds the ids of other projects.
+     *
+     * @return list<ProjectCommandEntryRow>|null
+     */
+    public function commandEntriesFor(string $projectId): ?array
+    {
+        if (null === $this->commandEntries) {
+            return null;
+        }
+
+        $rows = [];
+        foreach (array_unique(array_column($this->commandEntries, 'name')) as $name) {
+            $row = $this->commandEntryFor($name, $projectId);
+            if (null !== $row) {
+                $rows[] = [
+                    'name' => $row['name'],
+                    'description' => $row['description'],
+                    'params' => $row['params'],
+                    'run' => $row['run'],
+                    'timeout' => $row['timeout'],
+                ];
+            }
+        }
+
+        return $rows;
     }
 
     public function takesCommands(): bool

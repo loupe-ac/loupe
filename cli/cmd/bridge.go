@@ -336,6 +336,7 @@ func runBridgeOn(cmd *cobra.Command, o bridgeRunOptions, defaults rules.Defaults
 	warnUnknownModes(r.log, set)
 	warnMovedHooks(r.log, set)
 	warnAgentsOff(r.log, set)
+	warnCommandEntriesCut(r.log, set)
 	warnAccountsOff(r.log, accounts)
 
 	return subscribe(cmd, cfg, r)

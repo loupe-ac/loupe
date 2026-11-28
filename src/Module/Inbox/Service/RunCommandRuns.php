@@ -15,6 +15,7 @@ use App\Module\Inbox\Entity\InboxAction;
 use App\Module\Inbox\Entity\InboxActionKind;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Repository\InboxActionRepository;
+use App\Module\Inbox\View\EntryAdds;
 use App\Module\Inbox\View\RunCommandRun;
 use App\Module\Inbox\View\RunCommandRunState;
 
@@ -24,6 +25,9 @@ use App\Module\Inbox\View\RunCommandRunState;
  */
 final readonly class RunCommandRuns
 {
+    /** The reason code of a bridge whose rule file holds another entry of the name, as the CLI sends it. */
+    private const string REFUSED_ENTRY_EXISTS = 'entry-exists';
+
     public function __construct(
         private InboxActionRepository $inboxActions,
         private WorkRequestRepository $workRequests,
@@ -67,34 +71,34 @@ final readonly class RunCommandRuns
     }
 
     /**
-     * The items that have an add of a command entry queued or claimed.
-     *
      * @param list<InboxItem> $items
      *
-     * @return array<string, true> keyed by the RFC 4122 item id
+     * @return array<string, EntryAdds> keyed by the RFC 4122 item id, for the items that have an add of a command entry
      */
-    public function itemsAddingEntry(array $items): array
+    public function entryAddsOf(array $items): array
     {
         $byItem = [];
         $requestIds = [];
         foreach ($this->inboxActions->findByItems($items) as $itemId => $actions) {
             foreach ($actions as $action) {
-                if (InboxActionKind::AddEntry === $action->kind && null === $action->cancelledAt && null !== $action->workRequestId) {
-                    $byItem[$itemId][] = (string) $action->workRequestId;
+                if (InboxActionKind::AddEntry === $action->kind && null !== $action->workRequestId) {
+                    $byItem[$itemId][] = $action;
                     $requestIds[] = $action->workRequestId;
                 }
             }
         }
 
         $requests = $this->workRequests->findByIds($requestIds);
-        $adding = [];
-        foreach ($byItem as $itemId => $ids) {
-            if (array_any($ids, static fn (string $id): bool => isset($requests[$id]) && $requests[$id]->state->isLive())) {
-                $adding[$itemId] = true;
-            }
+        $adds = [];
+        foreach ($byItem as $itemId => $actions) {
+            $live = array_any($actions, static fn (InboxAction $action): bool => null === $action->cancelledAt && true === ($requests[(string) $action->workRequestId] ?? null)?->state->isLive());
+            $newest = array_last($actions);
+            $request = null === $newest->cancelledAt ? ($requests[(string) $newest->workRequestId] ?? null) : null;
+            $refused = WorkRequestState::Refused === $request?->state && self::REFUSED_ENTRY_EXISTS === $request->reason;
+            $adds[$itemId] = new EntryAdds($live, $refused ? $request : null);
         }
 
-        return $adding;
+        return $adds;
     }
 
     /**

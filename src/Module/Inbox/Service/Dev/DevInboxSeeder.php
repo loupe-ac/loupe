@@ -145,6 +145,8 @@ final readonly class DevInboxSeeder implements DevSeederInterface
             ...$this->seedApiKeyNotices($context, $project),
             // Last, so the numbers of the other items of a fresh database stay as they are.
             $this->seedBridgeOutageNotice($context, $project, [$checkout, $history]),
+            // After the notice, for the same reason.
+            $this->seedReplacedCommand($context, $project, $onboarding),
         ];
         $this->em->flush();
 
@@ -433,6 +435,27 @@ final readonly class DevInboxSeeder implements DevSeederInterface
         $this->em->flush();
 
         return $items;
+    }
+
+    /**
+     * A to-do that suggests a shared command which this project replaces with its own entry, so Run is off.
+     * It uses the bridge of the command runs, which a database from an older seed holds without the row.
+     */
+    private function seedReplacedCommand(SeedContext $context, Project $project, Card $card): InboxItem
+    {
+        $bridge = $this->bridges->findOneBy(['id' => DevSeedId::of('bridge/bridge/design-export')])
+            ?? throw new \LogicException('The bridge of the command runs does not exist.');
+        if (!array_any($bridge->commandEntries ?? [], static fn (array $row): bool => 'worktree-teardown' === $row['name'])) {
+            $bridge->commandEntries = [...$bridge->commandEntries ?? [], ['name' => 'worktree-teardown', 'description' => null, 'params' => [], 'run' => ['just', 'worktree-down'], 'timeout' => '10m', 'projectId' => null, 'exceptProjects' => [(string) $project->id]]];
+        }
+
+        $item = $this->item($context, 'command-replaced', $project, InboxItemKind::Todo, 'Remove the worktree of the onboarding card', false, 270, [], static function (InboxItem $item): void {
+            $item->suggestedActions = [['action' => 'run-command', 'reason' => 'The branch is merged.', 'recommended' => true, 'cardId' => null, 'command' => ['entry' => 'worktree-teardown', 'branch' => 'main', 'params' => []], 'proposedEntry' => "action: command\nrun: [just, worktree-down]"]];
+        });
+        $this->linkCard($item, $card);
+        $this->ask($context, 'command-replaced', $project, [$item], 270, 'The cleanup needs a run on your machine.', $bridge->id);
+
+        return $item;
     }
 
     /**

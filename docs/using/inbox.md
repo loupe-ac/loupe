@@ -632,8 +632,17 @@ The reasons are:
 
 - No bridge that follows the project asked for this.
 - The bridge is too old to run commands from the inbox. Update the CLI.
-- The rule file of the bridge has no command of that name. When the agent
-  proposed the entry, see [Adding a proposed entry](#adding-a-proposed-entry).
+- The rule file of the bridge has no command of that name for this project.
+  When the agent proposed the entry, see
+  [Adding a proposed entry](#adding-a-proposed-entry).
+- The rule file of the bridge has its own entry of this name for this project,
+  and the bridge reports no command for it. That entry replaces a shared command.
+  Either it is no command, or the bridge left it out of its report, which holds
+  at most 50 command entries. Loupe offers no add here.
+- The bridge refused to add the command with `entry-exists`, because its rule
+  file held another entry of this name, and it still reports no command of that
+  name for this project. See
+  [Adding a proposed entry](#adding-a-proposed-entry).
 - The command uses `{workRequestId}` or `{project}`. The bridge fills these
   only at the run, so Loupe cannot show the command before you run it.
 - The command uses `{cardId}` or `{cardNumber}`, and the item has no single
@@ -659,7 +668,7 @@ refuses the run and asks you to read the command again.
 The bridge checks the request again, with its own rule file. It refuses the
 run, and the item shows the reason, in these cases:
 
-- `entry-missing`: the rule file has no command of that name.
+- `entry-missing`: the rule file has no command of that name for this project.
 - `entry-changed`: the command in the rule file changed after you confirmed it.
 - `param-invalid`: a value does not match the whole pattern of its parameter.
 - `worktree-missing`: the bridge finds no worktree for the branch.
@@ -719,18 +728,30 @@ runs yet. Select **Add the entry** to send it.
 
 Only the owner of the project can add an entry. The status line then shows
 "Queued", and Cancel withdraws the request while no bridge has taken it. The
-bridge checks the text, adds the entry to the `work:` block, and reloads. Its next heartbeat lists the entry. The status line shows "Added to
+bridge checks the text, adds the entry to the shared `work:` block, and reloads. Its next heartbeat lists the entry. The status line shows "Added to
 rules.yaml", and the Run button turns on by itself. A run still asks you in its
-own confirm step.
+own confirm step. Each project of the bridge can run the new command, unless the
+rule file lists an entry of that name under the project.
 
-The bridge refuses a text that is no command entry, a name that the file
-already holds, and a file that it cannot change safely. It also refuses when
-the file changed while it added the entry, or when the reload after the write
+The bridge refuses a text that is no command entry, and a file that it cannot
+change safely. It also refuses a name that this project lists under its own
+entries with other content. For a project with no such entry, it refuses a name
+that the shared `work:` block holds with other content. An identical entry counts
+as added. The bridge also refuses when the
+file changed while it added the entry, or when the reload after the write
 failed. The status line then shows "Refused" and the reason code:
 `entry-invalid`, `entry-exists`, `not-accepted`, `write-failed`,
-`file-changed` or `reload-failed`. A refused add changes nothing. The button
-comes back, so you can try again. Add the entry by hand when the bridge keeps
-refusing.
+`file-changed` or `reload-failed`. A refused add changes nothing.
+
+After a refusal other than `entry-exists`, the button comes back, so you can try
+again. Add the entry by hand when the bridge keeps refusing.
+
+After `entry-exists`, the item offers no add. It shows why the Run button is off.
+Loupe cannot see an entry that is no command, so the refusal is all that it
+knows. Put the command under that name in the rule file by hand, then run
+`loupe bridge reload`. The Run button turns on when the bridge reports the
+command. The add does not come back on this item while the same bridge is asked
+for the same name, even after you remove the other entry.
 
 When the bridge did not opt in, the reason line says so. The item shows the
 entry with a **Copy** button. Add it under `work:` in the rule file by hand,

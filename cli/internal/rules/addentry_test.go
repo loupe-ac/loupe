@@ -42,7 +42,7 @@ func reasonOf(t *testing.T, err error) string {
 func TestAddWorkEntryAppendsTheEntryAndKeepsTheRest(t *testing.T) {
 	path := writeRules(t, acceptingFile)
 
-	if _, err := AddWorkEntry(path, newEntry, Defaults{}); err != nil {
+	if _, err := AddWorkEntry(path, "loupe", newEntry, Defaults{}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -77,7 +77,7 @@ func TestAddWorkEntryCreatesTheWorkMap(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			path := writeRules(t, body)
 
-			if _, err := AddWorkEntry(path, newEntry, Defaults{}); err != nil {
+			if _, err := AddWorkEntry(path, "loupe", newEntry, Defaults{}); err != nil {
 				t.Fatal(err)
 			}
 
@@ -117,7 +117,7 @@ func TestAddWorkEntryRefusesAndLeavesTheFileAlone(t *testing.T) {
 			path := writeRules(t, tc.file)
 			before := readFile(t, path)
 
-			_, err := AddWorkEntry(path, tc.entry, Defaults{})
+			_, err := AddWorkEntry(path, "loupe", tc.entry, Defaults{})
 
 			if got := reasonOf(t, err); got != tc.reason {
 				t.Fatalf("reason = %s (%v), want %s", got, err, tc.reason)
@@ -130,7 +130,7 @@ func TestAddWorkEntryRefusesAndLeavesTheFileAlone(t *testing.T) {
 }
 
 func TestAddWorkEntryRefusesAMissingFile(t *testing.T) {
-	_, err := AddWorkEntry(t.TempDir()+"/rules.yaml", newEntry, Defaults{})
+	_, err := AddWorkEntry(t.TempDir()+"/rules.yaml", "loupe", newEntry, Defaults{})
 
 	if got := reasonOf(t, err); got != RefuseWriteFailed {
 		t.Fatalf("reason = %s (%v)", got, err)
@@ -154,7 +154,7 @@ func TestAddWorkEntryRefusesWhenTheFileChangesMeanwhile(t *testing.T) {
 	}
 	t.Cleanup(func() { readRuleFile = os.ReadFile })
 
-	_, err := AddWorkEntry(path, newEntry, Defaults{})
+	_, err := AddWorkEntry(path, "loupe", newEntry, Defaults{})
 
 	if got := reasonOf(t, err); got != RefuseFileChanged {
 		t.Fatalf("reason = %s (%v), want %s", got, err, RefuseFileChanged)
@@ -189,7 +189,7 @@ func TestAddWorkEntryChecksTheFileJustBeforeTheRename(t *testing.T) {
 	}
 	t.Cleanup(func() { readRuleFile = os.ReadFile })
 
-	_, err := AddWorkEntry(path, newEntry, Defaults{})
+	_, err := AddWorkEntry(path, "loupe", newEntry, Defaults{})
 
 	if got := reasonOf(t, err); got != RefuseFileChanged {
 		t.Fatalf("reason = %s (%v), want %s", got, err, RefuseFileChanged)
@@ -203,7 +203,7 @@ func TestAddWorkEntryChecksTheFileJustBeforeTheRename(t *testing.T) {
 // style, and changes nothing.
 func TestAddWorkEntryReportsTheSameEntryAsPresent(t *testing.T) {
 	path := writeRules(t, acceptingFile)
-	if _, err := AddWorkEntry(path, newEntry, Defaults{}); err != nil {
+	if _, err := AddWorkEntry(path, "loupe", newEntry, Defaults{}); err != nil {
 		t.Fatal(err)
 	}
 	before := readFile(t, path)
@@ -213,7 +213,7 @@ func TestAddWorkEntryReportsTheSameEntryAsPresent(t *testing.T) {
 		"flow style": "export: {action: command, description: Export it, params: {out: {pattern: 'var/[a-z-]+', description: The folder}}, run: [bin/export, '{out}'], timeout: 5m}\n",
 	} {
 		t.Run(name, func(t *testing.T) {
-			undo, err := AddWorkEntry(path, text, Defaults{})
+			undo, err := AddWorkEntry(path, "loupe", text, Defaults{})
 
 			if !errors.Is(err, ErrEntryPresent) || undo != nil {
 				t.Fatalf("err = %v, want ErrEntryPresent and no undo", err)
@@ -228,11 +228,11 @@ func TestAddWorkEntryReportsTheSameEntryAsPresent(t *testing.T) {
 // An entry of the same name with another body is still refused.
 func TestAddWorkEntryRefusesTheSameNameWithAnotherBody(t *testing.T) {
 	path := writeRules(t, acceptingFile)
-	if _, err := AddWorkEntry(path, newEntry, Defaults{}); err != nil {
+	if _, err := AddWorkEntry(path, "loupe", newEntry, Defaults{}); err != nil {
 		t.Fatal(err)
 	}
 
-	_, err := AddWorkEntry(path, strings.Replace(newEntry, "timeout: 5m", "timeout: 6m", 1), Defaults{})
+	_, err := AddWorkEntry(path, "loupe", strings.Replace(newEntry, "timeout: 5m", "timeout: 6m", 1), Defaults{})
 
 	if got := reasonOf(t, err); got != RefuseEntryExists {
 		t.Fatalf("reason = %s (%v), want %s", got, err, RefuseEntryExists)
@@ -244,7 +244,7 @@ func TestAddWorkEntryUndoRestoresTheFile(t *testing.T) {
 	path := writeRules(t, acceptingFile)
 	before := readFile(t, path)
 
-	undo, err := AddWorkEntry(path, newEntry, Defaults{})
+	undo, err := AddWorkEntry(path, "loupe", newEntry, Defaults{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -261,7 +261,7 @@ func TestAddWorkEntryUndoRestoresTheFile(t *testing.T) {
 func TestAddWorkEntryUndoKeepsALaterEdit(t *testing.T) {
 	path := writeRules(t, acceptingFile)
 
-	undo, err := AddWorkEntry(path, newEntry, Defaults{})
+	undo, err := AddWorkEntry(path, "loupe", newEntry, Defaults{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -275,5 +275,60 @@ func TestAddWorkEntryUndoKeepsALaterEdit(t *testing.T) {
 	}
 	if after := readFile(t, path); after != edited {
 		t.Fatalf("the later edit was lost:\n%s", after)
+	}
+}
+
+// The new entry goes to the shared work map, so an entry of the project would
+// hide it, and the project would still lack the command.
+func TestAddWorkEntryRefusesAnEntryThatTheProjectWouldHide(t *testing.T) {
+	project := "acceptEntries: true\n" + claudeAccount + claudeDefaults + "projects:\n  loupe:\n    dir: {dir}\n    work:\n      export:\n        prompt: x\n"
+	for name, body := range map[string]string{
+		"no shared entry":       project,
+		"the same shared entry": project + "work:\n  export:\n    action: command\n    description: Export it\n    params:\n      out: {pattern: 'var/[a-z-]+', description: The folder}\n    run: [bin/export, '{out}']\n    timeout: 5m\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			path := writeRules(t, body)
+			before := readFile(t, path)
+
+			_, err := AddWorkEntry(path, "loupe", newEntry, Defaults{})
+
+			if got := reasonOf(t, err); got != RefuseEntryExists {
+				t.Fatalf("reason = %q, err = %v", got, err)
+			}
+			if readFile(t, path) != before {
+				t.Fatal("the file changed")
+			}
+		})
+	}
+}
+
+func TestAddWorkEntryAddsForAProjectThatListsNoEntryOfTheName(t *testing.T) {
+	body := "acceptEntries: true\n" + claudeAccount + claudeDefaults + "projects:\n  loupe:\n    dir: {dir}\n  plans:\n    dir: {dir}\n    work:\n      export:\n        prompt: x\n"
+	path := writeRules(t, body)
+
+	if _, err := AddWorkEntry(path, "loupe", newEntry, Defaults{}); err != nil {
+		t.Fatal(err)
+	}
+	set, err := Parse([]byte(readFile(t, path)), Defaults{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := set.SharedWorkEntry("export"); !ok {
+		t.Fatal("the shared work map lacks the new entry")
+	}
+}
+
+func TestAddWorkEntryFindsTheSameCommandUnderTheProject(t *testing.T) {
+	body := "acceptEntries: true\n" + claudeAccount + claudeDefaults + "projects:\n  loupe:\n    dir: {dir}\n    work:\n      export:\n        action: command\n        description: Export it\n        params:\n          out: {pattern: 'var/[a-z-]+', description: The folder}\n        run: [bin/export, '{out}']\n        timeout: 5m\n"
+	path := writeRules(t, body)
+	before := readFile(t, path)
+
+	_, err := AddWorkEntry(path, "loupe", newEntry, Defaults{})
+
+	if !errors.Is(err, ErrEntryPresent) {
+		t.Fatalf("err = %v", err)
+	}
+	if readFile(t, path) != before {
+		t.Fatal("the file changed")
 	}
 }

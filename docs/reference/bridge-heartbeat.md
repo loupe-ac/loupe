@@ -77,7 +77,7 @@ The path holds no project, because one bridge follows several projects.
 | `skills` | optional. A list of at most 20 rows, one for each skill package the bridge installed for its workers. A missing or `null` value keeps the rows the server holds, and an empty list clears them |
 | `workerPools` | optional. A list of at most 50 rows, one for each worker pool of the bridge. A missing or `null` value keeps the rows the server holds, and an empty list clears them |
 | `accounts` | optional. A list of at most 50 rows, one for each account the bridge checked. A missing or `null` value keeps the rows the server holds, and an empty list clears them |
-| `commandEntries` | optional. A list of at most 50 rows, one for each command entry of the `work:` map in `rules.yaml` that the inbox can run. A missing or `null` value keeps the rows the server holds, and an empty list clears them |
+| `commandEntries` | optional. A list of at most 50 rows of the command entries in `rules.yaml` that the inbox can run, shared ones and those of a project. A missing or `null` value keeps the rows the server holds, and an empty list clears them |
 | `worktrees` | optional. A list of at most 200 rows, one for each worktree of each followed project folder. A missing or `null` value keeps the rows the server holds, and an empty list clears them |
 | `repositories` | optional. A list of at most 500 rows, one for each followed project whose folder the rule file names. A missing or `null` value keeps the rows the server holds, and an empty list clears them |
 | `paused` | optional. `true` when the bridge takes no new work now. A missing or `null` value keeps the state the server holds. See [Pause and commands](#pause-and-commands) |
@@ -176,6 +176,33 @@ Each row of `commandEntries` holds these fields:
 | `params` | required. A list of at most 20 parameters, which may be empty. Each parameter has a `name` of 1 to 100 characters, a `pattern` of 1 to 500 characters, and an optional `description` of at most 500 characters. A value must match the whole pattern |
 | `run` | required. The argv of the entry with its placeholders, a list of 1 to 50 strings of at most 1000 characters each |
 | `timeout` | required. The time limit of the entry, such as `10m`, at most 20 characters |
+| `projectId` | optional. The project of an entry under `projects.<slug>.work`, as a uuid. A missing, `null` or empty value makes the row a shared one. The server stores the uuid in lower case |
+| `exceptProjects` | optional. A list of at most 500 project uuids. These projects do not run the shared row. A missing value reads as an empty list. The server stores each uuid in lower case, once |
+
+For a project, the server picks the row of a name in this order:
+
+1. The row whose `projectId` is that project.
+2. Otherwise the first row with no `projectId` whose `exceptProjects` does not
+   hold the project.
+
+With no such row, the project has no command of that name. When a shared row of
+the name excepts the project, the inbox says that the project has its own entry
+and offers no [add](../using/inbox.md#adding-a-proposed-entry). The
+`bridge_list` tool and the project bridge API list the picked rows alone, one
+for each name. Those rows hold `name`, `description`, `params`, `run` and
+`timeout`. The account data export holds the rows as the server stores them.
+
+The CLI sends the shared rows first, in name order. The rows of each project
+follow, by project slug and name. `exceptProjects` names each project that lists
+its own entry of that name, with any action. The CLI sends no row for a project
+whose id it does not know. It sends the first 50 rows, so the cut drops project
+rows before shared rows. It logs `command_entries_cut` with the names that it
+leaves out, at start and at each reload. The server refuses a heartbeat that
+holds more than 50 rows.
+
+A CLI sends project rows only when it is released after v2.10.2. An older CLI
+sends neither key, so each of its rows is shared. Update the server before the
+CLI. An older server ignores both keys and matches rows by name alone.
 
 Each row of `worktrees` holds these fields:
 

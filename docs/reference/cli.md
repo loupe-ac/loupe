@@ -143,7 +143,7 @@ The steps, in order:
 9. Install the Playwright browser, when the repository uses Playwright.
 10. Write the repository profile with an agent, when the workflow of the project needs one and the file is missing or unfinished.
 11. Offer to start discovery, when onboarding is ready.
-12. Report what remains, and print the project link. When the Loupe GitHub App does not cover the repository of the `origin` remote, or its state is unknown, the install link comes first. When the App reaches that repository and no project holds it, the line reads `Shared with Loupe, not in this project.` and the link opens the repository picker with that repository ticked. That state needs CLI 2.6.0 and a server that has the lookup route. An older server shows the install link as before.
+12. Report what remains, and print the project link. When the Loupe GitHub App does not cover the repository of the `origin` remote, or its state is unknown, the install link comes first. When the App reaches that repository and no project holds it, the line reads `Shared with Loupe, not in this project.` and the link opens the repository picker with that repository ticked. That state needs CLI 2.6.0 and a server that has the lookup route. An older server shows the install link as before. This step also reports the bridge check of the project, as [the last lines](#the-bridge-check-in-the-last-lines) say.
 
 From the moment `loupe init` knows the project, it keeps an init run open on that project. While the run is open, the inbox opens no merge question and no notice about the repository, and it closes none that was open before. `loupe init` renews the run every minute and closes it when it ends, also on Ctrl-C. When `loupe init` ends with no error, the close also marks the init of the project as finished. A Ctrl-C or an error exit does not mark it. A run that stays quiet for five minutes closes by itself. When the server cannot hold the run, init prints `This Loupe server cannot hold the onboarding inbox items. They may appear while init runs.` and goes on. The hold and the finished mark need CLI 2.7.0 and a server that has the init run.
 
@@ -164,7 +164,7 @@ Step 11 asks `Start discovery now? It runs a worker that checks the repository a
 
 On a yes, `loupe init` starts discovery and prints `Discovery started: <link of the Workshop page>`. The run creates no card. The list of what remains arrives some minutes later, in the report, and the discovery row of the Workshop opens it. On a no, or with no terminal, nothing starts, and the last lines say `Start discovery with `loupe discovery start` when you are ready.` When a condition fails, nothing is asked. The last lines name what remains and say `Run `loupe init` again when these are done. It then offers to start discovery.`
 
-The last lines come after step 11, and they name only the steps that remain, such as fixing an account, finishing the profile, pushing the two files and restarting Claude Code. They end with the link to the project page. `loupe init` exits with an error when an account that a work entry of this project uses fails for this project. A failure in another project does not change the exit status.
+The last lines come after step 11, and they name only the steps that remain, such as fixing an account, finishing the profile, pushing the two files and restarting Claude Code. They also hold the [bridge check of the project](#the-bridge-check-in-the-last-lines). They end with the link to the project page. `loupe init` exits with an error when an account that a work entry of this project uses fails for this project. A failure in another project does not change the exit status.
 
 This ending needs the next release of the CLI after v2.1.0, and a Loupe instance that has the discovery route.
 
@@ -186,6 +186,18 @@ This ending needs the next release of the CLI after v2.1.0, and a Loupe instance
 | `--force`, `--mcp`, `--no-mcp`, `--mcp-json` | Work as they do for `loupe project link` |
 
 The project list always shows when your login covers a project, also when it covers one. Its last row creates a new project. With no terminal, `loupe init` prints the list and stops. Pass `--project <slug>` to use a project, or `--name "<name>"` to create one.
+
+### The bridge check in the last lines
+
+`loupe init` reads the rule file again at the end and checks the entries of this project. It uses the checks of [`loupe bridge check`](#loupe-bridge-check). When the rule file does not load, it adds no line, because the account check reports that. These items go into the list of what remains:
+
+- A command whose program is missing. The line names the rule file and the project folder. It also names the entry (shared or of the project), the work kind, the field and the command. A relative path with a slash must exist in the project folder. An absolute path must exist. A name with no slash must be on your `PATH`. A program that holds a placeholder or `~` is not checked.
+- A work kind that another project lists and this project does not, when `appPrompts` is off. Add a work entry for it, because a request of that kind for this project is skipped.
+- Each other [warning of the rule file](#loupe-bridge-check) about this project, such as one about an experiment. A warning about another project does not show.
+
+When a work kind that the rule file lists runs the app prompt for this project, one line that starts with `Note:` follows the list. It names each such kind, and that app prompt runs no `before` command. A kind that the rule file does not list at all gets no mention. The line also names the setup scripts that the repository holds. A setup script is a file in `bin`, `bin/worktrees` or `scripts` of the project folder whose name holds `setup`.
+
+These lines do not stop discovery, and they do not change the exit status. They need the next release of the CLI after v2.10.2.
 
 ### The folder question
 
@@ -565,16 +577,24 @@ The command exits with status 1 when the file does not load, and 0 otherwise.
 
 ## `loupe bridge check --project`
 
-`loupe bridge check --project <slug> --json` prints one JSON object for a project, from the machine of the bridge. Discovery reads it. The slug is the key of the project in the rule file. Both flags go together. The command makes no network call, and it needs the next release of the CLI after v2.1.0.
+`loupe bridge check --project <slug> --json` prints one JSON object for a project, from the machine of the bridge. Discovery reads it. The slug is the key of the project in the rule file. Both flags go together. The command makes no network call, and it needs the next release of the CLI after v2.1.0. The `app-prompt` action needs the next release after v2.10.2.
 
 | Field | Meaning |
 |---|---|
 | `project`, `dir`, `dirExists`, `rules` | The slug, its folder, whether the folder exists, and the rule file |
-| `kinds[].kind`, `source`, `action` | A work kind that the bridge advertises. `source` is `project`, `shared` or `none`. `action` is `worker`, `interactive` or `command`, or `missing` for a kind that another project lists and this project does not. A missing kind has `source` `none` and no commands |
+| `kinds[].kind`, `source`, `action` | A work kind that the bridge advertises. `source` is `project`, `shared`, `app` or `none`. `action` is `worker`, `interactive`, `command`, `app-prompt` or `missing`. The last two are for a kind that another project lists and this project does not, as the text below says |
 | `kinds[].account`, `harness` | The account and the harness of an agent entry |
 | `kinds[].commands[]` | One item for each `before`, `refresh`, `reset` and `run` command, with `field`, `argv`, `checked`, `resolved` and `exists` |
 | `accounts[].name`, `harness`, `configDir`, `configDirExists` | An account that a kind uses, and its configuration folder. `configDir` is empty for the default folder |
 | `accounts[].mcpServers`, `mcpError` | The names of the MCP servers that the account config and the `.mcp.json` of the project declare, and the reason when a file cannot be read. A server that the config turns off is left out: a Codex table with `enabled = false`, or a name in `disabledMcpServers` or `disabledMcpjsonServers` of the project in `.claude.json` |
+
+A kind has `source` `app` and `action` `app-prompt` when the rule file has `appPrompts: true`. It has `source` `none` and `action` `missing` when the file does not. CLI v2.10.2 and older report `missing` in both cases. An `app-prompt` row and a `missing` row have no `account`, no `harness` and no commands.
+
+An `app-prompt` row does not say that every request of the kind runs:
+
+- The bridge runs the prompt that the request carries. It skips a request with no prompt or with a prompt that is not valid.
+- An app prompt opens no interactive session. The bridge skips a request that has the `interactive` capability. A `session` request can run its prompt as an unattended worker, so give the project a `session` entry.
+- An app prompt runs on the account of `defaults.account`. Loupe refuses the claim when entries or experiment variants of the kind, in any project of the rule file, use only other accounts.
 
 `checked` is false for a command with a placeholder or a `~`, which the command does not resolve. A path with a slash resolves in the project folder, and a bare name resolves on `PATH`. For Claude Code, the servers come from `.claude.json` and the `.mcp.json` of the project. For Codex, they come from the `[mcp_servers.<name>]` tables of `config.toml` and of the profile file. A server that a plugin brings is not listed.
 

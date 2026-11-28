@@ -633,6 +633,24 @@ final class InboxAskToolTest extends KernelTestCase
         ]], $this->storedSuggestions($result));
     }
 
+    public function test_a_run_command_suggestion_is_checked_by_the_entry_row_of_the_project(): void
+    {
+        $this->enableInbox();
+        $project = $this->makeProject('inbox-ask-run-command-project');
+        $this->actAsMcpTokenBoundTo($project);
+        $bridge = $this->bridgeWithEntry($project->owner, $project);
+        $shared = ($bridge->commandEntries ?? [])[0] ?? throw new \LogicException('The bridge holds one entry.');
+        $own = ['params' => [['name' => 'filter', 'pattern' => '[0-9]+', 'description' => null]], 'projectId' => (string) $project->id] + $shared;
+        $bridge->commandEntries = [$shared + ['projectId' => null, 'exceptProjects' => [(string) $project->id]], $own];
+        $this->em->flush();
+
+        $this->askTodo($bridge, ['action' => 'run-command', 'reason' => 'Run', 'command' => ['entry' => 'test', 'params' => ['filter' => '42']]]);
+
+        $this->expectException(ToolCallException::class);
+        $this->expectExceptionMessage('each value must match the pattern of its param whole');
+        $this->askTodo($bridge, ['action' => 'run-command', 'reason' => 'Run', 'command' => ['entry' => 'test', 'params' => ['filter' => 'abc']]]);
+    }
+
     public function test_a_run_command_suggestion_keeps_its_proposed_entry_and_is_checked_by_it_without_a_bridge_entry(): void
     {
         $this->enableInbox();

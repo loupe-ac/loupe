@@ -11502,8 +11502,8 @@ components:
           description: True when the bridge adds a proposed command entry to its rule file after the owner confirms.
           type: boolean
         commandEntries:
-          description: 'Each command entry the bridge can run, as its last heartbeat reported them: `name`, `description`, `params`,
-            `run` and `timeout`. Null when it reported none.'
+          description: 'The command entries that run for this project, one for each name, as the last heartbeat reported
+            them: `name`, `description`, `params`, `run` and `timeout`. Null when the bridge reported no list.'
           type: array
           items:
             type: object
