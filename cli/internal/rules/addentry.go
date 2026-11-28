@@ -39,15 +39,10 @@ func refuseEntry(reason string, format string, args ...any) *EntryRefusal {
 }
 
 // AddWorkEntry adds one command entry to the work map of the rule file at
-// path, for a request of the project slug. The text is a YAML mapping with one
-// key, the entry name. The file must set acceptEntries, and the project must
-// list no entry of that name, which would hide the new one. The bridge
-// rewrites the whole file from its parsed tree, so comments and layout can
-// change. The file stays unchanged when the function returns an error, and the
-// result must pass the checks of Parse with defaults. The file must also hold
-// the bytes the function read when it replaces them, so an edit made meanwhile
-// stays. On success, undo puts the old bytes back, unless the file changed
-// since the write.
+// path, for a request of the project slug. The file stays unchanged on an
+// error, and an edit made meanwhile stays. The bridge rewrites the whole file,
+// so comments and layout can change. On success, undo puts the old bytes back,
+// unless the file changed since the write.
 func AddWorkEntry(path, slug, entryYAML string, defaults Defaults) (undo func() error, err error) {
 	if resolved, err := filepath.EvalSymlinks(path); err == nil {
 		path = resolved
@@ -69,16 +64,20 @@ func AddWorkEntry(path, slug, entryYAML string, defaults Defaults) (undo func() 
 		return nil, err
 	}
 
-	if _, hidden := f.Projects[slug].Work[name]; hidden {
-		return nil, refuseEntry(RefuseEntryExists, "project %q lists its own entry %q, which would hide a shared one", slug, name)
-	}
-
 	var doc yaml.Node
 	if err := yaml.Unmarshal(data, &doc); err != nil {
 		return nil, refuseEntry(RefuseWriteFailed, "parse rule file: %w", err)
 	}
 	if doc.Kind != yaml.DocumentNode || len(doc.Content) != 1 || doc.Content[0].Kind != yaml.MappingNode {
 		return nil, refuseEntry(RefuseWriteFailed, "parse rule file: the first YAML document is not a mapping, so the bridge cannot edit it")
+	}
+	// The own entry of a project hides a shared one of its name.
+	if _, hidden := f.Projects[slug].Work[name]; hidden {
+		if own := nodeAt(doc.Content[0], "projects", slug, "work", name); own != nil && sameNode(own, entry) {
+			return nil, ErrEntryPresent
+		}
+
+		return nil, refuseEntry(RefuseEntryExists, "project %q lists its own entry %q, which would hide a shared one", slug, name)
 	}
 	work := workNode(doc.Content[0])
 	for i := 0; i+1 < len(work.Content); i += 2 {
@@ -156,6 +155,25 @@ func sameNode(a, b *yaml.Node) bool {
 	}
 
 	return reflect.DeepEqual(av, bv)
+}
+
+// nodeAt follows the keys through the mappings under n, and returns nil when
+// one is missing.
+func nodeAt(n *yaml.Node, keys ...string) *yaml.Node {
+	for _, key := range keys {
+		var next *yaml.Node
+		for i := 0; n.Kind == yaml.MappingNode && i+1 < len(n.Content); i += 2 {
+			if n.Content[i].Value == key {
+				next = n.Content[i+1]
+			}
+		}
+		if next == nil {
+			return nil
+		}
+		n = next
+	}
+
+	return n
 }
 
 // workNode returns the work mapping of the top-level node, and makes it when

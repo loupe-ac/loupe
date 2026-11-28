@@ -309,4 +309,26 @@ func TestAddWorkEntryAddsForAProjectThatListsNoEntryOfTheName(t *testing.T) {
 	if _, err := AddWorkEntry(path, "loupe", newEntry, Defaults{}); err != nil {
 		t.Fatal(err)
 	}
+	set, err := Parse([]byte(readFile(t, path)), Defaults{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := set.SharedWorkEntry("export"); !ok {
+		t.Fatal("the shared work map lacks the new entry")
+	}
+}
+
+func TestAddWorkEntryFindsTheSameCommandUnderTheProject(t *testing.T) {
+	body := "acceptEntries: true\n" + claudeAccount + claudeDefaults + "projects:\n  loupe:\n    dir: {dir}\n    work:\n      export:\n        action: command\n        description: Export it\n        params:\n          out: {pattern: 'var/[a-z-]+', description: The folder}\n        run: [bin/export, '{out}']\n        timeout: 5m\n"
+	path := writeRules(t, body)
+	before := readFile(t, path)
+
+	_, err := AddWorkEntry(path, "loupe", newEntry, Defaults{})
+
+	if !errors.Is(err, ErrEntryPresent) {
+		t.Fatalf("err = %v", err)
+	}
+	if readFile(t, path) != before {
+		t.Fatal("the file changed")
+	}
 }

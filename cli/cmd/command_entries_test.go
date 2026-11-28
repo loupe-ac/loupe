@@ -163,7 +163,7 @@ func sharedCommands(n int) string {
 	return b.String()
 }
 
-func TestACutDropsProjectRowsAndTheBridgeLogsIt(t *testing.T) {
+func TestACutDropsProjectRowsAndTheWarningNamesThem(t *testing.T) {
 	// build and 48 more shared rows leave room for one of the two project rows.
 	set := resolved(t, layeredSet(t, sharedCommands(api.MaxCommandEntries-2)), map[string]string{"loupe": loupeID, "plans": plansID})
 
